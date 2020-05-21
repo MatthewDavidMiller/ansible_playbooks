@@ -56,7 +56,7 @@ function install_vpn_server_packages() {
 
     apt-get update
     apt-get upgrade
-    apt-get install -y "wget vim git ufw ntp ssh apt-transport-https openssh-server unattended-upgrades qrencode linux-headers-$(uname -r)"
+    apt-get install -y wget vim git ufw ntp ssh apt-transport-https openssh-server unattended-upgrades qrencode "linux-headers-$(uname -r)"
     apt-get -t ${release_name}-backports install -y wireguard
 }
 
