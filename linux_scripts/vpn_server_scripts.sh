@@ -241,7 +241,6 @@ function add_wireguard_peer() {
     local user_name=${2}
     local server_key_name=${3}
     local ip_address=${4}
-    local preshared_key=${5}
 
     local public_key
     public_key=$(cat "/home/${user_name}/.wireguard_keys/${server_key_name}.pub")
@@ -250,7 +249,6 @@ function add_wireguard_peer() {
 # ${server_key_name}
 [Peer]
 PublicKey = ${public_key}
-PresharedKey = ${preshared_key}
 AllowedIPs = ${ip_address}/32
 
 EOF
@@ -263,10 +261,9 @@ function wireguard_create_client_config() {
     local client_key_name=${3}
     local server_key_name=${4}
     local ip_address=${5}
-    local preshared_key=${6}
-    local dns_server=${7}
-    local public_dns_ip_address=${8}
-    local listen_port=${9}
+    local dns_server=${6}
+    local public_dns_ip_address=${7}
+    local listen_port=${8}
 
     local private_key
     private_key=$(cat "/home/${user_name}/.wireguard_keys/${client_key_name}")
@@ -282,7 +279,6 @@ DNS = ${dns_server}
 
 [Peer]
 PublicKey = ${public_key}
-PresharedKey = ${preshared_key}
 AllowedIPs = 0.0.0.0/0, ::/0
 Endpoint = ${public_dns_ip_address}:${listen_port}
 EOF
