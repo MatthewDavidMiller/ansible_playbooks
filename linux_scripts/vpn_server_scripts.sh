@@ -33,6 +33,7 @@ function configure_network() {
 auto lo
 iface lo inet loopback
 
+auto ${interface}
 iface ${interface} inet static
     address ${ip_address}
     network ${network_address}
