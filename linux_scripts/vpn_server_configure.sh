@@ -34,7 +34,7 @@ wireguard_public_dns_ip_address='mattm.mooo.com'
 
 # Prompts
 read -r -p "Generate more than one wireguard client configs? [y/N] " wireguard_clients_response
-read -r -p "Enter wireguard client password: [y/N] " wireguard_client_password
+read -r -p "Enter wireguard client password: " wireguard_client_password
 
 # Call functions
 lock_root
@@ -58,9 +58,9 @@ add_wireguard_peer "${wireguard_interface}" "${user_name}" "${wireguard_server_v
 wireguard_create_client_config "${wireguard_interface}" "${user_name}" "${wireguard_client_key_name}" "${wireguard_server_vpn_key_name}" "${wireguard_client_ip_address}" "${wireguard_client_password}" "${wireguard_dns_server}" "${wireguard_public_dns_ip_address}" "${wireguard_server_listen_port}"
 
 while [[ "${wireguard_clients_response}" =~ ^([yY][eE][sS]|[yY])+$ ]]; do
-    read -r -p "Enter wireguard client name: [y/N] " wireguard_client_key_name
-    read -r -p "Enter wireguard client ip address: [y/N] " wireguard_client_ip_address
-    read -r -p "Enter wireguard client password: [y/N] " wireguard_client_password
+    read -r -p "Enter wireguard client name: " wireguard_client_key_name
+    read -r -p "Enter wireguard client ip address: " wireguard_client_ip_address
+    read -r -p "Enter wireguard client password: " wireguard_client_password
     generate_wireguard_key "${user_name}" "${wireguard_client_key_name}"
     add_wireguard_peer "${wireguard_interface}" "${user_name}" "${wireguard_server_vpn_key_name}" "${wireguard_client_ip_address}" "${wireguard_client_password}"
     wireguard_create_client_config "${wireguard_interface}" "${user_name}" "${wireguard_client_key_name}" "${wireguard_server_vpn_key_name}" "${wireguard_client_ip_address}" "${wireguard_client_password}" "${wireguard_dns_server}" "${wireguard_public_dns_ip_address}" "${wireguard_server_listen_port}"
