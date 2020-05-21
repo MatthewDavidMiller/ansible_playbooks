@@ -54,7 +54,8 @@ function install_vpn_server_packages() {
     # Parameters
     local release_name=${1}
 
-    local linux_headers="linux-headers-$(uname -r)"
+    local linux_headers
+    linux_headers="linux-headers-$(uname -r)"
 
     apt-get update
     apt-get upgrade
