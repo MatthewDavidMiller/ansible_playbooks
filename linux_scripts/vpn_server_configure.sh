@@ -6,21 +6,10 @@
 # Configuration script for the VPN server.
 
 # Get needed scripts
-wget -O 'linux_scripts.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/scripts/stable/linux_scripts/linux_scripts.sh'
-wget -O 'vpn_server_scripts.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/scripts/stable/linux_scripts/vpn_server_scripts.sh'
-wget -O 'linux_install_scripts.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/scripts/stable/linux_scripts/linux_install_scripts.sh'
-wget -O 'ssh_scripts.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/scripts/stable/linux_scripts/ssh_scripts.sh'
-wget -O 'ufw_scripts.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/scripts/stable/linux_scripts/ufw_scripts.sh'
+wget -O 'vpn_server_scripts.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/VPN-Server-Configuration/stable/linux_scripts/vpn_server_scripts.sh'
 
 # Source functions
-source linux_scripts.sh
 source vpn_server_scripts.sh
-source linux_install_scripts.sh
-source ssh_scripts.sh
-source ufw_scripts.sh
-
-# Prompts
-read -r -p "Generate more than one wireguard client configs? [y/N] " wireguard_clients_response
 
 # Default variables
 release_name='buster'
@@ -32,16 +21,7 @@ gateway_address='10.1.10.1'
 dns_address='1.1.1.1'
 network_prefix='10.0.0.0/8'
 limit_ssh='y'
-allow_dns='n'
-allow_unbound='n'
-allow_http='n'
-allow_https='n'
-allow_port_4711_tcp='n'
-allow_smb='n'
-allow_netbios='n'
 limit_port_64640='y'
-allow_port_8006='n'
-allow_omada_controller='n'
 wireguard_interface='wg0'
 wireguard_server_ip_address='10.3.0.1'
 wireguard_server_vpn_key_name='wireguard_vpn_server'
@@ -51,6 +31,10 @@ wireguard_client_ip_address='10.3.0.2'
 wireguard_client_password=''
 wireguard_dns_server='10.1.10.5'
 wireguard_public_dns_ip_address='mattm.mooo.com'
+
+# Prompts
+read -r -p "Generate more than one wireguard client configs? [y/N] " wireguard_clients_response
+read -r -p "Enter wireguard client password: [y/N] " wireguard_client_password
 
 # Call functions
 lock_root
@@ -62,7 +46,7 @@ install_vpn_server_packages
 configure_ssh
 generate_ssh_key "${user_name}" "y" "n" "n" "${key_name}"
 configure_ufw_base
-ufw_configure_rules "${network_prefix}" "${limit_ssh}" "${allow_dns}" "${allow_unbound}" "${allow_http}" "${allow_https}" "${allow_port_4711_tcp}" "${allow_smb}" "${allow_netbios}" "${limit_port_64640}" "${allow_port_8006}" "${allow_omada_controller}"
+ufw_configure_rules "${network_prefix}" "${limit_ssh}" "${limit_port_64640}"
 ufw_allow_default_forward
 ufw_allow_ip_forwarding
 configure_vpn_scripts
