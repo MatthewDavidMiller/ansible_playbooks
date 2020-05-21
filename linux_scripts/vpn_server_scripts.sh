@@ -54,9 +54,11 @@ function install_vpn_server_packages() {
     # Parameters
     local release_name=${1}
 
+    local linux_headers="linux-headers-$(uname -r)"
+
     apt-get update
     apt-get upgrade
-    apt-get install -y wget vim git ufw ntp ssh apt-transport-https openssh-server unattended-upgrades qrencode "linux-headers-$(uname -r)"
+    apt-get install -y wget vim git ufw ntp ssh apt-transport-https openssh-server unattended-upgrades qrencode ${linux_headers}
     apt-get -t "${release_name}-backports" install -y wireguard
 }
 
