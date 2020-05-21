@@ -51,9 +51,13 @@ function fix_apt_packages() {
 }
 
 function install_vpn_server_packages() {
+    # Parameters
+    local release_name=${1}
+
     apt-get update
     apt-get upgrade
-    apt-get install -y wget vim git ufw ntp ssh apt-transport-https openssh-server unattended-upgrades wireguard
+    apt-get install -y wget vim git ufw ntp ssh apt-transport-https openssh-server unattended-upgrades
+    apt-get -t ${release_name}-backports install -y wireguard
 }
 
 function configure_ssh() {
@@ -152,8 +156,10 @@ function ufw_allow_ip_forwarding() {
 }
 
 function configure_vpn_scripts() {
-    # Enter code for dynamic dns
-    read -r -p "Enter code for dynamic dns: " dynamic_dns
+    # Parameters
+    dynamic_dns=${1}
+    release_name=${2}
+
     # Script to get emails on openvpn connections
     #wget 'https://raw.githubusercontent.com/MatthewDavidMiller/scripts/stable/linux_scripts/email_on_vpn_connections.sh'
     #mv 'email_on_vpn_connections.sh' '/usr/local/bin/email_on_vpn_connections.sh'
@@ -169,7 +175,7 @@ function configure_vpn_scripts() {
 
     # Configure cron jobs
     cat <<EOF >jobs.cron
-#@reboot apt-get update && apt-get install -y openvpn &
+@reboot apt-get update && apt-get -t ${release_name}-backports install -y wireguard &
 * 0 * * 1 bash /usr/local/bin/backup_configs.sh &
 #@reboot nohup bash /usr/local/bin/email_on_vpn_connections.sh &
 3,8,13,18,23,28,33,38,43,48,53,58 * * * * sleep 29 ; wget --no-check-certificate -O - https://freedns.afraid.org/dynamic/update.php?${dynamic_dns} >> /tmp/freedns_mattm_mooo_com.log 2>&1 &
@@ -313,4 +319,14 @@ function enable_wireguard_service() {
 
     systemctl start "wg-quick@${interface}.service"
     systemctl enable "wg-quick@${interface}.service"
+}
+
+function add_backports_repository() {
+    # Parameters
+    local release_name=${1}
+
+    cat <<EOF >>'/etc/apt/sources.list'
+deb https://mirrors.wikimedia.org/debian/ ${release_name}-backports main
+deb-src https://mirrors.wikimedia.org/debian/ ${release_name}-backports main
+EOF
 }

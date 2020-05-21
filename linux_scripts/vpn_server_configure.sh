@@ -35,21 +35,23 @@ wireguard_public_dns_ip_address='mattm.mooo.com'
 # Prompts
 read -r -p "Generate more than one wireguard client configs? [y/N] " wireguard_clients_response
 read -r -p "Enter wireguard client password: " wireguard_client_password
+read -r -p "Enter code for dynamic dns: " dynamic_dns
 
 # Call functions
+add_backports_repository "${release_name}"
 lock_root
 get_username
 get_interface_name
 configure_network "${ip_address}" "${network_address}" "${subnet_mask}" "${gateway_address}" "${dns_address}" "${interface}"
 fix_apt_packages
-install_vpn_server_packages
+install_vpn_server_packages "${release_name}"
 configure_ssh
 generate_ssh_key "${user_name}" "y" "n" "n" "${key_name}"
 configure_ufw_base
 ufw_configure_rules "${network_prefix}" "${limit_ssh}" "${limit_port_64640}"
 ufw_allow_default_forward
 ufw_allow_ip_forwarding
-configure_vpn_scripts
+configure_vpn_scripts "${dynamic_dns}" "${release_name}"
 setup_basic_wireguard_interface "${wireguard_interface}" "${wireguard_server_ip_address}"
 generate_wireguard_key "${user_name}" "${wireguard_server_vpn_key_name}"
 configure_wireguard_server_base "${wireguard_interface}" "${user_name}" "${wireguard_server_vpn_key_name}" "${wireguard_server_ip_address}" "${wireguard_server_listen_port}"
