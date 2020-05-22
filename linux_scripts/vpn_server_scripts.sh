@@ -60,7 +60,7 @@ function install_vpn_server_packages() {
 
     apt-get update
     apt-get upgrade
-    apt-get install -y wget vim git ufw ntp ssh apt-transport-https openssh-server unattended-upgrades qrencode ${linux_headers}
+    apt-get install -y wget vim git iptables iptables-persistent ntp ssh apt-transport-https openssh-server unattended-upgrades qrencode ${linux_headers}
     apt-get -t "${release_name}-backports" install -y wireguard
 }
 
@@ -217,20 +217,23 @@ function generate_wireguard_key() {
 
 function configure_wireguard_server_base() {
     # Parameters
-    local interface=${1}
+    local wireguard_interface=${1}
     local user_name=${2}
     local server_key_name=${3}
     local ip_address=${4}
     local listen_port=${5}
+    local network_interface=${6}
 
     local private_key
     private_key=$(cat "/home/${user_name}/.wireguard_keys/${server_key_name}")
 
-    cat <<EOF >"/etc/wireguard/${interface}.conf"
+    cat <<EOF >"/etc/wireguard/${wireguard_interface}.conf"
 [Interface]
 Address = ${ip_address}/24
 ListenPort = ${listen_port}
 PrivateKey = ${private_key}
+PostUp = iptables -t nat -A POSTROUTING -o ${network_interface} -j MASQUERADE; ip6tables -t nat -A POSTROUTING -o ${network_interface} -j MASQUERADE
+PostDown = iptables -t nat -D POSTROUTING -o ${network_interface} -j MASQUERADE; ip6tables -t nat -D POSTROUTING -o ${network_interface} -j MASQUERADE
 
 EOF
 
@@ -329,4 +332,85 @@ function add_backports_repository() {
 deb https://mirrors.wikimedia.org/debian/ ${release_name}-backports main
 deb-src https://mirrors.wikimedia.org/debian/ ${release_name}-backports main
 EOF
+}
+
+function iptables_setup_base() {
+    # Parameters
+    interface=${1}
+    network_prefix-${2}
+
+    # Allow established connections
+    iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+
+    # Save rules
+    iptables-save >/etc/iptables/rules.v4
+    ip6tables-save >/etc/iptables/rules.v6
+
+}
+
+function iptables_set_defaults() {
+    # Drop inbound by default
+    iptables -P INPUT DROP
+
+    # Allow outbound by default
+    iptables -P OUTPUT ACCEPT
+
+    # Drop forwarding by default
+    iptables -P FORWARD DROP
+
+    # Save rules
+    iptables-save >/etc/iptables/rules.v4
+    ip6tables-save >/etc/iptables/rules.v6
+
+}
+
+function iptables_allow_ssh() {
+    # Parameters
+    source=${1}
+    destination=${2}
+
+    # Allow ssh from a source and destination
+    iptables -A INPUT -p tcp --dport 22 -s ${source} -d ${destination} -j ACCEPT
+
+    # Log new connection ips and add them to a list called SSH
+    iptables -A INPUT -p tcp --dport 22 -m state --state NEW -m recent --set --name SSH
+
+    # Log ssh connections from an ip to 6 connections in 60 seconds.
+    iptables -A INPUT -p tcp --dport 22 -m state --state NEW -m recent --update --seconds 60 --hitcount 6 --rttl --name SSH -j LOG --log-level info --log-prefix "Limit SSH"
+
+    # Limit ssh connections from an ip to 6 connections in 60 seconds.
+    iptables -A INPUT -p tcp --dport 22 -m state --state NEW -m recent --update --seconds 60 --hitcount 6 --rttl --name SSH -j DROP
+
+    # Save rules
+    iptables-save >/etc/iptables/rules.v4
+    ip6tables-save >/etc/iptables/rules.v6
+
+}
+
+function iptables_allow_vpn_port() {
+    # Parameters
+    destination=${1}
+    vpn_port=${2}
+
+    # Allow vpn port to a destination
+    iptables -A INPUT -p udp --dport ${vpn_port} -d ${destination} -j ACCEPT
+
+    # Log new connection ips and add them to a list called Wireguard
+    iptables -A INPUT -p udp --dport ${vpn_port} -m state --state NEW -m recent --set --name Wireguard
+
+    # Log vpn connections from an ip to 3 connections in 60 seconds.
+    iptables -A INPUT -p udp --dport ${vpn_port} -m state --state NEW -m recent --update --seconds 60 --hitcount 3 --rttl --name Wireguard -j LOG --log-level info --log-prefix "Limit Wireguard"
+
+    # Limit vpn connections from an ip to 3 connections in 60 seconds.
+    iptables -A INPUT -p udp --dport ${vpn_port} -m state --state NEW -m recent --update --seconds 60 --hitcount 3 --rttl --name Wireguard -j DROP
+
+    # Save rules
+    iptables-save >/etc/iptables/rules.v4
+    ip6tables-save >/etc/iptables/rules.v6
+
+}
+
+function iptables_allow_forwarding() {
+    grep -q ".*net\.ipv4\.ip_forward=" '/etc/sysctl.conf' && sed -i "s,.*net\.ipv4\.ip_forward=.*,net.ipv4.ip_forward=1," '/etc/sysctl.conf' || printf '%s\n' 'net.ipv4.ip_forward=1' >>'/etc/sysctl.conf'
+    grep -q ".*net\.ipv6\.conf\.all\.forwarding=" '/etc/sysctl.conf' && sed -i "s,.*net\.ipv6\.conf\.all\.forwarding=.*,net.ipv6.conf.all.forwarding=1," '/etc/sysctl.conf' || printf '%s\n' 'net.ipv6.conf.all.forwarding=1' >>'/etc/sysctl.conf'
 }

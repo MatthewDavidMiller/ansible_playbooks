@@ -20,8 +20,6 @@ subnet_mask='255.255.255.0'
 gateway_address='10.1.10.1'
 dns_address='1.1.1.1'
 network_prefix='10.0.0.0/8'
-limit_ssh='y'
-limit_port_64640='y'
 wireguard_interface='wg0'
 wireguard_server_ip_address='10.3.0.1'
 wireguard_server_vpn_key_name='wireguard_vpn_server'
@@ -45,14 +43,10 @@ fix_apt_packages
 install_vpn_server_packages "${release_name}"
 configure_ssh
 generate_ssh_key "${user_name}" "y" "n" "n" "${key_name}"
-configure_ufw_base
-ufw_configure_rules "${network_prefix}" "${limit_ssh}" "${limit_port_64640}"
-ufw_allow_default_forward
-ufw_allow_ip_forwarding
 configure_vpn_scripts "${dynamic_dns}" "${release_name}"
 setup_basic_wireguard_interface "${wireguard_interface}" "${wireguard_server_ip_address}"
 generate_wireguard_key "${user_name}" "${wireguard_server_vpn_key_name}"
-configure_wireguard_server_base "${wireguard_interface}" "${user_name}" "${wireguard_server_vpn_key_name}" "${wireguard_server_ip_address}" "${wireguard_server_listen_port}"
+configure_wireguard_server_base "${wireguard_interface}" "${user_name}" "${wireguard_server_vpn_key_name}" "${wireguard_server_ip_address}" "${wireguard_server_listen_port}" "${interface}"
 generate_wireguard_key "${user_name}" "${wireguard_client_key_name}"
 add_wireguard_peer "${wireguard_interface}" "${user_name}" "${wireguard_server_vpn_key_name}" "${wireguard_client_ip_address}"
 wireguard_create_client_config "${wireguard_interface}" "${user_name}" "${wireguard_client_key_name}" "${wireguard_server_vpn_key_name}" "${wireguard_client_ip_address}" "${wireguard_dns_server}" "${wireguard_public_dns_ip_address}" "${wireguard_server_listen_port}"
@@ -71,5 +65,9 @@ while [[ "${wireguard_clients_response}" =~ ^([yY][eE][sS]|[yY])+$ ]]; do
 done
 
 apt_configure_auto_updates "${release_name}"
-enable_ufw
+iptables_setup_base "${interface}" "${network_prefix}"
+iptables_allow_ssh "${network_prefix}" "${ip_address}"
+iptables_set_defaults
+iptables_allow_vpn_port "${ip_address}" "${wireguard_server_listen_port}"
+iptables_allow_forwarding
 enable_wireguard_service "${wireguard_interface}"
