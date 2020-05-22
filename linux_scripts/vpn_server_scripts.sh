@@ -223,6 +223,7 @@ function configure_wireguard_server_base() {
     local ip_address=${4}
     local listen_port=${5}
     local network_interface=${6}
+    local vpn_network_prefix=${7}
 
     local private_key
     private_key=$(cat "/home/${user_name}/.wireguard_keys/${server_key_name}")
@@ -232,9 +233,8 @@ function configure_wireguard_server_base() {
 Address = ${ip_address}/24
 ListenPort = ${listen_port}
 PrivateKey = ${private_key}
-PostUp = iptables -t nat -A POSTROUTING -o ${network_interface} -j MASQUERADE; ip6tables -t nat -A POSTROUTING -o ${network_interface} -j MASQUERADE
-PostDown = iptables -t nat -D POSTROUTING -o ${network_interface} -j MASQUERADE; ip6tables -t nat -D POSTROUTING -o ${network_interface} -j MASQUERADE
-
+PostUp = iptables -A FORWARD -d "${vpn_network_prefix}" -i "${network_interface}" -o "${wireguard_interface}" -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT; iptables -A FORWARD -s "${vpn_network_prefix}" -i "${wireguard_interface}" -o "${network_interface}" -j ACCEPT; iptables -t nat -I POSTROUTING -s "${vpn_network_prefix}" -o "${network_interface}" -j MASQUERADE
+PostDown = iptables -A FORWARD -d "${vpn_network_prefix}" -i "${network_interface}" -o "${wireguard_interface}" -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT; iptables -A FORWARD -s "${vpn_network_prefix}" -i "${wireguard_interface}" -o "${network_interface}" -j ACCEPT; iptables -t nat -I POSTROUTING -s "${vpn_network_prefix}" -o "${network_interface}" -j MASQUERADE
 EOF
 
 }
