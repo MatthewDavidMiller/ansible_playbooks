@@ -243,14 +243,14 @@ function add_wireguard_peer() {
     # Parameters
     local interface=${1}
     local user_name=${2}
-    local server_key_name=${3}
+    local client_key_name=${3}
     local ip_address=${4}
 
     local public_key
-    public_key=$(cat "/home/${user_name}/.wireguard_keys/${server_key_name}.pub")
+    public_key=$(cat "/home/${user_name}/.wireguard_keys/${client_key_name}.pub")
 
     cat <<EOF >>"/etc/wireguard/${interface}.conf"
-# ${server_key_name}
+# ${client_key_name}
 [Peer]
 PublicKey = ${public_key}
 AllowedIPs = ${ip_address}/32
@@ -341,6 +341,7 @@ function iptables_setup_base() {
 
     # Allow established connections
     iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+    ip6tables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 
     # Save rules
     iptables-save >/etc/iptables/rules.v4
@@ -351,13 +352,15 @@ function iptables_setup_base() {
 function iptables_set_defaults() {
     # Drop inbound by default
     iptables -P INPUT DROP
+    ip6tables -P INPUT DROP
 
     # Allow outbound by default
     iptables -P OUTPUT ACCEPT
+    ip6tables -P OUTPUT ACCEPT
 
     # Drop forwarding by default
     iptables -P FORWARD DROP
-
+    ip6tables -P FORWARD DROP
     # Save rules
     iptables-save >/etc/iptables/rules.v4
     ip6tables-save >/etc/iptables/rules.v6

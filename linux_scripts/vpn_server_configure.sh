@@ -48,14 +48,14 @@ setup_basic_wireguard_interface "${wireguard_interface}" "${wireguard_server_ip_
 generate_wireguard_key "${user_name}" "${wireguard_server_vpn_key_name}"
 configure_wireguard_server_base "${wireguard_interface}" "${user_name}" "${wireguard_server_vpn_key_name}" "${wireguard_server_ip_address}" "${wireguard_server_listen_port}" "${interface}"
 generate_wireguard_key "${user_name}" "${wireguard_client_key_name}"
-add_wireguard_peer "${wireguard_interface}" "${user_name}" "${wireguard_server_vpn_key_name}" "${wireguard_client_ip_address}"
+add_wireguard_peer "${wireguard_interface}" "${user_name}" "${wireguard_client_key_name}" "${wireguard_client_ip_address}"
 wireguard_create_client_config "${wireguard_interface}" "${user_name}" "${wireguard_client_key_name}" "${wireguard_server_vpn_key_name}" "${wireguard_client_ip_address}" "${wireguard_dns_server}" "${wireguard_public_dns_ip_address}" "${wireguard_server_listen_port}"
 
 while [[ "${wireguard_clients_response}" =~ ^([yY][eE][sS]|[yY])+$ ]]; do
     read -r -p "Enter wireguard client name: " wireguard_client_key_name
     read -r -p "Enter wireguard client ip address: " wireguard_client_ip_address
     generate_wireguard_key "${user_name}" "${wireguard_client_key_name}"
-    add_wireguard_peer "${wireguard_interface}" "${user_name}" "${wireguard_server_vpn_key_name}" "${wireguard_client_ip_address}"
+    add_wireguard_peer "${wireguard_interface}" "${user_name}" "${wireguard_client_key_name}" "${wireguard_client_ip_address}"
     wireguard_create_client_config "${wireguard_interface}" "${user_name}" "${wireguard_client_key_name}" "${wireguard_server_vpn_key_name}" "${wireguard_client_ip_address}" "${wireguard_dns_server}" "${wireguard_public_dns_ip_address}" "${wireguard_server_listen_port}"
     read -r -p "Add another wireguard client? [y/N] " wireguard_clients_loop_response
 
