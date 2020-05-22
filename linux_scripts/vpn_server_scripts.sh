@@ -260,14 +260,13 @@ EOF
 
 function wireguard_create_client_config() {
     # Parameters
-    local interface=${1}
-    local user_name=${2}
-    local client_key_name=${3}
-    local server_key_name=${4}
-    local ip_address=${5}
-    local dns_server=${6}
-    local public_dns_ip_address=${7}
-    local listen_port=${8}
+    local user_name=${1}
+    local client_key_name=${2}
+    local server_key_name=${3}
+    local ip_address=${4}
+    local dns_server=${5}
+    local public_dns_ip_address=${6}
+    local listen_port=${7}
 
     local private_key
     private_key=$(cat "/home/${user_name}/.wireguard_keys/${client_key_name}")
