@@ -337,7 +337,7 @@ EOF
 function iptables_setup_base() {
     # Parameters
     interface=${1}
-    network_prefix-${2}
+    network_prefix=${2}
 
     # Allow established connections
     iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
