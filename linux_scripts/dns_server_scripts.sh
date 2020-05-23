@@ -1,0 +1,399 @@
+#!/bin/bash
+
+# Copyright (c) Matthew David Miller. All rights reserved.
+# Licensed under the MIT License.
+
+# Compilation of functions for the Pihole Server.
+
+function lock_root() {
+    passwd --lock root
+}
+
+function get_username() {
+    user_name=$(logname)
+}
+
+function get_interface_name() {
+    interface="$(ip route get 8.8.8.8 | sed -nr 's/.*dev ([^\ ]+).*/\1/p')"
+    echo "Interface name is ${interface}"
+}
+
+function configure_network() {
+    # Parameters
+    local ip_address=${1}
+    local network_address=${2}
+    local subnet_mask=${3}
+    local gateway_address=${4}
+    local dns_address=${5}
+    local interface=${6}
+
+    # Configure network
+    rm -f '/etc/network/interfaces'
+    cat <<EOF >'/etc/network/interfaces'
+auto lo
+iface lo inet loopback
+
+iface ${interface} inet static
+    address ${ip_address}
+    network ${network_address}
+    netmask ${subnet_mask}
+    gateway ${gateway_address}
+    dns-nameservers ${dns_address}
+
+EOF
+
+    # Restart network interface
+    ifdown "${interface}" && ifup "${interface}"
+}
+
+function fix_apt_packages() {
+    dpkg --configure -a
+}
+
+function install_dns_server_packages() {
+    apt-get update
+    apt-get upgrade -y
+    apt-get install -y wget vim git iptables iptables-persistent ntp ssh openssh-server unbound unattended-upgrades sqlite3
+}
+
+function configure_ssh() {
+    # Turn off password authentication
+    grep -q ".*PasswordAuthentication" '/etc/ssh/sshd_config' && sed -i "s,.*PasswordAuthentication.*,PasswordAuthentication no," '/etc/ssh/sshd_config' || printf '%s\n' 'PasswordAuthentication no' >>'/etc/ssh/sshd_config'
+
+    # Do not allow empty passwords
+    grep -q ".*PermitEmptyPasswords" '/etc/ssh/sshd_config' && sed -i "s,.*PermitEmptyPasswords.*,PermitEmptyPasswords no," '/etc/ssh/sshd_config' || printf '%s\n' 'PermitEmptyPasswords no' >>'/etc/ssh/sshd_config'
+
+    # Turn off PAM
+    grep -q ".*UsePAM" '/etc/ssh/sshd_config' && sed -i "s,.*UsePAM.*,UsePAM no," '/etc/ssh/sshd_config' || printf '%s\n' 'UsePAM no' >>'/etc/ssh/sshd_config'
+
+    # Turn off root ssh access
+    grep -q ".*PermitRootLogin" '/etc/ssh/sshd_config' && sed -i "s,.*PermitRootLogin.*,PermitRootLogin no," '/etc/ssh/sshd_config' || printf '%s\n' 'PermitRootLogin no' >>'/etc/ssh/sshd_config'
+
+    # Enable public key authentication
+    grep -q ".*AuthorizedKeysFile" '/etc/ssh/sshd_config' && sed -i "s,.*AuthorizedKeysFile\s*.ssh/authorized_keys\s*.ssh/authorized_keys2,AuthorizedKeysFile .ssh/authorized_keys," '/etc/ssh/sshd_config' || printf '%s\n' 'AuthorizedKeysFile .ssh/authorized_keys' >>'/etc/ssh/sshd_config'
+    grep -q ".*PubkeyAuthentication" '/etc/ssh/sshd_config' && sed -i "s,.*PubkeyAuthentication.*,PubkeyAuthentication yes," '/etc/ssh/sshd_config' || printf '%s\n' 'PubkeyAuthentication yes' >>'/etc/ssh/sshd_config'
+}
+
+function generate_ssh_key() {
+    # Parameters
+    local user_name=${1}
+    local ecdsa_response=${2}
+    local rsa_response=${3}
+    local dropbear_response=${4}
+    local key_name=${5}
+
+    # Generate ecdsa key
+    if [[ "${ecdsa_response}" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
+        # Generate an ecdsa 521 bit key
+        ssh-keygen -f "/home/$user_name/${key_name}" -t ecdsa -b 521
+    fi
+
+    # Generate rsa key
+    if [[ "${rsa_response}" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
+        # Generate an rsa 4096 bit key
+        ssh-keygen -f "/home/$user_name/${key_name}" -t rsa -b 4096
+    fi
+
+    # Authorize the key for use with ssh
+    mkdir "/home/$user_name/.ssh"
+    chmod 700 "/home/$user_name/.ssh"
+    touch "/home/$user_name/.ssh/authorized_keys"
+    chmod 600 "/home/$user_name/.ssh/authorized_keys"
+    cat "/home/$user_name/${key_name}.pub" >>"/home/$user_name/.ssh/authorized_keys"
+    printf '%s\n' '' >>"/home/$user_name/.ssh/authorized_keys"
+    chown -R "$user_name" "/home/$user_name"
+    python -m SimpleHTTPServer 40080 &
+    server_pid=$!
+    read -r -p "Copy the key from the webserver on port 40080 before continuing: " >>'/dev/null'
+    kill "${server_pid}"
+
+    # Dropbear setup
+    if [[ "${dropbear_response}" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
+        cat "/home/$user_name/${key_name}.pub" >>'/etc/dropbear/authorized_keys'
+        printf '%s\n' '' >>'/etc/dropbear/authorized_keys'
+        chmod 0700 /etc/dropbear
+        chmod 0600 /etc/dropbear/authorized_keys
+    fi
+}
+
+function apt_configure_auto_updates() {
+    # Parameters
+    local release_name=${1}
+
+    rm -f '/etc/apt/apt.conf.d/50unattended-upgrades'
+
+    cat <<EOF >'/etc/apt/apt.conf.d/50unattended-upgrades'
+Unattended-Upgrade::Origins-Pattern {
+        "origin=Debian,n=${release_name},l=Debian";
+        "origin=Debian,n=${release_name},l=Debian-Security";
+        "origin=Debian,n=${release_name}-updates";
+};
+
+Unattended-Upgrade::Package-Blacklist {
+
+};
+
+Unattended-Upgrade::Automatic-Reboot "true";
+Unattended-Upgrade::Automatic-Reboot-Time "04:00";
+
+EOF
+}
+
+function configure_dns_server_scripts() {
+    # Script to archive config files for backup
+    wget 'https://raw.githubusercontent.com/MatthewDavidMiller/scripts/stable/linux_scripts/backup_configs.sh'
+    mv 'backup_configs.sh' '/usr/local/bin/backup_configs.sh'
+    chmod +x '/usr/local/bin/backup_configs.sh'
+
+    # Script to update root.hints file
+    cat <<EOF >'/usr/local/bin/update_root_hints.sh'
+#!/bin/bash
+wget -O root.hints 'https://www.internic.net/domain/named.root'
+mv -f root.hints /var/lib/unbound/
+
+EOF
+    chmod +x '/usr/local/bin/update_root_hints.sh'
+
+    # Configure cron jobs
+    cat <<EOF >jobs.cron
+* 0 * * 1 bash /usr/local/bin/backup_configs.sh &
+* 0 * * 1 bash /usr/local/bin/update_root_hints.sh &
+
+EOF
+    crontab jobs.cron
+    rm -f jobs.cron
+}
+
+function configure_unbound() {
+    wget -O root.hints 'https://www.internic.net/domain/named.root'
+    mv root.hints /var/lib/unbound/
+    systemctl enable unbound
+    systemctl start unbound
+    rm -f '/etc/unbound/unbound.conf.d/pi-hole.conf'
+    cat <<\EOF >'/etc/unbound/unbound.conf.d/pi-hole.conf'
+server:
+    # If no logfile is specified, syslog is used
+    # logfile: "/var/log/unbound/unbound.log"
+    verbosity: 0
+
+    port: 5353
+    do-ip4: yes
+    do-udp: yes
+    do-tcp: yes
+
+    # May be set to yes if you have IPv6 connectivity
+    do-ip6: yes
+
+    # Use this only when you downloaded the list of primary root servers!
+    root-hints: "/var/lib/unbound/root.hints"
+
+    # Trust glue only if it is within the servers authority
+    harden-glue: yes
+
+    # Require DNSSEC data for trust-anchored zones, if such data is absent, the zone becomes BOGUS
+    harden-dnssec-stripped: yes
+
+    # Don't use Capitalization randomization as it known to cause DNSSEC issues sometimes
+    # see https://discourse.pi-hole.net/t/unbound-stubby-or-dnscrypt-proxy/9378 for further details
+    use-caps-for-id: no
+
+    # Reduce EDNS reassembly buffer size.
+    # Suggested by the unbound man page to reduce fragmentation reassembly problems
+    edns-buffer-size: 1472
+
+    # Perform prefetching of close to expired message cache entries
+    # This only applies to domains that have been frequently queried
+    prefetch: yes
+
+    # One thread should be sufficient, can be increased on beefy machines. In reality for most users running on small networks or on a single machine it should be unnecessary to seek performance enhancement by increasing num-threads above 1.
+    num-threads: 1
+
+    # Ensure kernel buffer is large enough to not lose messages in traffic spikes
+    so-rcvbuf: 1m
+
+    # Ensure privacy of local IP ranges
+    private-address: 192.168.0.0/16
+    private-address: 169.254.0.0/16
+    private-address: 172.16.0.0/12
+    private-address: 10.0.0.0/8
+    private-address: fd00::/8
+    private-address: fe80::/10
+
+EOF
+}
+
+function configure_pihole() {
+    git clone --depth 1 https://github.com/pi-hole/pi-hole.git Pi-hole
+    cd 'Pi-hole/automated install/' || exit
+    bash basic-install.sh
+    cd || exit
+
+    # Configure whitelist, blacklist, and regex
+    # Possible values: id, type, domain, enabled, date_added, date_modified, comment
+    sqlite3 /etc/pihole/gravity.db <<EOF
+DELETE FROM domainlist;
+INSERT INTO domainlist (id, type, domain, enabled, comment) VALUES (1,3,'^.+\.(ru|cn|ro|ml|ga|gq|cf|tk|pw|ua|ug|ve|)$',1,'Block some country TLDs.');
+INSERT INTO domainlist (id, type, domain, enabled, comment) VALUES (2,3,'porn',1,'Block domains with the word porn in them.');
+INSERT INTO domainlist (id, type, domain, enabled, comment) VALUES (3,3,'sex',1,'Block domains with the word sex in them.');
+INSERT INTO domainlist (id, type, domain, enabled, comment) VALUES (4,0,'ntscorp.ru',1,'Openiv mod download domain.');
+EOF
+
+    # Configure blocklists
+    # Possible values: id, address, enabled, date_added, date_modified, comment
+    sqlite3 /etc/pihole/gravity.db <<EOF
+DELETE FROM adlist;
+INSERT INTO adlist (id, address, enabled, comment) VALUES (1,'https://mirror1.malwaredomains.com/files/justdomains',1,'Default malware blocklist.');
+INSERT INTO adlist (id, address, enabled, comment) VALUES (2,'https://raw.githubusercontent.com/chadmayfield/my-pihole-blocklists/master/lists/pi_blocklist_porn_all.list',1,'A porn blocklist.');
+INSERT INTO adlist (id, address, enabled, comment) VALUES (3,'https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts',0,'Default All in one blocklist.');
+INSERT INTO adlist (id, address, enabled, comment) VALUES (4,'https://s3.amazonaws.com/lists.disconnect.me/simple_tracking.txt',0,'Default Tracker blocklist.');
+INSERT INTO adlist (id, address, enabled, comment) VALUES (5,'https://s3.amazonaws.com/lists.disconnect.me/simple_ad.txt',0,'Default Ad blocklist.');
+EOF
+
+    # Configure pihole settings
+    grep -q 'DNSSEC=' '/etc/pihole/setupVars.conf' && sed -i "s/DNSSEC=.*/DNSSEC=true/g" '/etc/pihole/setupVars.conf' || printf '%s\n' 'DNSSEC=true' >>'/etc/pihole/setupVars.conf'
+    grep -q 'PIHOLE_DNS_1=' '/etc/pihole/setupVars.conf' && sed -i "s/PIHOLE_DNS_1=.*/PIHOLE_DNS_1=127.0.0.1#5353/g" '/etc/pihole/setupVars.conf' || printf '%s\n' 'PIHOLE_DNS_1=127.0.0.1#5053' >>'/etc/pihole/setupVars.conf'
+    grep -q 'PIHOLE_DNS_2=' '/etc/pihole/setupVars.conf' && sed -i "s/PIHOLE_DNS_2=.*/PIHOLE_DNS_2=::1#5353/g" '/etc/pihole/setupVars.conf' || printf '%s\n' 'PIHOLE_DNS_2=::1#5053' >>'/etc/pihole/setupVars.conf'
+    grep -q 'DNSMASQ_LISTENING=' '/etc/pihole/setupVars.conf' && sed -i "s/DNSMASQ_LISTENING=.*/DNSMASQ_LISTENING=all/g" '/etc/pihole/setupVars.conf' || printf '%s\n' 'DNSMASQ_LISTENING=all' >>'/etc/pihole/setupVars.conf'
+    grep -q 'CONDITIONAL_FORWARDING=' '/etc/pihole/setupVars.conf' && sed -i "s/CONDITIONAL_FORWARDING=.*/CONDITIONAL_FORWARDING=true/g" '/etc/pihole/setupVars.conf' || printf '%s\n' 'CONDITIONAL_FORWARDING=true' >>'/etc/pihole/setupVars.conf'
+    grep -q 'CONDITIONAL_FORWARDING_IP=' '/etc/pihole/setupVars.conf' && sed -i "s/CONDITIONAL_FORWARDING_IP=.*/CONDITIONAL_FORWARDING_IP=${gateway_address}/g" '/etc/pihole/setupVars.conf' || printf '%s\n' "CONDITIONAL_FORWARDING_IP=${gateway_address}" >>'/etc/pihole/setupVars.conf'
+    grep -q 'CONDITIONAL_FORWARDING_DOMAIN=' '/etc/pihole/setupVars.conf' && sed -i "s/CONDITIONAL_FORWARDING_DOMAIN=.*/CONDITIONAL_FORWARDING_DOMAIN=lan/g" '/etc/pihole/setupVars.conf' || printf '%s\n' 'CONDITIONAL_FORWARDING_DOMAIN=lan' >>'/etc/pihole/setupVars.conf'
+    grep -q 'DNS_FQDN_REQUIRED=' '/etc/pihole/setupVars.conf' && sed -i "s/DNS_FQDN_REQUIRED=.*/DNS_FQDN_REQUIRED=false/g" '/etc/pihole/setupVars.conf' || printf '%s\n' 'DNS_FQDN_REQUIRED=false' >>'/etc/pihole/setupVars.conf'
+    grep -q 'DNS_BOGUS_PRIV=' '/etc/pihole/setupVars.conf' && sed -i "s/DNS_BOGUS_PRIV=.*/DNS_BOGUS_PRIV=false/g" '/etc/pihole/setupVars.conf' || printf '%s\n' 'DNS_BOGUS_PRIV=false' >>'/etc/pihole/setupVars.conf'
+
+    # Set custom domains
+    cat <<EOF >'/etc/pihole/custom.list'
+10.1.10.1 mattopenwrt.miller.lan
+10.1.10.3 matt-prox.miller.lan
+10.1.10.4 matt-nas.miller.lan
+10.1.10.5 matt-pihole.miller.lan
+10.1.10.6 matt-vpn.miller.lan
+10.1.20.213 mary-printer.miller.lan
+EOF
+
+    echo 'Set pihole password'
+    pihole -a -p
+
+    # Setup pihole folder permissions
+    chown -R pihole:pihole '/etc/pihole'
+    chmod 777 -R '/etc/pihole'
+}
+
+function iptables_setup_base() {
+    # Parameters
+    interface=${1}
+    network_prefix=${2}
+
+    # Allow established connections
+    iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+    ip6tables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+
+    # Save rules
+    iptables-save >/etc/iptables/rules.v4
+    ip6tables-save >/etc/iptables/rules.v6
+}
+
+function iptables_set_defaults() {
+    # Drop inbound by default
+    iptables -P INPUT DROP
+    ip6tables -P INPUT DROP
+
+    # Allow outbound by default
+    iptables -P OUTPUT ACCEPT
+    ip6tables -P OUTPUT ACCEPT
+
+    # Drop forwarding by default
+    iptables -P FORWARD DROP
+    ip6tables -P FORWARD DROP
+
+    # Save rules
+    iptables-save >/etc/iptables/rules.v4
+    ip6tables-save >/etc/iptables/rules.v6
+}
+
+function iptables_allow_ssh() {
+    # Parameters
+    source=${1}
+    destination=${2}
+
+    # Allow ssh from a source and destination
+    iptables -A INPUT -p tcp --dport 22 -s "${source}" -d "${destination}" -j ACCEPT
+
+    # Log new connection ips and add them to a list called SSH
+    iptables -A INPUT -p tcp --dport 22 -m state --state NEW -m recent --set --name SSH
+
+    # Log ssh connections from an ip to 6 connections in 60 seconds.
+    iptables -A INPUT -p tcp --dport 22 -m state --state NEW -m recent --update --seconds 60 --hitcount 6 --rttl --name SSH -j LOG --log-level info --log-prefix "Limit SSH"
+
+    # Limit ssh connections from an ip to 6 connections in 60 seconds.
+    iptables -A INPUT -p tcp --dport 22 -m state --state NEW -m recent --update --seconds 60 --hitcount 6 --rttl --name SSH -j DROP
+
+    # Save rules
+    iptables-save >/etc/iptables/rules.v4
+    ip6tables-save >/etc/iptables/rules.v6
+}
+
+function iptables_allow_dns() {
+    # Parameters
+    source=${1}
+    destination=${2}
+
+    # Allow dns from a source and destination
+    iptables -A INPUT -p tcp --dport 53 -s "${source}" -d "${destination}" -j ACCEPT
+    iptables -A INPUT -p udp --dport 53 -s "${source}" -d "${destination}" -j ACCEPT
+
+    # Save rules
+    iptables-save >/etc/iptables/rules.v4
+    ip6tables-save >/etc/iptables/rules.v6
+}
+
+function iptables_allow_unbound() {
+    # Parameters
+    source=${1}
+
+    # Allow unbound from a source
+    iptables -A INPUT -p tcp --dport 5353 -s "${source}" -j ACCEPT
+    iptables -A INPUT -p udp --dport 5353 -s "${source}" -j ACCEPT
+
+    # Save rules
+    iptables-save >/etc/iptables/rules.v4
+    ip6tables-save >/etc/iptables/rules.v6
+}
+
+function iptables_allow_http() {
+    # Parameters
+    source=${1}
+    destination=${2}
+
+    # Allow http from a source and destination
+    iptables -A INPUT -p tcp --dport 80 -s "${source}" -d "${destination}" -j ACCEPT
+
+    # Save rules
+    iptables-save >/etc/iptables/rules.v4
+    ip6tables-save >/etc/iptables/rules.v6
+}
+
+function iptables_allow_https() {
+    # Parameters
+    source=${1}
+    destination=${2}
+
+    # Allow https from a source and destination
+    iptables -A INPUT -p tcp --dport 443 -s "${source}" -d "${destination}" -j ACCEPT
+
+    # Save rules
+    iptables-save >/etc/iptables/rules.v4
+    ip6tables-save >/etc/iptables/rules.v6
+}
+
+function iptables_allow_port_4711_tcp() {
+    # Parameters
+    source=${1}
+    destination=${2}
+
+    # Allow port 4711 tcp from a source and destination
+    iptables -A INPUT -p tcp --dport 4711 -s "${source}" -d "${destination}" -j ACCEPT
+
+    # Save rules
+    iptables-save >/etc/iptables/rules.v4
+    ip6tables-save >/etc/iptables/rules.v6
+}
