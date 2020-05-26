@@ -6,18 +6,10 @@
 # Configuration script for the TP Link Omada Controller.
 
 # Get needed scripts
-wget -O 'linux_scripts.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/scripts/stable/linux_scripts/linux_scripts.sh'
-wget -O 'omada_controller_scripts.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/scripts/stable/linux_scripts/omada_controller_scripts.sh'
-wget -O 'linux_install_scripts.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/scripts/stable/linux_scripts/linux_install_scripts.sh'
-wget -O 'ssh_scripts.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/scripts/stable/linux_scripts/ssh_scripts.sh'
-wget -O 'ufw_scripts.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/scripts/stable/linux_scripts/ufw_scripts.sh'
+wget -O 'omada_controller_scripts.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/Access-Point-Controller-Configuration/stable/linux_scripts/omada_controller_scripts.sh'
 
 # Source functions
-source linux_scripts.sh
 source omada_controller_scripts.sh
-source linux_install_scripts.sh
-source ssh_scripts.sh
-source ufw_scripts.sh
 
 # Default variables
 release_name='buster'
@@ -28,17 +20,6 @@ subnet_mask='255.255.255.0'
 gateway_address='10.1.10.1'
 dns_address='1.1.1.1'
 network_prefix='10.0.0.0/8'
-limit_ssh='y'
-allow_dns='n'
-allow_unbound='n'
-allow_http='n'
-allow_https='n'
-allow_port_4711_tcp='n'
-allow_smb='n'
-allow_netbios='n'
-limit_port_64640='n'
-allow_port_8006='n'
-allow_omada_controller='y'
 
 # Call functions
 lock_root
@@ -49,8 +30,9 @@ fix_apt_packages
 install_omada_controller_packages
 configure_ssh
 generate_ssh_key "${user_name}" "y" "n" "n" "${key_name}"
-configure_ufw_base
-ufw_configure_rules "${network_prefix}" "${limit_ssh}" "${allow_dns}" "${allow_unbound}" "${allow_http}" "${allow_https}" "${allow_port_4711_tcp}" "${allow_smb}" "${allow_netbios}" "${limit_port_64640}" "${allow_port_8006}" "${allow_omada_controller}"
-enable_ufw
+iptables_setup_base "${interface}" "${network_prefix}"
+iptables_allow_ssh "${network_prefix}" "${ip_address}"
+iptables_allow_omada_controller "${network_prefix}" "${ip_address}"
+iptables_set_defaults
 apt_configure_auto_updates "${release_name}"
 configure_omada_controller
