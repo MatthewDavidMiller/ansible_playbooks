@@ -430,3 +430,18 @@ function get_ipv6_link_local_address() {
     ipv6_link_local_address="$(ip address | grep '.*inet6 fe80' | sed -nr 's/.*inet6 ([^\ ]+)\/64.*/\1/p')"
     echo "ipv6 link local address is ${ipv6_link_local_address}"
 }
+
+function iptables_allow_icmp() {
+    # Parameters
+    local source=${1}
+    local interface=${2}
+    local ipv6_link_local='fe80::/10'
+
+    # Allow icmp from a source and interface
+    iptables -A INPUT -p icmp -s "${source}" -i "${interface}" -j ACCEPT
+    ip6tables -A INPUT -p icmpv6 -s "${ipv6_link_local}" -i "${interface}" -j ACCEPT
+
+    # Save rules
+    iptables-save >/etc/iptables/rules.v4
+    ip6tables-save >/etc/iptables/rules.v6
+}
