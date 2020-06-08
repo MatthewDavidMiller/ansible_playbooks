@@ -353,28 +353,8 @@ function iptables_allow_dns() {
     # Allow dns from a source and interface
     iptables -A INPUT -p tcp --dport 53 -s "${source}" -i "${interface}" -j ACCEPT
     iptables -A INPUT -p udp --dport 53 -s "${source}" -i "${interface}" -j ACCEPT
-    iptables -A INPUT -p tcp --dport 53 -s '127.0.0.0/8' -i 'lo' -j ACCEPT
-    iptables -A INPUT -p udp --dport 53 -s '127.0.0.0/8' -i 'lo' -j ACCEPT
-    ip6tables -A INPUT -p tcp --dport 53 -s '::1' -i 'lo' -j ACCEPT
-    ip6tables -A INPUT -p udp --dport 53 -s '::1' -i 'lo' -j ACCEPT
     ip6tables -A INPUT -p tcp --dport 53 -s "${ipv6_link_local}" -i "${interface}" -j ACCEPT
     ip6tables -A INPUT -p udp --dport 53 -s "${ipv6_link_local}" -i "${interface}" -j ACCEPT
-
-    # Save rules
-    iptables-save >/etc/iptables/rules.v4
-    ip6tables-save >/etc/iptables/rules.v6
-}
-
-function iptables_allow_unbound() {
-    # Parameters
-    local source=${1}
-    local ipv6_link_local='fe80::/10'
-
-    # Allow unbound from a source
-    iptables -A INPUT -p tcp --dport 5353 -s "${source}" -j ACCEPT
-    iptables -A INPUT -p udp --dport 5353 -s "${source}" -j ACCEPT
-    ip6tables -A INPUT -p tcp --dport 5353 -s "${ipv6_link_local}" -j ACCEPT
-    ip6tables -A INPUT -p udp --dport 5353 -s "${ipv6_link_local}" -j ACCEPT
 
     # Save rules
     iptables-save >/etc/iptables/rules.v4
@@ -411,21 +391,6 @@ function iptables_allow_https() {
     ip6tables-save >/etc/iptables/rules.v6
 }
 
-function iptables_allow_port_4711_to_4720_tcp() {
-    # Parameters
-    local source=${1}
-    local interface=${2}
-    local ipv6_link_local='fe80::/10'
-
-    # Allow port 4711 tcp from a source and interface
-    iptables -A INPUT -p tcp --dport 4711:4720 -s '127.0.0.0/8' -i 'lo' -j ACCEPT
-    ip6tables -A INPUT -p tcp --dport 4711:4720 -s '::1' -i 'lo' -j ACCEPT
-
-    # Save rules
-    iptables-save >/etc/iptables/rules.v4
-    ip6tables-save >/etc/iptables/rules.v6
-}
-
 function get_ipv6_link_local_address() {
     ipv6_link_local_address="$(ip address | grep '.*inet6 fe80' | sed -nr 's/.*inet6 ([^\ ]+)\/64.*/\1/p')"
     echo "ipv6 link local address is ${ipv6_link_local_address}"
@@ -440,6 +405,15 @@ function iptables_allow_icmp() {
     # Allow icmp from a source and interface
     iptables -A INPUT -p icmp -s "${source}" -i "${interface}" -j ACCEPT
     ip6tables -A INPUT -p icmpv6 -s "${ipv6_link_local}" -i "${interface}" -j ACCEPT
+
+    # Save rules
+    iptables-save >/etc/iptables/rules.v4
+    ip6tables-save >/etc/iptables/rules.v6
+}
+
+function iptables_allow_loopback() {
+    iptables -A INPUT -s '127.0.0.0/8' -i 'lo' -j ACCEPT
+    ip6tables -A INPUT -s '::1' -i 'lo' -j ACCEPT
 
     # Save rules
     iptables-save >/etc/iptables/rules.v4
