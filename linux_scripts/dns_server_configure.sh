@@ -40,6 +40,7 @@ iptables_allow_unbound "${loopback}"
 iptables_allow_http "${network_prefix}" "${interface}"
 iptables_allow_https "${network_prefix}" "${interface}"
 iptables_allow_port_4711_to_4720_tcp "${network_prefix}" "${interface}"
+iptables_allow_icmp "${network_prefix}" "${interface}"
 iptables_set_defaults
 apt_configure_auto_updates "${release_name}"
 configure_dns_server_scripts
