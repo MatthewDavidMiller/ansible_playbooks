@@ -26,6 +26,7 @@ function configure_network() {
     local gateway_address=${4}
     local dns_address=${5}
     local interface=${6}
+    local ipv6_link_local_address=${7}
 
     # Configure network
     rm -f '/etc/network/interfaces'
@@ -33,12 +34,18 @@ function configure_network() {
 auto lo
 iface lo inet loopback
 
+auto ${interface}
 iface ${interface} inet static
     address ${ip_address}
     network ${network_address}
     netmask ${subnet_mask}
     gateway ${gateway_address}
     dns-nameservers ${dns_address}
+
+iface ${interface} inet6 static
+    address ${ipv6_link_local_address}
+    netmask 64
+    scope link
 
 EOF
 
@@ -346,6 +353,10 @@ function iptables_allow_dns() {
     # Allow dns from a source and interface
     iptables -A INPUT -p tcp --dport 53 -s "${source}" -i "${interface}" -j ACCEPT
     iptables -A INPUT -p udp --dport 53 -s "${source}" -i "${interface}" -j ACCEPT
+    iptables -A INPUT -p tcp --dport 53 -s '127.0.0.0/8' -i 'lo' -j ACCEPT
+    iptables -A INPUT -p udp --dport 53 -s '127.0.0.0/8' -i 'lo' -j ACCEPT
+    ip6tables -A INPUT -p tcp --dport 53 -s '::1' -i 'lo' -j ACCEPT
+    ip6tables -A INPUT -p udp --dport 53 -s '::1' -i 'lo' -j ACCEPT
     ip6tables -A INPUT -p tcp --dport 53 -s "${ipv6_link_local}" -i "${interface}" -j ACCEPT
     ip6tables -A INPUT -p udp --dport 53 -s "${ipv6_link_local}" -i "${interface}" -j ACCEPT
 
@@ -400,15 +411,15 @@ function iptables_allow_https() {
     ip6tables-save >/etc/iptables/rules.v6
 }
 
-function iptables_allow_port_4711_tcp() {
+function iptables_allow_port_4711_to_4720_tcp() {
     # Parameters
     local source=${1}
     local interface=${2}
     local ipv6_link_local='fe80::/10'
 
     # Allow port 4711 tcp from a source and interface
-    iptables -A INPUT -p tcp --dport 4711 -s "${source}" -i "${interface}" -j ACCEPT
-    ip6tables -A INPUT -p tcp --dport 4711 -s "${ipv6_link_local}" -i "${interface}" -j ACCEPT
+    iptables -A INPUT -p tcp --dport 4711:4720 -s '127.0.0.0/8' -i 'lo' -j ACCEPT
+    ip6tables -A INPUT -p tcp --dport 4711:4720 -s '::1' -i 'lo' -j ACCEPT
 
     # Save rules
     iptables-save >/etc/iptables/rules.v4

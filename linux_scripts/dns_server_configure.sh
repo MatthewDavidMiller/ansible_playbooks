@@ -21,12 +21,13 @@ gateway_address='10.1.10.1'
 dns_address='1.1.1.1'
 network_prefix='10.0.0.0/8'
 loopback='127.0.0.1'
+ipv6_link_local_address='fe80::5'
 
 # Call functions
 lock_root
 get_username
 get_interface_name
-configure_network "${ip_address}" "${network_address}" "${subnet_mask}" "${gateway_address}" "${dns_address}" "${interface}"
+configure_network "${ip_address}" "${network_address}" "${subnet_mask}" "${gateway_address}" "${dns_address}" "${interface}" "${ipv6_link_local_address}"
 get_ipv6_link_local_address
 fix_apt_packages
 install_dns_server_packages
@@ -38,7 +39,7 @@ iptables_allow_dns "${network_prefix}" "${interface}"
 iptables_allow_unbound "${loopback}"
 iptables_allow_http "${network_prefix}" "${interface}"
 iptables_allow_https "${network_prefix}" "${interface}"
-iptables_allow_port_4711_tcp "${network_prefix}" "${interface}"
+iptables_allow_port_4711_to_4720_tcp "${network_prefix}" "${interface}"
 iptables_set_defaults
 apt_configure_auto_updates "${release_name}"
 configure_dns_server_scripts
