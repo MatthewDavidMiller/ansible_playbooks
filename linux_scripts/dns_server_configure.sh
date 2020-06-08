@@ -27,17 +27,18 @@ lock_root
 get_username
 get_interface_name
 configure_network "${ip_address}" "${network_address}" "${subnet_mask}" "${gateway_address}" "${dns_address}" "${interface}"
+get_ipv6_link_local_address
 fix_apt_packages
 install_dns_server_packages
 configure_ssh
 generate_ssh_key "${user_name}" "y" "n" "n" "${key_name}"
 iptables_setup_base "${interface}" "${network_prefix}"
-iptables_allow_ssh "${network_prefix}" "${ip_address}"
-iptables_allow_dns "${network_prefix}" "${ip_address}"
+iptables_allow_ssh "${network_prefix}" "${interface}"
+iptables_allow_dns "${network_prefix}" "${interface}"
 iptables_allow_unbound "${loopback}"
-iptables_allow_http "${network_prefix}" "${ip_address}"
-iptables_allow_https "${network_prefix}" "${ip_address}"
-iptables_allow_port_4711_tcp "${network_prefix}" "${ip_address}"
+iptables_allow_http "${network_prefix}" "${interface}"
+iptables_allow_https "${network_prefix}" "${interface}"
+iptables_allow_port_4711_tcp "${network_prefix}" "${interface}"
 iptables_set_defaults
 apt_configure_auto_updates "${release_name}"
 configure_dns_server_scripts

@@ -280,8 +280,8 @@ EOF
 
 function iptables_setup_base() {
     # Parameters
-    interface=${1}
-    network_prefix=${2}
+    local interface=${1}
+    local network_prefix=${2}
 
     # Allow established connections
     iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
@@ -312,20 +312,25 @@ function iptables_set_defaults() {
 
 function iptables_allow_ssh() {
     # Parameters
-    source=${1}
-    destination=${2}
+    local source=${1}
+    local interface=${2}
+    local ipv6_link_local='fe80::/10'
 
-    # Allow ssh from a source and destination
-    iptables -A INPUT -p tcp --dport 22 -s "${source}" -d "${destination}" -j ACCEPT
+    # Allow ssh from a source and interface
+    iptables -A INPUT -p tcp --dport 22 -s "${source}" -i "${interface}" -j ACCEPT
+    ip6tables -A INPUT -p tcp --dport 22 -s "${ipv6_link_local}" -i "${interface}" -j ACCEPT
 
     # Log new connection ips and add them to a list called SSH
     iptables -A INPUT -p tcp --dport 22 -m state --state NEW -m recent --set --name SSH
+    ip6tables -A INPUT -p tcp --dport 22 -m state --state NEW -m recent --set --name SSH
 
     # Log ssh connections from an ip to 6 connections in 60 seconds.
     iptables -A INPUT -p tcp --dport 22 -m state --state NEW -m recent --update --seconds 60 --hitcount 6 --rttl --name SSH -j LOG --log-level info --log-prefix "Limit SSH"
+    ip6tables -A INPUT -p tcp --dport 22 -m state --state NEW -m recent --update --seconds 60 --hitcount 6 --rttl --name SSH -j LOG --log-level info --log-prefix "Limit SSH"
 
     # Limit ssh connections from an ip to 6 connections in 60 seconds.
     iptables -A INPUT -p tcp --dport 22 -m state --state NEW -m recent --update --seconds 60 --hitcount 6 --rttl --name SSH -j DROP
+    ip6tables -A INPUT -p tcp --dport 22 -m state --state NEW -m recent --update --seconds 60 --hitcount 6 --rttl --name SSH -j DROP
 
     # Save rules
     iptables-save >/etc/iptables/rules.v4
@@ -334,12 +339,15 @@ function iptables_allow_ssh() {
 
 function iptables_allow_dns() {
     # Parameters
-    source=${1}
-    destination=${2}
+    local source=${1}
+    local interface=${2}
+    local ipv6_link_local='fe80::/10'
 
-    # Allow dns from a source and destination
-    iptables -A INPUT -p tcp --dport 53 -s "${source}" -d "${destination}" -j ACCEPT
-    iptables -A INPUT -p udp --dport 53 -s "${source}" -d "${destination}" -j ACCEPT
+    # Allow dns from a source and interface
+    iptables -A INPUT -p tcp --dport 53 -s "${source}" -i "${interface}" -j ACCEPT
+    iptables -A INPUT -p udp --dport 53 -s "${source}" -i "${interface}" -j ACCEPT
+    ip6tables -A INPUT -p tcp --dport 53 -s "${ipv6_link_local}" -i "${interface}" -j ACCEPT
+    ip6tables -A INPUT -p udp --dport 53 -s "${ipv6_link_local}" -i "${interface}" -j ACCEPT
 
     # Save rules
     iptables-save >/etc/iptables/rules.v4
@@ -348,11 +356,14 @@ function iptables_allow_dns() {
 
 function iptables_allow_unbound() {
     # Parameters
-    source=${1}
+    local source=${1}
+    local ipv6_link_local='fe80::/10'
 
     # Allow unbound from a source
     iptables -A INPUT -p tcp --dport 5353 -s "${source}" -j ACCEPT
     iptables -A INPUT -p udp --dport 5353 -s "${source}" -j ACCEPT
+    ip6tables -A INPUT -p tcp --dport 5353 -s "${ipv6_link_local}" -j ACCEPT
+    ip6tables -A INPUT -p udp --dport 5353 -s "${ipv6_link_local}" -j ACCEPT
 
     # Save rules
     iptables-save >/etc/iptables/rules.v4
@@ -361,11 +372,13 @@ function iptables_allow_unbound() {
 
 function iptables_allow_http() {
     # Parameters
-    source=${1}
-    destination=${2}
+    local source=${1}
+    local interface=${2}
+    local ipv6_link_local='fe80::/10'
 
-    # Allow http from a source and destination
-    iptables -A INPUT -p tcp --dport 80 -s "${source}" -d "${destination}" -j ACCEPT
+    # Allow http from a source and interface
+    iptables -A INPUT -p tcp --dport 80 -s "${source}" -i "${interface}" -j ACCEPT
+    ip6tables -A INPUT -p tcp --dport 80 -s "${ipv6_link_local}" -i "${interface}" -j ACCEPT
 
     # Save rules
     iptables-save >/etc/iptables/rules.v4
@@ -374,11 +387,13 @@ function iptables_allow_http() {
 
 function iptables_allow_https() {
     # Parameters
-    source=${1}
-    destination=${2}
+    local source=${1}
+    local interface=${2}
+    local ipv6_link_local='fe80::/10'
 
-    # Allow https from a source and destination
-    iptables -A INPUT -p tcp --dport 443 -s "${source}" -d "${destination}" -j ACCEPT
+    # Allow https from a source and interface
+    iptables -A INPUT -p tcp --dport 443 -s "${source}" -i "${interface}" -j ACCEPT
+    ip6tables -A INPUT -p tcp --dport 443 -s "${ipv6_link_local}" -i "${interface}" -j ACCEPT
 
     # Save rules
     iptables-save >/etc/iptables/rules.v4
@@ -387,13 +402,20 @@ function iptables_allow_https() {
 
 function iptables_allow_port_4711_tcp() {
     # Parameters
-    source=${1}
-    destination=${2}
+    local source=${1}
+    local interface=${2}
+    local ipv6_link_local='fe80::/10'
 
-    # Allow port 4711 tcp from a source and destination
-    iptables -A INPUT -p tcp --dport 4711 -s "${source}" -d "${destination}" -j ACCEPT
+    # Allow port 4711 tcp from a source and interface
+    iptables -A INPUT -p tcp --dport 4711 -s "${source}" -i "${interface}" -j ACCEPT
+    ip6tables -A INPUT -p tcp --dport 4711 -s "${ipv6_link_local}" -i "${interface}" -j ACCEPT
 
     # Save rules
     iptables-save >/etc/iptables/rules.v4
     ip6tables-save >/etc/iptables/rules.v6
+}
+
+function get_ipv6_link_local_address() {
+    ipv6_link_local_address="$(ip address | grep '.*inet6 fe80' | sed -nr 's/.*inet6 ([^\ ]+)\/64.*/\1/p')"
+    echo "ipv6 link local address is ${ipv6_link_local_address}"
 }
