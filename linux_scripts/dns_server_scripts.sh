@@ -29,24 +29,21 @@ function configure_network() {
     local ipv6_link_local_address=${7}
 
     # Configure network
-    rm -f '/etc/network/interfaces'
-    cat <<EOF >'/etc/network/interfaces'
-auto lo
-iface lo inet loopback
-
-auto ${interface}
+    grep -q ".*auto ${interface}" '/etc/network/interfaces' && sed -i "s,.*auto ${interface}.*,auto ${interface}," '/etc/network/interfaces' || printf '%s\n' "auto ${interface}" >>'/etc/network/interfaces'
+    grep -q ".*iface ${interface} inet " '/etc/network/interfaces' && sed -i "s,.*iface ${interface} inet .*\naddress\nnetwork\nnetmask\ngateway\ndns-nameservers,iface ${interface} inet static\naddress ${ip_address}\nnetwork ${network_address}\nnetmask ${subnet_mask}\ngateway ${gateway_address}\ndns-nameservers ${dns_address}," '/etc/network/interfaces' || cat <<EOF >>'/etc/network/interfaces'
 iface ${interface} inet static
     address ${ip_address}
     network ${network_address}
     netmask ${subnet_mask}
     gateway ${gateway_address}
     dns-nameservers ${dns_address}
+EOF
 
+    grep -q ".*iface ${interface} inet6" '/etc/network/interfaces' && sed -i "s,.*iface ${interface} inet6.*\naddress\nnetmask 64\nscope link,iface ${interface} inet6 static\naddress ${ipv6_link_local_address}\nnetmask 64\nscope link," '/etc/network/interfaces' || cat <<EOF >>'/etc/network/interfaces'
 iface ${interface} inet6 static
     address ${ipv6_link_local_address}
     netmask 64
     scope link
-
 EOF
 
     # Restart network interface
@@ -77,7 +74,7 @@ function configure_ssh() {
     grep -q ".*PermitRootLogin" '/etc/ssh/sshd_config' && sed -i "s,.*PermitRootLogin.*,PermitRootLogin no," '/etc/ssh/sshd_config' || printf '%s\n' 'PermitRootLogin no' >>'/etc/ssh/sshd_config'
 
     # Enable public key authentication
-    grep -q ".*AuthorizedKeysFile" '/etc/ssh/sshd_config' && sed -i "s,.*AuthorizedKeysFile\s*.ssh/authorized_keys\s*.ssh/authorized_keys2,AuthorizedKeysFile .ssh/authorized_keys," '/etc/ssh/sshd_config' || printf '%s\n' 'AuthorizedKeysFile .ssh/authorized_keys' >>'/etc/ssh/sshd_config'
+    grep -q ".*AuthorizedKeysFile" '/etc/ssh/sshd_config' && sed -i "s,.*AuthorizedKeysFile\s*.ssh\/authorized_keys\s*.ssh\/authorized_keys2,AuthorizedKeysFile .ssh\/authorized_keys," '/etc/ssh/sshd_config' || printf '%s\n' 'AuthorizedKeysFile .ssh/authorized_keys' >>'/etc/ssh/sshd_config'
     grep -q ".*PubkeyAuthentication" '/etc/ssh/sshd_config' && sed -i "s,.*PubkeyAuthentication.*,PubkeyAuthentication yes," '/etc/ssh/sshd_config' || printf '%s\n' 'PubkeyAuthentication yes' >>'/etc/ssh/sshd_config'
 }
 
@@ -127,23 +124,16 @@ function apt_configure_auto_updates() {
     # Parameters
     local release_name=${1}
 
-    rm -f '/etc/apt/apt.conf.d/50unattended-upgrades'
-
-    cat <<EOF >'/etc/apt/apt.conf.d/50unattended-upgrades'
+    grep -q ".*Unattended-Upgrade::Origins-Pattern {" '/etc/apt/apt.conf.d/50unattended-upgrades' && sed -i "s,.*Unattended-Upgrade::Origins-Pattern {.*\n.*\n.*\n.*\n.*,Unattended-Upgrade::Origins-Pattern {\n\"origin=Debian\,n=${release_name}\,l=Debian\";\n\"origin=Debian\,n=${release_name}\,l=Debian-Security\";\n\"origin=Debian\,n=${release_name}-updates\";\n};," '/etc/apt/apt.conf.d/50unattended-upgrades' || cat <<EOF >>"/etc/apt/apt.conf.d/50unattended-upgrades"
 Unattended-Upgrade::Origins-Pattern {
         "origin=Debian,n=${release_name},l=Debian";
         "origin=Debian,n=${release_name},l=Debian-Security";
         "origin=Debian,n=${release_name}-updates";
 };
-
-Unattended-Upgrade::Package-Blacklist {
-
-};
-
-Unattended-Upgrade::Automatic-Reboot "true";
-Unattended-Upgrade::Automatic-Reboot-Time "04:00";
-
 EOF
+
+    grep -q ".*Unattended-Upgrade::Automatic-Reboot" '/etc/apt/apt.conf.d/50unattended-upgrades' && sed -i "s,.*Unattended-Upgrade::Automatic-Reboot.*,Unattended-Upgrade::Automatic-Reboot \"true\";," '/etc/apt/apt.conf.d/50unattended-upgrades' || printf '%s\n' 'Unattended-Upgrade::Automatic-Reboot "true";' >>'/etc/apt/apt.conf.d/50unattended-upgrades'
+    grep -q ".*Unattended-Upgrade::Automatic-Reboot-Time" '/etc/apt/apt.conf.d/50unattended-upgrades' && sed -i "s,.*Unattended-Upgrade::Automatic-Reboot-Time.*,Unattended-Upgrade::Automatic-Reboot-Time \"04:00\";," '/etc/apt/apt.conf.d/50unattended-upgrades' || printf '%s\n' 'Unattended-Upgrade::Automatic-Reboot-Time "04:00";' >>'/etc/apt/apt.conf.d/50unattended-upgrades'
 }
 
 function configure_dns_server_scripts() {
@@ -238,7 +228,6 @@ function configure_pihole() {
     # Configure whitelist, blacklist, and regex
     # Possible values: id, type, domain, enabled, date_added, date_modified, comment
     sqlite3 /etc/pihole/gravity.db <<EOF
-DELETE FROM domainlist;
 INSERT INTO domainlist (id, type, domain, enabled, comment) VALUES (1,3,'^.+\.(ru|cn|ro|ml|ga|gq|cf|tk|pw|ua|ug|ve|)$',1,'Block some country TLDs.');
 INSERT INTO domainlist (id, type, domain, enabled, comment) VALUES (2,3,'porn',1,'Block domains with the word porn in them.');
 INSERT INTO domainlist (id, type, domain, enabled, comment) VALUES (3,3,'sex',1,'Block domains with the word sex in them.');
@@ -248,7 +237,6 @@ EOF
     # Configure blocklists
     # Possible values: id, address, enabled, date_added, date_modified, comment
     sqlite3 /etc/pihole/gravity.db <<EOF
-DELETE FROM adlist;
 INSERT INTO adlist (id, address, enabled, comment) VALUES (1,'https://mirror1.malwaredomains.com/files/justdomains',1,'Default malware blocklist.');
 INSERT INTO adlist (id, address, enabled, comment) VALUES (2,'https://raw.githubusercontent.com/chadmayfield/my-pihole-blocklists/master/lists/pi_blocklist_porn_all.list',1,'A porn blocklist.');
 INSERT INTO adlist (id, address, enabled, comment) VALUES (3,'https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts',0,'Default All in one blocklist.');
@@ -274,7 +262,7 @@ EOF
 10.1.10.4 matt-nas.miller.lan
 10.1.10.5 matt-pihole.miller.lan
 10.1.10.6 matt-vpn.miller.lan
-10.1.20.213 mary-printer.miller.lan
+10.1.1.213 mary-printer.miller.lan
 EOF
 
     echo 'Set pihole password'
