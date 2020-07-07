@@ -26,21 +26,24 @@ function configure_network() {
     local gateway_address=${4}
     local dns_address=${5}
     local interface=${6}
+    local ipv6_link_local_address=${7}
 
     # Configure network
-    rm -f '/etc/network/interfaces'
-    cat <<EOF >'/etc/network/interfaces'
-auto lo
-iface lo inet loopback
-
-auto ${interface}
+    grep -q ".*auto ${interface}" '/etc/network/interfaces' && sed -i "s,.*auto ${interface}.*,auto ${interface}," '/etc/network/interfaces' || printf '%s\n' "auto ${interface}" >>'/etc/network/interfaces'
+    grep -q ".*iface ${interface} inet " '/etc/network/interfaces' && sed -i "s,.*iface ${interface} inet .*\naddress\nnetwork\nnetmask\ngateway\ndns-nameservers,iface ${interface} inet static\naddress ${ip_address}\nnetwork ${network_address}\nnetmask ${subnet_mask}\ngateway ${gateway_address}\ndns-nameservers ${dns_address}," '/etc/network/interfaces' || cat <<EOF >>'/etc/network/interfaces'
 iface ${interface} inet static
     address ${ip_address}
     network ${network_address}
     netmask ${subnet_mask}
     gateway ${gateway_address}
     dns-nameservers ${dns_address}
+EOF
 
+    grep -q ".*iface ${interface} inet6" '/etc/network/interfaces' && sed -i "s,.*iface ${interface} inet6.*\naddress\nnetmask 64\nscope link,iface ${interface} inet6 static\naddress ${ipv6_link_local_address}\nnetmask 64\nscope link," '/etc/network/interfaces' || cat <<EOF >>'/etc/network/interfaces'
+iface ${interface} inet6 static
+    address ${ipv6_link_local_address}
+    netmask 64
+    scope link
 EOF
 
     # Restart network interface
@@ -78,7 +81,7 @@ function configure_ssh() {
     grep -q ".*PermitRootLogin" '/etc/ssh/sshd_config' && sed -i "s,.*PermitRootLogin.*,PermitRootLogin no," '/etc/ssh/sshd_config' || printf '%s\n' 'PermitRootLogin no' >>'/etc/ssh/sshd_config'
 
     # Enable public key authentication
-    grep -q ".*AuthorizedKeysFile" '/etc/ssh/sshd_config' && sed -i "s,.*AuthorizedKeysFile\s*.ssh/authorized_keys\s*.ssh/authorized_keys2,AuthorizedKeysFile .ssh/authorized_keys," '/etc/ssh/sshd_config' || printf '%s\n' 'AuthorizedKeysFile .ssh/authorized_keys' >>'/etc/ssh/sshd_config'
+    grep -q ".*AuthorizedKeysFile" '/etc/ssh/sshd_config' && sed -i "s,.*AuthorizedKeysFile\s*.ssh\/authorized_keys\s*.ssh\/authorized_keys2,AuthorizedKeysFile .ssh\/authorized_keys," '/etc/ssh/sshd_config' || printf '%s\n' 'AuthorizedKeysFile .ssh/authorized_keys' >>'/etc/ssh/sshd_config'
     grep -q ".*PubkeyAuthentication" '/etc/ssh/sshd_config' && sed -i "s,.*PubkeyAuthentication.*,PubkeyAuthentication yes," '/etc/ssh/sshd_config' || printf '%s\n' 'PubkeyAuthentication yes' >>'/etc/ssh/sshd_config'
 }
 
@@ -122,41 +125,6 @@ function generate_ssh_key() {
         chmod 0700 /etc/dropbear
         chmod 0600 /etc/dropbear/authorized_keys
     fi
-}
-
-function configure_ufw_base() {
-    # Set default inbound to deny
-    ufw default deny incoming
-
-    # Set default outbound to allow
-    ufw default allow outgoing
-}
-
-function ufw_configure_rules() {
-    # Parameters
-    local network_prefix=${1}
-    local limit_ssh=${2}
-    local limit_port_64640=${3}
-
-    if [[ "${limit_ssh}" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
-        ufw limit proto tcp from "${network_prefix}" to any port 22
-        ufw limit proto tcp from fe80::/10 to any port 22
-    fi
-
-    if [[ "${limit_port_64640}" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
-        ufw limit proto udp from any to any port 64640
-    fi
-
-}
-
-function ufw_allow_default_forward() {
-    grep -q ".*DEFAULT_FORWARD_POLICY=" '/etc/default/ufw' && sed -i "s,.*DEFAULT_FORWARD_POLICY=.*,DEFAULT_FORWARD_POLICY=\"ACCEPT\"," '/etc/default/ufw' || printf '%s\n' 'DEFAULT_FORWARD_POLICY="ACCEPT"' >>'/etc/default/ufw'
-}
-
-function ufw_allow_ip_forwarding() {
-    grep -q ".*net/ipv4/ip_forward=" '/etc/ufw/sysctl.conf' && sed -i "s,.*net/ipv4/ip_forward=.*,net/ipv4/ip_forward=1," '/etc/ufw/sysctl.conf' || printf '%s\n' 'net/ipv4/ip_forward=1' >>'/etc/ufw/sysctl.conf'
-    grep -q ".*net/ipv6/conf/default/forwarding=" '/etc/ufw/sysctl.conf' && sed -i "s,.*net/ipv6/conf/default/forwarding=.*,net/ipv6/conf/default/forwarding=1," '/etc/ufw/sysctl.conf' || printf '%s\n' 'net/ipv6/conf/default/forwarding=1' >>'/etc/ufw/sysctl.conf'
-    grep -q ".*net/ipv6/conf/all/forwarding=" '/etc/ufw/sysctl.conf' && sed -i "s,.*net/ipv6/conf/all/forwarding=.*,net/ipv6/conf/all/forwarding=1," '/etc/ufw/sysctl.conf' || printf '%s\n' 'net/ipv6/conf/all/forwarding=1' >>'/etc/ufw/sysctl.conf'
 }
 
 function configure_vpn_scripts() {
@@ -291,28 +259,16 @@ function apt_configure_auto_updates() {
     # Parameters
     local release_name=${1}
 
-    rm -f '/etc/apt/apt.conf.d/50unattended-upgrades'
-
-    cat <<EOF >'/etc/apt/apt.conf.d/50unattended-upgrades'
+    grep -q ".*Unattended-Upgrade::Origins-Pattern {" '/etc/apt/apt.conf.d/50unattended-upgrades' && sed -i "s,.*Unattended-Upgrade::Origins-Pattern {.*\n.*\n.*\n.*\n.*,Unattended-Upgrade::Origins-Pattern {\n\"origin=Debian\,n=${release_name}\,l=Debian\";\n\"origin=Debian\,n=${release_name}\,l=Debian-Security\";\n\"origin=Debian\,n=${release_name}-updates\";\n};," '/etc/apt/apt.conf.d/50unattended-upgrades' || cat <<EOF >>"/etc/apt/apt.conf.d/50unattended-upgrades"
 Unattended-Upgrade::Origins-Pattern {
         "origin=Debian,n=${release_name},l=Debian";
         "origin=Debian,n=${release_name},l=Debian-Security";
         "origin=Debian,n=${release_name}-updates";
 };
-
-Unattended-Upgrade::Package-Blacklist {
-
-};
-
-Unattended-Upgrade::Automatic-Reboot "true";
-Unattended-Upgrade::Automatic-Reboot-Time "04:00";
-
 EOF
-}
 
-function enable_ufw() {
-    systemctl enable ufw.service
-    ufw enable
+    grep -q ".*Unattended-Upgrade::Automatic-Reboot" '/etc/apt/apt.conf.d/50unattended-upgrades' && sed -i "s,.*Unattended-Upgrade::Automatic-Reboot.*,Unattended-Upgrade::Automatic-Reboot \"true\";," '/etc/apt/apt.conf.d/50unattended-upgrades' || printf '%s\n' 'Unattended-Upgrade::Automatic-Reboot "true";' >>'/etc/apt/apt.conf.d/50unattended-upgrades'
+    grep -q ".*Unattended-Upgrade::Automatic-Reboot-Time" '/etc/apt/apt.conf.d/50unattended-upgrades' && sed -i "s,.*Unattended-Upgrade::Automatic-Reboot-Time.*,Unattended-Upgrade::Automatic-Reboot-Time \"04:00\";," '/etc/apt/apt.conf.d/50unattended-upgrades' || printf '%s\n' 'Unattended-Upgrade::Automatic-Reboot-Time "04:00";' >>'/etc/apt/apt.conf.d/50unattended-upgrades'
 }
 
 function enable_wireguard_service() {
@@ -334,10 +290,6 @@ EOF
 }
 
 function iptables_setup_base() {
-    # Parameters
-    interface=${1}
-    network_prefix=${2}
-
     # Allow established connections
     iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
     ip6tables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
@@ -363,48 +315,55 @@ function iptables_set_defaults() {
     # Save rules
     iptables-save >/etc/iptables/rules.v4
     ip6tables-save >/etc/iptables/rules.v6
-
 }
 
 function iptables_allow_ssh() {
     # Parameters
-    source=${1}
-    destination=${2}
+    local source=${1}
+    local interface=${2}
+    local ipv6_link_local='fe80::/10'
 
-    # Allow ssh from a source and destination
-    iptables -A INPUT -p tcp --dport 22 -s ${source} -d ${destination} -j ACCEPT
+    # Allow ssh from a source and interface
+    iptables -A INPUT -p tcp --dport 22 -s "${source}" -i "${interface}" -j ACCEPT
+    ip6tables -A INPUT -p tcp --dport 22 -s "${ipv6_link_local}" -i "${interface}" -j ACCEPT
 
     # Log new connection ips and add them to a list called SSH
     iptables -A INPUT -p tcp --dport 22 -m state --state NEW -m recent --set --name SSH
+    ip6tables -A INPUT -p tcp --dport 22 -m state --state NEW -m recent --set --name SSH
 
     # Log ssh connections from an ip to 6 connections in 60 seconds.
     iptables -A INPUT -p tcp --dport 22 -m state --state NEW -m recent --update --seconds 60 --hitcount 6 --rttl --name SSH -j LOG --log-level info --log-prefix "Limit SSH"
+    ip6tables -A INPUT -p tcp --dport 22 -m state --state NEW -m recent --update --seconds 60 --hitcount 6 --rttl --name SSH -j LOG --log-level info --log-prefix "Limit SSH"
 
     # Limit ssh connections from an ip to 6 connections in 60 seconds.
     iptables -A INPUT -p tcp --dport 22 -m state --state NEW -m recent --update --seconds 60 --hitcount 6 --rttl --name SSH -j DROP
+    ip6tables -A INPUT -p tcp --dport 22 -m state --state NEW -m recent --update --seconds 60 --hitcount 6 --rttl --name SSH -j DROP
 
     # Save rules
     iptables-save >/etc/iptables/rules.v4
     ip6tables-save >/etc/iptables/rules.v6
-
 }
 
 function iptables_allow_vpn_port() {
     # Parameters
-    destination=${1}
-    vpn_port=${2}
+    local interface=${1}
+    local vpn_port=${2}
 
     # Allow vpn port to a destination
-    iptables -A INPUT -p udp --dport ${vpn_port} -d ${destination} -j ACCEPT
+    iptables -A INPUT -p udp --dport ${vpn_port} -i "${interface}" -j ACCEPT
+    # ip6tables -A INPUT -p udp --dport ${vpn_port} -i "${interface}" -j ACCEPT
 
     # Log new connection ips and add them to a list called Wireguard
     iptables -A INPUT -p udp --dport ${vpn_port} -m state --state NEW -m recent --set --name Wireguard
+    # ip6tables -A INPUT -p udp --dport ${vpn_port} -m state --state NEW -m recent --set --name Wireguard
 
     # Log vpn connections from an ip to 3 connections in 60 seconds.
     iptables -A INPUT -p udp --dport ${vpn_port} -m state --state NEW -m recent --update --seconds 60 --hitcount 3 --rttl --name Wireguard -j LOG --log-level info --log-prefix "Limit Wireguard"
+    # ip6tables -A INPUT -p udp --dport ${vpn_port} -m state --state NEW -m recent --update --seconds 60 --hitcount 3 --rttl --name Wireguard -j LOG --log-level info --log-prefix "Limit Wireguard"
 
     # Limit vpn connections from an ip to 3 connections in 60 seconds.
     iptables -A INPUT -p udp --dport ${vpn_port} -m state --state NEW -m recent --update --seconds 60 --hitcount 3 --rttl --name Wireguard -j DROP
+    # ip6tables -A INPUT -p udp --dport ${vpn_port} -m state --state NEW -m recent --update --seconds 60 --hitcount 3 --rttl --name Wireguard -j DROP
 
     # Save rules
     iptables-save >/etc/iptables/rules.v4
@@ -415,4 +374,28 @@ function iptables_allow_vpn_port() {
 function iptables_allow_forwarding() {
     grep -q ".*net\.ipv4\.ip_forward=" '/etc/sysctl.conf' && sed -i "s,.*net\.ipv4\.ip_forward=.*,net.ipv4.ip_forward=1," '/etc/sysctl.conf' || printf '%s\n' 'net.ipv4.ip_forward=1' >>'/etc/sysctl.conf'
     grep -q ".*net\.ipv6\.conf\.all\.forwarding=" '/etc/sysctl.conf' && sed -i "s,.*net\.ipv6\.conf\.all\.forwarding=.*,net.ipv6.conf.all.forwarding=1," '/etc/sysctl.conf' || printf '%s\n' 'net.ipv6.conf.all.forwarding=1' >>'/etc/sysctl.conf'
+}
+
+function iptables_allow_icmp() {
+    # Parameters
+    local source=${1}
+    local interface=${2}
+    local ipv6_link_local='fe80::/10'
+
+    # Allow icmp from a source and interface
+    iptables -A INPUT -p icmp -s "${source}" -i "${interface}" -j ACCEPT
+    ip6tables -A INPUT -p icmpv6 -s "${ipv6_link_local}" -i "${interface}" -j ACCEPT
+
+    # Save rules
+    iptables-save >/etc/iptables/rules.v4
+    ip6tables-save >/etc/iptables/rules.v6
+}
+
+function iptables_allow_loopback() {
+    iptables -A INPUT -s '127.0.0.0/8' -i 'lo' -j ACCEPT
+    ip6tables -A INPUT -s '::1' -i 'lo' -j ACCEPT
+
+    # Save rules
+    iptables-save >/etc/iptables/rules.v4
+    ip6tables-save >/etc/iptables/rules.v6
 }
