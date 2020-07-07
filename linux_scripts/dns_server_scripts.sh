@@ -274,10 +274,6 @@ EOF
 }
 
 function iptables_setup_base() {
-    # Parameters
-    local interface=${1}
-    local network_prefix=${2}
-
     # Allow established connections
     iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
     ip6tables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
