@@ -225,7 +225,7 @@ function configure_pihole() {
     bash basic-install.sh
     cd || exit
 
-    # Configure whitelist, blacklist, and regex
+    # Configure allowlist, denylist, and regex
     # Possible values: id, type, domain, enabled, date_added, date_modified, comment
     sqlite3 /etc/pihole/gravity.db <<EOF
 INSERT INTO domainlist (id, type, domain, enabled, comment) VALUES (1,3,'^.+\.(ru|cn|ro|ml|ga|gq|cf|tk|pw|ua|ug|ve|)$',1,'Block some country TLDs.');
