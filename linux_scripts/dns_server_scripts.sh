@@ -145,8 +145,8 @@ function configure_dns_server_scripts() {
     # Script to update root.hints file
     cat <<EOF >'/usr/local/bin/update_root_hints.sh'
 #!/bin/bash
-wget -O root.hints 'https://www.internic.net/domain/named.root'
-mv -f root.hints /var/lib/unbound/
+wget -O "/home/$user_name/root.hints" 'https://www.internic.net/domain/named.root'
+mv -f "/home/$user_name/root.hints" '/var/lib/unbound/'
 
 EOF
     chmod +x '/usr/local/bin/update_root_hints.sh'
@@ -245,15 +245,16 @@ INSERT INTO adlist (id, address, enabled, comment) VALUES (5,'https://s3.amazona
 EOF
 
     # Configure pihole settings
-    grep -q 'DNSSEC=' '/etc/pihole/setupVars.conf' && sed -i "s/DNSSEC=.*/DNSSEC=true/g" '/etc/pihole/setupVars.conf' || printf '%s\n' 'DNSSEC=true' >>'/etc/pihole/setupVars.conf'
-    grep -q 'PIHOLE_DNS_1=' '/etc/pihole/setupVars.conf' && sed -i "s/PIHOLE_DNS_1=.*/PIHOLE_DNS_1=127.0.0.1#5353/g" '/etc/pihole/setupVars.conf' || printf '%s\n' 'PIHOLE_DNS_1=127.0.0.1#5053' >>'/etc/pihole/setupVars.conf'
-    grep -q 'PIHOLE_DNS_2=' '/etc/pihole/setupVars.conf' && sed -i "s/PIHOLE_DNS_2=.*/PIHOLE_DNS_2=::1#5353/g" '/etc/pihole/setupVars.conf' || printf '%s\n' 'PIHOLE_DNS_2=::1#5053' >>'/etc/pihole/setupVars.conf'
-    grep -q 'DNSMASQ_LISTENING=' '/etc/pihole/setupVars.conf' && sed -i "s/DNSMASQ_LISTENING=.*/DNSMASQ_LISTENING=all/g" '/etc/pihole/setupVars.conf' || printf '%s\n' 'DNSMASQ_LISTENING=all' >>'/etc/pihole/setupVars.conf'
-    grep -q 'CONDITIONAL_FORWARDING=' '/etc/pihole/setupVars.conf' && sed -i "s/CONDITIONAL_FORWARDING=.*/CONDITIONAL_FORWARDING=true/g" '/etc/pihole/setupVars.conf' || printf '%s\n' 'CONDITIONAL_FORWARDING=true' >>'/etc/pihole/setupVars.conf'
-    grep -q 'CONDITIONAL_FORWARDING_IP=' '/etc/pihole/setupVars.conf' && sed -i "s/CONDITIONAL_FORWARDING_IP=.*/CONDITIONAL_FORWARDING_IP=${gateway_address}/g" '/etc/pihole/setupVars.conf' || printf '%s\n' "CONDITIONAL_FORWARDING_IP=${gateway_address}" >>'/etc/pihole/setupVars.conf'
-    grep -q 'CONDITIONAL_FORWARDING_DOMAIN=' '/etc/pihole/setupVars.conf' && sed -i "s/CONDITIONAL_FORWARDING_DOMAIN=.*/CONDITIONAL_FORWARDING_DOMAIN=lan/g" '/etc/pihole/setupVars.conf' || printf '%s\n' 'CONDITIONAL_FORWARDING_DOMAIN=lan' >>'/etc/pihole/setupVars.conf'
-    grep -q 'DNS_FQDN_REQUIRED=' '/etc/pihole/setupVars.conf' && sed -i "s/DNS_FQDN_REQUIRED=.*/DNS_FQDN_REQUIRED=false/g" '/etc/pihole/setupVars.conf' || printf '%s\n' 'DNS_FQDN_REQUIRED=false' >>'/etc/pihole/setupVars.conf'
-    grep -q 'DNS_BOGUS_PRIV=' '/etc/pihole/setupVars.conf' && sed -i "s/DNS_BOGUS_PRIV=.*/DNS_BOGUS_PRIV=false/g" '/etc/pihole/setupVars.conf' || printf '%s\n' 'DNS_BOGUS_PRIV=false' >>'/etc/pihole/setupVars.conf'
+    grep -q 'DNSSEC=' '/etc/pihole/setupVars.conf' && sed -i "s/.*DNSSEC=.*/DNSSEC=true/g" '/etc/pihole/setupVars.conf' || printf '%s\n' 'DNSSEC=true' >>'/etc/pihole/setupVars.conf'
+    grep -q 'PIHOLE_DNS_1=' '/etc/pihole/setupVars.conf' && sed -i "s/.*PIHOLE_DNS_1=.*/PIHOLE_DNS_1=127.0.0.1#5353/g" '/etc/pihole/setupVars.conf' || printf '%s\n' 'PIHOLE_DNS_1=127.0.0.1#5053' >>'/etc/pihole/setupVars.conf'
+    grep -q 'PIHOLE_DNS_2=' '/etc/pihole/setupVars.conf' && sed -i "s/.*PIHOLE_DNS_2=.*/PIHOLE_DNS_2=::1#5353/g" '/etc/pihole/setupVars.conf' || printf '%s\n' 'PIHOLE_DNS_2=::1#5053' >>'/etc/pihole/setupVars.conf'
+    grep -q 'DNSMASQ_LISTENING=' '/etc/pihole/setupVars.conf' && sed -i "s/.*DNSMASQ_LISTENING=.*/DNSMASQ_LISTENING=all/g" '/etc/pihole/setupVars.conf' || printf '%s\n' 'DNSMASQ_LISTENING=all' >>'/etc/pihole/setupVars.conf'
+    grep -q 'CONDITIONAL_FORWARDING=' '/etc/pihole/setupVars.conf' && sed -i "s/.*CONDITIONAL_FORWARDING=.*/CONDITIONAL_FORWARDING=true/g" '/etc/pihole/setupVars.conf' || printf '%s\n' 'CONDITIONAL_FORWARDING=true' >>'/etc/pihole/setupVars.conf'
+    grep -q 'CONDITIONAL_FORWARDING_IP=' '/etc/pihole/setupVars.conf' && sed -i "s/.*CONDITIONAL_FORWARDING_IP=.*/CONDITIONAL_FORWARDING_IP=${gateway_address}/g" '/etc/pihole/setupVars.conf' || printf '%s\n' "CONDITIONAL_FORWARDING_IP=${gateway_address}" >>'/etc/pihole/setupVars.conf'
+    grep -q 'CONDITIONAL_FORWARDING_DOMAIN=' '/etc/pihole/setupVars.conf' && sed -i "s/.*CONDITIONAL_FORWARDING_DOMAIN=.*/CONDITIONAL_FORWARDING_DOMAIN=lan/g" '/etc/pihole/setupVars.conf' || printf '%s\n' 'CONDITIONAL_FORWARDING_DOMAIN=lan' >>'/etc/pihole/setupVars.conf'
+    grep -q 'DNS_FQDN_REQUIRED=' '/etc/pihole/setupVars.conf' && sed -i "s/.*DNS_FQDN_REQUIRED=.*/DNS_FQDN_REQUIRED=false/g" '/etc/pihole/setupVars.conf' || printf '%s\n' 'DNS_FQDN_REQUIRED=false' >>'/etc/pihole/setupVars.conf'
+    grep -q 'DNS_BOGUS_PRIV=' '/etc/pihole/setupVars.conf' && sed -i "s/.*DNS_BOGUS_PRIV=.*/DNS_BOGUS_PRIV=false/g" '/etc/pihole/setupVars.conf' || printf '%s\n' 'DNS_BOGUS_PRIV=false' >>'/etc/pihole/setupVars.conf'
+    grep -q 'WEBTHEME=' '/etc/pihole/setupVars.conf' && sed -i "s/.*WEBTHEME=.*/WEBTHEME=default-dark/g" '/etc/pihole/setupVars.conf' || printf '%s\n' 'WEBTHEME=default-dark' >>'/etc/pihole/setupVars.conf'
 
     # Set custom domains
     cat <<EOF >'/etc/pihole/custom.list'
