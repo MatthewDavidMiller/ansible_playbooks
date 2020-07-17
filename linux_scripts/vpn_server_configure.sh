@@ -75,3 +75,4 @@ iptables_allow_icmp "${network_prefix}" "${interface}"
 iptables_allow_loopback
 iptables_allow_forwarding
 enable_wireguard_service "${wireguard_interface}"
+log_rotate_configure "${user_name}"
