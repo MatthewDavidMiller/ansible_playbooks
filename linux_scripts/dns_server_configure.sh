@@ -44,3 +44,4 @@ apt_configure_auto_updates "${release_name}"
 configure_dns_server_scripts
 configure_unbound
 configure_pihole
+log_rotate_configure "${user_name}"
