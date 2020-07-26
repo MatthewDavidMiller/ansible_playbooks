@@ -232,6 +232,8 @@ INSERT INTO domainlist (id, type, domain, enabled, comment) VALUES (1,3,'^.+\.(r
 INSERT INTO domainlist (id, type, domain, enabled, comment) VALUES (2,3,'porn',1,'Block domains with the word porn in them.');
 INSERT INTO domainlist (id, type, domain, enabled, comment) VALUES (3,3,'sex',1,'Block domains with the word sex in them.');
 INSERT INTO domainlist (id, type, domain, enabled, comment) VALUES (4,0,'ntscorp.ru',1,'Openiv mod download domain.');
+INSERT INTO domainlist (id, type, domain, enabled, comment) VALUES (5,3,'date',1,'Block domains with the word date in them.');
+INSERT INTO domainlist (id, type, domain, enabled, comment) VALUES (6,3,'love',1,'Block domains with the word love in them.');
 EOF
 
     # Configure blocklists
