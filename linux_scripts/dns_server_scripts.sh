@@ -239,11 +239,25 @@ EOF
     # Configure blocklists
     # Possible values: id, address, enabled, date_added, date_modified, comment
     sqlite3 /etc/pihole/gravity.db <<EOF
-INSERT INTO adlist (id, address, enabled, comment) VALUES (1,'https://mirror1.malwaredomains.com/files/justdomains',1,'Default malware blocklist.');
+INSERT INTO adlist (id, address, enabled, comment) VALUES (1,'https://mirror1.malwaredomains.com/files/justdomains',1,'malware blocklist');
 INSERT INTO adlist (id, address, enabled, comment) VALUES (2,'https://raw.githubusercontent.com/chadmayfield/my-pihole-blocklists/master/lists/pi_blocklist_porn_all.list',1,'A porn blocklist.');
-INSERT INTO adlist (id, address, enabled, comment) VALUES (3,'https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts',0,'Default All in one blocklist.');
-INSERT INTO adlist (id, address, enabled, comment) VALUES (4,'https://s3.amazonaws.com/lists.disconnect.me/simple_tracking.txt',0,'Default Tracker blocklist.');
-INSERT INTO adlist (id, address, enabled, comment) VALUES (5,'https://s3.amazonaws.com/lists.disconnect.me/simple_ad.txt',0,'Default Ad blocklist.');
+INSERT INTO adlist (id, address, enabled, comment) VALUES (3,'https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts',0,'Default All in one blocklist');
+INSERT INTO adlist (id, address, enabled, comment) VALUES (4,'https://s3.amazonaws.com/lists.disconnect.me/simple_tracking.txt',0,'Default Tracker blocklist');
+INSERT INTO adlist (id, address, enabled, comment) VALUES (5,'https://s3.amazonaws.com/lists.disconnect.me/simple_ad.txt',0,'Default Ad blocklist');
+INSERT INTO adlist (id, address, enabled, comment) VALUES (6,'https://raw.githubusercontent.com/DandelionSprout/adfilt/master/Alternate%20versions%20Anti-Malware%20List/AntiMalwareHosts.txt',1,'malware blocklist');
+INSERT INTO adlist (id, address, enabled, comment) VALUES (7,'https://osint.digitalside.it/Threat-Intel/lists/latestdomains.txt',1,'malware blocklist');
+INSERT INTO adlist (id, address, enabled, comment) VALUES (8,'https://s3.amazonaws.com/lists.disconnect.me/simple_malvertising.txt',1,'malware blocklist');
+INSERT INTO adlist (id, address, enabled, comment) VALUES (9,'https://v.firebog.net/hosts/Prigent-Crypto.txt',1,'malware blocklist');
+INSERT INTO adlist (id, address, enabled, comment) VALUES (10,'https://mirror.cedia.org.ec/malwaredomains/immortal_domains.txt',1,'malware blocklist');
+INSERT INTO adlist (id, address, enabled, comment) VALUES (11,'https://www.malwaredomainlist.com/hostslist/hosts.txt',1,'malware blocklist');
+INSERT INTO adlist (id, address, enabled, comment) VALUES (12,'https://bitbucket.org/ethanr/dns-blacklists/raw/8575c9f96e5b4a1308f2f12394abd86d0927a4a0/bad_lists/Mandiant_APT1_Report_Appendix_D.txt',1,'malware blocklist');
+INSERT INTO adlist (id, address, enabled, comment) VALUES (13,'https://phishing.army/download/phishing_army_blocklist_extended.txt',1,'malware blocklist');
+INSERT INTO adlist (id, address, enabled, comment) VALUES (14,'https://gitlab.com/quidsup/notrack-blocklists/raw/master/notrack-malware.txt',1,'malware blocklist');
+INSERT INTO adlist (id, address, enabled, comment) VALUES (15,'https://v.firebog.net/hosts/Shalla-mal.txt',1,'malware blocklist');
+INSERT INTO adlist (id, address, enabled, comment) VALUES (16,'https://raw.githubusercontent.com/Spam404/lists/master/main-blacklist.txt',1,'malware blocklist');
+INSERT INTO adlist (id, address, enabled, comment) VALUES (17,'https://raw.githubusercontent.com/FadeMind/hosts.extras/master/add.Risk/hosts',1,'malware blocklist');
+INSERT INTO adlist (id, address, enabled, comment) VALUES (18,'https://urlhaus.abuse.ch/downloads/hostfile/',0,'malware blocklist');
+
 EOF
 
     # Configure pihole settings
