@@ -235,6 +235,7 @@ INSERT INTO domainlist (id, type, domain, enabled, comment) VALUES (4,0,'ntscorp
 INSERT INTO domainlist (id, type, domain, enabled, comment) VALUES (5,3,'date',1,'Block domains with the word date in them.');
 INSERT INTO domainlist (id, type, domain, enabled, comment) VALUES (6,3,'love',1,'Block domains with the word love in them.');
 INSERT INTO domainlist (id, type, domain, enabled, comment) VALUES (7,2,'update',1,'Allow domains with the word update in them.');
+INSERT INTO domainlist (id, type, domain, enabled, comment) VALUES (8,3,'hentai',1,'Block domains with the word hentai in them.');
 EOF
 
     # Configure blocklists
