@@ -281,6 +281,9 @@ EOF
 10.1.10.4 matt-nas.miller.lan
 10.1.10.5 matt-pihole.miller.lan
 10.1.10.6 matt-vpn.miller.lan
+10.1.10.12 AccessPoint.miller.lan
+10.1.10.206 MattSwitch.miller.lan
+10.1.1.201 TimSwitch.miller.lan
 10.1.1.213 MaryPrinter.miller.lan
 EOF
 
