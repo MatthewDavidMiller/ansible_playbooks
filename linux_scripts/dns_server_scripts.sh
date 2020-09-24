@@ -276,12 +276,12 @@ EOF
 
     # Set custom domains
     cat <<EOF >'/etc/pihole/custom.list'
-10.1.10.1 mattopenwrt.miller.lan
+10.1.10.1 MattOpenwrt.miller.lan
 10.1.10.3 matt-prox.miller.lan
 10.1.10.4 matt-nas.miller.lan
 10.1.10.5 matt-pihole.miller.lan
 10.1.10.6 matt-vpn.miller.lan
-10.1.1.213 mary-printer.miller.lan
+10.1.1.213 MaryPrinter.miller.lan
 EOF
 
     echo 'Set pihole password'
