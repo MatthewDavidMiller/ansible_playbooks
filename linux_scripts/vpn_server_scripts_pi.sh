@@ -439,3 +439,10 @@ function set_shell_bash() {
     chsh -s /bin/bash
     chsh -s /bin/bash "${user_name}"
 }
+
+function add_user_to_sudo() {
+    # Parameters
+    local user_name=${1}
+
+    grep -q -E ".*${user_name}" '/etc/sudoers' && sed -i -E "s,.*${user_name}.*,${user_name} ALL=\(ALL\) ALL," '/etc/sudoers' || printf '%s\n' "${user_name} ALL=(ALL) ALL" >>'/etc/sudoers'
+}
