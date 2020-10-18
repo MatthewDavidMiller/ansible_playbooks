@@ -31,7 +31,6 @@ wireguard_client_ip_address='10.3.0.2'
 wireguard_dns_server='10.1.10.5'
 wireguard_public_dns_ip_address='mattm.mooo.com'
 swap_file_size='512'
-device_hostname='VPN'
 user_name='matthew'
 
 # Prompts
@@ -41,12 +40,6 @@ read -r -p "Enter code for dynamic dns: " dynamic_dns
 # Call functions
 # get_username
 create_swap_file "${swap_file_size}"
-set_timezone
-set_language
-set_hostname "${device_hostname}"
-setup_hosts_file "${device_hostname}"
-create_user "${user_name}"
-add_user_to_sudo "${user_name}"
 set_shell_bash "${user_name}"
 add_backports_repository "${release_name}"
 lock_root
