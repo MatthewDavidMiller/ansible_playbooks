@@ -25,7 +25,7 @@ wireguard_interface='wg0'
 wireguard_server_ip_address='10.3.0.1'
 wireguard_server_network_prefix='10.3.0.0/24'
 wireguard_server_vpn_key_name='wireguard_vpn_server'
-wireguard_client_key_name='matthew_wireguard'
+wireguard_client_key_name='matthew'
 wireguard_server_listen_port='64640'
 wireguard_client_ip_address='10.3.0.2'
 wireguard_dns_server='10.1.10.5'
@@ -33,51 +33,85 @@ wireguard_public_dns_ip_address='mattm.mooo.com'
 swap_file_size='512'
 user_name='matthew'
 
-# Prompts
-read -r -p "Generate more than one wireguard client configs? [y/N] " wireguard_clients_response
-read -r -p "Enter code for dynamic dns: " dynamic_dns
+PS3='Select Configuration Option: '
+options=("Set variables" "Base Configuration" "Configure Wireguard" "Add a wireguard Client" "Configure Iptables" "Configure Auto Updates" "Configure Log Rotate" "Quit")
+options_select
 
-# Call functions
-# get_username
-add_user_to_sudo
-create_swap_file "${swap_file_size}"
-set_shell_bash "${user_name}"
-add_backports_repository "${release_name}"
-lock_root
-get_interface_name
-configure_network "${ip_address}" "${network_address}" "${subnet_mask}" "${gateway_address}" "${dns_address}" "${interface}" "${ipv6_link_local_address}"
-fix_apt_packages
-install_vpn_server_packages "${release_name}"
-configure_ssh
-generate_ssh_key "${user_name}" "y" "n" "n" "${key_name}"
-configure_vpn_scripts "${dynamic_dns}" "${release_name}"
-setup_basic_wireguard_interface "${wireguard_interface}" "${wireguard_server_ip_address}"
-generate_wireguard_key "${user_name}" "${wireguard_server_vpn_key_name}"
-configure_wireguard_server_base "${wireguard_interface}" "${user_name}" "${wireguard_server_vpn_key_name}" "${wireguard_server_ip_address}" "${wireguard_server_listen_port}" "${interface}" "${wireguard_server_network_prefix}"
-generate_wireguard_key "${user_name}" "${wireguard_client_key_name}"
-add_wireguard_peer "${wireguard_interface}" "${user_name}" "${wireguard_client_key_name}" "${wireguard_client_ip_address}"
-wireguard_create_client_config "${user_name}" "${wireguard_client_key_name}" "${wireguard_server_vpn_key_name}" "${wireguard_client_ip_address}" "${wireguard_dns_server}" "${wireguard_public_dns_ip_address}" "${wireguard_server_listen_port}"
+select options_select in "${options[@]}"; do
+    case $options_select in
 
-while [[ "${wireguard_clients_response}" =~ ^([yY][eE][sS]|[yY])+$ ]]; do
-    read -r -p "Enter wireguard client name: " wireguard_client_key_name
-    read -r -p "Enter wireguard client ip address: " wireguard_client_ip_address
-    generate_wireguard_key "${user_name}" "${wireguard_client_key_name}"
-    add_wireguard_peer "${wireguard_interface}" "${user_name}" "${wireguard_client_key_name}" "${wireguard_client_ip_address}"
-    wireguard_create_client_config "${user_name}" "${wireguard_client_key_name}" "${wireguard_server_vpn_key_name}" "${wireguard_client_ip_address}" "${wireguard_dns_server}" "${wireguard_public_dns_ip_address}" "${wireguard_server_listen_port}"
-    read -r -p "Add another wireguard client? [y/N] " wireguard_clients_loop_response
+    "Set variables")
+        read -r -p "Set the release name: " release_name
+        read -r -p "Set the key name: " key_name
+        read -r -p "Set the ip address of the OS: " ip_address
+        read -r -p "Set the network address of the OS: " network_address
+        read -r -p "Set the subnet mask of the OS: " subnet_mask
+        read -r -p "Set the gateway address of the OS: " gateway_address
+        read -r -p "Set the dns address of the OS: " dns_address
+        read -r -p "Set the network prefix of the OS: " network_prefix
+        read -r -p "Set the ipv6 link local address of the OS: " ipv6_link_local_address
+        read -r -p "Set the wireguard interface name: " wireguard_interface
+        read -r -p "Set the wireguard server ip address: " wireguard_server_ip_address
+        read -r -p "Set the wireguard server network prefix: " wireguard_server_network_prefix
+        read -r -p "Set the wireguard server vpn key name: " wireguard_server_vpn_key_name
+        read -r -p "Set the wireguard client key name: " wireguard_client_key_name
+        read -r -p "Set the wireguard dns server: " wireguard_dns_server
+        read -r -p "Set the wireguard public dns name: " wireguard_public_dns_ip_address
+        read -r -p "Set the swap file size: " swap_file_size
+        read -r -p "Specify the user name of the Linux user: " user_name
+        ;;
 
-    if [[ "${wireguard_clients_loop_response}" =~ ^([nN][oO]|[nN])+$ ]]; then
+    "Base Configuration")
+        read -r -p "Enter code for dynamic dns: " dynamic_dns
+        # get_username
+        add_user_to_sudo
+        create_swap_file "${swap_file_size}"
+        set_shell_bash "${user_name}"
+        add_backports_repository "${release_name}"
+        lock_root
+        get_interface_name
+        configure_network "${ip_address}" "${network_address}" "${subnet_mask}" "${gateway_address}" "${dns_address}" "${interface}" "${ipv6_link_local_address}"
+        fix_apt_packages
+        install_vpn_server_packages "${release_name}"
+        configure_ssh
+        generate_ssh_key "${user_name}" "y" "n" "n" "${key_name}"
+        configure_vpn_scripts "${dynamic_dns}" "${release_name}"
+        read -r -p "Reboot the OS before configuring wireguard"
+        ;;
+    "Configure Wireguard")
+        setup_basic_wireguard_interface "${wireguard_interface}" "${wireguard_server_ip_address}"
+        generate_wireguard_key "${user_name}" "${wireguard_server_vpn_key_name}"
+        configure_wireguard_server_base "${wireguard_interface}" "${user_name}" "${wireguard_server_vpn_key_name}" "${wireguard_server_ip_address}" "${wireguard_server_listen_port}" "${interface}" "${wireguard_server_network_prefix}"
+        generate_wireguard_key "${user_name}" "${wireguard_client_key_name}"
+        add_wireguard_peer "${wireguard_interface}" "${user_name}" "${wireguard_client_key_name}" "${wireguard_client_ip_address}"
+        wireguard_create_client_config "${user_name}" "${wireguard_client_key_name}" "${wireguard_server_vpn_key_name}" "${wireguard_client_ip_address}" "${wireguard_dns_server}" "${wireguard_public_dns_ip_address}" "${wireguard_server_listen_port}"
+        enable_wireguard_service "${wireguard_interface}"
+        ;;
+    "Add a wireguard Client")
+        read -r -p "Enter wireguard client name: " wireguard_client_key_name
+        read -r -p "Enter wireguard client ip address: " wireguard_client_ip_address
+        generate_wireguard_key "${user_name}" "${wireguard_client_key_name}"
+        add_wireguard_peer "${wireguard_interface}" "${user_name}" "${wireguard_client_key_name}" "${wireguard_client_ip_address}"
+        wireguard_create_client_config "${user_name}" "${wireguard_client_key_name}" "${wireguard_server_vpn_key_name}" "${wireguard_client_ip_address}" "${wireguard_dns_server}" "${wireguard_public_dns_ip_address}" "${wireguard_server_listen_port}"
+        ;;
+    "Configure Iptables")
+        iptables_setup_base
+        iptables_allow_ssh "${network_prefix}" "${interface}"
+        iptables_set_defaults
+        iptables_allow_vpn_port "${interface}" "${wireguard_server_listen_port}"
+        iptables_allow_icmp "${network_prefix}" "${interface}"
+        iptables_allow_loopback
+        iptables_allow_forwarding
+        ;;
+    "Configure Auto Updates")
+        apt_configure_auto_updates "${release_name}"
+        ;;
+    "Configure Log Rotate")
+        log_rotate_configure "${user_name}"
+        ;;
+    "Quit")
         break
-    fi
+        ;;
+    *) echo "$REPLY is not an option" ;;
+    esac
 done
-
-apt_configure_auto_updates "${release_name}"
-iptables_setup_base
-iptables_allow_ssh "${network_prefix}" "${interface}"
-iptables_set_defaults
-iptables_allow_vpn_port "${interface}" "${wireguard_server_listen_port}"
-iptables_allow_icmp "${network_prefix}" "${interface}"
-iptables_allow_loopback
-iptables_allow_forwarding
-enable_wireguard_service "${wireguard_interface}"
-log_rotate_configure "${user_name}"
