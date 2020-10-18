@@ -6,10 +6,10 @@
 # Configuration script for the VPN server.
 
 # Get needed scripts
-wget -O 'vpn_server_scripts.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/VPN-Server-Configuration/stable/linux_scripts/vpn_server_scripts.sh'
+wget -O 'vpn_server_scripts.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/VPN-Server-Configuration/stable/linux_scripts/vpn_server_scripts_pi.sh'
 
 # Source functions
-source vpn_server_scripts.sh
+source vpn_server_scripts_pi.sh
 
 # Default variables
 release_name='buster'
