@@ -57,7 +57,7 @@ function fix_apt_packages() {
 function install_dns_server_packages() {
     apt-get update
     apt-get upgrade -y
-    apt-get install -y wget vim git iptables iptables-persistent ntp ssh openssh-server unbound unattended-upgrades sqlite3
+    apt-get install -y wget vim git iptables iptables-persistent ntp ssh openssh-server unbound unattended-upgrades sqlite3 sudo
 }
 
 function configure_ssh() {
