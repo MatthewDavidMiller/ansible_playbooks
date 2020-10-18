@@ -6,7 +6,7 @@
 # Configuration script for the VPN server.
 
 # Get needed scripts
-wget -O 'vpn_server_scripts.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/VPN-Server-Configuration/stable/linux_scripts/vpn_server_scripts_pi.sh'
+wget -O 'vpn_server_scripts_pi.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/VPN-Server-Configuration/stable/linux_scripts/vpn_server_scripts_pi.sh'
 
 # Source functions
 source vpn_server_scripts_pi.sh
@@ -39,6 +39,7 @@ read -r -p "Enter code for dynamic dns: " dynamic_dns
 
 # Call functions
 # get_username
+add_user_to_sudo
 create_swap_file "${swap_file_size}"
 set_shell_bash "${user_name}"
 add_backports_repository "${release_name}"
