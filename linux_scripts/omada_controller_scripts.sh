@@ -57,7 +57,7 @@ function fix_apt_packages() {
 function install_omada_controller_packages() {
     apt-get update
     apt-get upgrade -y
-    apt-get install -y wget vim git iptables iptables-persistent ntp ssh openssh-server jsvc curl unattended-upgrades
+    apt-get install -y wget vim git iptables iptables-persistent ntp ssh openssh-server jsvc curl unattended-upgrades sudo
 }
 
 function configure_ssh() {
