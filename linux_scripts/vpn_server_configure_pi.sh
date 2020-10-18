@@ -35,30 +35,53 @@ user_name='matthew'
 
 PS3='Select Configuration Option: '
 options=("Set variables" "Base Configuration" "Configure Wireguard" "Add a wireguard Client" "Configure Iptables" "Configure Auto Updates" "Configure Log Rotate" "Quit")
-options_select
 
 select options_select in "${options[@]}"; do
     case $options_select in
 
     "Set variables")
-        read -r -p "Set the release name: " release_name
-        read -r -p "Set the key name: " key_name
-        read -r -p "Set the ip address of the OS: " ip_address
-        read -r -p "Set the network address of the OS: " network_address
-        read -r -p "Set the subnet mask of the OS: " subnet_mask
-        read -r -p "Set the gateway address of the OS: " gateway_address
-        read -r -p "Set the dns address of the OS: " dns_address
-        read -r -p "Set the network prefix of the OS: " network_prefix
-        read -r -p "Set the ipv6 link local address of the OS: " ipv6_link_local_address
-        read -r -p "Set the wireguard interface name: " wireguard_interface
-        read -r -p "Set the wireguard server ip address: " wireguard_server_ip_address
-        read -r -p "Set the wireguard server network prefix: " wireguard_server_network_prefix
-        read -r -p "Set the wireguard server vpn key name: " wireguard_server_vpn_key_name
-        read -r -p "Set the wireguard client key name: " wireguard_client_key_name
-        read -r -p "Set the wireguard dns server: " wireguard_dns_server
-        read -r -p "Set the wireguard public dns name: " wireguard_public_dns_ip_address
-        read -r -p "Set the swap file size: " swap_file_size
-        read -r -p "Specify the user name of the Linux user: " user_name
+        PS3='Select Variable to configure: '
+        options=("Set the release name" "Set the key name" "Set the OS network" "Set the wireguard network" "Set the swap file size" "Set the user name" "Quit")
+
+        select options_select in "${options[@]}"; do
+            case $options_select in
+
+            "Set the release name")
+                read -r -p "Set the release name: " release_name
+                read -r -p "Set the ip address of the OS: " ip_address
+                ;;
+            "Set the key name")
+                read -r -p "Set the key name: " key_name
+                ;;
+            "Set the OS network")
+                read -r -p "Set the network address of the OS: " network_address
+                read -r -p "Set the subnet mask of the OS: " subnet_mask
+                read -r -p "Set the gateway address of the OS: " gateway_address
+                read -r -p "Set the dns address of the OS: " dns_address
+                read -r -p "Set the network prefix of the OS: " network_prefix
+                read -r -p "Set the ipv6 link local address of the OS: " ipv6_link_local_address
+                ;;
+            "Set the wireguard network")
+                read -r -p "Set the wireguard interface name: " wireguard_interface
+                read -r -p "Set the wireguard server ip address: " wireguard_server_ip_address
+                read -r -p "Set the wireguard server network prefix: " wireguard_server_network_prefix
+                read -r -p "Set the wireguard server vpn key name: " wireguard_server_vpn_key_name
+                read -r -p "Set the wireguard client key name: " wireguard_client_key_name
+                read -r -p "Set the wireguard dns server: " wireguard_dns_server
+                read -r -p "Set the wireguard public dns name: " wireguard_public_dns_ip_address
+                ;;
+            "Set the swap file size")
+                read -r -p "Set the swap file size: " swap_file_size
+                ;;
+            "Set the user name")
+                read -r -p "Specify the user name of the Linux user: " user_name
+                ;;
+            "Quit")
+                break
+                ;;
+            *) echo "$REPLY is not an option" ;;
+            esac
+        done
         ;;
 
     "Base Configuration")
@@ -76,7 +99,7 @@ select options_select in "${options[@]}"; do
         configure_ssh
         generate_ssh_key "${user_name}" "y" "n" "n" "${key_name}"
         configure_vpn_scripts "${dynamic_dns}" "${release_name}"
-        read -r -p "Reboot the OS before configuring wireguard"
+        read -r -p "Reboot the OS before configuring wireguard:"
         ;;
     "Configure Wireguard")
         setup_basic_wireguard_interface "${wireguard_interface}" "${wireguard_server_ip_address}"
