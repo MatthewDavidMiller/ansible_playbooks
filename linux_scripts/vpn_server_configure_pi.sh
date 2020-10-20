@@ -6,10 +6,10 @@
 # Configuration script for the VPN server.
 
 # Get needed scripts
-wget -O 'vpn_server_scripts_pi.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/VPN-Server-Configuration/stable/linux_scripts/vpn_server_scripts_pi.sh'
+wget -O 'vpn_server_scripts.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/VPN-Server-Configuration/stable/linux_scripts/vpn_server_scripts.sh'
 
 # Source functions
-source vpn_server_scripts_pi.sh
+source vpn_server_scripts.sh
 
 # Default variables
 release_name='buster'
@@ -32,6 +32,7 @@ wireguard_dns_server='10.1.10.5'
 wireguard_public_dns_ip_address='mattm.mooo.com'
 swap_file_size='512'
 user_name='matthew'
+device_hostname='VPN'
 
 PS3='Select Configuration Option: '
 options=("Set variables" "Base Configuration" "Configure Wireguard" "Add a wireguard Client" "Configure Iptables" "Configure Auto Updates" "Configure Log Rotate" "Quit")
@@ -41,7 +42,7 @@ select options_select in "${options[@]}"; do
 
     "Set variables")
         PS3='Select Variable to configure: '
-        options=("Set the release name" "Set the key name" "Set the OS network" "Set the wireguard network" "Set the swap file size" "Set the user name" "Quit")
+        options=("Set the release name" "Set the key name" "Set the OS network" "Set the wireguard network" "Set the swap file size" "Set the user name" "Set the hostname" "Quit")
 
         select options_select in "${options[@]}"; do
             case $options_select in
@@ -76,6 +77,9 @@ select options_select in "${options[@]}"; do
             "Set the user name")
                 read -r -p "Specify the user name of the Linux user: " user_name
                 ;;
+            "Set the hostname")
+                read -r -p "Specify the hostname for the device: " device_hostname
+                ;;
             "Quit")
                 break
                 ;;
@@ -85,23 +89,62 @@ select options_select in "${options[@]}"; do
         ;;
 
     "Base Configuration")
-        read -r -p "Enter code for dynamic dns: " dynamic_dns
-        # get_username
-        add_user_to_sudo
-        create_swap_file "${swap_file_size}"
-        set_shell_bash "${user_name}"
-        add_backports_repository "${release_name}"
-        lock_root
-        get_interface_name
-        configure_network "${ip_address}" "${network_address}" "${subnet_mask}" "${gateway_address}" "${dns_address}" "${interface}" "${ipv6_link_local_address}"
-        fix_apt_packages
-        install_vpn_server_packages "${release_name}"
-        configure_ssh
-        generate_ssh_key "${user_name}" "y" "n" "n" "${key_name}"
-        configure_vpn_scripts "${dynamic_dns}" "${release_name}"
-        read -r -p "Reboot the OS before configuring wireguard:"
+        PS3='Select Configuration Option: '
+        options=("Set the timezone" "Set the language" "Set the Hostname and hosts file" "Create an user and add to sudo" "Create a swap file" "Set the shell to bash" "Lock root" "Configure Network" "Install VPN server packages" "Configure SSH" "Configure VPN Scripts" "Quit")
+
+        select options_select in "${options[@]}"; do
+            case $options_select in
+
+            "Set the timezone")
+                set_timezone
+                ;;
+            "Set the language")
+                set_language
+                ;;
+            "Set the Hostname and hosts file")
+                set_hostname "${device_hostname}"
+                setup_hosts_file "${device_hostname}"
+                ;;
+            "Create an user and add to sudo")
+                create_user "${user_name}"
+                add_user_to_sudo
+                ;;
+            "Create a swap file")
+                create_swap_file "${swap_file_size}"
+                ;;
+            "Set the shell to bash")
+                set_shell_bash "${user_name}"
+                ;;
+            "Lock root")
+                lock_root "${user_name}"
+                ;;
+            "Configure Network")
+                get_interface_name
+                configure_network "${ip_address}" "${network_address}" "${subnet_mask}" "${gateway_address}" "${dns_address}" "${interface}" "${ipv6_link_local_address}"
+                ;;
+            "Install VPN server packages")
+                fix_apt_packages
+                install_vpn_server_packages "${release_name}"
+                read -r -p "Reboot the OS before configuring wireguard:"
+                ;;
+            "Configure SSH")
+                configure_ssh
+                generate_ssh_key "${user_name}" "y" "n" "n" "${key_name}"
+                ;;
+            "Configure VPN Scripts")
+                read -r -p "Enter code for dynamic dns: " dynamic_dns
+                configure_vpn_scripts "${dynamic_dns}" "${release_name}"
+                ;;
+            "Quit")
+                break
+                ;;
+            *) echo "$REPLY is not an option" ;;
+            esac
+        done
         ;;
+
     "Configure Wireguard")
+        add_backports_repository "${release_name}"
         setup_basic_wireguard_interface "${wireguard_interface}" "${wireguard_server_ip_address}"
         generate_wireguard_key "${user_name}" "${wireguard_server_vpn_key_name}"
         configure_wireguard_server_base "${wireguard_interface}" "${user_name}" "${wireguard_server_vpn_key_name}" "${wireguard_server_ip_address}" "${wireguard_server_listen_port}" "${interface}" "${wireguard_server_network_prefix}"
