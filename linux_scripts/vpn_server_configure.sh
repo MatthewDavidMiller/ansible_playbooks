@@ -49,12 +49,12 @@ select options_select in "${options[@]}"; do
 
             "Set the release name")
                 read -r -p "Set the release name: " release_name
-                read -r -p "Set the ip address of the OS: " ip_address
                 ;;
             "Set the key name")
                 read -r -p "Set the key name: " key_name
                 ;;
             "Set the OS network")
+                read -r -p "Set the ip address of the OS: " ip_address
                 read -r -p "Set the network address of the OS: " network_address
                 read -r -p "Set the subnet mask of the OS: " subnet_mask
                 read -r -p "Set the gateway address of the OS: " gateway_address
