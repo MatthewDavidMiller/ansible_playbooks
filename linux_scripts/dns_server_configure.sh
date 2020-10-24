@@ -132,6 +132,7 @@ select options_select in "${options[@]}"; do
         configure_pihole
         ;;
     "Configure Iptables")
+        get_interface_name
         iptables_setup_base
         iptables_allow_ssh "${network_prefix}" "${interface}"
         iptables_allow_dns "${network_prefix}" "${interface}"
