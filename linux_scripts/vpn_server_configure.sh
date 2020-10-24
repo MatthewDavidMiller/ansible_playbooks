@@ -163,6 +163,7 @@ select options_select in "${options[@]}"; do
         wireguard_create_client_config "${user_name}" "${wireguard_client_key_name}" "${wireguard_server_vpn_key_name}" "${wireguard_client_ip_address}" "${wireguard_dns_server}" "${wireguard_public_dns_ip_address}" "${wireguard_server_listen_port}"
         ;;
     "Configure Iptables")
+        get_interface_name
         iptables_setup_base
         iptables_allow_ssh "${network_prefix}" "${interface}"
         iptables_set_defaults
