@@ -90,7 +90,7 @@ select options_select in "${options[@]}"; do
 
     "Base Configuration")
         PS3='Select Configuration Option: '
-        options=("Set the timezone" "Set the language" "Set the Hostname and hosts file" "Create an user and add to sudo" "Create a swap file" "Set the shell to bash" "Lock root" "Configure Network" "Install VPN server packages" "Configure SSH" "Configure VPN Scripts" "Quit")
+        options=("Set the timezone" "Set the language" "Set the Hostname and hosts file" "Create an user" "Add user to sudo" "Create a swap file" "Set the shell to bash" "Lock root" "Configure Network" "Install VPN server packages" "Configure SSH" "Configure VPN Scripts" "Quit")
 
         select options_select in "${options[@]}"; do
             case $options_select in
@@ -105,8 +105,10 @@ select options_select in "${options[@]}"; do
                 set_hostname "${device_hostname}"
                 setup_hosts_file "${device_hostname}"
                 ;;
-            "Create an user and add to sudo")
+            "Create an user")
                 create_user "${user_name}"
+                ;;
+            "Add user to sudo")
                 add_user_to_sudo
                 ;;
             "Create a swap file")
