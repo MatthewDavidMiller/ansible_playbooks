@@ -33,42 +33,7 @@ function configure_network() {
     grep -q -E ".*auto ${interface}" '/etc/network/interfaces' || printf '%s\n' "auto ${interface}" >>'/etc/network/interfaces'
 
     # Replace iface $interface inet dhcp with iface $interface inet static
-    sed -i -E "s,.*iface ${interface} inet dhcp.*,iface ${interface} inet static," '/etc/network/interfaces'
-
-    # Replace the second line of iface $interface inet static if it matches a word
-    sed -i -E "s,.*iface ${interface} inet static.*\n\Kaddress.*,address ${ip_address}," '/etc/network/interfaces'
-    sed -i -E "s,.*iface ${interface} inet static.*\n\Knetwork.*,address ${ip_address}," '/etc/network/interfaces'
-    sed -i -E "s,.*iface ${interface} inet static.*\n\Knetmask.*,address ${ip_address}," '/etc/network/interfaces'
-    sed -i -E "s,.*iface ${interface} inet static.*\n\Kgateway.*,address ${ip_address}," '/etc/network/interfaces'
-    sed -i -E "s,.*iface ${interface} inet static.*\n\Kdns-nameservers.*,address ${ip_address}," '/etc/network/interfaces'
-
-    # Replace the third line of iface $interface inet static if it matches a word
-    sed -i -E "s,.*iface ${interface} inet static.*\n.*\n\Kaddress.*,network ${network_address}," '/etc/network/interfaces'
-    sed -i -E "s,.*iface ${interface} inet static.*\n.*\n\Knetwork.*,network ${network_address}," '/etc/network/interfaces'
-    sed -i -E "s,.*iface ${interface} inet static.*\n.*\n\Knetmask.*,network ${network_address}," '/etc/network/interfaces'
-    sed -i -E "s,.*iface ${interface} inet static.*\n.*\n\Kgateway.*,network ${network_address}," '/etc/network/interfaces'
-    sed -i -E "s,.*iface ${interface} inet static.*\n.*\n\Kdns-nameservers.*,network ${network_address}," '/etc/network/interfaces'
-
-    # Replace the fourth line of iface $interface inet static if it matches a word
-    sed -i -E "s,.*iface ${interface} inet static.*\n.*\n.*\n\Kaddress.*,netmask ${subnet_mask}," '/etc/network/interfaces'
-    sed -i -E "s,.*iface ${interface} inet static.*\n.*\n.*\n\Knetwork.*,netmask ${subnet_mask}," '/etc/network/interfaces'
-    sed -i -E "s,.*iface ${interface} inet static.*\n.*\n.*\n\Knetmask.*,netmask ${subnet_mask}," '/etc/network/interfaces'
-    sed -i -E "s,.*iface ${interface} inet static.*\n.*\n.*\n\Kgateway.*,netmask ${subnet_mask}," '/etc/network/interfaces'
-    sed -i -E "s,.*iface ${interface} inet static.*\n.*\n.*\n\Kdns-nameservers.*,netmask ${subnet_mask}," '/etc/network/interfaces'
-
-    # Replace the fifth line of iface $interface inet static if it matches a word
-    sed -i -E "s,.*iface ${interface} inet static.*\n.*\n.*\n.*\n\Kaddress.*,gateway ${gateway_address}," '/etc/network/interfaces'
-    sed -i -E "s,.*iface ${interface} inet static.*\n.*\n.*\n.*\n\Knetwork.*,gateway ${gateway_address}," '/etc/network/interfaces'
-    sed -i -E "s,.*iface ${interface} inet static.*\n.*\n.*\n.*\n\Knetmask.*,gateway ${gateway_address}," '/etc/network/interfaces'
-    sed -i -E "s,.*iface ${interface} inet static.*\n.*\n.*\n.*\n\Kgateway.*,gateway ${gateway_address}," '/etc/network/interfaces'
-    sed -i -E "s,.*iface ${interface} inet static.*\n.*\n.*\n.*\n\Kdns-nameservers.*,gateway ${gateway_address}," '/etc/network/interfaces'
-
-    # Replace the sixth line of iface $interface inet static if it matches a word
-    sed -i -E "s,.*iface ${interface} inet static.*\n.*\n.*\n.*\n.*\n\Kaddress.*,dns-nameservers ${dns_address}," '/etc/network/interfaces'
-    sed -i -E "s,.*iface ${interface} inet static.*\n.*\n.*\n.*\n.*\n\Knetwork.*,dns-nameservers ${dns_address}," '/etc/network/interfaces'
-    sed -i -E "s,.*iface ${interface} inet static.*\n.*\n.*\n.*\n.*\n\Knetmask.*,dns-nameservers ${dns_address}," '/etc/network/interfaces'
-    sed -i -E "s,.*iface ${interface} inet static.*\n.*\n.*\n.*\n.*\n\Kgateway.*,dns-nameservers ${dns_address}," '/etc/network/interfaces'
-    sed -i -E "s,.*iface ${interface} inet static.*\n.*\n.*\n.*\n.*\n\Kdns-nameservers.*,dns-nameservers ${dns_address}," '/etc/network/interfaces'
+    sed -i -E -z "s,.*iface ${interface} inet dhcp.*,iface ${interface} inet static\naddress ${ip_address}\nnetwork ${network_address}\nnetmask ${subnet_mask}\ngateway ${gateway_address}\ndns-nameservers ${dns_address}," '/etc/network/interfaces'
 
     grep -q -E ".*iface ${interface} inet static.*" '/etc/network/interfaces' || cat <<EOF >>'/etc/network/interfaces'
 iface ${interface} inet static
@@ -180,7 +145,7 @@ function apt_configure_auto_updates() {
     # Parameters
     local release_name=${1}
 
-    sed -i -E "s,.*Unattended-Upgrade::Origins-Pattern.*\n.*\n.*\n.*\n.*,Unattended-Upgrade::Origins-Pattern {\n\"origin=Debian\,n=${release_name}\,l=Debian\";\n\"origin=Debian\,n=${release_name}\,l=Debian-Security\";\n\"origin=Debian\,n=${release_name}-updates\";\n};," '/etc/apt/apt.conf.d/50unattended-upgrades'
+    sed -i -E -z "s,.*Unattended-Upgrade::Origins-Pattern.*\n.*\n.*\n.*\n.*,Unattended-Upgrade::Origins-Pattern {\n\"origin=Debian\,n=${release_name}\,l=Debian\";\n\"origin=Debian\,n=${release_name}\,l=Debian-Security\";\n\"origin=Debian\,n=${release_name}-updates\";\n};," '/etc/apt/apt.conf.d/50unattended-upgrades'
     grep -q -E ".*Unattended-Upgrade::Origins-Pattern.*" '/etc/apt/apt.conf.d/50unattended-upgrades' || cat <<EOF >>"/etc/apt/apt.conf.d/50unattended-upgrades"
 Unattended-Upgrade::Origins-Pattern {
         "origin=Debian,n=${release_name},l=Debian";
@@ -214,7 +179,7 @@ EOF
     # Configure cron jobs
     cat <<EOF >jobs.cron
 * 0 * * 1 bash /usr/local/bin/backup_configs.sh &
-* 0 * * 1 bash /usr/local/bin/update_root_hints.sh &
+* 0 * 1,7 * bash /usr/local/bin/update_root_hints.sh &
 
 EOF
     crontab jobs.cron
@@ -339,8 +304,8 @@ EOF
 10.1.10.1 MattOpenwrt.miller.lan
 10.1.10.3 matt-prox.miller.lan
 10.1.10.4 matt-nas.miller.lan
-10.1.10.5 matt-pihole.miller.lan
-10.1.10.6 matt-vpn.miller.lan
+10.1.10.5 Pihole.miller.lan
+10.1.10.6 VPN.miller.lan
 10.1.10.10 ESXIPi.miller.lan
 10.1.10.12 AccessPoint.miller.lan
 10.1.10.206 MattSwitch.miller.lan
