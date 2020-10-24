@@ -44,22 +44,6 @@ iface ${interface} inet static
     dns-nameservers ${dns_address}
 EOF
 
-    # Configure ipv6 network
-    # Replace the second line of iface $interface inet6 static if it matches a word
-    sed -i -E "s,.*iface ${interface} inet6 static.*\n\Kaddress.*,address ${ipv6_link_local_address}," '/etc/network/interfaces'
-    sed -i -E "s,.*iface ${interface} inet6 static.*\n\Knetmask 64.*,address ${ipv6_link_local_address}," '/etc/network/interfaces'
-    sed -i -E "s,.*iface ${interface} inet6 static.*\n\Kscope link.*,address ${ipv6_link_local_address}," '/etc/network/interfaces'
-
-    # Replace the third line of iface $interface inet6 static if it matches a word
-    sed -i -E "s,.*iface ${interface} inet6 static.*\n.*\n\Kaddress.*,netmask 64," '/etc/network/interfaces'
-    sed -i -E "s,.*iface ${interface} inet6 static.*\n.*\n\Knetmask 64.*,netmask 64," '/etc/network/interfaces'
-    sed -i -E "s,.*iface ${interface} inet6 static.*\n.*\n\Kscope link.*,netmask 64," '/etc/network/interfaces'
-
-    # Replace the fourth line of iface $interface inet6 static if it matches a word
-    sed -i -E "s,.*iface ${interface} inet6 static.*\n.*\n.*\n\Kaddress.*,scope link," '/etc/network/interfaces'
-    sed -i -E "s,.*iface ${interface} inet6 static.*\n.*\n.*\n\Knetmask 64.*,scope link," '/etc/network/interfaces'
-    sed -i -E "s,.*iface ${interface} inet6 static.*\n.*\n.*\n\Kscope link.*,scope link," '/etc/network/interfaces'
-
     grep -q -E ".*iface ${interface} inet6 static.*" '/etc/network/interfaces' || cat <<EOF >>'/etc/network/interfaces'
 iface ${interface} inet6 static
     address ${ipv6_link_local_address}
