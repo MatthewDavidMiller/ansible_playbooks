@@ -241,11 +241,13 @@ function configure_pihole() {
 INSERT INTO domainlist (id, type, domain, enabled, comment) VALUES (10,3,'^.+\.(ru|cn|ro|ml|ga|gq|cf|tk|pw|ua|ug|ve|)$',1,'Block some country TLDs.');
 INSERT INTO domainlist (id, type, domain, enabled, comment) VALUES (11,3,'porn',1,'Block domains with the word porn in them.');
 INSERT INTO domainlist (id, type, domain, enabled, comment) VALUES (12,3,'sex',1,'Block domains with the word sex in them.');
-INSERT INTO domainlist (id, type, domain, enabled, comment) VALUES (13,0,'ntscorp.ru',1,'Openiv mod download domain.');
+INSERT INTO domainlist (id, type, domain, enabled, comment) VALUES (13,0,'ntscorp.ru',1,'Allow domain.');
 INSERT INTO domainlist (id, type, domain, enabled, comment) VALUES (14,3,'date',1,'Block domains with the word date in them.');
 INSERT INTO domainlist (id, type, domain, enabled, comment) VALUES (15,3,'love',1,'Block domains with the word love in them.');
 INSERT INTO domainlist (id, type, domain, enabled, comment) VALUES (16,2,'update',1,'Allow domains with the word update in them.');
 INSERT INTO domainlist (id, type, domain, enabled, comment) VALUES (17,3,'hentai',1,'Block domains with the word hentai in them.');
+INSERT INTO domainlist (id, type, domain, enabled, comment) VALUES (18,0,'accounts.nvgs.nvidia.cn',1,'Allow domain.');
+INSERT INTO domainlist (id, type, domain, enabled, comment) VALUES (19,0,'login.nvgs.nvidia.cn',1,'Allow domain.');
 EOF
 
     # Configure blocklists
