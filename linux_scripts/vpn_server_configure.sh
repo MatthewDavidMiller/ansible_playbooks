@@ -7,32 +7,32 @@
 
 # Get needed scripts
 wget -O 'vpn_server_scripts.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/VPN-Server-Configuration/stable/linux_scripts/vpn_server_scripts.sh'
+wget -O 'apt_auto_updates.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/Bash-Common-Functions/main/functions/apt_auto_updates.sh'
+wget -O 'configure_network.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/Bash-Common-Functions/main/functions/configure_network.sh'
+wget -O 'configure_ssh.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/Bash-Common-Functions/main/functions/configure_ssh.sh'
+wget -O 'create_swap_file.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/Bash-Common-Functions/main/functions/create_swap_file.sh'
+wget -O 'functions.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/Bash-Common-Functions/main/functions/functions.sh'
+wget -O 'generate_ssh_key.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/Bash-Common-Functions/main/functions/generate_ssh_key.sh'
+wget -O 'iptables_base.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/Bash-Common-Functions/main/functions/iptables_base.sh'
+wget -O 'iptables_rules.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/Bash-Common-Functions/main/functions/iptables_rules.sh'
+wget -O 'log_rotate_configure.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/Bash-Common-Functions/main/functions/log_rotate_configure.sh'
+
+get_linux_headers
+
+# Source variables
+source env.sh
 
 # Source functions
 source vpn_server_scripts.sh
-
-# Default variables
-release_name='buster'
-key_name='vpn_key'
-ip_address='10.1.10.6'
-network_address='10.1.10.0'
-subnet_mask='255.255.255.0'
-gateway_address='10.1.10.1'
-dns_address='1.1.1.1'
-network_prefix='10.0.0.0/8'
-ipv6_link_local_address='fe80::6'
-wireguard_interface='wg0'
-wireguard_server_ip_address='10.3.0.1'
-wireguard_server_network_prefix='10.3.0.0/24'
-wireguard_server_vpn_key_name='wireguard_vpn_server'
-wireguard_client_key_name='matthew'
-wireguard_server_listen_port='64640'
-wireguard_client_ip_address='10.3.0.2'
-wireguard_dns_server='10.1.10.5'
-wireguard_public_dns_ip_address='mattm.mooo.com'
-swap_file_size='512'
-user_name='matthew'
-device_hostname='VPN'
+source apt_auto_updates.sh
+source configure_network.sh
+source configure_ssh.sh
+source create_swap_file.sh
+source functions.sh
+source generate_ssh_key.sh
+source iptables_base.sh
+source iptables_rules.sh
+source log_rotate_configure.sh
 
 PS3='Select Configuration Option: '
 options=("Set variables" "Base Configuration" "Configure Wireguard" "Add a wireguard Client" "Configure Iptables" "Configure Auto Updates" "Configure Log Rotate" "Quit")
@@ -126,6 +126,7 @@ select options_select in "${options[@]}"; do
                 ;;
             "Install VPN server packages")
                 fix_apt_packages
+                install_packages
                 install_vpn_server_packages "${release_name}"
                 read -r -p "Reboot the OS before configuring wireguard:"
                 ;;
