@@ -115,7 +115,7 @@ select options_select in "${options[@]}"; do
                 ;;
             "Install DNS server packages")
                 fix_apt_packages
-                install_dns_server_packages
+                install_packages
                 ;;
             "Configure SSH")
                 configure_ssh
