@@ -7,23 +7,30 @@
 
 # Get needed scripts
 wget -O 'dns_server_scripts.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/DNS-Server-Configuration/stable/linux_scripts/dns_server_scripts.sh'
+wget -O 'apt_auto_updates.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/Bash-Common-Functions/main/functions/apt_auto_updates.sh'
+wget -O 'configure_network.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/Bash-Common-Functions/main/functions/configure_network.sh'
+wget -O 'configure_ssh.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/Bash-Common-Functions/main/functions/configure_ssh.sh'
+wget -O 'create_swap_file.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/Bash-Common-Functions/main/functions/create_swap_file.sh'
+wget -O 'functions.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/Bash-Common-Functions/main/functions/functions.sh'
+wget -O 'generate_ssh_key.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/Bash-Common-Functions/main/functions/generate_ssh_key.sh'
+wget -O 'iptables_base.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/Bash-Common-Functions/main/functions/iptables_base.sh'
+wget -O 'iptables_rules.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/Bash-Common-Functions/main/functions/iptables_rules.sh'
+wget -O 'log_rotate_configure.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/Bash-Common-Functions/main/functions/log_rotate_configure.sh'
+
+# Source variables
+source env.sh
 
 # Source functions
 source dns_server_scripts.sh
-
-# Default variables
-release_name='buster'
-key_name='pihole_key'
-ip_address='10.1.10.5'
-network_address='10.1.10.0'
-subnet_mask='255.255.255.0'
-gateway_address='10.1.10.1'
-dns_address='1.1.1.1'
-network_prefix='10.0.0.0/8'
-ipv6_link_local_address='fe80::5'
-swap_file_size='512'
-device_hostname='Pihole'
-user_name='matthew'
+source apt_auto_updates.sh
+source configure_network.sh
+source configure_ssh.sh
+source create_swap_file.sh
+source functions.sh
+source generate_ssh_key.sh
+source iptables_base.sh
+source iptables_rules.sh
+source log_rotate_configure.sh
 
 PS3='Select Configuration Option: '
 options=("Set variables" "Base Configuration" "Configure Unbound" "Configure Pihole" "Configure Iptables" "Configure Auto Updates" "Configure Log Rotate" "Quit")
