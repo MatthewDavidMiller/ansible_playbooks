@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Environment Variables
 release_name='buster'
 key_name='key'
