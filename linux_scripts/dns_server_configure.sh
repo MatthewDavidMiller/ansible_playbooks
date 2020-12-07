@@ -33,14 +33,31 @@ source iptables_rules.sh
 source log_rotate_configure.sh
 
 PS3='Select Configuration Option: '
-options=("Set variables" "Base Configuration" "Configure Unbound" "Configure Pihole" "Configure Iptables" "Configure Auto Updates" "Configure Log Rotate" "Quit")
+options=(
+    "Set variables"
+    "Base Configuration"
+    "Configure Unbound"
+    "Configure Pihole"
+    "Configure Iptables"
+    "Configure Auto Updates"
+    "Configure Log Rotate"
+    "Quit"
+)
 
 select options_select in "${options[@]}"; do
     case $options_select in
 
     "Set variables")
         PS3='Select Variable to configure: '
-        options=("Set the release name" "Set the key name" "Set the OS network" "Set the swap file size" "Set the user name" "Set the hostname" "Quit")
+        options=(
+            "Set the release name"
+            "Set the key name"
+            "Set the OS network"
+            "Set the swap file size"
+            "Set the user name"
+            "Set the hostname"
+            "Quit"
+        )
 
         select options_select in "${options[@]}"; do
             case $options_select in
@@ -79,7 +96,22 @@ select options_select in "${options[@]}"; do
 
     "Base Configuration")
         PS3='Select Configuration Option: '
-        options=("Set the timezone" "Set the language" "Set the Hostname and hosts file" "Create an user" "Add user to sudo" "Create a swap file" "Set the shell to bash" "Lock root" "Configure Network" "Install DNS server packages" "Configure SSH" "Configure DNS Scripts" "Quit")
+        options=(
+            "Set the timezone"
+            "Set the language"
+            "Set the Hostname and hosts file"
+            "Create an user"
+            "Allow wheel group for sudo"
+            "Add user to sudo"
+            "Create a swap file"
+            "Set the shell to bash"
+            "Lock root"
+            "Configure Network"
+            "Install DNS server packages"
+            "Configure SSH"
+            "Configure DNS Scripts"
+            "Quit"
+        )
 
         select options_select in "${options[@]}"; do
             case $options_select in
@@ -97,6 +129,11 @@ select options_select in "${options[@]}"; do
             "Create an user")
                 create_user "${user_name}"
                 ;;
+
+            "Allow wheel group for sudo")
+                allow_wheel_sudo
+                ;;
+
             "Add user to sudo")
                 add_user_to_sudo "${user_name}"
                 ;;
