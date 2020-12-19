@@ -135,7 +135,7 @@ select options_select in "${options[@]}"; do
                 ;;
 
             "Add user to sudo")
-                add_user_to_sudo "${user_name}"
+                add_user_to_sudo_group "${user_name}"
                 ;;
             "Create a swap file")
                 create_swap_file "${swap_file_size}"
