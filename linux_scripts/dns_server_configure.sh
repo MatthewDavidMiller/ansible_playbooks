@@ -5,6 +5,7 @@
 # Run with sudo. Do not run while logged into root.
 # Configuration script for a DNS server.
 # Credit to, https://linuxize.com/post/bash-check-if-file-exists/
+# Credits to cas, https://unix.stackexchange.com/questions/91534/how-to-pipe-to-bash-as-a-different-user
 
 # Create driectory for scripts
 if [ ! -d 'dns_server_configuration' ]; then
