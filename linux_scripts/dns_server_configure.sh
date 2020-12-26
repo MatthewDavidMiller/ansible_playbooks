@@ -90,6 +90,7 @@ options=(
     "Configure SSH"
     "Configure DNS Scripts"
     "Configure Unbound"
+    "Install Pihole"
     "Configure Pihole"
     "Configure Iptables"
     "Configure Auto Updates"
@@ -148,6 +149,9 @@ select options_select in "${options[@]}"; do
 
     "Configure Unbound")
         configure_unbound
+        ;;
+    "Install Pihole")
+        install_pihole
         ;;
     "Configure Pihole")
         if [ ! -f 'dns_server_configuration/allow_block_list.txt' ]; then
