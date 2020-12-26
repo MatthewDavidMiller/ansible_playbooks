@@ -91,7 +91,7 @@ EOF
 function configure_pihole() {
     sudo -u "${user_name}" git clone --depth 1 https://github.com/pi-hole/pi-hole.git "/home/$user_name/Pi-hole"
     cd "/home/$user_name/Pi-hole/automated install/" || exit
-    sudo -u "${user_name}" bash basic-install.sh
+    sudo -u "${user_name}" bash -c "basic-install.sh"
     cd || exit
 
     # Configure allowlist, denylist, and regex
