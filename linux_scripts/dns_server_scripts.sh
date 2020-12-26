@@ -93,6 +93,8 @@ function install_pihole() {
     cd "/home/$user_name/Pi-hole/automated install/" || exit
     sudo -u "${user_name}" bash "basic-install.sh"
     cd || exit
+    echo 'Script exiting, rerun to finish setup.'
+    exit
 }
 
 function configure_pihole() {
