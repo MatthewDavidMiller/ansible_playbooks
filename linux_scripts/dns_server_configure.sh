@@ -24,9 +24,12 @@ wget -O 'dns_server_configuration/iptables_rules.sh' 'https://raw.githubusercont
 wget -O 'dns_server_configuration/log_rotate_configure.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/Bash-Common-Functions/main/functions/log_rotate_configure.sh'
 wget -O 'dns_server_configuration/env_example.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/DNS-Server-Configuration/stable/env_example.sh'
 wget -O 'dns_server_configuration/set_variables.sh' 'https://raw.githubusercontent.com/MatthewDavidMiller/DNS-Server-Configuration/stable/linux_scripts/set_variables.sh'
+wget -O 'dns_server_configuration/allow_block_list_example.txt' 'https://raw.githubusercontent.com/MatthewDavidMiller/DNS-Server-Configuration/stable/linux_scripts/allow_block_list_example.txt'
+wget -O 'dns_server_configuration/domains_example.txt' 'https://raw.githubusercontent.com/MatthewDavidMiller/DNS-Server-Configuration/stable/linux_scripts/domains_example.txt'
+wget -O 'dns_server_configuration/lists_example.txt' 'https://raw.githubusercontent.com/MatthewDavidMiller/DNS-Server-Configuration/stable/linux_scripts/lists_example.txt'
 
 if [ ! -f 'dns_server_configuration/env.sh' ]; then
-    echo 'No env.sh file found'
+    echo 'No env.sh file found. An example is available to see formatting.'
     read -r -p "Continue? [y/N] " response
     if [[ "${response}" =~ ^([nN][oO]|[nN])+$ ]]; then
         exit
@@ -34,7 +37,7 @@ if [ ! -f 'dns_server_configuration/env.sh' ]; then
 fi
 
 # Source variables
-if [ ! -f 'dns_server_configuration/env.sh' ]; then
+if [ -f 'dns_server_configuration/env.sh' ]; then
     source 'dns_server_configuration/env.sh'
 fi
 
@@ -146,6 +149,27 @@ select options_select in "${options[@]}"; do
         configure_unbound
         ;;
     "Configure Pihole")
+        if [ -f 'dns_server_configuration/allow_block_list.txt' ]; then
+            source 'dns_server_configuration/allow_block_list.txt'
+        else
+            echo 'No allow_block_list.txt file found, create one to continue. An example is available to see formatting.'
+            exit
+        fi
+
+        if [ -f 'dns_server_configuration/domains.txt' ]; then
+            source 'dns_server_configuration/domains.txt'
+        else
+            echo 'No domains.txt file found, create one to continue. An example is available to see formatting.'
+            exit
+        fi
+
+        if [ -f 'dns_server_configuration/lists.txt' ]; then
+            source 'dns_server_configuration/lists.txt'
+        else
+            echo 'No lists.txt file found, create one to continue. An example is available to see formatting.'
+            exit
+        fi
+
         configure_pihole
         ;;
     "Configure Iptables")
