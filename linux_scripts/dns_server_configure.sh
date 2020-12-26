@@ -149,23 +149,17 @@ select options_select in "${options[@]}"; do
         configure_unbound
         ;;
     "Configure Pihole")
-        if [ -f 'dns_server_configuration/allow_block_list.txt' ]; then
-            source 'dns_server_configuration/allow_block_list.txt'
-        else
+        if [ ! -f 'dns_server_configuration/allow_block_list.txt' ]; then
             echo 'No allow_block_list.txt file found, create one to continue. An example is available to see formatting.'
             exit
         fi
 
-        if [ -f 'dns_server_configuration/domains.txt' ]; then
-            source 'dns_server_configuration/domains.txt'
-        else
+        if [ ! -f 'dns_server_configuration/domains.txt' ]; then
             echo 'No domains.txt file found, create one to continue. An example is available to see formatting.'
             exit
         fi
 
-        if [ -f 'dns_server_configuration/lists.txt' ]; then
-            source 'dns_server_configuration/lists.txt'
-        else
+        if [ ! -f 'dns_server_configuration/lists.txt' ]; then
             echo 'No lists.txt file found, create one to continue. An example is available to see formatting.'
             exit
         fi
