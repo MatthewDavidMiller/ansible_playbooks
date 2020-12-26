@@ -89,14 +89,14 @@ EOF
 }
 
 function configure_pihole() {
-    git clone --depth 1 https://github.com/pi-hole/pi-hole.git Pi-hole
-    cd 'Pi-hole/automated install/' || exit
-    bash basic-install.sh
+    sudo -u "${user_name}" git clone --depth 1 https://github.com/pi-hole/pi-hole.git "/home/$user_name/Pi-hole"
+    cd "/home/$user_name/Pi-hole/automated install/" || exit
+    sudo -u "${user_name}" bash basic-install.sh
     cd || exit
 
     # Configure allowlist, denylist, and regex
     # Possible values: id, type, domain, enabled, date_added, date_modified, comment
-    mapfile -t allow__block_list <'dns_server_configuration/allow_block_list.txt'
+    mapfile -t allow_block_list <'dns_server_configuration/allow_block_list.txt'
 
     for i in "${allow_block_list[@]}"; do
         sqlite3 '/etc/pihole/gravity.db' <<EOF
