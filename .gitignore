@@ -1,4 +1,1 @@
-env.sh
-linux_scripts/allow_block_list.txt
-linux_scripts/lists.txt
-linux_scripts/domains.txt
+env/
