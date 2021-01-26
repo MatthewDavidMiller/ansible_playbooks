@@ -90,7 +90,7 @@ select options_select in "${options[@]}"; do
 
     "Base Configuration")
         PS3='Select Configuration Option: '
-        options=("Set the timezone" "Set the language" "Set the Hostname and hosts file" "Create an user" "Add user to sudo" "Create a swap file" "Set the shell to bash" "Lock root" "Configure Network" "Install VPN server packages" "Configure SSH" "Configure VPN Scripts" "Quit")
+        options=("Set the timezone" "Set the language" "Set the Hostname and hosts file" "Create an user" "Add user to sudo" "Create a swap file" "Set the shell to bash" "Lock root" "Configure Network" "Install VPN server packages" "Configure SSH" "Configure VPN Scripts" "Configure ddclient" "Quit")
 
         select options_select in "${options[@]}"; do
             case $options_select in
@@ -135,8 +135,10 @@ select options_select in "${options[@]}"; do
                 generate_ssh_key "${user_name}" "y" "n" "n" "${key_name}"
                 ;;
             "Configure VPN Scripts")
-                read -r -p "Enter code for dynamic dns: " dynamic_dns
-                configure_vpn_scripts "${dynamic_dns}" "${release_name}"
+                configure_vpn_scripts "${release_name}"
+                ;;
+            "Configure ddclient")
+                configure_ddclient "${wireguard_public_dns_ip_address}"
                 ;;
             "Quit")
                 break

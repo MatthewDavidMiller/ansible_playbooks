@@ -10,12 +10,12 @@ function install_vpn_server_packages() {
     local release_name=${1}
 
     apt-get -t "${release_name}-backports" install -y wireguard
+    apt-get install -y ddclient
 }
 
 function configure_vpn_scripts() {
     # Parameters
-    dynamic_dns=${1}
-    release_name=${2}
+    release_name=${1}
 
     # Script to get emails on openvpn connections
     #wget 'https://raw.githubusercontent.com/MatthewDavidMiller/scripts/stable/linux_scripts/email_on_vpn_connections.sh'
@@ -35,7 +35,6 @@ function configure_vpn_scripts() {
 @reboot apt-get update && apt-get -t ${release_name}-backports install -y wireguard &
 * 0 * * 1 bash /usr/local/bin/backup_configs.sh &
 #@reboot nohup bash /usr/local/bin/email_on_vpn_connections.sh &
-3,8,13,18,23,28,33,38,43,48,53,58 * * * * sleep 29 ; wget --no-check-certificate -O - https://freedns.afraid.org/dynamic/update.php?${dynamic_dns} >> /tmp/freedns_mattm_mooo_com.log 2>&1 &
 * 0 * * * '/sbin/reboot'
 
 EOF
