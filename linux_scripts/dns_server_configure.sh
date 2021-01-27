@@ -7,7 +7,7 @@
 # Credit to, https://linuxize.com/post/bash-check-if-file-exists/
 # Credits to cas, https://unix.stackexchange.com/questions/91534/how-to-pipe-to-bash-as-a-different-user
 
-# Create driectory for scripts
+# Create directory for scripts
 if [ ! -d 'dns_server_configuration' ]; then
     mkdir -p 'dns_server_configuration'
 fi

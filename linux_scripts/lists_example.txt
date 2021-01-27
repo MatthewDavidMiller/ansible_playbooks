@@ -1,3 +1,1 @@
-INSERT INTO adlist (id, address, enabled, comment) VALUES (12,'https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts',1,'Default All in one blocklist');
-INSERT INTO adlist (id, address, enabled, comment) VALUES (13,'https://s3.amazonaws.com/lists.disconnect.me/simple_tracking.txt',1,'Default Tracker blocklist');
-INSERT INTO adlist (id, address, enabled, comment) VALUES (14,'https://s3.amazonaws.com/lists.disconnect.me/simple_ad.txt',0,'Default Ad blocklist');
+INSERT INTO adlist (id, address, enabled, comment) VALUES (1,'https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts',1,'Default All in one blocklist');
