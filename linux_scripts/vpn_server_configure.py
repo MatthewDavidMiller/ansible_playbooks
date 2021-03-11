@@ -5,7 +5,7 @@ import urllib.request
 
 # Get needed scripts
 urllib.request.urlretrieve(
-    r'https://raw.githubusercontent.com/MatthewDavidMiller/Debian-Install/stable/linux_scripts/vpn_server_scripts.py', r'vpn_server_scripts.py')
+    r'https://raw.githubusercontent.com/MatthewDavidMiller/VPN-Server-Configuration/stable/linux_scripts/vpn_server_scripts.py', r'vpn_server_scripts.py')
 urllib.request.urlretrieve(
     r'https://raw.githubusercontent.com/MatthewDavidMiller/Bash_Python_Common_Functions/main/functions/functions.py', r'functions.py')
 urllib.request.urlretrieve(
