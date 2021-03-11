@@ -48,7 +48,6 @@ option_menu['4'] = r'Exit'
 # Setup Selections
 while True:
     selection_options = option_menu.keys()
-    selection_options.sort()
     for entry in selection_options:
         print(entry, option_menu[entry])
 
