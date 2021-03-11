@@ -55,6 +55,7 @@ while True:
     selection = input(r'Select an option: ')
     if selection == '1':
         get_linux_headers()
+        env(linux_headers)
         lock_root(user_name)
         get_interface_name
         configure_network(ip_address, network_address, subnet_mask,
