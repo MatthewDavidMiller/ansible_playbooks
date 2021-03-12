@@ -35,6 +35,33 @@ import iptables_rules  # type: ignore # nopep8
 import log_rotate_configure  # type: ignore # nopep8
 import env  # type: ignore # nopep8
 
+functions.get_linux_headers()
+linux_headers = functions.linux_headers
+env.env(linux_headers)
+release_name = r'buster'
+key_name = env.key_name
+ip_address = env.ip_address
+network_address = env.network_address
+subnet_mask = env.subnet_mask
+gateway_address = env.gateway_address
+dns_address = env.dns_address
+network_prefix = env.network_prefix
+ipv6_link_local_address = env.ipv6_link_local_address
+wireguard_interface = env.wireguard_interface
+wireguard_server_ip_address = env.wireguard_server_ip_address
+wireguard_server_network_prefix = env.wireguard_server_network_prefix
+wireguard_server_vpn_key_name = env.wireguard_server_vpn_key_name
+wireguard_client_key_name = env.wireguard_client_key_name
+wireguard_server_listen_port = env.wireguard_server_listen_port
+wireguard_client_ip_address = env.wireguard_client_ip_address
+wireguard_dns_server = env.wireguard_dns_server
+wireguard_public_dns_ip_address = env.wireguard_public_dns_ip_address
+user_name = env.user_name
+device_hostname = env.device_hostname
+packages = env.packages
+functions.get_interface_name
+interface = functions.interface
+
 # Option Menu
 option_menu = {}
 option_menu['1'] = r'Pre-Setup'
@@ -50,12 +77,9 @@ while True:
 
     selection = input(r'Select an option: ')
     if selection == '1':
-        functions.get_linux_headers()
-        env(functions.linux_headers)
-        functions.lock_root(env.user_name)
-        functions.get_interface_name
-        configure_network.configure_network(env.ip_address, env.network_address, env.subnet_mask,
-                                            env.gateway_address, env.dns_address, functions.interface, env.ipv6_link_local_address)
+        functions.lock_root(user_name)
+        configure_network.configure_network(
+            ip_address, network_address, subnet_mask, gateway_address, dns_address, interface, ipv6_link_local_address)
         functions.install_packages
         vpn_server_scripts.install_vpn_server_packages()
         print(r'Reboot the OS before configuring wireguard: ')
@@ -63,35 +87,33 @@ while True:
     elif selection == '2':
         configure_ssh.configure_ssh
         generate_ssh_key.generate_ssh_key(
-            env.user_name, r'y', r'n', r'n', env.key_name)
+            user_name, r'y', r'n', r'n', key_name)
         functions.setup_config_backups
-        functions.configure_ddclient(env.wireguard_public_dns_ip_address)
+        functions.configure_ddclient(wireguard_public_dns_ip_address)
         vpn_server_scripts.setup_basic_wireguard_interface(
-            env.wireguard_interface, env.wireguard_server_ip_address)
+            wireguard_interface, wireguard_server_ip_address)
         vpn_server_scripts.generate_wireguard_key(
-            env.user_name, env.wireguard_server_vpn_key_name)
-        vpn_server_scripts.configure_wireguard_server_base(env.wireguard_interface, env.user_name, env.wireguard_server_vpn_key_name,
-                                                           env.wireguard_server_ip_address, env.wireguard_server_listen_port, functions.interface, env.wireguard_server_network_prefix)
+            user_name, wireguard_server_vpn_key_name)
+        vpn_server_scripts.configure_wireguard_server_base(wireguard_interface, user_name, wireguard_server_vpn_key_name,
+                                                           wireguard_server_ip_address, wireguard_server_listen_port, interface, wireguard_server_network_prefix)
         vpn_server_scripts.generate_wireguard_key(
-            env.user_name, env.wireguard_client_key_name)
-        vpn_server_scripts.add_wireguard_peer(env.wireguard_interface, env.user_name,
-                                              env.wireguard_client_key_name, env.wireguard_client_ip_address)
-        vpn_server_scripts.wireguard_create_client_config(env.user_name, env.wireguard_client_key_name, env.wireguard_server_vpn_key_name,
-                                                          env.wireguard_client_ip_address, env.wireguard_dns_server, env.wireguard_public_dns_ip_address, env.wireguard_server_listen_port)
-        vpn_server_scripts.enable_wireguard_service(env.wireguard_interface)
+            user_name, wireguard_client_key_name)
+        vpn_server_scripts.add_wireguard_peer(
+            wireguard_interface, user_name, wireguard_client_key_name, wireguard_client_ip_address)
+        vpn_server_scripts.wireguard_create_client_config(user_name, wireguard_client_key_name, wireguard_server_vpn_key_name,
+                                                          wireguard_client_ip_address, wireguard_dns_server, wireguard_public_dns_ip_address, wireguard_server_listen_port)
+        vpn_server_scripts.enable_wireguard_service(wireguard_interface)
         functions.get_interface_name
         iptables_base.iptables_setup_base
-        iptables_rules.iptables_allow_ssh(
-            env.network_prefix, functions.interface)
+        iptables_rules.iptables_allow_ssh(network_prefix, interface)
         iptables_base.iptables_set_defaults
         iptables_rules.iptables_allow_vpn_port(
-            functions.interface, env.wireguard_server_listen_port)
-        iptables_rules.iptables_allow_icmp(
-            env.network_prefix, functions.interface)
+            interface, wireguard_server_listen_port)
+        iptables_rules.iptables_allow_icmp(network_prefix, interface)
         iptables_rules.iptables_allow_loopback
         iptables_base.iptables_allow_forwarding
         apt_auto_updates.apt_configure_auto_update_reboot()
-        log_rotate_configure(env.user_name)
+        log_rotate_configure(user_name)
 
     elif selection == '3':
         print(r'Enter wireguard client name: ')
@@ -99,11 +121,11 @@ while True:
         print(r'Enter wireguard client ip address: ')
         wireguard_client_ip_address = input()
         vpn_server_scripts.generate_wireguard_key(
-            env.user_name, env.wireguard_client_key_name)
-        vpn_server_scripts.add_wireguard_peer(env.wireguard_interface, env.user_name,
-                                              env.wireguard_client_key_name, env.wireguard_client_ip_address)
-        vpn_server_scripts.wireguard_create_client_config(env.user_name, env.wireguard_client_key_name, env.wireguard_server_vpn_key_name,
-                                                          env.wireguard_client_ip_address, env.wireguard_dns_server, env.wireguard_public_dns_ip_address, env.wireguard_server_listen_port)
+            user_name, wireguard_client_key_name)
+        vpn_server_scripts.add_wireguard_peer(
+            wireguard_interface, user_name, wireguard_client_key_name, wireguard_client_ip_address)
+        vpn_server_scripts.wireguard_create_client_config(user_name, wireguard_client_key_name, wireguard_server_vpn_key_name,
+                                                          wireguard_client_ip_address, wireguard_dns_server, wireguard_public_dns_ip_address, wireguard_server_listen_port)
     elif selection == '4':
         break
     else:
