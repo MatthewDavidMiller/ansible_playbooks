@@ -38,7 +38,7 @@ import env  # type: ignore # nopep8
 functions.get_linux_headers()
 linux_headers = functions.linux_headers
 env.env(linux_headers)
-release_name = r'buster'
+release_name = env.release_name
 key_name = env.key_name
 ip_address = env.ip_address
 network_address = env.network_address
@@ -81,13 +81,12 @@ while True:
         configure_network.configure_network(
             ip_address, network_address, subnet_mask, gateway_address, dns_address, interface, ipv6_link_local_address)
         functions.install_packages(packages)
-        vpn_server_scripts.install_vpn_server_packages()
+        vpn_server_scripts.install_vpn_server_packages(release_name)
         print(r'Reboot the OS before configuring wireguard: ')
         input()
     elif selection == '2':
         configure_ssh.configure_ssh()
-        generate_ssh_key.generate_ssh_key(
-            user_name, r'y', r'n', r'n', key_name)
+        generate_ssh_key.generate_ssh_key(user_name, key_name)
         functions.setup_config_backups()
         functions.configure_ddclient(wireguard_public_dns_ip_address)
         vpn_server_scripts.setup_basic_wireguard_interface(
