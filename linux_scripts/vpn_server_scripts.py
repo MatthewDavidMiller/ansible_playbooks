@@ -8,8 +8,10 @@ import pwd
 import stat
 
 
-def install_vpn_server_packages():
-    subprocess.call([r'apt-get', r'install', r'-y', r'wireguard', r'ddclient'])
+def install_vpn_server_packages(release_name):
+    subprocess.call([r'apt-get', r'-t', release_name + r'-backports',
+                    r'install', r'-y', r'wireguard', r'ddclient'])
+    apt-get - t "${release_name}-backports" install - y wireguard
 
 
 def setup_basic_wireguard_interface(interface, ip_address):
