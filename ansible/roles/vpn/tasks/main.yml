@@ -44,9 +44,9 @@
   ansible.builtin.shell: "$(cat \u0022/home/{{ user_name }}/.wireguard_keys/wireguard_server.pub\u0022)"
   register: public_key_command
 
-- name: Get the Wiregruard Public Server key name
+- name: Get the Wiregruard Public Server key content
   ansible.builtin.set_fact:
-    private_key: "{{ public_key_command.stdout }}"
+    public_key: "{{ public_key_command.stdout }}"
 
 - name: Get the Wiregruard Client keys output
   ansible.builtin.shell: "$(cat \u0022/home/{{ user_name }}/.wireguard_keys/{{ item }}\u0022)"
@@ -84,3 +84,15 @@
     marker_begin: "# User {{ item.0 }}"
     marker_end: "#=================================================================================================================="
   loop: "{{ wireguard_users|zip(client_public_keys, client_private_keys, user_ip_addresses)|list}}"
+
+- name: Wireguard Client Config
+  ansible.builtin.template:
+    src: wireguard_client_config.j2
+    dest: "/home/{{ user_name }}/.wireguard_client_configs/{{ item.0 }}.conf"
+  loop: "{{ wireguard_users|zip(client_public_keys, client_private_keys, user_ip_addresses)|list}}"
+
+- name: Start and enable wireguard service
+  ansible.builtin.systemd:
+    name: "wg-quick@{{ interface_name }}"
+    state: started
+    enabled: "yes"
