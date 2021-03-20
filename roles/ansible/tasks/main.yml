@@ -8,7 +8,7 @@
 
     - name: Generate an OpenSSH keypair with the default values (4096 bits, rsa)
       community.crypto.openssh_keypair:
-        path: /home/{{user_name}}/{{key_name}}
+        path: "/home/{{user_name}}/{{key_name}}"
         type: ed25519
 
     - name: Create swap file
@@ -38,8 +38,8 @@
         chain: INPUT
         protocol: tcp
         destination_port: "22"
-        source: { { network_prefix } }
-        in_interface: { { interface_name } }
+        source: "{{ network_prefix }}"
+        in_interface: "{{ interface_name }}"
         limit: 6/minute
         jump: ACCEPT
       become: "yes"
@@ -50,7 +50,7 @@
         protocol: tcp
         destination_port: "22"
         source: "fe80::/10"
-        in_interface: { { interface_name } }
+        in_interface: "{{ interface_name }}"
         limit: 6/minute
         jump: ACCEPT
         ip_version: ipv6
@@ -60,8 +60,8 @@
       ansible.builtin.iptables:
         chain: INPUT
         protocol: icmp
-        source: { { network_prefix } }
-        in_interface: { { interface_name } }
+        source: "{{ network_prefix }}"
+        in_interface: "{{ interface_name }}"
         jump: ACCEPT
       become: "yes"
 
@@ -70,7 +70,7 @@
         chain: INPUT
         protocol: icmpv6
         source: "fe80::/10"
-        in_interface: { { interface_name } }
+        in_interface: "{{ interface_name }}"
         jump: ACCEPT
         ip_version: ipv6
       become: "yes"
