@@ -1,0 +1,20 @@
+AcceptEnv LANG LC_*
+AuthorizedKeysFile .ssh/authorized_keys
+
+ChallengeResponseAuthentication no
+
+PasswordAuthentication no
+
+PermitEmptyPasswords no
+
+PermitRootLogin yes
+
+PrintMotd no
+
+PubkeyAuthentication yes
+
+Subsystem       sftp    /usr/lib/openssh/sftp-server
+
+UsePAM no
+
+X11Forwarding yes
