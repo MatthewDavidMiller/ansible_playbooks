@@ -120,6 +120,11 @@
     dest: "/home/{{ user_name }}/.wireguard_client_configs/{{ item.0 }}.conf"
   loop: "{{ wireguard_users|zip(client_public_keys, client_private_keys, user_ip_addresses)|list}}"
 
+- name: DDClient Config
+  ansible.builtin.template:
+    src: ddclient_config.j2
+    dest: "/etc/ddclient.conf"
+
 - name: Start and enable wireguard service
   ansible.builtin.systemd:
     name: "wg-quick@{{ wireguard_interface }}"
