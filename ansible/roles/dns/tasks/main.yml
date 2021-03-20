@@ -1,4 +1,11 @@
 ---
+# Credits
+
+- name: Create unbound path
+  ansible.builtin.file:
+    path: /var/lib/unbound
+    state: directory
+
 - name: Download root hints
   get_url:
     url: https://www.internic.net/domain/named.root
@@ -18,41 +25,25 @@
     group: root
     mode: "0644"
 
-- name: Clone Pihole Repo
-  ansible.builtin.git:
-    repo: https://github.com/pi-hole/pi-hole.git
-    dest: "/home/{{ user_name }}/Pi-hole"
+- name: Add pihole Group
+  ansible.builtin.group:
+    name: pihole
+    state: present
 
-- name: Run Pihole Setup
-  ansible.builtin.shell: sudo -u "{{ user_name} }" bash "basic-install.sh"
+- name: Add Pihole user
+  ansible.builtin.user:
+    name: pihole
+    groups: pihole
+    append: "yes"
+    password: "{{ pihole_password }}"
 
-- name: Setup Allow and Block Lists
-  ansible.builtin.shell:
-    cmd: |
-      sqlite3 '/etc/pihole/gravity.db' <<EOF
-      INSERT INTO domainlist (id, type, domain, enabled, comment) VALUES {{ item }}
-      EOF
-  loop: "{{ allow_block_list }}"
-
-- name: Setup Gravity Lists
-  ansible.builtin.shell:
-    cmd: |
-      sqlite3 '/etc/pihole/gravity.db' <<EOF
-      INSERT INTO adlist (id, address, enabled, comment) VALUES {{ item }}
-      EOF
-  loop: "{{ adlist }}"
-
-- name: Custom Domains
-  ansible.builtin.template:
-    src: custom_domains.j2
-    dest: /etc/pihole/custom.list
+- name: Create Pihole path
+  ansible.builtin.file:
+    path: /etc/pihole
+    state: directory
     owner: pihole
     group: pihole
     mode: "0644"
-  loop: "{{ domains_list }}"
-
-- name: Set Pihole Password
-  ansible.builtin.shell: pihole -a -p
 
 - name: Pihole Config
   ansible.builtin.template:
@@ -61,3 +52,37 @@
     owner: pihole
     group: pihole
     mode: "0644"
+
+- name: Clone Pihole Repo
+  ansible.builtin.git:
+    repo: https://github.com/pi-hole/pi-hole.git
+    dest: "/home/{{ user_name }}/Pi-hole"
+
+- name: Run Pihole Setup
+  ansible.builtin.script: "\u0022/home/{{ user_name }}/Pi-hole/automated install/basic-install.sh\u0022"
+  become: "true"
+
+- name: Setup Allow and Block Lists
+  ansible.builtin.shell:
+    cmd: |
+      sqlite3 '/etc/pihole/gravity.db' <<EOF
+      DELETE FROM domainlist;
+      INSERT INTO domainlist (id, type, domain, enabled, comment) VALUES {{ item }}
+      EOF
+  loop: "{{ allow_block_list }}"
+
+- name: Setup Gravity Lists
+  ansible.builtin.shell:
+    cmd: |
+      sqlite3 '/etc/pihole/gravity.db' <<EOF
+      DELETE FROM adlist;
+      INSERT INTO adlist (id, address, enabled, comment) VALUES {{ item }}
+      EOF
+  loop: "{{ adlist }}"
+
+- name: Custom Domains
+  ansible.builtin.lineinfile:
+    path: /etc/pihole/custom.list
+    line: "{{ item }}"
+    create: "yes"
+  loop: "{{ domains_list }}"
