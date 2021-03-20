@@ -3,11 +3,26 @@
 # https://github.com/SchemaStore/schemastore/issues/1397
 
 ---
+- name: Install Linux Headers
+  ansible.builtin.shell: "apt-get install linux-headers-$(uname -r)"
+
+- name: Add backports repository
+  ansible.builtin.shell:
+    cmd: |
+      cat <<EOF >> \u0027/etc/apt/sources.list\u0027
+      deb https://mirrors.wikimedia.org/debian/ {{ release_name }}-backports main
+      deb-src https://mirrors.wikimedia.org/debian/ {{ release_name }}-backports main
+      EOF
+
 - name: Install Wireguard
   apt:
     name: wireguard
     state: latest
     default_release: "{{ release_name }}-backports"
+
+- name: Reboot machine before proceeding
+  reboot:
+    reboot_timeout: "3600"
 
 - name: Create Wireguard Interface
   ansible.builtin.shell: "ip link add dev {{ wireguard_interface }} type wireguard"
@@ -15,7 +30,7 @@
 - name: Set Wiregurad Ip address
   ansible.builtin.shell: "ip address add dev {{ wireguard_interface }} {{ ip_address }}/24"
 
-- name: Activate Wiregurad Interface
+- name: Activate Wireguard Interface
   ansible.builtin.shell: "ip link set up dev {{ wireguard_interface }}"
 
 - name: Create wireguard key path
