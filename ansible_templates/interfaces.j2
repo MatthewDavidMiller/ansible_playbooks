@@ -1,0 +1,15 @@
+auto lo
+iface lo inet loopback
+
+auto {{interface_name}}
+iface {{interface_name}} inet static
+        address {{ip_address}}
+        network {{network_address}}
+        netmask {{subnet_mask}}
+        gateway {{gateway_address}}
+        dns-nameservers {{dns_address}}
+
+iface {{interface_name}} inet6 static
+    address {{ipv6_link_local_address}}
+    netmask 64
+    scope link
