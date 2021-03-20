@@ -7,6 +7,6 @@
 
     - name: Add a user
       ansible.builtin.user:
-        name: { { username } }
+        name: "{{ username }}"
         groups: sudo
-        append: yes
+        append: "yes"
