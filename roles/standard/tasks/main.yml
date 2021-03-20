@@ -13,6 +13,13 @@
     name: "{{ user_name }}"
     groups: sudo
     append: "yes"
+    password: "{{ user_name_password }}"
+
+- name: Set the root password
+  ansible.builtin.user:
+    name: root
+    append: "yes"
+    password: "{{ root_password }}"
 
 - name: Create swap file
   ansible.builtin.command: dd if=/dev/zero of=/swapfile bs=1M count={{swap_file_size}} status=progress
