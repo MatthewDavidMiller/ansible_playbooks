@@ -1,6 +1,6 @@
 [Interface]
-Address = {{ ip_address }}/24
+Address = {{ wireguard_server_ip_address }}/24
 ListenPort = {{ listen_port }}
 PrivateKey = {{ private_key }}
-PostUp = iptables -A FORWARD -d {{ vpn_network_prefix }} -i {{ network_interface }} -o {{ wireguard_interface }} -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT; iptables -A FORWARD -s {{ vpn_network_prefix }} -i {{ wireguard_interface }} -o {{ network_interface }} -j ACCEPT; iptables -t nat -I POSTROUTING -s {{ vpn_network_prefix }} -o {{ network_interface }} -j MASQUERADE
-PostDown = iptables -A FORWARD -d {{ vpn_network_prefix }} -i {{ network_interface }} -o {{ wireguard_interface }} -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT; iptables -A FORWARD -s {{ vpn_network_prefix }} -i {{ wireguard_interface }} -o {{ network_interface }} -j ACCEPT; iptables -t nat -I POSTROUTING -s {{ vpn_network_prefix }} -o {{ network_interface }} -j MASQUERADE
+PostUp = iptables -A FORWARD -d {{ network_prefix }} -i {{ interface_name }} -o {{ wireguard_interface }} -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT; iptables -A FORWARD -s {{ network_prefix }} -i {{ wireguard_interface }} -o {{ interface_name }} -j ACCEPT; iptables -t nat -I POSTROUTING -s {{ network_prefix }} -o {{ interface_name }} -j MASQUERADE
+PostDown = iptables -A FORWARD -d {{ network_prefix }} -i {{ interface_name }} -o {{ wireguard_interface }} -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT; iptables -A FORWARD -s {{ network_prefix }} -i {{ wireguard_interface }} -o {{ interface_name }} -j ACCEPT; iptables -t nat -I POSTROUTING -s {{ network_prefix }} -o {{ interface_name }} -j MASQUERADE
