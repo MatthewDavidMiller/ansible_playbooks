@@ -1,6 +1,7 @@
 # Credits
 # https://stackoverflow.com/questions/36059804/ansible-store-commands-stdout-in-new-variable
 # https://github.com/SchemaStore/schemastore/issues/1397
+# https://serverfault.com/questions/952498/ansible-multiline-results-and-loop
 
 ---
 - name: Install Linux Headers
@@ -27,8 +28,8 @@
 - name: Create Wireguard Interface
   ansible.builtin.shell: "ip link add dev {{ wireguard_interface }} type wireguard"
 
-- name: Set Wiregurad Ip address
-  ansible.builtin.shell: "ip address add dev {{ wireguard_interface }} {{ ip_address }}/24"
+- name: Set Wireguard Ip address
+  ansible.builtin.shell: "ip address add dev {{ wireguard_interface }} {{ wireguard_server_ip_address }}/24"
 
 - name: Activate Wireguard Interface
   ansible.builtin.shell: "ip link set up dev {{ wireguard_interface }}"
@@ -47,41 +48,49 @@
   ansible.builtin.shell: "wg genkey | tee \u0022/home/{{ user_name }}/.wireguard_keys/{{ item }}\u0022 | wg pubkey >  \u0022/home/{{ user_name }}/.wireguard_keys/{{ item }}.pub\u0022"
   loop: "{{ wireguard_users }}"
 
-- name: Get the Wiregruard Server key output
-  ansible.builtin.shell: "$(cat \u0022/home/{{ user_name }}/.wireguard_keys/wireguard_server\u0022)"
+- name: Get the Wireguard Server key output
+  ansible.builtin.shell: "cat \u0022/home/{{ user_name }}/.wireguard_keys/wireguard_server\u0022"
   register: private_key_command
 
-- name: Get the Wiregruard Server key name
+- name: Get the Wireguard Server key name
   ansible.builtin.set_fact:
     private_key: "{{ private_key_command.stdout }}"
 
-- name: Get the Wiregruard Public Server key output
-  ansible.builtin.shell: "$(cat \u0022/home/{{ user_name }}/.wireguard_keys/wireguard_server.pub\u0022)"
+- name: Get the Wireguard Public Server key output
+  ansible.builtin.shell: "cat \u0022/home/{{ user_name }}/.wireguard_keys/wireguard_server.pub\u0022"
   register: public_key_command
 
-- name: Get the Wiregruard Public Server key content
+- name: Get the Wireguard Public Server key content
   ansible.builtin.set_fact:
     public_key: "{{ public_key_command.stdout }}"
 
-- name: Get the Wiregruard Client keys output
-  ansible.builtin.shell: "$(cat \u0022/home/{{ user_name }}/.wireguard_keys/{{ item }}\u0022)"
+- name: Get the Wireguard Client keys output
+  ansible.builtin.shell: "cat \u0022/home/{{ user_name }}/.wireguard_keys/{{ item }}\u0022"
   register: private_client_keys_command
   loop: "{{ wireguard_users }}"
 
-- name: Get the Wiregruard Client keys name
+- name: Get the Wireguard Client keys content
   ansible.builtin.set_fact:
-    client_private_keys: "{{ item.stdout }}"
-  loop: "{{ private_client_keys_command }}"
+    client_private_keys: []
 
-- name: Get the Wiregruard Client Public keys output
-  ansible.builtin.shell: "$(cat \u0022/home/{{ user_name }}/.wireguard_keys/{{ item }}\u0022)"
+- name: Get the Wireguard Client keys content stripped to stdout_lines
+  ansible.builtin.set_fact:
+    client_private_keys: "{{ client_private_keys + item.stdout_lines }}"
+  loop: "{{ private_client_keys_command.results }}"
+
+- name: Get the Wireguard Client Public keys output
+  ansible.builtin.shell: "cat \u0022/home/{{ user_name }}/.wireguard_keys/{{ item }}\u0022"
   register: public_client_keys_command
   loop: "{{ wireguard_users }}"
 
-- name: Get the Wiregruard Client Public keys name
+- name: Get the Wireguard Client public keys content
   ansible.builtin.set_fact:
-    client_public_keys: "{{ item.stdout }}"
-  loop: "{{ public_client_keys_command }}"
+    client_public_keys: []
+
+- name: Get the Wireguard Client public keys content stripped to stdout_lines
+  ansible.builtin.set_fact:
+    client_public_keys: "{{ client_public_keys + item.stdout_lines }}"
+  loop: "{{ public_client_keys_command.results }}"
 
 - name: Wireguard Server Config
   ansible.builtin.template:
@@ -99,6 +108,11 @@
     marker_begin: "# User {{ item.0 }}"
     marker_end: "#=================================================================================================================="
   loop: "{{ wireguard_users|zip(client_public_keys, client_private_keys, user_ip_addresses)|list}}"
+
+- name: Create Wireguard Client Configs Folder
+  ansible.builtin.file:
+    path: "/home/{{ user_name }}/.wireguard_client_configs"
+    state: directory
 
 - name: Wireguard Client Config
   ansible.builtin.template:
