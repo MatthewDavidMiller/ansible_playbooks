@@ -9,14 +9,14 @@
     state: latest
     default_release: "{{ release_name }}-backports"
 
-- name: Create Wiregurad Interface
-  ansible.builtin.shell: "ip link add dev {{ interface_name }} type wireguard"
+- name: Create Wireguard Interface
+  ansible.builtin.shell: "ip link add dev {{ wireguard_interface }} type wireguard"
 
 - name: Set Wiregurad Ip address
-  ansible.builtin.shell: "ip address add dev {{ interface_name }} {{ ip_address }}/24"
+  ansible.builtin.shell: "ip address add dev {{ wireguard_interface }} {{ ip_address }}/24"
 
 - name: Activate Wiregurad Interface
-  ansible.builtin.shell: "ip link set up dev {{ interface_name }}"
+  ansible.builtin.shell: "ip link set up dev {{ wireguard_interface }}"
 
 - name: Create wireguard key path
   ansible.builtin.file:
@@ -71,11 +71,11 @@
 - name: Wireguard Server Config
   ansible.builtin.template:
     src: wireguard_server_config.j2
-    dest: "/etc/wireguard/{{ interface_name }}.conf"
+    dest: "/etc/wireguard/{{ wireguard_interface }}.conf"
 
 - name: Add Wireguard Peers
   ansible.builtin.blockinfile:
-    path: "/etc/wireguard/{{ interface_name }}.conf"
+    path: "/etc/wireguard/{{ wireguard_interface }}.conf"
     block: |
       [Peer]
       PublicKey = {{ item.1 }}
@@ -93,6 +93,6 @@
 
 - name: Start and enable wireguard service
   ansible.builtin.systemd:
-    name: "wg-quick@{{ interface_name }}"
+    name: "wg-quick@{{ wireguard_interface }}"
     state: started
     enabled: "yes"
