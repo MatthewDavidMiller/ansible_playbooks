@@ -1,0 +1,63 @@
+---
+- name: Download root hints
+  get_url:
+    url: https://www.internic.net/domain/named.root
+    dest: /var/lib/unbound/root.hints
+
+- name: Start and enable unbound service
+  ansible.builtin.systemd:
+    name: unbound
+    state: started
+    enabled: "yes"
+
+- name: Unbound configuration
+  ansible.builtin.template:
+    src: unbound_pihole.j2
+    dest: /etc/unbound/unbound.conf.d/pi-hole.conf
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Clone Pihole Repo
+  ansible.builtin.git:
+    repo: https://github.com/pi-hole/pi-hole.git
+    dest: "/home/{{ user_name }}/Pi-hole"
+
+- name: Run Pihole Setup
+  ansible.builtin.shell: sudo -u "{{ user_name} }" bash "basic-install.sh"
+
+- name: Setup Allow and Block Lists
+  ansible.builtin.shell:
+    cmd: |
+      sqlite3 '/etc/pihole/gravity.db' <<EOF
+      INSERT INTO domainlist (id, type, domain, enabled, comment) VALUES {{ item }}
+      EOF
+  loop: "{{ allow_block_list }}"
+
+- name: Setup Gravity Lists
+  ansible.builtin.shell:
+    cmd: |
+      sqlite3 '/etc/pihole/gravity.db' <<EOF
+      INSERT INTO adlist (id, address, enabled, comment) VALUES {{ item }}
+      EOF
+  loop: "{{ adlist }}"
+
+- name: Custom Domains
+  ansible.builtin.template:
+    src: custom_domains.j2
+    dest: /etc/pihole/custom.list
+    owner: pihole
+    group: pihole
+    mode: "0644"
+  loop: "{{ domains_list }}"
+
+- name: Set Pihole Password
+  ansible.builtin.shell: pihole -a -p
+
+- name: Pihole Config
+  ansible.builtin.template:
+    src: setup_vars.j2
+    dest: /etc/pihole/setupVars.conf
+    owner: pihole
+    group: pihole
+    mode: "0644"
