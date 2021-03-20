@@ -1,0 +1,9 @@
+---
+- name: Generate SSH Key Pair
+  hosts: ansible
+
+  tasks:
+    - name: Generate an OpenSSH keypair
+      community.crypto.openssh_keypair:
+        path: "/home/{{user_name}}/{{key_name}}"
+        type: ed25519
