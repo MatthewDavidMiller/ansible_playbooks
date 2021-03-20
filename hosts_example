@@ -1,0 +1,5 @@
+[servergroup]
+host.example.com
+
+[servergroup:vars]
+example_variable=variable_value

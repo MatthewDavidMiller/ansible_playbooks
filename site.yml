@@ -1,0 +1,15 @@
+---
+- hosts: ansible
+  roles:
+    - standard
+    - ansible
+
+- hosts: dns
+  roles:
+    - standard
+    - dns
+
+- hosts: vpn
+  roles:
+    - standard
+    - vpn

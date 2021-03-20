@@ -1,0 +1,12 @@
+---
+- name: Standard Tasks
+  tasks:
+    - name: Set the timezone
+      community.general.timezone:
+        name: New_York
+
+    - name: Add a user
+      ansible.builtin.user:
+        name: { { username } }
+        groups: sudo
+        append: yes
