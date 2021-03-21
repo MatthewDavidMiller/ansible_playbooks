@@ -4,16 +4,28 @@
 # https://serverfault.com/questions/952498/ansible-multiline-results-and-loop
 
 ---
+- name: Get the Linux headers output
+  ansible.builtin.shell: "uname -r"
+  register: linux_headers_command
+
+- name: Get the Linux headers name
+  ansible.builtin.set_fact:
+    linux_headers: "{{ linux_headers_command.stdout }}"
+
 - name: Install Linux Headers
-  ansible.builtin.shell: "apt-get install linux-headers-$(uname -r)"
+  apt:
+    name: "linux-headers-{{ linux_headers }}"
+    state: latest
 
 - name: Add backports repository
-  ansible.builtin.shell:
-    cmd: |
-      cat <<EOF >> \u0027/etc/apt/sources.list\u0027
+  ansible.builtin.blockinfile:
+    path: "/etc/apt/sources.list"
+    marker: "{mark}"
+    marker_begin: "# Backports Repoitories"
+    marker_end: "#=================================================================================================================="
+    block: |
       deb https://mirrors.wikimedia.org/debian/ {{ release_name }}-backports main
       deb-src https://mirrors.wikimedia.org/debian/ {{ release_name }}-backports main
-      EOF
 
 - name: Install Wireguard
   apt:
