@@ -138,6 +138,19 @@
     src: ddclient_config.j2
     dest: "/etc/ddclient.conf"
 
+- name: Allow vpn
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: udp
+    destination_port: "{{ listen_port }}"
+    in_interface: "{{ interface_name }}"
+    limit: 3/minute
+    jump: ACCEPT
+  become: "yes"
+
+- name: Save Iptables Rules
+  ansible.builtin.shell: iptables-save > /etc/iptables/rules.v4
+
 - name: Start and enable wireguard service
   ansible.builtin.systemd:
     name: "wg-quick@{{ wireguard_interface }}"
