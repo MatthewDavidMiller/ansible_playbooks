@@ -32,6 +32,7 @@
     name: wireguard
     state: latest
     default_release: "{{ release_name }}-backports"
+    update_cache: "yes"
 
 - name: Reboot machine before proceeding
   reboot:
@@ -91,7 +92,7 @@
   loop: "{{ private_client_keys_command.results }}"
 
 - name: Get the Wireguard Client Public keys output
-  ansible.builtin.shell: "cat \u0022/home/{{ user_name }}/.wireguard_keys/{{ item }}\u0022"
+  ansible.builtin.shell: "cat \u0022/home/{{ user_name }}/.wireguard_keys/{{ item }}.pub\u0022"
   register: public_client_keys_command
   loop: "{{ wireguard_users }}"
 
