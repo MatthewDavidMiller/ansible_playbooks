@@ -2,12 +2,12 @@
 - hosts: ansible
   roles:
     - standard
-#- hosts: dns
-#  roles:
-#    - standard
-#    - dns
+- hosts: dns
+  roles:
+    - standard
+    - dns
 
-#- hosts: vpn
-#  roles:
-#    - standard
-#    - vpn
+- hosts: vpn
+  roles:
+    - standard
+    - vpn

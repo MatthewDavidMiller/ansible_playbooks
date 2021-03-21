@@ -3,6 +3,7 @@
   apt:
     name: "{{ packages }}"
     state: latest
+    update_cache: "yes"
 
 - name: Set the timezone
   community.general.timezone:
