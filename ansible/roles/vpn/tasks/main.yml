@@ -27,6 +27,15 @@
       deb https://mirrors.wikimedia.org/debian/ {{ release_name }}-backports main
       deb-src https://mirrors.wikimedia.org/debian/ {{ release_name }}-backports main
 
+- name: Enable IP forwarding
+  ansible.builtin.blockinfile:
+    path: "/etc/sysctl.conf"
+    marker: "{mark}"
+    marker_begin: "# IP Forwarding"
+    marker_end: "#=================================================================================================================="
+    block: |
+      net.ipv4.ip_forward=1
+
 - name: Install Wireguard
   apt:
     name: wireguard
