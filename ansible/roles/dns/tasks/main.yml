@@ -51,7 +51,7 @@
     dest: /etc/pihole/setupVars.conf
     owner: pihole
     group: pihole
-    mode: "0644"
+    mode: "0770"
 
 - name: Check if Pihole is installed
   ansible.builtin.stat:
@@ -71,11 +71,17 @@
   become: "true"
   when: pihole_status.stat.exists == false
 
-- name: Setup Allow and Block Lists
+- name: Clear current databases
   ansible.builtin.shell:
     cmd: |
       sqlite3 '/etc/pihole/gravity.db' <<EOF
       DELETE FROM domainlist;
+      DELETE FROM adlist
+
+- name: Setup Allow and Block Lists
+  ansible.builtin.shell:
+    cmd: |
+      sqlite3 '/etc/pihole/gravity.db' <<EOF
       INSERT INTO domainlist (id, type, domain, enabled, comment) VALUES {{ item }}
       EOF
   loop: "{{ allow_block_list }}"
@@ -84,7 +90,6 @@
   ansible.builtin.shell:
     cmd: |
       sqlite3 '/etc/pihole/gravity.db' <<EOF
-      DELETE FROM adlist;
       INSERT INTO adlist (id, address, enabled, comment) VALUES {{ item }}
       EOF
   loop: "{{ adlist }}"
