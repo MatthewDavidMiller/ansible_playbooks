@@ -1,9 +1,13 @@
+# Credits
+# https://www.decodingdevops.com/ansible-when-file-exists/
+
 ---
 - name: Install packages
   apt:
     name: "{{ packages }}"
     state: latest
     update_cache: "yes"
+  when: ansible_facts['os_family'] == 'Debian'
 
 - name: Set the timezone
   community.general.timezone:
@@ -22,8 +26,14 @@
     append: "yes"
     password: "{{ root_password }}"
 
+- name: Check if swap file exists
+  ansible.builtin.stat:
+    path: /swapfile
+  register: swapfile_status
+
 - name: Create swap file
   ansible.builtin.command: dd if=/dev/zero of=/swapfile bs=1M count={{swap_file_size}} status=progress
+  when: swapfile_status.stat.exists == false
 
 - name: Set swap file permissions
   ansible.builtin.file:
@@ -34,9 +44,11 @@
 
 - name: Set file as swap file
   ansible.builtin.command: mkswap /swapfile
+  when: swapfile_status.stat.exists == false
 
 - name: Turn on swapfile
   ansible.builtin.command: swapon /swapfile
+  when: swapfile_status.stat.exists == false
 
 - name: Add swapfile to fstab
   ansible.builtin.lineinfile:
@@ -152,10 +164,18 @@
     ip_version: ipv6
 
 - name: Save Iptables Rules
-  ansible.builtin.shell: iptables-save > /etc/iptables/rules.v4
+  community.general.iptables_state:
+    ip_version: ipv4
+    table: filter
+    state: saved
+    path: /etc/iptables/rules.v4
 
 - name: Save Iptables Rules ipv6
-  ansible.builtin.shell: ip6tables-save > /etc/iptables/rules.v6
+  community.general.iptables_state:
+    ip_version: ipv6
+    table: filter
+    state: saved
+    path: /etc/iptables/rules.v6
 
 - name: Hosts file configuration
   ansible.builtin.template:
