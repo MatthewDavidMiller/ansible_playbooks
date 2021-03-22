@@ -53,14 +53,21 @@
     group: pihole
     mode: "0644"
 
+- name: Check if Pihole is installed
+  ansible.builtin.stat:
+    path: /usr/local/bin/pihole
+  register: pihole_status
+
 - name: Clone Pihole Repo
   ansible.builtin.git:
     repo: https://github.com/pi-hole/pi-hole.git
     dest: "/home/{{ user_name }}/Pi-hole"
+  when: pihole_status.stat.exists == false
 
 - name: Run Pihole Setup
   ansible.builtin.script: "\u0022/home/{{ user_name }}/Pi-hole/automated install/basic-install.sh\u0022"
   become: "true"
+  when: pihole_status.stat.exists == false
 
 - name: Setup Allow and Block Lists
   ansible.builtin.shell:
