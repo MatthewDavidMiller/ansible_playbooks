@@ -86,3 +86,101 @@
     line: "{{ item }}"
     create: "yes"
   loop: "{{ domains_list }}"
+
+- name: Allow dns tcp
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: tcp
+    destination_port: "53"
+    source: "{{ network_prefix }}"
+    in_interface: "{{ interface_name }}"
+    jump: ACCEPT
+  become: "yes"
+
+- name: Allow dns tcp ipv6
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: tcp
+    destination_port: "53"
+    source: "fe80::/10"
+    in_interface: "{{ interface_name }}"
+    jump: ACCEPT
+    ip_version: ipv6
+  become: "yes"
+
+- name: Allow dns udp
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: udp
+    destination_port: "53"
+    source: "{{ network_prefix }}"
+    in_interface: "{{ interface_name }}"
+    jump: ACCEPT
+  become: "yes"
+
+- name: Allow dns udp ipv6
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: udp
+    destination_port: "53"
+    source: "fe80::/10"
+    in_interface: "{{ interface_name }}"
+    jump: ACCEPT
+    ip_version: ipv6
+  become: "yes"
+
+- name: Allow http
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: tcp
+    destination_port: "80"
+    source: "{{ network_prefix }}"
+    in_interface: "{{ interface_name }}"
+    jump: ACCEPT
+  become: "yes"
+
+- name: Allow http ipv6
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: tcp
+    destination_port: "80"
+    source: "fe80::/10"
+    in_interface: "{{ interface_name }}"
+    jump: ACCEPT
+    ip_version: ipv6
+  become: "yes"
+
+- name: Allow https
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: tcp
+    destination_port: "443"
+    source: "{{ network_prefix }}"
+    in_interface: "{{ interface_name }}"
+    jump: ACCEPT
+  become: "yes"
+
+- name: Allow https ipv6
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: tcp
+    destination_port: "443"
+    source: "fe80::/10"
+    in_interface: "{{ interface_name }}"
+    jump: ACCEPT
+    ip_version: ipv6
+  become: "yes"
+
+- name: Save Iptables Rules
+  community.general.iptables_state:
+    ip_version: ipv4
+    table: filter
+    state: saved
+    path: /etc/iptables/rules.v4
+
+- name: Save Iptables Rules ipv6
+  community.general.iptables_state:
+    ip_version: ipv6
+    table: filter
+    state: saved
+    path: /etc/iptables/rules.v6
