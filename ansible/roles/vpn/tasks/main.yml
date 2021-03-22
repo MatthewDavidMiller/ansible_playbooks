@@ -158,10 +158,14 @@
   become: "yes"
 
 - name: Save Iptables Rules
-  ansible.builtin.shell: iptables-save > /etc/iptables/rules.v4
-
-- name: Start and enable wireguard service
-  ansible.builtin.systemd:
-    name: "wg-quick@{{ wireguard_interface }}"
-    state: started
-    enabled: "yes"
+  community.general.iptables_state:
+    ip_version: ipv4
+    table: filter
+    state: saved
+    path: /etc/iptables/rules.v4
+# Not in use
+#- name: Start and enable wireguard service
+#  ansible.builtin.systemd:
+#    name: "wg-quick@{{ wireguard_interface }}"
+#    state: started
+#    enabled: "yes"
