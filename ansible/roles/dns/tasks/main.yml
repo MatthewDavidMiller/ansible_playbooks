@@ -65,7 +65,9 @@
   when: pihole_status.stat.exists == false
 
 - name: Run Pihole Setup
-  ansible.builtin.script: "\u0022/home/{{ user_name }}/Pi-hole/automated install/basic-install.sh\u0022"
+  ansible.builtin.shell:
+    cmd: |
+      bash "/home/{{ user_name }}/Pi-hole/automated install/basic-install.sh" --unattended
   become: "true"
   when: pihole_status.stat.exists == false
 
