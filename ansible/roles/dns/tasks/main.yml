@@ -43,7 +43,6 @@
     state: directory
     owner: pihole
     group: pihole
-    mode: "0644"
 
 - name: Pihole Config
   ansible.builtin.template:
@@ -51,7 +50,6 @@
     dest: /etc/pihole/setupVars.conf
     owner: pihole
     group: pihole
-    mode: "0770"
 
 - name: Check if Pihole is installed
   ansible.builtin.stat:
