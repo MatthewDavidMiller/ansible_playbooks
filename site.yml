@@ -1,13 +1,6 @@
+# Place hosts in here and roles to run
 ---
-- hosts: ansible
+- hosts: examplehost
   roles:
-    - standard
-- hosts: dns
-  roles:
-    - standard
-    - dns
-
-- hosts: vpn
-  roles:
-    - standard
-    - vpn
+    - examplerole1
+    - examplerole2

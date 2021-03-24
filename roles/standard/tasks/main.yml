@@ -216,3 +216,7 @@
     owner: root
     group: root
     mode: "0644"
+
+- name: Reboot machine
+  reboot:
+    reboot_timeout: "3600"
