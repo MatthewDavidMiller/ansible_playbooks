@@ -219,4 +219,4 @@
 
 - name: Reboot machine
   reboot:
-    reboot_timeout: "3600"
+    reboot_timeout: "300"
