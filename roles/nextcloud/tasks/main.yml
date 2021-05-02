@@ -21,6 +21,7 @@
   ansible.builtin.unarchive:
     src: /tmp/{{ nextcloud_file }}
     dest: /var/www
+    remote_src: yes
 
 - name: Apache nextcloud config
   ansible.builtin.template:
@@ -109,3 +110,15 @@
     table: filter
     state: saved
     path: /etc/iptables/rules.v6
+
+- name: Set PHP CLI Memory Limit
+  ansible.builtin.lineinfile:
+    path: /etc/php/7.3/cli/php.ini
+    regexp: "^memory_limit = "
+    line: memory_limit = 512M
+
+- name: Set PHP Apache Memory Limit
+  ansible.builtin.lineinfile:
+    path: /etc/php/7.3/apache2/php.ini
+    regexp: "^memory_limit = "
+    line: memory_limit = 512M
