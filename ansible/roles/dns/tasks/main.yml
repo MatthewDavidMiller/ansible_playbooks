@@ -43,6 +43,7 @@
     state: directory
     owner: pihole
     group: pihole
+    recurse: yes
 
 - name: Pihole Config
   ansible.builtin.template:
