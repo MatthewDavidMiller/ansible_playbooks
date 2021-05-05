@@ -197,3 +197,13 @@
     table: filter
     state: saved
     path: /etc/iptables/rules.v6
+
+- name: External Config
+  ansible.builtin.template:
+    src: external.j2
+    dest: /etc/lighttpd/external.conf
+
+- name: Copy pem file
+  ansible.builtin.copy:
+    src: "/etc/letsencrypt/live/{{ ssl_cert }}/cert_privkey_combined.pem"
+    dest: /etc/lighttpd/cert_privkey_combined.pem
