@@ -122,3 +122,25 @@
     path: /etc/php/7.3/apache2/php.ini
     regexp: "^memory_limit = "
     line: memory_limit = 512M
+
+- name: Copy ssl cert
+  ansible.builtin.copy:
+    src: "/etc/letsencrypt/live/{{ ssl_cert }}/fullchain.pem"
+    dest: /etc/ssl/certs/fullchain.pem
+
+- name: Copy ssl key
+  ansible.builtin.copy:
+    src: "/etc/letsencrypt/live/{{ ssl_cert }}/privkey.key"
+    dest: /etc/ssl/private/privkey.key
+
+- name: Set ssl cert
+  ansible.builtin.lineinfile:
+    path: /etc/apache2/sites-enabled/default-ssl.conf
+    regexp: "^SSLCertificateFile "
+    line: SSLCertificateFile /etc/ssl/certs/fullchain.pem
+
+- name: Set ssl key
+  ansible.builtin.lineinfile:
+    path: /etc/apache2/sites-enabled/default-ssl.conf
+    regexp: "^SSLCertificateKeyFile "
+    line: SSLCertificateKeyFile /etc/ssl/private/privkey.key
