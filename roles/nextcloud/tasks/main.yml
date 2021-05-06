@@ -6,27 +6,43 @@
     update_cache: "yes"
   when: ansible_facts['os_family'] == 'Debian'
 
+- name: Check if occ file exists
+  ansible.builtin.stat:
+    path: /var/www/nextcloud/occ
+  register: nextcloud_status
+  when: ansible_facts['os_family'] == 'Debian'
+
 - name: Download nextcloud
   get_url:
     url: https://download.nextcloud.com/server/releases/{{ nextcloud_file }}
     dest: /tmp
     checksum: sha256:{{ nextcloud_checksum }}
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - nextcloud_status.stat.exists == false
 
 - name: Create www folder
   ansible.builtin.file:
     path: "/var/www/"
     state: directory
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
 - name: Extract nextcloud zip folder
   ansible.builtin.unarchive:
     src: /tmp/{{ nextcloud_file }}
     dest: /var/www
     remote_src: yes
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - nextcloud_status.stat.exists == false
 
 - name: Apache nextcloud config
   ansible.builtin.template:
     src: apache_nextcloud.j2
     dest: /etc/apache2/sites-available/nextcloud.conf
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
 - name: Enable Apache nextcloud config
   ansible.builtin.shell:
@@ -40,12 +56,18 @@
       a2enmod ssl
       a2ensite default-ssl
       service apache2 restart
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - nextcloud_status.stat.exists == false
 
 - name: Install nextcloud
   ansible.builtin.shell:
     cmd: |
       cd /var/www/nextcloud/
       php occ  maintenance:install --database "mysql" --database-name "nextcloud"  --database-user "root" --database-pass "{{ nextcloud_db_root_password }}" --admin-user "admin" --admin-pass "{{ nextcloud_db_admin_password }}"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - nextcloud_status.stat.exists == false
 
 - name: Set nextcloud folder owner
   ansible.builtin.file:
@@ -54,6 +76,8 @@
     recurse: yes
     owner: "www-data"
     group: "www-data"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
 - name: Allow http
   ansible.builtin.iptables:
@@ -64,6 +88,8 @@
     in_interface: "{{ interface_name }}"
     jump: ACCEPT
   become: "yes"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
 - name: Allow http ipv6
   ansible.builtin.iptables:
@@ -75,6 +101,8 @@
     jump: ACCEPT
     ip_version: ipv6
   become: "yes"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
 - name: Allow https
   ansible.builtin.iptables:
@@ -85,6 +113,8 @@
     in_interface: "{{ interface_name }}"
     jump: ACCEPT
   become: "yes"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
 - name: Allow https ipv6
   ansible.builtin.iptables:
@@ -96,6 +126,8 @@
     jump: ACCEPT
     ip_version: ipv6
   become: "yes"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
 - name: Save Iptables Rules
   community.general.iptables_state:
@@ -103,6 +135,8 @@
     table: filter
     state: saved
     path: /etc/iptables/rules.v4
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
 - name: Save Iptables Rules ipv6
   community.general.iptables_state:
@@ -110,37 +144,65 @@
     table: filter
     state: saved
     path: /etc/iptables/rules.v6
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
 - name: Set PHP CLI Memory Limit
   ansible.builtin.lineinfile:
     path: /etc/php/7.3/cli/php.ini
     regexp: "^memory_limit = "
     line: memory_limit = 512M
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
 - name: Set PHP Apache Memory Limit
   ansible.builtin.lineinfile:
     path: /etc/php/7.3/apache2/php.ini
     regexp: "^memory_limit = "
     line: memory_limit = 512M
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
 - name: Copy ssl cert
   ansible.builtin.copy:
     src: "/etc/letsencrypt/live/{{ ssl_cert }}/fullchain.pem"
     dest: /etc/ssl/certs/fullchain.pem
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
 - name: Copy ssl key
   ansible.builtin.copy:
     src: "/etc/letsencrypt/live/{{ ssl_cert }}/privkey.key"
     dest: /etc/ssl/private/privkey.key
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
 - name: Set ssl cert
   ansible.builtin.lineinfile:
     path: /etc/apache2/sites-enabled/default-ssl.conf
     regexp: "^SSLCertificateFile "
     line: SSLCertificateFile /etc/ssl/certs/fullchain.pem
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
 - name: Set ssl key
   ansible.builtin.lineinfile:
     path: /etc/apache2/sites-enabled/default-ssl.conf
     regexp: "^SSLCertificateKeyFile "
     line: SSLCertificateKeyFile /etc/ssl/private/privkey.key
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
+- name: Install ransomware protection app
+  ansible.builtin.shell:
+    cmd: |
+      php /var/www/nextcloud/occ app:install ransomware_protection
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
+- name: Update Nextcloud
+  ansible.builtin.shell:
+    cmd: |
+      php /var/www/nextcloud/updater/updater.phar --no-interaction
+  when:
+    - ansible_facts['os_family'] == 'Debian'
