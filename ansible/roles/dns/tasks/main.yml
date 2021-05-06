@@ -5,17 +5,23 @@
   ansible.builtin.file:
     path: /var/lib/unbound
     state: directory
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
 - name: Download root hints
   get_url:
     url: https://www.internic.net/domain/named.root
     dest: /var/lib/unbound/root.hints
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
 - name: Start and enable unbound service
   ansible.builtin.systemd:
     name: unbound
     state: started
     enabled: "yes"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
 - name: Unbound configuration
   ansible.builtin.template:
@@ -24,11 +30,15 @@
     owner: root
     group: root
     mode: "0644"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
 - name: Add pihole Group
   ansible.builtin.group:
     name: pihole
     state: present
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
 - name: Add Pihole user
   ansible.builtin.user:
@@ -36,6 +46,8 @@
     groups: pihole
     append: "yes"
     password: "{{ pihole_password }}"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
 - name: Create Pihole path
   ansible.builtin.file:
@@ -44,6 +56,8 @@
     owner: pihole
     group: pihole
     recurse: yes
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
 - name: Pihole Config
   ansible.builtin.template:
@@ -51,24 +65,32 @@
     dest: /etc/pihole/setupVars.conf
     owner: pihole
     group: pihole
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
 - name: Check if Pihole is installed
   ansible.builtin.stat:
     path: /usr/local/bin/pihole
   register: pihole_status
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
 - name: Clone Pihole Repo
   ansible.builtin.git:
     repo: https://github.com/pi-hole/pi-hole.git
     dest: "/home/{{ user_name }}/Pi-hole"
-  when: pihole_status.stat.exists == false
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - pihole_status.stat.exists == false
 
 - name: Run Pihole Setup
   ansible.builtin.shell:
     cmd: |
       bash "/home/{{ user_name }}/Pi-hole/automated install/basic-install.sh" --unattended
   become: "true"
-  when: pihole_status.stat.exists == false
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - pihole_status.stat.exists == false
 
 - name: Clear current databases
   ansible.builtin.shell:
@@ -76,6 +98,8 @@
       sqlite3 '/etc/pihole/gravity.db' <<EOF
       DELETE FROM domainlist;
       DELETE FROM adlist
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
 - name: Setup Allow and Block Lists
   ansible.builtin.shell:
@@ -84,6 +108,8 @@
       INSERT INTO domainlist (id, type, domain, enabled, comment) VALUES {{ item }}
       EOF
   loop: "{{ allow_block_list }}"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
 - name: Setup Gravity Lists
   ansible.builtin.shell:
@@ -92,6 +118,8 @@
       INSERT INTO adlist (id, address, enabled, comment) VALUES {{ item }}
       EOF
   loop: "{{ adlist }}"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
 - name: Custom Domains
   ansible.builtin.lineinfile:
@@ -99,6 +127,8 @@
     line: "{{ item }}"
     create: "yes"
   loop: "{{ domains_list }}"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
 - name: Allow dns tcp
   ansible.builtin.iptables:
@@ -109,6 +139,8 @@
     in_interface: "{{ interface_name }}"
     jump: ACCEPT
   become: "yes"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
 - name: Allow dns tcp ipv6
   ansible.builtin.iptables:
@@ -120,6 +152,8 @@
     jump: ACCEPT
     ip_version: ipv6
   become: "yes"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
 - name: Allow dns udp
   ansible.builtin.iptables:
@@ -130,6 +164,8 @@
     in_interface: "{{ interface_name }}"
     jump: ACCEPT
   become: "yes"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
 - name: Allow dns udp ipv6
   ansible.builtin.iptables:
@@ -141,6 +177,8 @@
     jump: ACCEPT
     ip_version: ipv6
   become: "yes"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
 - name: Allow http
   ansible.builtin.iptables:
@@ -151,6 +189,8 @@
     in_interface: "{{ interface_name }}"
     jump: ACCEPT
   become: "yes"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
 - name: Allow http ipv6
   ansible.builtin.iptables:
@@ -162,6 +202,8 @@
     jump: ACCEPT
     ip_version: ipv6
   become: "yes"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
 - name: Allow https
   ansible.builtin.iptables:
@@ -172,6 +214,8 @@
     in_interface: "{{ interface_name }}"
     jump: ACCEPT
   become: "yes"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
 - name: Allow https ipv6
   ansible.builtin.iptables:
@@ -183,6 +227,8 @@
     jump: ACCEPT
     ip_version: ipv6
   become: "yes"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
 - name: Save Iptables Rules
   community.general.iptables_state:
@@ -190,6 +236,8 @@
     table: filter
     state: saved
     path: /etc/iptables/rules.v4
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
 - name: Save Iptables Rules ipv6
   community.general.iptables_state:
@@ -197,13 +245,27 @@
     table: filter
     state: saved
     path: /etc/iptables/rules.v6
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
 - name: External Config
   ansible.builtin.template:
     src: external.j2
     dest: /etc/lighttpd/external.conf
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
 - name: Copy pem file
   ansible.builtin.copy:
     src: "/etc/letsencrypt/live/{{ ssl_cert }}/cert_privkey_combined.pem"
     dest: /etc/lighttpd/cert_privkey_combined.pem
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
+- name: Update Pihole
+  ansible.builtin.shell:
+    cmd: |
+      pihole -up
+  become: "true"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
