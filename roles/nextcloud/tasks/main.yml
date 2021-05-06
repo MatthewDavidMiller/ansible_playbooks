@@ -201,6 +201,14 @@
   when:
     - ansible_facts['os_family'] == 'Debian'
 
+- name: Install contacts app
+  ansible.builtin.shell:
+    cmd: |
+      php /var/www/nextcloud/occ app:install contacts
+  become_user: www-data
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
 - name: Update Nextcloud
   ansible.builtin.shell:
     cmd: |
