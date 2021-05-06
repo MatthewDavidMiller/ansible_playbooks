@@ -1,0 +1,11 @@
+---
+- name: Update OpenWrt packages
+  hosts: openwrt
+
+  tasks:
+    - name: Update all packages to their latest version
+      ansible.builtin.shell:
+        cmd: |
+          opkg update
+          opkg list-upgradable | cut -f 1 -d ' ' | xargs opkg upgrade
+      when: ansible_facts['os_family'] == 'OpenWrt'
