@@ -197,6 +197,7 @@
   ansible.builtin.shell:
     cmd: |
       php /var/www/nextcloud/occ app:install ransomware_protection
+  become_user: www-data
   when:
     - ansible_facts['os_family'] == 'Debian'
 
@@ -204,5 +205,6 @@
   ansible.builtin.shell:
     cmd: |
       php /var/www/nextcloud/updater/updater.phar --no-interaction
+  become_user: www-data
   when:
     - ansible_facts['os_family'] == 'Debian'
