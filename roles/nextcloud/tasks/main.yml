@@ -209,6 +209,14 @@
   when:
     - ansible_facts['os_family'] == 'Debian'
 
+- name: Enable external files app
+  ansible.builtin.shell:
+    cmd: |
+      php /var/www/nextcloud/occ app:enable files_external
+  become_user: www-data
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
 - name: Update Nextcloud
   ansible.builtin.shell:
     cmd: |
