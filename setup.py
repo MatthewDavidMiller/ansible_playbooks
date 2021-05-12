@@ -18,6 +18,9 @@ subprocess.call([r'ansible-galaxy', r'collection',
 subprocess.call([r'ansible-galaxy', r'collection',
                 r'install', r'community.crypto'])
 
+subprocess.call([r'ansible-galaxy', r'collection',
+                r'install', r'community.docker.docker_compose'])
+
 os.mkdir(r'/ansible_configs')
 uid = pwd.getpwnam(r'root').pw_uid
 gid = pwd.getpwnam(r'root').pw_gid
