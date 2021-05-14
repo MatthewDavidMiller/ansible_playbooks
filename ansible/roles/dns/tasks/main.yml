@@ -36,12 +36,12 @@
   when:
     - ansible_facts['os_family'] == 'Debian'
 
-- name: Clear current databases
+- name: Build container
   ansible.builtin.shell:
     cmd: |
-      sqlite3 "/home/{{ user_name }}/pihole/etc-pihole/gravity.db" <<EOF
-      DELETE FROM domainlist;
-      DELETE FROM adlist
+      cd "/home/{{ user_name }}/pihole"
+      docker-compose down
+      docker-compose up --detach
   when:
     - ansible_facts['os_family'] == 'Debian'
 
@@ -246,14 +246,5 @@
   ansible.builtin.copy:
     src: "/etc/letsencrypt/live/{{ ssl_cert }}/cert_privkey_combined.pem"
     dest: "/home/{{ user_name }}/pihole/etc-lighttpd/cert_privkey_combined.pem"
-  when:
-    - ansible_facts['os_family'] == 'Debian'
-
-- name: Build container
-  ansible.builtin.shell:
-    cmd: |
-      cd "/home/{{ user_name }}/pihole"
-      docker-compose down
-      docker-compose up --detach
   when:
     - ansible_facts['os_family'] == 'Debian'
