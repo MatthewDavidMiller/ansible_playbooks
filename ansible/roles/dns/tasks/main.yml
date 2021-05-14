@@ -15,19 +15,24 @@
   when:
     - ansible_facts['os_family'] == 'Debian'
 
+- name: Create etc-pihole path
+  ansible.builtin.file:
+    path: "/home/{{ user_name }}/pihole/etc-pihole"
+    state: directory
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
+- name: Create etc-lighttpd path
+  ansible.builtin.file:
+    path: "/home/{{ user_name }}/pihole/etc-lighttpd"
+    state: directory
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
 - name: Docker Compose file
   ansible.builtin.template:
     src: docker-compose.j2
     dest: "/home/{{ user_name }}/pihole/docker-compose.yml"
-  when:
-    - ansible_facts['os_family'] == 'Debian'
-
-- name: Start container
-  ansible.builtin.shell:
-    cmd: |
-      cd "/home/{{ user_name }}/pihole"
-      docker-compose up --detach
-      sleep 60
   when:
     - ansible_facts['os_family'] == 'Debian'
 
@@ -241,5 +246,13 @@
   ansible.builtin.copy:
     src: "/etc/letsencrypt/live/{{ ssl_cert }}/cert_privkey_combined.pem"
     dest: "/home/{{ user_name }}/pihole/etc-lighttpd/cert_privkey_combined.pem"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
+- name: Start container
+  ansible.builtin.shell:
+    cmd: |
+      cd "/home/{{ user_name }}/pihole"
+      docker-compose up --detach
   when:
     - ansible_facts['os_family'] == 'Debian'
