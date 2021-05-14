@@ -36,6 +36,24 @@
   when:
     - ansible_facts['os_family'] == 'Debian'
 
+- name: Unbound configuration
+  ansible.builtin.template:
+    src: unbound_pihole.j2
+    dest: /etc/unbound/unbound.conf.d/pi-hole.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
+- name: Start and enable unbound service
+  ansible.builtin.systemd:
+    name: unbound
+    state: restarted
+    enabled: "yes"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
 - name: Build container
   ansible.builtin.shell:
     cmd: |
@@ -49,24 +67,6 @@
   get_url:
     url: https://www.internic.net/domain/named.root
     dest: /var/lib/unbound/root.hints
-  when:
-    - ansible_facts['os_family'] == 'Debian'
-
-- name: Start and enable unbound service
-  ansible.builtin.systemd:
-    name: unbound
-    state: started
-    enabled: "yes"
-  when:
-    - ansible_facts['os_family'] == 'Debian'
-
-- name: Unbound configuration
-  ansible.builtin.template:
-    src: unbound_pihole.j2
-    dest: /etc/unbound/unbound.conf.d/pi-hole.conf
-    owner: root
-    group: root
-    mode: "0644"
   when:
     - ansible_facts['os_family'] == 'Debian'
 
