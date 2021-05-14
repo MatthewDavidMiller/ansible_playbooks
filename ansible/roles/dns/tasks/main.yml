@@ -46,6 +46,13 @@
   when:
     - ansible_facts['os_family'] == 'Debian'
 
+- name: Download root hints
+  get_url:
+    url: https://www.internic.net/domain/named.root
+    dest: /var/lib/unbound/root.hints
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
 - name: Start and enable unbound service
   ansible.builtin.systemd:
     name: unbound
@@ -60,13 +67,6 @@
       cd "/home/{{ user_name }}/pihole"
       docker-compose down
       docker-compose up --detach
-  when:
-    - ansible_facts['os_family'] == 'Debian'
-
-- name: Download root hints
-  get_url:
-    url: https://www.internic.net/domain/named.root
-    dest: /var/lib/unbound/root.hints
   when:
     - ansible_facts['os_family'] == 'Debian'
 
