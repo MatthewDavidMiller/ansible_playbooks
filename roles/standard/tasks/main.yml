@@ -17,6 +17,14 @@
     update_cache: yes
   when: ansible_facts['os_family'] == 'OpenWrt'
 
+- name: Install packages Photon
+  ansible.builtin.shell:
+    cmd: |
+      tdnf update -y
+      tdnf install -y {{ item }}
+  when: ansible_facts['os_family'] == 'VMware Photon OS'
+  loop: "{{ photon_packages }}"
+
 - name: Set the timezone
   community.general.timezone:
     name: US/Eastern
