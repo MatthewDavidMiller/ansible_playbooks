@@ -20,7 +20,7 @@
 - name: Set the timezone
   community.general.timezone:
     name: US/Eastern
-  when: ansible_facts['os_family'] == 'Debian'
+  when: (ansible_facts['os_family'] == 'Debian') or (ansible_facts['os_family'] == 'VMware Photon OS')
 
 - name: Add a user
   ansible.builtin.user:
@@ -84,7 +84,7 @@
     limit: 6/minute
     jump: ACCEPT
   become: "yes"
-  when: ansible_facts['os_family'] == 'Debian'
+  when: (ansible_facts['os_family'] == 'Debian') or (ansible_facts['os_family'] == 'VMware Photon OS')
 
 - name: Allow ssh ipv6
   ansible.builtin.iptables:
@@ -97,7 +97,7 @@
     jump: ACCEPT
     ip_version: ipv6
   become: "yes"
-  when: ansible_facts['os_family'] == 'Debian'
+  when: (ansible_facts['os_family'] == 'Debian') or (ansible_facts['os_family'] == 'VMware Photon OS')
 
 - name: Allow icmp
   ansible.builtin.iptables:
@@ -107,7 +107,7 @@
     in_interface: "{{ interface_name }}"
     jump: ACCEPT
   become: "yes"
-  when: ansible_facts['os_family'] == 'Debian'
+  when: (ansible_facts['os_family'] == 'Debian') or (ansible_facts['os_family'] == 'VMware Photon OS')
 
 - name: Allow icmpv6
   ansible.builtin.iptables:
@@ -118,7 +118,7 @@
     jump: ACCEPT
     ip_version: ipv6
   become: "yes"
-  when: ansible_facts['os_family'] == 'Debian'
+  when: (ansible_facts['os_family'] == 'Debian') or (ansible_facts['os_family'] == 'VMware Photon OS')
 
 - name: Allow loopback
   ansible.builtin.iptables:
@@ -127,7 +127,7 @@
     in_interface: lo
     jump: ACCEPT
   become: "yes"
-  when: ansible_facts['os_family'] == 'Debian'
+  when: (ansible_facts['os_family'] == 'Debian') or (ansible_facts['os_family'] == 'VMware Photon OS')
 
 - name: Allow loopback ipv6
   ansible.builtin.iptables:
@@ -137,7 +137,7 @@
     jump: ACCEPT
     ip_version: ipv6
   become: "yes"
-  when: ansible_facts['os_family'] == 'Debian'
+  when: (ansible_facts['os_family'] == 'Debian') or (ansible_facts['os_family'] == 'VMware Photon OS')
 
 - name: Allow established connections
   ansible.builtin.iptables:
@@ -145,25 +145,25 @@
     ctstate: ESTABLISHED,RELATED
     jump: ACCEPT
   become: "yes"
-  when: ansible_facts['os_family'] == 'Debian'
+  when: (ansible_facts['os_family'] == 'Debian') or (ansible_facts['os_family'] == 'VMware Photon OS')
 
 - name: Drop inbound by default
   ansible.builtin.iptables:
     chain: INPUT
     policy: DROP
-  when: ansible_facts['os_family'] == 'Debian'
+  when: (ansible_facts['os_family'] == 'Debian') or (ansible_facts['os_family'] == 'VMware Photon OS')
 
 - name: Allow outbound by default
   ansible.builtin.iptables:
     chain: OUTPUT
     policy: ACCEPT
-  when: ansible_facts['os_family'] == 'Debian'
+  when: (ansible_facts['os_family'] == 'Debian') or (ansible_facts['os_family'] == 'VMware Photon OS')
 
 - name: Drop forwarding by default
   ansible.builtin.iptables:
     chain: FORWARD
     policy: DROP
-  when: ansible_facts['os_family'] == 'Debian'
+  when: (ansible_facts['os_family'] == 'Debian') or (ansible_facts['os_family'] == 'VMware Photon OS')
 
 - name: Allow established connections ipv6
   ansible.builtin.iptables:
@@ -172,28 +172,28 @@
     jump: ACCEPT
     ip_version: ipv6
   become: "yes"
-  when: ansible_facts['os_family'] == 'Debian'
+  when: (ansible_facts['os_family'] == 'Debian') or (ansible_facts['os_family'] == 'VMware Photon OS')
 
 - name: Drop inbound by default ipv6
   ansible.builtin.iptables:
     chain: INPUT
     policy: DROP
     ip_version: ipv6
-  when: ansible_facts['os_family'] == 'Debian'
+  when: (ansible_facts['os_family'] == 'Debian') or (ansible_facts['os_family'] == 'VMware Photon OS')
 
 - name: Allow outbound by default ipv6
   ansible.builtin.iptables:
     chain: OUTPUT
     policy: ACCEPT
     ip_version: ipv6
-  when: ansible_facts['os_family'] == 'Debian'
+  when: (ansible_facts['os_family'] == 'Debian') or (ansible_facts['os_family'] == 'VMware Photon OS')
 
 - name: Drop forwarding by default ipv6
   ansible.builtin.iptables:
     chain: FORWARD
     policy: DROP
     ip_version: ipv6
-  when: ansible_facts['os_family'] == 'Debian'
+  when: (ansible_facts['os_family'] == 'Debian') or (ansible_facts['os_family'] == 'VMware Photon OS')
 
 - name: Save Iptables Rules
   community.general.iptables_state:
@@ -201,7 +201,7 @@
     table: filter
     state: saved
     path: /etc/iptables/rules.v4
-  when: ansible_facts['os_family'] == 'Debian'
+  when: (ansible_facts['os_family'] == 'Debian') or (ansible_facts['os_family'] == 'VMware Photon OS')
 
 - name: Save Iptables Rules ipv6
   community.general.iptables_state:
@@ -209,7 +209,7 @@
     table: filter
     state: saved
     path: /etc/iptables/rules.v6
-  when: ansible_facts['os_family'] == 'Debian'
+  when: (ansible_facts['os_family'] == 'Debian') or (ansible_facts['os_family'] == 'VMware Photon OS')
 
 - name: Hosts file configuration
   ansible.builtin.template:
@@ -218,7 +218,7 @@
     owner: root
     group: root
     mode: "0644"
-  when: ansible_facts['os_family'] == 'Debian'
+  when: (ansible_facts['os_family'] == 'Debian') or (ansible_facts['os_family'] == 'VMware Photon OS')
 
 - name: Hostname file configuration
   ansible.builtin.template:
@@ -227,7 +227,7 @@
     owner: root
     group: root
     mode: "0644"
-  when: ansible_facts['os_family'] == 'Debian'
+  when: (ansible_facts['os_family'] == 'Debian') or (ansible_facts['os_family'] == 'VMware Photon OS')
 
 - name: Network interfaces configuration
   ansible.builtin.template:
@@ -238,6 +238,15 @@
     mode: "0644"
   when: ansible_facts['os_family'] == 'Debian'
 
+- name: Network interfaces configuration Alternate
+  ansible.builtin.template:
+    src: systemd_network.j2
+    dest: /etc/systemd/network/6-static.network
+    owner: root
+    group: root
+    mode: "0644"
+  when: ansible_facts['os_family'] == 'VMware Photon OS'
+
 - name: locale configuration
   ansible.builtin.template:
     src: locale.j2
@@ -245,7 +254,7 @@
     owner: root
     group: root
     mode: "0644"
-  when: ansible_facts['os_family'] == 'Debian'
+  when: (ansible_facts['os_family'] == 'Debian') or (ansible_facts['os_family'] == 'VMware Photon OS')
 
 - name: SSH configuration
   ansible.builtin.template:
@@ -254,9 +263,9 @@
     owner: root
     group: root
     mode: "0644"
-  when: ansible_facts['os_family'] == 'Debian'
+  when: (ansible_facts['os_family'] == 'Debian') or (ansible_facts['os_family'] == 'VMware Photon OS')
 
 - name: Reboot machine
   reboot:
-    reboot_timeout: "300"
-  when: ansible_facts['os_family'] == 'Debian'
+    reboot_timeout: "60"
+  when: (ansible_facts['os_family'] == 'Debian') or (ansible_facts['os_family'] == 'VMware Photon OS')

@@ -1,0 +1,14 @@
+[Match]
+Name=e*
+
+[Network]
+DHCP=no
+IPv6AcceptRA=no
+LLMNR=false
+MulticastDNS=false
+Address={{ ip_address_cidr }}
+Address={{ ipv6_link_local_address_cidr }}
+Gateway={{ gateway_address }}
+DNS= {{ dns_address }}
+Domains={{ domain_name }}
+NTP={{ ntp_address }}
