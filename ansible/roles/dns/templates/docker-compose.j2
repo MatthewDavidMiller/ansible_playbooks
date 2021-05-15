@@ -16,6 +16,14 @@ services:
     volumes:
       - './etc-pihole/:/etc/pihole/'
       - './etc-dnsmasq.d/:/etc/dnsmasq.d/'
-      - './etc-lighttpd/:/etc/lighttpd/'
+      - './etc-lighttpd/external.conf:/etc/lighttpd/external.conf'
+      - './etc-lighttpd/cert_privkey_combined.pem:/etc/lighttpd/cert_privkey_combined.pem'
+
+    cap_add:
+      - NET_ADMIN
+
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
 
     restart: unless-stopped

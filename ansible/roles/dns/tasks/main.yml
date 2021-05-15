@@ -1,13 +1,6 @@
 ---
 # Credits
 
-- name: Create unbound path
-  ansible.builtin.file:
-    path: /var/lib/unbound
-    state: directory
-  when:
-    - ansible_facts['os_family'] == 'Debian'
-
 - name: Create Pihole container path
   ansible.builtin.file:
     path: "/home/{{ user_name }}/pihole"
@@ -36,37 +29,13 @@
   when:
     - ansible_facts['os_family'] == 'Debian'
 
-- name: Unbound configuration
-  ansible.builtin.template:
-    src: unbound_pihole.j2
-    dest: /etc/unbound/unbound.conf.d/pi-hole.conf
-    owner: root
-    group: root
-    mode: "0644"
-  when:
-    - ansible_facts['os_family'] == 'Debian'
-
-- name: Download root hints
-  get_url:
-    url: https://www.internic.net/domain/named.root
-    dest: /var/lib/unbound/root.hints
-  when:
-    - ansible_facts['os_family'] == 'Debian'
-
-- name: Start and enable unbound service
-  ansible.builtin.systemd:
-    name: unbound
-    state: restarted
-    enabled: "yes"
-  when:
-    - ansible_facts['os_family'] == 'Debian'
-
 - name: Build container
   ansible.builtin.shell:
     cmd: |
       cd "/home/{{ user_name }}/pihole"
       docker-compose down
       docker-compose up --detach
+      docker exec pihole pihole updateGravity
   when:
     - ansible_facts['os_family'] == 'Debian'
 
