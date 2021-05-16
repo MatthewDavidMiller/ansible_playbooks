@@ -1,17 +1,31 @@
 ---
+- name: Create Git repo path
+  ansible.builtin.file:
+    path: "/etc/ansible/git"
+    state: directory
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
+- name: Ansible Standalone playbooks path
+  ansible.builtin.file:
+    path: "etc/ansible/standalone_playbooks"
+    state: directory
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
 - name: Update Debian servers weekly
   ansible.builtin.cron:
     name: "Update Debian Servers"
     minute: "0"
     hour: "0"
     weekday: "0"
-    job: "ansible-playbook /etc/ansible/apt_update_server.yml"
+    job: "ansible-playbook /etc/ansible/standalone_playbooks/apt_update_server.yml"
 
 - name: Reboot DNS Containers at reboot
   ansible.builtin.cron:
     name: "Reboot DNS Containers"
     special_time: reboot
-    job: "ansible-playbook /etc/ansible/reboot_dns_containers.yml"
+    job: "ansible-playbook /etc/ansible/standalone_playbooks/reboot_dns_containers.yml"
 
 - name: Clone Ansible Repo
   ansible.builtin.git:
@@ -27,3 +41,13 @@
   ansible.builtin.git:
     repo: https://github.com/MatthewDavidMiller/VPN-Server-Configuration.git
     dest: "/ansible_configs/git/VPN-Server-Configuration"
+
+- name: Clone Nextcloud Repo
+  ansible.builtin.git:
+    repo: https://github.com/MatthewDavidMiller/nextcloud_ansible.git
+    dest: "/ansible_configs/git/nextcloud_ansible"
+
+- name: Clone Router Repo
+  ansible.builtin.git:
+    repo: https://github.com/MatthewDavidMiller/Router-Configuration.git
+    dest: "/ansible_configs/git/Router-Configuration"
