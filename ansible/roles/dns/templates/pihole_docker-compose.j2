@@ -79,6 +79,10 @@ services:
 
     tty: true
 
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+
     build: ./unbound_dockerfile
 
     restart: unless-stopped

@@ -101,6 +101,7 @@
       cd "/home/{{ user_name }}/pihole"
       docker-compose down
       docker-compose up --detach --build
+      docker exec unbound /bin/bash -c "set -e && /usr/sbin/unbound"
   when:
     - ansible_facts['os_family'] == 'Debian'
 
