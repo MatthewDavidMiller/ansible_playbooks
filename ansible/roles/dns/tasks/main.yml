@@ -100,8 +100,7 @@
     cmd: |
       cd "/home/{{ user_name }}/pihole"
       docker-compose down
-      docker-compose up --detach
-      docker exec pihole pihole updateGravity
+      docker-compose up --detach --build
   when:
     - ansible_facts['os_family'] == 'Debian'
 
