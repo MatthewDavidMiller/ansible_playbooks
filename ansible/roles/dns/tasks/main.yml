@@ -22,13 +22,6 @@
   when:
     - ansible_facts['os_family'] == 'Debian'
 
-- name: Create unbound dockerfile path
-  ansible.builtin.file:
-    path: "/home/{{ user_name }}/pihole/unbound_dockerfile"
-    state: directory
-  when:
-    - ansible_facts['os_family'] == 'Debian'
-
 - name: Create etc-pihole path
   ansible.builtin.file:
     path: "/home/{{ user_name }}/pihole/etc-pihole"
@@ -57,20 +50,6 @@
   get_url:
     url: https://www.internic.net/domain/named.root
     dest: "/home/{{ user_name }}/pihole/var-lib-unbound/root.hints"
-  when:
-    - ansible_facts['os_family'] == 'Debian'
-
-- name: Docker Compose file
-  ansible.builtin.template:
-    src: pihole_docker-compose.j2
-    dest: "/home/{{ user_name }}/pihole/docker-compose.yml"
-  when:
-    - ansible_facts['os_family'] == 'Debian'
-
-- name: Unbound docker file
-  ansible.builtin.template:
-    src: unbound_dockerfile.j2
-    dest: "/home/{{ user_name }}/pihole/unbound_dockerfile/dockerfile"
   when:
     - ansible_facts['os_family'] == 'Debian'
 
@@ -126,8 +105,8 @@
       - name: pihole_net
         ipv4_address: 172.16.1.2
     env:
-      - TZ="America/Chicago"
-      - WEBPASSWORD="{{ web_password }}"
+      TZ: "America/Chicago"
+      WEBPASSWORD: "{{ web_password }}"
     published_ports:
       - "53:53/tcp"
       - "53:53/udp"
@@ -139,7 +118,7 @@
 - name: Unbound container
   community.docker.docker_container:
     name: unbound
-    image: alpine/alpine:latest
+    image: alpine:latest
     detach: yes
     mounts:
       - type: bind
@@ -156,16 +135,14 @@
       - name: pihole_net
         ipv4_address: 172.16.1.3
     env:
-      - TZ="America/Chicago"
+      TZ: "America/Chicago"
     published_ports:
       - "5353:53/tcp"
       - "5353:53/udp"
     tty: yes
     restart_policy: unless-stopped
     pull: yes
-    command:
-      - apk update
-      - apk add unbound bash
+    command: ash -c "apk add unbound ; set -e && /usr/sbin/unbound && sleep infinity"
 
 - name: Clear current databases
   ansible.builtin.shell:
