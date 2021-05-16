@@ -95,15 +95,77 @@
   when:
     - ansible_facts['os_family'] == 'Debian'
 
-- name: Build container
-  ansible.builtin.shell:
-    cmd: |
-      cd "/home/{{ user_name }}/pihole"
-      docker-compose down
-      docker-compose up --detach --build
-      docker exec unbound /bin/bash -c "set -e && /usr/sbin/unbound"
-  when:
-    - ansible_facts['os_family'] == 'Debian'
+- name: Create Pihole Container Network
+  community.docker.docker_network:
+    name: pihole_net
+    driver: bridge
+    ipam_config:
+      - subnet: 172.16.1.0/29
+
+- name: Pihole container
+  community.docker.docker_container:
+    name: pihole
+    image: pihole/pihole:latest
+    detach: yes
+    volumes:
+      - /home/{{ user_name }}/pihole/etc-pihole:/etc/pihole
+      - /home/{{ user_name }}/pihole/etc-dnsmasq.d:/etc/dnsmasq.d
+    mounts:
+      - type: bind
+        source: /home/{{ user_name }}/pihole/etc-lighttpd/external.conf
+        target: /etc/lighttpd/external.conf
+
+      - type: bind
+        source: /home/{{ user_name }}/pihole/etc-lighttpd/cert_privkey_combined.pem
+        target: /etc/lighttpd/cert_privkey_combined.pem
+    capabilities:
+      - NET_ADMIN
+    dns_servers:
+      - 172.16.1.3
+    networks:
+      - name: pihole_net
+        ipv4_address: 172.16.1.2
+    env:
+      - TZ="America/Chicago"
+      - WEBPASSWORD="{{ web_password }}"
+    published_ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "443:443/tcp"
+      - "80:80/tcp"
+    restart_policy: unless-stopped
+    pull: yes
+
+- name: Unbound container
+  community.docker.docker_container:
+    name: unbound
+    image: alpine/alpine:latest
+    detach: yes
+    mounts:
+      - type: bind
+        source: /home/{{ user_name }}/pihole/etc-unbound/unbound.conf
+        target: /etc/unbound/unbound.conf
+
+      - type: bind
+        source: /home/{{ user_name }}/pihole/var-lib-unbound/root.hints
+        target: /var/lib/unbound/root.hints
+    dns_servers:
+      - 8.8.8.8
+      - 1.1.1.1
+    networks:
+      - name: pihole_net
+        ipv4_address: 172.16.1.3
+    env:
+      - TZ="America/Chicago"
+    published_ports:
+      - "5353:53/tcp"
+      - "5353:53/udp"
+    tty: yes
+    restart_policy: unless-stopped
+    pull: yes
+    command:
+      - apk update
+      - apk add unbound bash
 
 - name: Clear current databases
   ansible.builtin.shell:
@@ -260,3 +322,12 @@
     path: /etc/iptables/rules.v6
   when:
     - ansible_facts['os_family'] == 'Debian'
+
+- name: Watchtower Container
+  community.docker.docker_container:
+    name: watchtower
+    image: containrrr/watchtower:latest
+    detach: yes
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    pull: yes
