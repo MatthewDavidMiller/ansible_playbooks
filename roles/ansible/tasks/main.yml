@@ -28,12 +28,6 @@
     weekday: "0"
     job: "ansible-playbook /etc/ansible/standalone_playbooks/apt_update_server.yml"
 
-- name: Reboot DNS Containers at reboot
-  ansible.builtin.cron:
-    name: "Reboot DNS Containers"
-    special_time: reboot
-    job: "ansible-playbook /etc/ansible/standalone_playbooks/reboot_dns_containers.yml"
-
 - name: Clone Ansible Repo
   ansible.builtin.git:
     repo: https://github.com/MatthewDavidMiller/ansible_configuration.git
