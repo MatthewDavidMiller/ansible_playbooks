@@ -3,6 +3,6 @@
 
 FROM alpine:latest
 
-RUN apk -U upgrade
-RUN apk add openrc unbound
-RUN rc-update add unbound
+RUN apk add unbound bash
+CMD ["/bin/bash", "-c", "set -e && /usr/sbin/unbound"]
+CMD apk -U upgrade
