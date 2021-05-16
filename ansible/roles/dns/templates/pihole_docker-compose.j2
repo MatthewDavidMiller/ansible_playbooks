@@ -33,13 +33,9 @@ services:
       WEBPASSWORD: {{ web_password }}
 
     volumes:
-      - type: volume
-        source: ./etc-pihole
-        target: /etc/pihole
+      - ./etc-pihole:/etc/pihole
 
-      - type: volume
-        source: ./etc-dnsmasq.d
-        target: /etc/dnsmasq.d
+      - ./etc-dnsmasq.d:/etc/dnsmasq.d
 
       - type: bind
         source: ./etc-lighttpd/external.conf
@@ -87,7 +83,3 @@ services:
     build: ./unbound_dockerfile
 
     restart: unless-stopped
-
-volumes:
-  etc-pihole:
-  etc-dnsmasq.d:
