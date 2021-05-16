@@ -3,6 +3,9 @@
   hosts: dns
 
   tasks:
+    - name: Load variables
+      ansible.builtin.include_vars: /etc/ansible/main_playbook/roles/ansible/defaults/main.yml
+
     - name: Build container
       ansible.builtin.shell:
         cmd: |
