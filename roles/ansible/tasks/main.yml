@@ -51,7 +51,7 @@
 
 - name: Copy DNS role
   ansible.builtin.copy:
-    src: /ansible_configs/git/DNS-Server-Configuration/roles
+    src: /ansible_configs/git/DNS-Server-Configuration/ansible/roles
     dest: /etc/ansible/main_playbook
 
 - name: Clone VPN Repo
@@ -61,7 +61,7 @@
 
 - name: Copy VPN role
   ansible.builtin.copy:
-    src: /ansible_configs/git/VPN-Server-Configuration/roles
+    src: /ansible_configs/git/VPN-Server-Configuration/ansible/roles
     dest: /etc/ansible/main_playbook
 
 - name: Clone Nextcloud Repo
@@ -81,5 +81,5 @@
 
 - name: Copy Router role
   ansible.builtin.copy:
-    src: /ansible_configs/git/Router-Configuration/roles
+    src: /ansible_configs/git/Router-Configuration/ansible/roles
     dest: /etc/ansible/main_playbook
