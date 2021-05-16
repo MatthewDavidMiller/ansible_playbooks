@@ -3,6 +3,5 @@
 
 FROM alpine:latest
 
+RUN apk update
 RUN apk add unbound bash
-CMD ["/bin/bash", "-c", "set -e && /usr/sbin/unbound"]
-CMD apk -U upgrade
