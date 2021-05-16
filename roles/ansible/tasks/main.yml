@@ -6,6 +6,13 @@
   when:
     - ansible_facts['os_family'] == 'Debian'
 
+- name: Create main playbook path
+  ansible.builtin.file:
+    path: "/etc/ansible/main_playbook"
+    state: directory
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
 - name: Ansible Standalone playbooks path
   ansible.builtin.file:
     path: "etc/ansible/standalone_playbooks"
@@ -32,22 +39,47 @@
     repo: https://github.com/MatthewDavidMiller/ansible_configuration.git
     dest: "/ansible_configs/git/ansible_configuration"
 
+- name: Copy Ansible and standard role
+  ansible.builtin.copy:
+    src: /ansible_configs/git/ansible_configuration/roles
+    dest: /etc/ansible/main_playbook
+
 - name: Clone Dns Repo
   ansible.builtin.git:
     repo: https://github.com/MatthewDavidMiller/DNS-Server-Configuration.git
     dest: "/ansible_configs/git/DNS-Server-Configuration"
+
+- name: Copy DNS role
+  ansible.builtin.copy:
+    src: /ansible_configs/git/DNS-Server-Configuration/roles
+    dest: /etc/ansible/main_playbook
 
 - name: Clone VPN Repo
   ansible.builtin.git:
     repo: https://github.com/MatthewDavidMiller/VPN-Server-Configuration.git
     dest: "/ansible_configs/git/VPN-Server-Configuration"
 
+- name: Copy VPN role
+  ansible.builtin.copy:
+    src: /ansible_configs/git/VPN-Server-Configuration/roles
+    dest: /etc/ansible/main_playbook
+
 - name: Clone Nextcloud Repo
   ansible.builtin.git:
     repo: https://github.com/MatthewDavidMiller/nextcloud_ansible.git
     dest: "/ansible_configs/git/nextcloud_ansible"
 
+- name: Copy Nextcloud role
+  ansible.builtin.copy:
+    src: /ansible_configs/git/nextcloud_ansible/roles
+    dest: /etc/ansible/main_playbook
+
 - name: Clone Router Repo
   ansible.builtin.git:
     repo: https://github.com/MatthewDavidMiller/Router-Configuration.git
     dest: "/ansible_configs/git/Router-Configuration"
+
+- name: Copy Router role
+  ansible.builtin.copy:
+    src: /ansible_configs/git/Router-Configuration/roles
+    dest: /etc/ansible/main_playbook
