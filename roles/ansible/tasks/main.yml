@@ -5,7 +5,13 @@
     minute: "0"
     hour: "0"
     weekday: "0"
-    job: "ansible-playbook {{ standalone_playbooks_location }}/apt_update_server.yml"
+    job: "ansible-playbook /etc/ansible/apt_update_server.yml"
+
+- name: Reboot DNS Containers at reboot
+  ansible.builtin.cron:
+    name: "Reboot DNS Containers"
+    special_time: reboot
+    job: "ansible-playbook /etc/ansible/reboot_dns_containers.yml"
 
 - name: Clone Ansible Repo
   ansible.builtin.git:
