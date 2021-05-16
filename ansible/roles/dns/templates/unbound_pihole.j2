@@ -3,13 +3,13 @@ server:
     # logfile: "/var/log/unbound/unbound.log"
     verbosity: 0
 
-    port: 5353
+    port: 53
     do-ip4: yes
     do-udp: yes
     do-tcp: yes
 
     # May be set to yes if you have IPv6 connectivity
-    do-ip6: yes
+    do-ip6: no
 
     # Use this only when you downloaded the list of primary root servers!
     root-hints: "/var/lib/unbound/root.hints"
@@ -37,6 +37,10 @@ server:
 
     # Ensure kernel buffer is large enough to not lose messages in traffic spikes
     so-rcvbuf: 1m
+
+    interface: 0.0.0.0
+    access-control: 172.16.1.0/29 allow
+    access-control: 127.0.0.0/8 allow
 
     # Ensure privacy of local IP ranges
     private-address: 192.168.0.0/16

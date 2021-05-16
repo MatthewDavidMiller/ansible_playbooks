@@ -46,7 +46,7 @@
 - name: Unbound configuration
   ansible.builtin.template:
     src: unbound_pihole.j2
-    dest: "/home/{{ user_name }}/pihole/etc-unbound/unbound.conf.d/pi-hole.conf"
+    dest: "/home/{{ user_name }}/pihole/etc-unbound/unbound.conf"
     owner: root
     group: root
     mode: "0644"
