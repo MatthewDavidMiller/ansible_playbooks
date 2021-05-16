@@ -88,6 +88,13 @@
   when:
     - ansible_facts['os_family'] == 'Debian'
 
+- name: Pihole Config
+  ansible.builtin.template:
+    src: setup_vars.j2
+    dest: /home/{{ user_name }}/pihole/etc-pihole/setupVars.conf
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
 - name: Build container
   ansible.builtin.shell:
     cmd: |
@@ -95,13 +102,6 @@
       docker-compose down
       docker-compose up --detach
       docker exec pihole pihole updateGravity
-  when:
-    - ansible_facts['os_family'] == 'Debian'
-
-- name: Pihole Config
-  ansible.builtin.template:
-    src: setup_vars.j2
-    dest: /home/{{ user_name }}/pihole/etc-pihole/setupVars.conf
   when:
     - ansible_facts['os_family'] == 'Debian'
 
