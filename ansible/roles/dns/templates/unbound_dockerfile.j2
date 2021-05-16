@@ -1,0 +1,8 @@
+# Credits
+# https://wiki.alpinelinux.org/wiki/Setting_up_unbound_DNS_server
+
+FROM alpine:latest
+
+RUN apk -U upgrade
+RUN apk add openrc unbound
+RUN rc-update add unbound
