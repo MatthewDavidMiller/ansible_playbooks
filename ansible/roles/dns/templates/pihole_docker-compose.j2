@@ -1,4 +1,4 @@
-version: "3"
+version: "3.2"
 
 # Credits
 # https://stackoverflow.com/questions/57342238/how-to-start-with-docker-dockerfile-and-docker-compose
@@ -13,7 +13,6 @@ networks:
       driver: default
       config:
         - subnet: 172.16.1.0/29
-          gateway: 172.16.1.1
 
 services:
   pihole:

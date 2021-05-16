@@ -70,7 +70,21 @@
 - name: Unbound docker file
   ansible.builtin.template:
     src: unbound_dockerfile.j2
-    dest: "/home/{{ user_name }}/pihole/unbound_dockerfile/dockerfile.yaml"
+    dest: "/home/{{ user_name }}/pihole/unbound_dockerfile/dockerfile"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
+- name: External Config
+  ansible.builtin.template:
+    src: external.j2
+    dest: "/home/{{ user_name }}/pihole/etc-lighttpd/external.conf"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
+- name: Copy pem file
+  ansible.builtin.copy:
+    src: "/etc/letsencrypt/live/{{ ssl_cert }}/cert_privkey_combined.pem"
+    dest: "/home/{{ user_name }}/pihole/etc-lighttpd/cert_privkey_combined.pem"
   when:
     - ansible_facts['os_family'] == 'Debian'
 
@@ -244,19 +258,5 @@
     table: filter
     state: saved
     path: /etc/iptables/rules.v6
-  when:
-    - ansible_facts['os_family'] == 'Debian'
-
-- name: External Config
-  ansible.builtin.template:
-    src: external.j2
-    dest: "/home/{{ user_name }}/pihole/etc-lighttpd/external.conf"
-  when:
-    - ansible_facts['os_family'] == 'Debian'
-
-- name: Copy pem file
-  ansible.builtin.copy:
-    src: "/etc/letsencrypt/live/{{ ssl_cert }}/cert_privkey_combined.pem"
-    dest: "/home/{{ user_name }}/pihole/etc-lighttpd/cert_privkey_combined.pem"
   when:
     - ansible_facts['os_family'] == 'Debian'
