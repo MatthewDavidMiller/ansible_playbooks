@@ -118,7 +118,7 @@
 - name: Unbound container
   community.docker.docker_container:
     name: unbound
-    image: alpine:latest
+    image: debian:stable-slim
     detach: yes
     mounts:
       - type: bind
@@ -142,7 +142,7 @@
     tty: yes
     restart_policy: unless-stopped
     pull: yes
-    command: ash -c "apk add unbound ; set -e && /usr/sbin/unbound && sleep infinity"
+    command: bash -c "apt-get update ; DEBIAN_FRONTEND=noninteractive apt-get install -o Dpkg::Options::=--force-confold -y unbound ; set -e && /usr/sbin/unbound && sleep infinity"
 
 - name: Clear current databases
   ansible.builtin.shell:
