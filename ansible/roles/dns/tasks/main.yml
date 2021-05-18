@@ -29,6 +29,13 @@
   when:
     - ansible_facts['os_family'] == 'Debian'
 
+- name: Create apt-cache path
+  ansible.builtin.file:
+    path: "/home/{{ user_name }}/pihole/apt-cache"
+    state: directory
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
 - name: Create etc-lighttpd path
   ansible.builtin.file:
     path: "/home/{{ user_name }}/pihole/etc-lighttpd"
@@ -120,6 +127,8 @@
     name: unbound
     image: debian:stable-slim
     detach: yes
+    volumes:
+      - /home/{{ user_name }}/pihole/apt-cache:/var/cache/apt/archives
     mounts:
       - type: bind
         source: /home/{{ user_name }}/pihole/etc-unbound/unbound.conf
@@ -142,7 +151,7 @@
     tty: yes
     restart_policy: unless-stopped
     pull: yes
-    command: bash -c "apt-get update ; DEBIAN_FRONTEND=noninteractive apt-get install -o Dpkg::Options::=--force-confold -y unbound ; set -e && /usr/sbin/unbound && sleep infinity"
+    command: bash -c "apt-get update ; DEBIAN_FRONTEND=noninteractive apt-get upgrade -o Dpkg::Options::=--force-confold -y ; DEBIAN_FRONTEND=noninteractive apt-get install -o Dpkg::Options::=--force-confold -y unbound ; apt-get autoclean ; set -e && /usr/sbin/unbound && sleep infinity"
 
 - name: Clear current databases
   ansible.builtin.shell:
