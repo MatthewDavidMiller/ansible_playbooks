@@ -29,13 +29,6 @@
   when:
     - ansible_facts['os_family'] == 'Debian'
 
-- name: Create apt-cache path
-  ansible.builtin.file:
-    path: "/home/{{ user_name }}/pihole/apt-cache"
-    state: directory
-  when:
-    - ansible_facts['os_family'] == 'Debian'
-
 - name: Create etc-lighttpd path
   ansible.builtin.file:
     path: "/home/{{ user_name }}/pihole/etc-lighttpd"
@@ -127,8 +120,6 @@
     name: unbound
     image: debian:stable-slim
     detach: yes
-    volumes:
-      - /home/{{ user_name }}/pihole/apt-cache:/var/cache/apt/archives
     mounts:
       - type: bind
         source: /home/{{ user_name }}/pihole/etc-unbound/unbound.conf
