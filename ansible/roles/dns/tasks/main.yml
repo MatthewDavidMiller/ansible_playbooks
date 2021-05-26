@@ -97,8 +97,6 @@
       - type: bind
         source: /home/{{ user_name }}/pihole/etc-lighttpd/cert_privkey_combined.pem
         target: /etc/lighttpd/cert_privkey_combined.pem
-    capabilities:
-      - NET_ADMIN
     dns_servers:
       - 172.16.1.3
     networks:
@@ -305,6 +303,8 @@
     name: watchtower
     image: containrrr/watchtower:latest
     detach: yes
+    env:
+      WATCHTOWER_POLL_INTERVAL: "604800"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     pull: yes
