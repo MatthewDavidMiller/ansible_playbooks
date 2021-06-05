@@ -13,6 +13,13 @@
   when:
     - ansible_facts['os_family'] == 'Debian'
 
+- name: Create Vaultwarden container ssl certs path
+  ansible.builtin.file:
+    path: "/home/{{ user_name }}/vaultwarden/ssl_certs"
+    state: directory
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
 - name: Watchtower Container
   community.docker.docker_container:
     name: watchtower
@@ -92,6 +99,20 @@
   when:
     - ansible_facts['os_family'] == 'Debian'
 
+- name: Copy fullchain pem file
+  ansible.builtin.copy:
+    src: "/etc/letsencrypt/live/{{ ssl_cert }}/fullchain.pem"
+    dest: "/home/{{ user_name }}/vaultwarden/ssl_certs/fullchain.pem"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
+- name: Copy privkey pem file
+  ansible.builtin.copy:
+    src: "/etc/letsencrypt/live/{{ ssl_cert }}/privkey.pem"
+    dest: "/home/{{ user_name }}/vaultwarden/ssl_certs/privkey.pem"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
 - name: Vaultwarden container
   community.docker.docker_container:
     name: vaultwarden
@@ -99,6 +120,9 @@
     detach: yes
     volumes:
       - /home/{{ user_name }}/vaultwarden/vw-data:/data
+      - /home/{{ user_name }}/vaultwarden/ssl_certs:/ssl_certs
+    env:
+      ROCKET_TLS: certs="/ssl_certs/fullchain.pem",key="/ssl_certs/privkey.pem"
     published_ports:
       - "443:443/tcp"
       - "80:80/tcp"
