@@ -77,3 +77,13 @@
   ansible.builtin.copy:
     src: /ansible_configs/git/Router-Configuration/ansible/roles
     dest: /etc/ansible/main_playbook
+
+- name: Clone Vaultwarden Repo
+  ansible.builtin.git:
+    repo: https://github.com/MatthewDavidMiller/Vaultwarden_Ansible_Configuration.git
+    dest: "/ansible_configs/git/Vaultwarden_Ansible_Configuration"
+
+- name: Copy Vaultwarden role
+  ansible.builtin.copy:
+    src: /ansible_configs/git/Vaultwarden_Ansible_Configuration/roles
+    dest: /etc/ansible/main_playbook
