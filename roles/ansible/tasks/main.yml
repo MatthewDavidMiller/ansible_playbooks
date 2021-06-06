@@ -87,3 +87,12 @@
   ansible.builtin.copy:
     src: /ansible_configs/git/Vaultwarden_Ansible_Configuration/roles
     dest: /etc/ansible/main_playbook
+
+- name: SSH hosts configuration
+  ansible.builtin.template:
+    src: ssh_config.j2
+    dest: "/root/.ssh/config"
+    owner: root
+    group: root
+  when:
+    - ansible_facts['os_family'] == 'Debian'
