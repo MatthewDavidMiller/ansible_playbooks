@@ -20,6 +20,13 @@
   when:
     - ansible_facts['os_family'] == 'Debian'
 
+- name: Create Vaultwarden backups path
+  ansible.builtin.file:
+    path: "/home/{{ user_name }}/vaultwarden/database_backups"
+    state: directory
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
 - name: Watchtower Container
   community.docker.docker_container:
     name: watchtower
@@ -102,3 +109,9 @@
       - "443:80/tcp"
     restart_policy: unless-stopped
     pull: yes
+
+- name: Backup Vaultwarden Daily
+  ansible.builtin.cron:
+    name: "Backup Vaultwarden"
+    special_time: daily
+    job: sqlite3 /home/{{ user_name }}/vaultwarden/vw-data/db.sqlite3 ".backup '/home/{{ user_name }}/vaultwarden/database_backups/db-$(date '+%Y%m%d-%H%M').sqlite3'"
