@@ -6,6 +6,13 @@
   when:
     - ansible_facts['os_family'] == 'Debian'
 
+- name: Rclone config path
+  ansible.builtin.file:
+    path: "/root/.config/rclone"
+    state: directory
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
 - name: Create Vaultwarden container data path
   ansible.builtin.file:
     path: "/home/{{ user_name }}/vaultwarden/vw-data"
@@ -115,3 +122,19 @@
     name: "Backup Vaultwarden"
     special_time: daily
     job: sqlite3 /home/{{ user_name }}/vaultwarden/vw-data/db.sqlite3 ".backup '/home/{{ user_name }}/vaultwarden/database_backups/db-$(date '+%Y%m%d-%H%M').sqlite3'"
+
+- name: Rclone config file
+  ansible.builtin.template:
+    src: rclone_config.j2
+    dest: "/root/.config/rclone/rclone.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
+- name: Backup Vaultwarden Daily to Nextcloud
+  ansible.builtin.cron:
+    name: "Backup Vaultwarden Daily to Nextcloud"
+    special_time: daily
+    job: rclone copy /home/{{ user_name }}/vaultwarden/database_backups Nextcloud:{{ vaultwarden_backup_location }}
