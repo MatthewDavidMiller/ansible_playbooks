@@ -117,11 +117,21 @@
     restart_policy: unless-stopped
     pull: yes
 
+- name: Backup Database Script
+  ansible.builtin.template:
+    src: backup_db.j2
+    dest: "/usr/local/bin/backup_db.sh"
+    owner: root
+    group: root
+    mode: "0644"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
 - name: Backup Vaultwarden Daily
   ansible.builtin.cron:
     name: "Backup Vaultwarden"
     special_time: daily
-    job: /usr/bin/sqlite3 /home/{{ user_name }}/vaultwarden/vw-data/db.sqlite3 ".backup '/home/{{ user_name }}/vaultwarden/database_backups/vaultwarden_db-$(date +%m_%d_%Y).sqlite3'"
+    job: /bin/bash /usr/local/bin/backup_db.sh
 
 - name: Rclone config file
   ansible.builtin.template:
@@ -132,9 +142,3 @@
     mode: "0644"
   when:
     - ansible_facts['os_family'] == 'Debian'
-
-- name: Backup Vaultwarden Daily to Nextcloud
-  ansible.builtin.cron:
-    name: "Backup Vaultwarden Daily to Nextcloud"
-    special_time: daily
-    job: /usr/bin/rclone copy /home/{{ user_name }}/vaultwarden/database_backups Nextcloud:{{ vaultwarden_backup_location }}

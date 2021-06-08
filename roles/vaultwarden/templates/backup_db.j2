@@ -1,0 +1,4 @@
+#!/bin/bash
+
+/usr/bin/sqlite3 /home/{{ user_name }}/vaultwarden/vw-data/db.sqlite3 ".backup '/home/{{ user_name }}/vaultwarden/database_backups/vaultwarden_db-$(date +%m_%d_%Y).sqlite3'"
+/usr/bin/rclone copy /home/{{ user_name }}/vaultwarden/database_backups Nextcloud:{{ vaultwarden_backup_location }}
