@@ -121,7 +121,7 @@
   ansible.builtin.cron:
     name: "Backup Vaultwarden"
     special_time: daily
-    job: sqlite3 /home/{{ user_name }}/vaultwarden/vw-data/db.sqlite3 ".backup '/home/{{ user_name }}/vaultwarden/database_backups/db-$(date '+%Y%m%d-%H%M').sqlite3'"
+    job: /usr/bin/sqlite3 /home/{{ user_name }}/vaultwarden/vw-data/db.sqlite3 ".backup '/home/{{ user_name }}/vaultwarden/database_backups/vaultwarden_db-$(date +%m_%d_%Y).sqlite3'"
 
 - name: Rclone config file
   ansible.builtin.template:
@@ -137,4 +137,4 @@
   ansible.builtin.cron:
     name: "Backup Vaultwarden Daily to Nextcloud"
     special_time: daily
-    job: rclone copy /home/{{ user_name }}/vaultwarden/database_backups Nextcloud:{{ vaultwarden_backup_location }}
+    job: /usr/bin/rclone copy /home/{{ user_name }}/vaultwarden/database_backups Nextcloud:{{ vaultwarden_backup_location }}
