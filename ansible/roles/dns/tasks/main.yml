@@ -143,7 +143,7 @@
     command: bash -c "apt-get update ; DEBIAN_FRONTEND=noninteractive apt-get upgrade -o Dpkg::Options::=--force-confold -y ; DEBIAN_FRONTEND=noninteractive apt-get install -o Dpkg::Options::=--force-confold -y unbound ; apt-get autoclean ; set -e && /usr/sbin/unbound && sleep infinity"
 
 - name: Clear current databases
-  ansible.builtin.shell:
+  shell:
     cmd: |
       sqlite3 "/home/{{ user_name }}/pihole/etc-pihole/gravity.db" <<EOF
       DELETE FROM domainlist;
@@ -152,7 +152,7 @@
     - ansible_facts['os_family'] == 'Debian'
 
 - name: Setup Allow and Block Lists
-  ansible.builtin.shell:
+  shell:
     cmd: |
       sqlite3 "/home/{{ user_name }}/pihole/etc-pihole/gravity.db" <<EOF
       INSERT INTO domainlist (id, type, domain, enabled, comment) VALUES {{ item }}
@@ -162,7 +162,7 @@
     - ansible_facts['os_family'] == 'Debian'
 
 - name: Setup Gravity Lists
-  ansible.builtin.shell:
+  shell:
     cmd: |
       sqlite3 "/home/{{ user_name }}/pihole/etc-pihole/gravity.db" <<EOF
       INSERT INTO adlist (id, address, enabled, comment) VALUES {{ item }}
