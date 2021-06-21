@@ -34,6 +34,7 @@
       deb-src https://mirrors.wikimedia.org/debian/ {{ release_name }}-backports main
   when:
     - ansible_facts['os_family'] == 'Debian'
+    - ansible_facts['os_family'] != 'Ubuntu'
 
 - name: Enable IP forwarding
   ansible.builtin.blockinfile:
@@ -54,6 +55,15 @@
     update_cache: "yes"
   when:
     - ansible_facts['os_family'] == 'Debian'
+    - ansible_facts['os_family'] != 'Ubuntu'
+
+- name: Install Wireguard Ubuntu
+  apt:
+    name: wireguard
+    state: latest
+    update_cache: "yes"
+  when:
+    - ansible_facts['os_family'] == 'Ubuntu'
 
 - name: Reboot machine before proceeding
   reboot:
