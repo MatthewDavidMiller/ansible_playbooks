@@ -45,7 +45,7 @@
     - ansible_facts['os_family'] == 'Debian'
 
 - name: Enable Apache nextcloud config
-  ansible.builtin.shell:
+  shell:
     cmd: |
       a2ensite nextcloud.conf
       a2enmod rewrite
@@ -61,7 +61,7 @@
     - nextcloud_status.stat.exists == false
 
 - name: Install nextcloud
-  ansible.builtin.shell:
+  shell:
     cmd: |
       cd /var/www/nextcloud/
       php occ  maintenance:install --database "mysql" --database-name "nextcloud"  --database-user "root" --database-pass "{{ nextcloud_db_root_password }}" --admin-user "admin" --admin-pass "{{ nextcloud_db_admin_password }}"
@@ -194,7 +194,7 @@
     - ansible_facts['os_family'] == 'Debian'
 
 - name: Install ransomware protection app
-  ansible.builtin.shell:
+  shell:
     cmd: |
       php /var/www/nextcloud/occ app:install ransomware_protection
   become_user: www-data
@@ -202,7 +202,7 @@
     - ansible_facts['os_family'] == 'Debian'
 
 - name: Update Nextcloud
-  ansible.builtin.shell:
+  shell:
     cmd: |
       php /var/www/nextcloud/updater/updater.phar --no-interaction
   become_user: www-data
