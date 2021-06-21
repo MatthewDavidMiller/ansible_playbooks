@@ -49,7 +49,9 @@
   register: swapfile_status
 
 - name: Create swap file
-  ansible.builtin.command: dd if=/dev/zero of=/swapfile bs=1M count={{swap_file_size}} status=progress
+  ansible.builtin.shell:
+    cmd: |
+      dd if=/dev/zero of=/swapfile bs=1M count={{ swap_file_size }} status=progress
   when:
     - ansible_facts['os_family'] == 'Debian'
     - swapfile_status.stat.exists == false
@@ -63,13 +65,17 @@
   when: ansible_facts['os_family'] == 'Debian'
 
 - name: Set file as swap file
-  ansible.builtin.command: mkswap /swapfile
+  ansible.builtin.shell:
+    cmd: |
+      mkswap /swapfile
   when:
     - swapfile_status.stat.exists == false
     - ansible_facts['os_family'] == 'Debian'
 
 - name: Turn on swapfile
-  ansible.builtin.command: swapon /swapfile
+  ansible.builtin.shell:
+    cmd: |
+      swapon /swapfile
   when:
     - swapfile_status.stat.exists == false
     - ansible_facts['os_family'] == 'Debian'
