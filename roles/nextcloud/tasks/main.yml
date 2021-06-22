@@ -6,6 +6,27 @@
   when:
     - ansible_facts['os_family'] == 'Debian'
 
+- name: Copy ssl cert
+  ansible.builtin.copy:
+    src: "/etc/letsencrypt/live/{{ ssl_cert }}/"
+    dest: /var/snap/nextcloud/current/certs/custom/
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
+- name: Install ssl cert
+  ansible.builtin.shell:
+    cmd: |
+      nextcloud.enable-https custom -s cert.pem privkey.pem chain.pem
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
+- name: Set custom domains
+  ansible.builtin.shell:
+    cmd: |
+      snap run nextcloud.occ config:system:set trusted_domains 1 --value={{ domain_name }}
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
 - name: Allow http
   ansible.builtin.iptables:
     chain: INPUT
