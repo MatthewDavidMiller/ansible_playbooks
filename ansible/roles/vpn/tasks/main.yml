@@ -5,7 +5,7 @@
 
 ---
 - name: Get the Linux headers output
-  shell: "uname -r"
+  ansible.builtin.shell: "uname -r"
   register: linux_headers_command
   when:
     - ansible_facts['os_family'] == 'Debian'
@@ -72,17 +72,17 @@
     - ansible_facts['os_family'] == 'Debian'
 
 - name: Create Wireguard Interface
-  shell: "ip link add dev {{ wireguard_interface }} type wireguard"
+  ansible.builtin.shell: "ip link add dev {{ wireguard_interface }} type wireguard"
   when:
     - ansible_facts['os_family'] == 'Debian'
 
 - name: Set Wireguard Ip address
-  shell: "ip address add dev {{ wireguard_interface }} {{ wireguard_server_ip_address }}/24"
+  ansible.builtin.shell: "ip address add dev {{ wireguard_interface }} {{ wireguard_server_ip_address }}/24"
   when:
     - ansible_facts['os_family'] == 'Debian'
 
 - name: Activate Wireguard Interface
-  shell: "ip link set up dev {{ wireguard_interface }}"
+  ansible.builtin.shell: "ip link set up dev {{ wireguard_interface }}"
   when:
     - ansible_facts['os_family'] == 'Debian'
 
@@ -96,18 +96,18 @@
     - ansible_facts['os_family'] == 'Debian'
 
 - name: Create Wireguard Server Keys
-  shell: "wg genkey | tee \u0022/home/{{ user_name }}/.wireguard_keys/wireguard_server\u0022 | wg pubkey >  \u0022/home/{{ user_name }}/.wireguard_keys/wireguard_server.pub\u0022"
+  ansible.builtin.shell: "wg genkey | tee \u0022/home/{{ user_name }}/.wireguard_keys/wireguard_server\u0022 | wg pubkey >  \u0022/home/{{ user_name }}/.wireguard_keys/wireguard_server.pub\u0022"
   when:
     - ansible_facts['os_family'] == 'Debian'
 
 - name: Create Wireguard Client Keys
-  shell: "wg genkey | tee \u0022/home/{{ user_name }}/.wireguard_keys/{{ item }}\u0022 | wg pubkey >  \u0022/home/{{ user_name }}/.wireguard_keys/{{ item }}.pub\u0022"
+  ansible.builtin.shell: "wg genkey | tee \u0022/home/{{ user_name }}/.wireguard_keys/{{ item }}\u0022 | wg pubkey >  \u0022/home/{{ user_name }}/.wireguard_keys/{{ item }}.pub\u0022"
   loop: "{{ wireguard_users }}"
   when:
     - ansible_facts['os_family'] == 'Debian'
 
 - name: Get the Wireguard Server key output
-  shell: "cat \u0022/home/{{ user_name }}/.wireguard_keys/wireguard_server\u0022"
+  ansible.builtin.shell: "cat \u0022/home/{{ user_name }}/.wireguard_keys/wireguard_server\u0022"
   register: private_key_command
   when:
     - ansible_facts['os_family'] == 'Debian'
@@ -119,7 +119,7 @@
     - ansible_facts['os_family'] == 'Debian'
 
 - name: Get the Wireguard Public Server key output
-  shell: "cat \u0022/home/{{ user_name }}/.wireguard_keys/wireguard_server.pub\u0022"
+  ansible.builtin.shell: "cat \u0022/home/{{ user_name }}/.wireguard_keys/wireguard_server.pub\u0022"
   register: public_key_command
   when:
     - ansible_facts['os_family'] == 'Debian'
@@ -131,7 +131,7 @@
     - ansible_facts['os_family'] == 'Debian'
 
 - name: Get the Wireguard Client keys output
-  shell: "cat \u0022/home/{{ user_name }}/.wireguard_keys/{{ item }}\u0022"
+  ansible.builtin.shell: "cat \u0022/home/{{ user_name }}/.wireguard_keys/{{ item }}\u0022"
   register: private_client_keys_command
   loop: "{{ wireguard_users }}"
   when:
@@ -151,7 +151,7 @@
     - ansible_facts['os_family'] == 'Debian'
 
 - name: Get the Wireguard Client Public keys output
-  shell: "cat \u0022/home/{{ user_name }}/.wireguard_keys/{{ item }}.pub\u0022"
+  ansible.builtin.shell: "cat \u0022/home/{{ user_name }}/.wireguard_keys/{{ item }}.pub\u0022"
   register: public_client_keys_command
   loop: "{{ wireguard_users }}"
   when:
