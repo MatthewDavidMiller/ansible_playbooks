@@ -4,7 +4,7 @@
 
   tasks:
     - name: Update all packages to their latest version
-      shell:
+      ansible.builtin.shell:
         cmd: |
           opkg update
           opkg list-upgradable | cut -f 1 -d ' ' | xargs opkg upgrade

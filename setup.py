@@ -10,7 +10,7 @@ subprocess.call([r'apt-get', r'update', r'-y'])
 
 subprocess.call([r'apt-get', r'upgrade', r'-y'])
 
-subprocess.call([r'apt-get', r'install', r'-y', r'ansible'])
+subprocess.call([r'apt-get', r'install', r'-y', r'ansible-base'])
 
 subprocess.call([r'ansible-galaxy', r'collection',
                 r'install', r'community.general'])
@@ -19,7 +19,7 @@ subprocess.call([r'ansible-galaxy', r'collection',
                 r'install', r'community.crypto'])
 
 subprocess.call([r'ansible-galaxy', r'collection',
-                r'install', r'community.docker.docker_compose'])
+                r'install', r'community.docker'])
 
 os.mkdir(r'/ansible_configs')
 uid = pwd.getpwnam(r'root').pw_uid
