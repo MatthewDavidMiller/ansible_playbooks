@@ -18,7 +18,7 @@
   when: ansible_facts['os_family'] == 'OpenWrt'
 
 - name: Install packages Photon
-  shell:
+  ansible.builtin.shell:
     cmd: |
       tdnf update -y
       tdnf install -y {{ item }}
@@ -49,7 +49,7 @@
   register: swapfile_status
 
 - name: Create swap file
-  shell:
+  ansible.builtin.shell:
     cmd: |
       dd if=/dev/zero of=/swapfile bs=1M count={{ swap_file_size }} status=progress
   when:
@@ -65,7 +65,7 @@
   when: ansible_facts['os_family'] == 'Debian'
 
 - name: Set file as swap file
-  shell:
+  ansible.builtin.shell:
     cmd: |
       mkswap /swapfile
   when:
@@ -73,7 +73,7 @@
     - ansible_facts['os_family'] == 'Debian'
 
 - name: Turn on swapfile
-  shell:
+  ansible.builtin.shell:
     cmd: |
       swapon /swapfile
   when:
