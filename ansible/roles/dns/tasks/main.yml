@@ -36,6 +36,21 @@
   when:
     - ansible_facts['os_family'] == 'Debian'
 
+- name: Fix Ubuntu DNS
+  ansible.builtin.lineinfile:
+    path: /etc/systemd/resolved.conf
+    regexp: "DNSStubListener="
+    line: DNSStubListener=no
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
+- name: Fix Ubuntu DNS part 2
+  ansible.builtin.shell:
+    cmd: |
+      rm /etc/resolv.conf && ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
 - name: Unbound configuration
   ansible.builtin.template:
     src: unbound_pihole.j2
@@ -86,6 +101,8 @@
     name: pihole
     image: pihole/pihole:latest
     detach: yes
+    container_default_behavior:
+    network_mode: default
     volumes:
       - /home/{{ user_name }}/pihole/etc-pihole:/etc/pihole
       - /home/{{ user_name }}/pihole/etc-dnsmasq.d:/etc/dnsmasq.d
@@ -116,7 +133,7 @@
 - name: Unbound container
   community.docker.docker_container:
     name: unbound
-    image: debian:stable-slim
+    image: ubuntu:latest
     detach: yes
     mounts:
       - type: bind
@@ -140,19 +157,18 @@
     tty: yes
     restart_policy: unless-stopped
     pull: yes
-    command: bash -c "apt-get update ; DEBIAN_FRONTEND=noninteractive apt-get upgrade -o Dpkg::Options::=--force-confold -y ; DEBIAN_FRONTEND=noninteractive apt-get install -o Dpkg::Options::=--force-confold -y unbound ; apt-get autoclean ; set -e && /usr/sbin/unbound && sleep infinity"
+    command: bash -c "apt-get update ; DEBIAN_FRONTEND=noninteractive apt-get install -o Dpkg::Options::=--force-confold -y unbound ; apt-get autoclean ; set -e && /usr/sbin/unbound && sleep infinity"
 
 - name: Clear current databases
-  shell:
+  ansible.builtin.shell:
     cmd: |
-      sqlite3 "/home/{{ user_name }}/pihole/etc-pihole/gravity.db" <<EOF
-      DELETE FROM domainlist;
-      DELETE FROM adlist
+      rm "/home/{{ user_name }}/pihole/etc-pihole/gravity.db"
+      docker exec pihole pihole updateGravity
   when:
     - ansible_facts['os_family'] == 'Debian'
 
 - name: Setup Allow and Block Lists
-  shell:
+  ansible.builtin.shell:
     cmd: |
       sqlite3 "/home/{{ user_name }}/pihole/etc-pihole/gravity.db" <<EOF
       INSERT INTO domainlist (id, type, domain, enabled, comment) VALUES {{ item }}
@@ -162,7 +178,7 @@
     - ansible_facts['os_family'] == 'Debian'
 
 - name: Setup Gravity Lists
-  shell:
+  ansible.builtin.shell:
     cmd: |
       sqlite3 "/home/{{ user_name }}/pihole/etc-pihole/gravity.db" <<EOF
       INSERT INTO adlist (id, address, enabled, comment) VALUES {{ item }}
