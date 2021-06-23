@@ -23,19 +23,6 @@
   when:
     - ansible_facts['os_family'] == 'Debian'
 
-- name: Add backports repository
-  ansible.builtin.blockinfile:
-    path: "/etc/apt/sources.list"
-    marker: "{mark}"
-    marker_begin: "# Backports Repoitories"
-    marker_end: "#=================================================================================================================="
-    block: |
-      deb https://mirrors.wikimedia.org/debian/ {{ release_name }}-backports main
-      deb-src https://mirrors.wikimedia.org/debian/ {{ release_name }}-backports main
-  when:
-    - ansible_facts['os_family'] == 'Debian'
-    - ansible_facts['os_family'] != 'Ubuntu'
-
 - name: Enable IP forwarding
   ansible.builtin.blockinfile:
     path: "/etc/sysctl.conf"
@@ -48,16 +35,6 @@
     - ansible_facts['os_family'] == 'Debian'
 
 - name: Install Wireguard
-  apt:
-    name: wireguard
-    state: latest
-    default_release: "{{ release_name }}-backports"
-    update_cache: "yes"
-  when:
-    - ansible_facts['os_family'] == 'Debian'
-    - ansible_facts['os_family'] != 'Ubuntu'
-
-- name: Install Wireguard Ubuntu
   apt:
     name: wireguard
     state: latest
