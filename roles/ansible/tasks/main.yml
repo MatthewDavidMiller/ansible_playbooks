@@ -4,21 +4,21 @@
     path: "/etc/ansible/git"
     state: directory
   when:
-    - ansible_facts['os_family'] == 'Debian'
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Create main playbook path
   ansible.builtin.file:
     path: "/etc/ansible/main_playbook"
     state: directory
   when:
-    - ansible_facts['os_family'] == 'Debian'
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Ansible Standalone playbooks path
   ansible.builtin.file:
     path: "etc/ansible/standalone_playbooks"
     state: directory
   when:
-    - ansible_facts['os_family'] == 'Debian'
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Update Debian servers weekly
   ansible.builtin.cron:
@@ -27,66 +27,92 @@
     hour: "0"
     weekday: "0"
     job: "ansible-playbook /etc/ansible/standalone_playbooks/apt_update_server.yml"
+  when:
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Clone Ansible Repo
   ansible.builtin.git:
     repo: https://github.com/MatthewDavidMiller/ansible_configuration.git
     dest: "/ansible_configs/git/ansible_configuration"
+  when:
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Copy Ansible and standard role
   ansible.builtin.copy:
     src: /ansible_configs/git/ansible_configuration/roles
     dest: /etc/ansible/main_playbook
+  when:
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Clone Dns Repo
   ansible.builtin.git:
     repo: https://github.com/MatthewDavidMiller/DNS-Server-Configuration.git
     dest: "/ansible_configs/git/DNS-Server-Configuration"
+  when:
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Copy DNS role
   ansible.builtin.copy:
     src: /ansible_configs/git/DNS-Server-Configuration/ansible/roles
     dest: /etc/ansible/main_playbook
+  when:
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Clone VPN Repo
   ansible.builtin.git:
     repo: https://github.com/MatthewDavidMiller/VPN-Server-Configuration.git
     dest: "/ansible_configs/git/VPN-Server-Configuration"
+  when:
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Copy VPN role
   ansible.builtin.copy:
     src: /ansible_configs/git/VPN-Server-Configuration/ansible/roles
     dest: /etc/ansible/main_playbook
+  when:
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Clone Nextcloud Repo
   ansible.builtin.git:
     repo: https://github.com/MatthewDavidMiller/nextcloud_ansible.git
     dest: "/ansible_configs/git/nextcloud_ansible"
+  when:
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Copy Nextcloud role
   ansible.builtin.copy:
     src: /ansible_configs/git/nextcloud_ansible/roles
     dest: /etc/ansible/main_playbook
+  when:
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Clone Router Repo
   ansible.builtin.git:
     repo: https://github.com/MatthewDavidMiller/Router-Configuration.git
     dest: "/ansible_configs/git/Router-Configuration"
+  when:
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Copy Router role
   ansible.builtin.copy:
     src: /ansible_configs/git/Router-Configuration/ansible/roles
     dest: /etc/ansible/main_playbook
+  when:
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Clone Vaultwarden Repo
   ansible.builtin.git:
     repo: https://github.com/MatthewDavidMiller/Vaultwarden_Ansible_Configuration.git
     dest: "/ansible_configs/git/Vaultwarden_Ansible_Configuration"
+  when:
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Copy Vaultwarden role
   ansible.builtin.copy:
     src: /ansible_configs/git/Vaultwarden_Ansible_Configuration/roles
     dest: /etc/ansible/main_playbook
+  when:
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: SSH hosts configuration
   ansible.builtin.template:
@@ -95,4 +121,4 @@
     owner: root
     group: root
   when:
-    - ansible_facts['os_family'] == 'Debian'
+    - ansible_facts['distribution'] == 'Ubuntu'
