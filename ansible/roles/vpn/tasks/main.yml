@@ -204,3 +204,11 @@
     path: /etc/iptables/rules.v4
   when:
     - ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Activate Wireguard
+  ansible.builtin.shell:
+    cmd: |
+      wg-quick up {{ wireguard_interface }}
+      systemctl enable wg-quick@{{ wireguard_interface }}
+  when:
+    - ansible_facts['distribution'] == 'Ubuntu'
