@@ -40,7 +40,7 @@
     state: latest
     update_cache: "yes"
   when:
-    - ansible_facts['os_family'] == 'Ubuntu'
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Reboot machine before proceeding
   reboot:
