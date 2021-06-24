@@ -8,20 +8,20 @@
   ansible.builtin.shell: "uname -r"
   register: linux_headers_command
   when:
-    - ansible_facts['os_family'] == 'Debian'
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Get the Linux headers name
   ansible.builtin.set_fact:
     linux_headers: "{{ linux_headers_command.stdout }}"
   when:
-    - ansible_facts['os_family'] == 'Debian'
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Install Linux Headers
   apt:
     name: "linux-headers-{{ linux_headers }}"
     state: latest
   when:
-    - ansible_facts['os_family'] == 'Debian'
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Enable IP forwarding
   ansible.builtin.blockinfile:
@@ -32,7 +32,7 @@
     block: |
       net.ipv4.ip_forward=1
   when:
-    - ansible_facts['os_family'] == 'Debian'
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Install Wireguard
   apt:
@@ -42,26 +42,20 @@
   when:
     - ansible_facts['distribution'] == 'Ubuntu'
 
-- name: Reboot machine before proceeding
-  reboot:
-    reboot_timeout: "3600"
-  when:
-    - ansible_facts['os_family'] == 'Debian'
-
 - name: Create Wireguard Interface
   ansible.builtin.shell: "ip link add dev {{ wireguard_interface }} type wireguard"
   when:
-    - ansible_facts['os_family'] == 'Debian'
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Set Wireguard Ip address
   ansible.builtin.shell: "ip address add dev {{ wireguard_interface }} {{ wireguard_server_ip_address }}/24"
   when:
-    - ansible_facts['os_family'] == 'Debian'
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Activate Wireguard Interface
   ansible.builtin.shell: "ip link set up dev {{ wireguard_interface }}"
   when:
-    - ansible_facts['os_family'] == 'Debian'
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Create wireguard key path
   ansible.builtin.file:
@@ -70,89 +64,89 @@
     owner: "{{ user_name }}"
     mode: "0700"
   when:
-    - ansible_facts['os_family'] == 'Debian'
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Create Wireguard Server Keys
   ansible.builtin.shell: "wg genkey | tee \u0022/home/{{ user_name }}/.wireguard_keys/wireguard_server\u0022 | wg pubkey >  \u0022/home/{{ user_name }}/.wireguard_keys/wireguard_server.pub\u0022"
   when:
-    - ansible_facts['os_family'] == 'Debian'
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Create Wireguard Client Keys
   ansible.builtin.shell: "wg genkey | tee \u0022/home/{{ user_name }}/.wireguard_keys/{{ item }}\u0022 | wg pubkey >  \u0022/home/{{ user_name }}/.wireguard_keys/{{ item }}.pub\u0022"
   loop: "{{ wireguard_users }}"
   when:
-    - ansible_facts['os_family'] == 'Debian'
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Get the Wireguard Server key output
   ansible.builtin.shell: "cat \u0022/home/{{ user_name }}/.wireguard_keys/wireguard_server\u0022"
   register: private_key_command
   when:
-    - ansible_facts['os_family'] == 'Debian'
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Get the Wireguard Server key name
   ansible.builtin.set_fact:
     private_key: "{{ private_key_command.stdout }}"
   when:
-    - ansible_facts['os_family'] == 'Debian'
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Get the Wireguard Public Server key output
   ansible.builtin.shell: "cat \u0022/home/{{ user_name }}/.wireguard_keys/wireguard_server.pub\u0022"
   register: public_key_command
   when:
-    - ansible_facts['os_family'] == 'Debian'
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Get the Wireguard Public Server key content
   ansible.builtin.set_fact:
     public_key: "{{ public_key_command.stdout }}"
   when:
-    - ansible_facts['os_family'] == 'Debian'
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Get the Wireguard Client keys output
   ansible.builtin.shell: "cat \u0022/home/{{ user_name }}/.wireguard_keys/{{ item }}\u0022"
   register: private_client_keys_command
   loop: "{{ wireguard_users }}"
   when:
-    - ansible_facts['os_family'] == 'Debian'
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Get the Wireguard Client keys content
   ansible.builtin.set_fact:
     client_private_keys: []
   when:
-    - ansible_facts['os_family'] == 'Debian'
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Get the Wireguard Client keys content stripped to stdout_lines
   ansible.builtin.set_fact:
     client_private_keys: "{{ client_private_keys + item.stdout_lines }}"
   loop: "{{ private_client_keys_command.results }}"
   when:
-    - ansible_facts['os_family'] == 'Debian'
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Get the Wireguard Client Public keys output
   ansible.builtin.shell: "cat \u0022/home/{{ user_name }}/.wireguard_keys/{{ item }}.pub\u0022"
   register: public_client_keys_command
   loop: "{{ wireguard_users }}"
   when:
-    - ansible_facts['os_family'] == 'Debian'
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Get the Wireguard Client public keys content
   ansible.builtin.set_fact:
     client_public_keys: []
   when:
-    - ansible_facts['os_family'] == 'Debian'
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Get the Wireguard Client public keys content stripped to stdout_lines
   ansible.builtin.set_fact:
     client_public_keys: "{{ client_public_keys + item.stdout_lines }}"
   loop: "{{ public_client_keys_command.results }}"
   when:
-    - ansible_facts['os_family'] == 'Debian'
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Wireguard Server Config
   ansible.builtin.template:
     src: wireguard_server_config.j2
     dest: "/etc/wireguard/{{ wireguard_interface }}.conf"
   when:
-    - ansible_facts['os_family'] == 'Debian'
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Add Wireguard Peers
   ansible.builtin.blockinfile:
@@ -166,14 +160,14 @@
     marker_end: "#=================================================================================================================="
   loop: "{{ wireguard_users|zip(client_public_keys, client_private_keys, user_ip_addresses)|list}}"
   when:
-    - ansible_facts['os_family'] == 'Debian'
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Create Wireguard Client Configs Folder
   ansible.builtin.file:
     path: "/home/{{ user_name }}/.wireguard_client_configs"
     state: directory
   when:
-    - ansible_facts['os_family'] == 'Debian'
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Wireguard Client Config
   ansible.builtin.template:
@@ -181,14 +175,14 @@
     dest: "/home/{{ user_name }}/.wireguard_client_configs/{{ item.0 }}.conf"
   loop: "{{ wireguard_users|zip(client_public_keys, client_private_keys, user_ip_addresses)|list}}"
   when:
-    - ansible_facts['os_family'] == 'Debian'
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: DDClient Config
   ansible.builtin.template:
     src: ddclient_config.j2
     dest: "/etc/ddclient.conf"
   when:
-    - ansible_facts['os_family'] == 'Debian'
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Allow vpn
   ansible.builtin.iptables:
@@ -200,7 +194,7 @@
     jump: ACCEPT
   become: "yes"
   when:
-    - ansible_facts['os_family'] == 'Debian'
+    - ansible_facts['distribution'] == 'Ubuntu'
 
 - name: Save Iptables Rules
   community.general.iptables_state:
@@ -209,4 +203,4 @@
     state: saved
     path: /etc/iptables/rules.v4
   when:
-    - ansible_facts['os_family'] == 'Debian'
+    - ansible_facts['distribution'] == 'Ubuntu'
