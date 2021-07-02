@@ -1,0 +1,96 @@
+---
+- name: Create APController container path
+  ansible.builtin.file:
+    path: "/home/{{ user_name }}/apcontroller"
+    state: directory
+  when:
+    - ansible_facts['distribution'] == 'Ubuntu'
+
+- name: APController container
+  community.docker.docker_container:
+    name: apcontroller
+    image: mbentley/omada-controller:latest-arm64
+    detach: yes
+    container_default_behavior:
+    network_mode: default
+    env:
+      TZ: "America/Chicago"
+    volumes:
+      - /home/{{ user_name }}/apcontroller/data:/opt/tplink/EAPController/data
+      - /home/{{ user_name }}/apcontroller/work:/opt/tplink/EAPController/work
+      - /home/{{ user_name }}/apcontroller/logs:/opt/tplink/EAPController/logs
+    published_ports:
+      - "8088:8088"
+      - "8043:8043"
+      - "8843:8843"
+      - "29810:29810"
+      - "29810:29810/udp"
+      - "29811:29811"
+      - "29811:29811/udp"
+      - "29812:29812"
+      - "29812:29812/udp"
+      - "29813:29813"
+      - "29813:29813/udp"
+      - "29810:29810"
+    restart_policy: unless-stopped
+    pull: yes
+  when:
+    - ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Allow AP Controller
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: tcp
+    destination_ports:
+      - "8088"
+      - "8043"
+      - "8843"
+      - "29810:29813"
+    source: "{{ network_prefix }}"
+    in_interface: "{{ interface_name }}"
+    jump: ACCEPT
+  become: "yes"
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Allow AP Controller ipv6
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: tcp
+    destination_ports:
+      - "8088"
+      - "8043"
+      - "8843"
+      - "29810:29813"
+    source: "fe80::/10"
+    in_interface: "{{ interface_name }}"
+    jump: ACCEPT
+    ip_version: ipv6
+  become: "yes"
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Save Iptables Rules
+  community.general.iptables_state:
+    ip_version: ipv4
+    table: filter
+    state: saved
+    path: /etc/iptables/rules.v4
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Save Iptables Rules ipv6
+  community.general.iptables_state:
+    ip_version: ipv6
+    table: filter
+    state: saved
+    path: /etc/iptables/rules.v6
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Watchtower Container
+  community.docker.docker_container:
+    name: watchtower
+    image: containrrr/watchtower:latest
+    detach: yes
+    env:
+      WATCHTOWER_POLL_INTERVAL: "604800"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    pull: yes
