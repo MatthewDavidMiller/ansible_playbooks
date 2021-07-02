@@ -114,6 +114,20 @@
   when:
     - ansible_facts['distribution'] == 'Ubuntu'
 
+- name: Clone ApController Repo
+  ansible.builtin.git:
+    repo: https://github.com/MatthewDavidMiller/Access-Point-Controller-Configuration.git
+    dest: "/ansible_configs/git/APController_Ansible_Configuration"
+  when:
+    - ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Copy ApController role
+  ansible.builtin.copy:
+    src: /ansible_configs/git/APController_Ansible_Configuration/roles
+    dest: /etc/ansible/main_playbook
+  when:
+    - ansible_facts['distribution'] == 'Ubuntu'
+
 - name: SSH hosts configuration
   ansible.builtin.template:
     src: ssh_config.j2
