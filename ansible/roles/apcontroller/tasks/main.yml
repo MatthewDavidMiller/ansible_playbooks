@@ -11,7 +11,7 @@
     name: apcontroller
     image: mbentley/omada-controller:latest-arm64
     detach: yes
-    container_default_behavior:
+    container_default_behavior: compatibility
     network_mode: default
     env:
       TZ: "America/Chicago"
