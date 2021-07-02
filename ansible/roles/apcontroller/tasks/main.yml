@@ -31,7 +31,6 @@
       - "29812:29812/udp"
       - "29813:29813"
       - "29813:29813/udp"
-      - "29810:29810"
     restart_policy: unless-stopped
     pull: yes
   when:
