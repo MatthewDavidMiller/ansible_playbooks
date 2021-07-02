@@ -123,7 +123,7 @@
 
 - name: Copy ApController role
   ansible.builtin.copy:
-    src: /ansible_configs/git/APController_Ansible_Configuration/roles
+    src: /ansible_configs/git/APController_Ansible_Configuration/ansible/roles
     dest: /etc/ansible/main_playbook
   when:
     - ansible_facts['distribution'] == 'Ubuntu'
