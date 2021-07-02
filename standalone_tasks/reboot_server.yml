@@ -1,6 +1,6 @@
 ---
 - name: Reboot servers
-  hosts: debian_no_ansible
+  hosts: ubuntu_no_ansible
 
   tasks:
     - name: Reboot machine
