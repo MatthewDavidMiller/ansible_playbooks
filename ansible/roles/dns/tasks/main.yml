@@ -101,7 +101,7 @@
     name: pihole
     image: pihole/pihole:latest
     detach: yes
-    container_default_behavior:
+    container_default_behavior: compatibility
     network_mode: default
     volumes:
       - /home/{{ user_name }}/pihole/etc-pihole:/etc/pihole
