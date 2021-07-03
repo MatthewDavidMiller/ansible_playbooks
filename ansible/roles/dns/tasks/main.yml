@@ -176,7 +176,7 @@
   when:
     - ansible_facts['os_family'] == 'Debian'
 
-- name: Backup Vaultwarden Daily
+- name: Backup Pihole Daily
   ansible.builtin.cron:
     name: "Backup Pihole DB"
     special_time: daily
