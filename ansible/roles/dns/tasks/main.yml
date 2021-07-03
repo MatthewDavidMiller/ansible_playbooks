@@ -344,3 +344,11 @@
     line: dns-nameservers 127.0.0.1
   when:
     - ansible_facts['os_family'] == 'Debian'
+
+- name: Set DNS server to loopback 2
+  ansible.builtin.lineinfile:
+    path: /etc/systemd/resolved.conf
+    regexp: "^DNS="
+    line: DNS=127.0.0.1
+  when:
+    - ansible_facts['os_family'] == 'Debian'
