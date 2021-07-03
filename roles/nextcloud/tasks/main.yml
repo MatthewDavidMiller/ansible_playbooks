@@ -17,6 +17,7 @@
   ansible.builtin.shell:
     cmd: |
       nextcloud.enable-https custom -s cert.pem privkey.pem chain.pem
+  become: "yes"
   when:
     - ansible_facts['os_family'] == 'Debian'
 
