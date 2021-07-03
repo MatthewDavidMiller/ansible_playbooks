@@ -159,31 +159,36 @@
     pull: yes
     command: bash -c "apt-get update ; DEBIAN_FRONTEND=noninteractive apt-get install -o Dpkg::Options::=--force-confold -y unbound ; apt-get autoclean ; set -e && /usr/sbin/unbound && sleep infinity"
 
-- name: Clear current databases
-  ansible.builtin.shell:
-    cmd: |
-      rm "/home/{{ user_name }}/pihole/etc-pihole/gravity.db"
-      docker exec pihole pihole updateGravity
+- name: Create Pihole DB backups path
+  ansible.builtin.file:
+    path: "/home/{{ user_name }}/pihole/database_backups"
+    state: directory
   when:
     - ansible_facts['os_family'] == 'Debian'
 
-- name: Setup Allow and Block Lists
-  ansible.builtin.shell:
-    cmd: |
-      sqlite3 "/home/{{ user_name }}/pihole/etc-pihole/gravity.db" <<EOF
-      INSERT INTO domainlist (id, type, domain, enabled, comment) VALUES {{ item }}
-      EOF
-  loop: "{{ allow_block_list }}"
+- name: Backup Database Script
+  ansible.builtin.template:
+    src: backup_db.j2
+    dest: "/usr/local/bin/backup_db.sh"
+    owner: root
+    group: root
+    mode: "0644"
   when:
     - ansible_facts['os_family'] == 'Debian'
 
-- name: Setup Gravity Lists
-  ansible.builtin.shell:
-    cmd: |
-      sqlite3 "/home/{{ user_name }}/pihole/etc-pihole/gravity.db" <<EOF
-      INSERT INTO adlist (id, address, enabled, comment) VALUES {{ item }}
-      EOF
-  loop: "{{ adlist }}"
+- name: Backup Vaultwarden Daily
+  ansible.builtin.cron:
+    name: "Backup Pihole DB"
+    special_time: daily
+    job: /bin/bash /usr/local/bin/backup_db.sh
+
+- name: Rclone config file
+  ansible.builtin.template:
+    src: rclone_config.j2
+    dest: "/root/.config/rclone/rclone.conf"
+    owner: root
+    group: root
+    mode: "0644"
   when:
     - ansible_facts['os_family'] == 'Debian'
 
