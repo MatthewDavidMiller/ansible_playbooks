@@ -24,7 +24,8 @@
 - name: Set custom domains
   ansible.builtin.shell:
     cmd: |
-      snap run nextcloud.occ config:system:set trusted_domains 1 --value={{ domain_name }}
+      snap run nextcloud.occ config:system:set trusted_domains 1 --value={{ nextcloud_domain_name }}
+  become: "yes"
   when:
     - ansible_facts['os_family'] == 'Debian'
 
