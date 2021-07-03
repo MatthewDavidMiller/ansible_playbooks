@@ -82,6 +82,12 @@
     create: "yes"
   when: ansible_facts['distribution'] == 'Ubuntu'
 
+- name: Flush Iptables rules
+  ansible.builtin.iptables:
+    chain: "{{ item }}"
+    flush: yes
+  with_items: ["INPUT", "FORWARD", "OUTPUT"]
+
 - name: Allow ssh
   ansible.builtin.iptables:
     chain: INPUT
