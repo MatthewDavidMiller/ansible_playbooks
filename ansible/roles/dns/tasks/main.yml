@@ -336,3 +336,11 @@
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     pull: yes
+
+- name: Set DNS server to loopback
+  ansible.builtin.lineinfile:
+    path: /etc/network/interfaces
+    regexp: "^dns-nameservers "
+    line: dns-nameservers 127.0.0.1
+  when:
+    - ansible_facts['os_family'] == 'Debian'
