@@ -153,6 +153,14 @@
   when:
     - ansible_facts['distribution'] == 'Ubuntu'
 
+- name: Install snap packages classic
+  ansible.builtin.shell:
+    cmd: |
+      snap install "{{ item }}" --classic
+  loop: "{{ snap_packages_classic }}"
+  when:
+    - ansible_facts['distribution'] == 'Ubuntu'
+
 - name: Configure git
   ansible.builtin.shell:
     cmd: |
