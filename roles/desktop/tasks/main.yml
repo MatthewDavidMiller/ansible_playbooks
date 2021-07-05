@@ -6,56 +6,6 @@
     update_cache: "yes"
   when: ansible_facts['distribution'] == 'Ubuntu'
 
-- name: Set the timezone
-  community.general.timezone:
-    name: US/Eastern
-  when: ansible_facts['distribution'] == 'Ubuntu'
-
-- name: Check if swap file exists
-  ansible.builtin.stat:
-    path: /swapfile
-  register: swapfile_status
-  when: ansible_facts['distribution'] == 'Ubuntu'
-
-- name: Create swap file
-  ansible.builtin.shell:
-    cmd: |
-      dd if=/dev/zero of=/swapfile bs=1M count={{ swap_file_size }} status=progress
-  when:
-    - ansible_facts['distribution'] == 'Ubuntu'
-    - swapfile_status.stat.exists == false
-
-- name: Set swap file permissions
-  ansible.builtin.file:
-    path: /swapfile
-    owner: root
-    group: root
-    mode: "0677"
-  when: ansible_facts['distribution'] == 'Ubuntu'
-
-- name: Set file as swap file
-  ansible.builtin.shell:
-    cmd: |
-      mkswap /swapfile
-  when:
-    - swapfile_status.stat.exists == false
-    - ansible_facts['distribution'] == 'Ubuntu'
-
-- name: Turn on swapfile
-  ansible.builtin.shell:
-    cmd: |
-      swapon /swapfile
-  when:
-    - swapfile_status.stat.exists == false
-    - ansible_facts['distribution'] == 'Ubuntu'
-
-- name: Add swapfile to fstab
-  ansible.builtin.lineinfile:
-    path: /etc/fstab
-    line: /swapfile none swap defaults 0 0
-    create: "yes"
-  when: ansible_facts['distribution'] == 'Ubuntu'
-
 - name: Flush Iptables rules
   ansible.builtin.iptables:
     chain: "{{ item }}"
@@ -186,33 +136,6 @@
     path: /etc/iptables/rules.v6
   when: ansible_facts['distribution'] == 'Ubuntu'
 
-- name: Hosts file configuration
-  ansible.builtin.template:
-    src: hosts.j2
-    dest: /etc/hosts
-    owner: root
-    group: root
-    mode: "0644"
-  when: ansible_facts['distribution'] == 'Ubuntu'
-
-- name: Hostname file configuration
-  ansible.builtin.template:
-    src: hostname.j2
-    dest: /etc/hostname
-    owner: root
-    group: root
-    mode: "0644"
-  when: ansible_facts['distribution'] == 'Ubuntu'
-
-- name: locale configuration
-  ansible.builtin.template:
-    src: locale.j2
-    dest: /etc/locale.conf
-    owner: root
-    group: root
-    mode: "0644"
-  when: ansible_facts['distribution'] == 'Ubuntu'
-
 - name: SSH configuration
   ansible.builtin.template:
     src: sshd_config.j2
@@ -222,47 +145,11 @@
     mode: "0644"
   when: ansible_facts['distribution'] == 'Ubuntu'
 
-- name: Create sway config path
-  ansible.builtin.file:
-    path: "/home/{{ user_name }}.config/sway"
-    state: directory
-  when:
-    - ansible_facts['distribution'] == 'Ubuntu'
-
-- name: Sway configuration
-  ansible.builtin.template:
-    src: sway.j2
-    dest: /home/{{ user_name }}.config/sway/config
-    owner: "{{ user_name }}"
-  when: ansible_facts['distribution'] == 'Ubuntu'
-
-- name: Sway autostart script
-  ansible.builtin.template:
-    src: sway_autostart.j2
-    dest: /usr/local/bin/sway_autostart.sh
-    owner: "{{ user_name }}"
-    mode: "0744"
-  when: ansible_facts['distribution'] == 'Ubuntu'
-
 - name: Install snap packages
   ansible.builtin.shell:
     cmd: |
       snap install "{{ item }}"
   loop: "{{ snap_packages }}"
-  when:
-    - ansible_facts['distribution'] == 'Ubuntu'
-
-- name: Autostart sway at login
-  ansible.builtin.blockinfile:
-    path: "/home/{{ user_name }}.profile"
-    block: |
-      # If running from tty1 start sway
-      if [ "$(tty)" = "/dev/tty1" ]; then
-      exec sway
-      fi
-    marker: "{mark}"
-    marker_begin: "# Autostart Sway"
-    marker_end: "#=================================================================================================================="
   when:
     - ansible_facts['distribution'] == 'Ubuntu'
 
