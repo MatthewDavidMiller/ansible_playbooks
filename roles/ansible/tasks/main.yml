@@ -128,6 +128,20 @@
   when:
     - ansible_facts['distribution'] == 'Ubuntu'
 
+- name: Clone Desktop Repo
+  ansible.builtin.git:
+    repo: git@github.com:MatthewDavidMiller/Desktop_Configuration.git
+    dest: "/ansible_configs/git/Desktop_Configuration"
+  when:
+    - ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Copy Desktop role
+  ansible.builtin.copy:
+    src: /ansible_configs/git/Desktop_Configuration/roles
+    dest: /etc/ansible/main_playbook
+  when:
+    - ansible_facts['distribution'] == 'Ubuntu'
+
 - name: SSH hosts configuration
   ansible.builtin.template:
     src: ssh_config.j2
