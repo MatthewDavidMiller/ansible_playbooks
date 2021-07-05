@@ -265,3 +265,28 @@
     marker_end: "#=================================================================================================================="
   when:
     - ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Configure git
+  ansible.builtin.shell:
+    cmd: |
+      git config --global user.name {{ git_name }}
+      git config --global user.email {{ email }}
+  when:
+    - ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Download PowerShell core
+  get_url:
+    url: "https://packages.microsoft.com/config/ubuntu/{{ ubuntu_version }}/packages-microsoft-prod.deb"
+    dest: /tmp
+  when:
+    - ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Install PowerShell core
+  ansible.builtin.shell:
+    cmd: |
+      dpkg -i '/tmp/packages-microsoft-prod.deb'
+      apt-get update
+      add-apt-repository universe
+      apt-get install -y powershell
+  when:
+    - ansible_facts['distribution'] == 'Ubuntu'
