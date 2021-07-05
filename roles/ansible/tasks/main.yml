@@ -130,7 +130,7 @@
 
 - name: Clone Desktop Repo
   ansible.builtin.git:
-    repo: git@github.com:MatthewDavidMiller/Desktop_Configuration.git
+    repo: https://github.com/MatthewDavidMiller/Desktop_Configuration.git
     dest: "/ansible_configs/git/Desktop_Configuration"
   when:
     - ansible_facts['distribution'] == 'Ubuntu'
