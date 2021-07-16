@@ -1,0 +1,89 @@
+#Credits
+# https://stackoverflow.com/questions/48451171/ansible-pass-output-of-shell-command-to-variable
+
+---
+- name: Install extra packages
+  ansible.builtin.shell:
+    cmd: |
+      pacman -S --noconfirm --needed "{{ item }}"
+  loop: "{{ extra_packages }}"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Get Luks partition uuid
+  ansible.builtin.shell:
+    cmd: |
+      blkid -o value -s UUID "{{ disk }}2"
+  register: luks_uuid
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Get root partition uuid
+  ansible.builtin.shell:
+    cmd: |
+      blkid -o value -s UUID "/dev/{{ lvm_name }}/root"
+  register: root_uuid
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Get boot partition uuid
+  ansible.builtin.shell:
+    cmd: |
+      blkid -o value -s UUID "{{ disk }}1"
+  register: boot_uuid
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Configure fstab
+  ansible.builtin.blockinfile:
+    path: /etc/fstab
+    marker: "{mark}"
+    marker_begin: "# Base fstab"
+    marker_end: "#=================================================================================================================="
+    block: |
+      UUID={{ root_uuid }} / ext4 defaults 0 0
+      UUID={{ boot_uuid }} /boot vfat defaults 0 0
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Configure kernel
+  ansible.builtin.lineinfile:
+    path: /etc/mkinitcpio.conf
+    regexp: "^HOOKS="
+    line: HOOKS=(base udev autodetect keyboard keymap consolefont modconf block encrypt lvm2 filesystems fsck)
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Create boot loader entry path
+  ansible.builtin.file:
+    path: "/boot/loader/entries"
+    state: directory
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: LTS kernel boot loader config
+  ansible.builtin.template:
+    src: arch_linux_lts.j2
+    dest: /boot/loader/entries/arch_linux_lts.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: boot loader config
+  ansible.builtin.template:
+    src: loader.j2
+    dest: /boot/loader/loader.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Set systemd boot install path
+  ansible.builtin.shell:
+    cmd: |
+      bootctl --path=/boot install
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Enable network manager
+  ansible.builtin.systemd:
+    name: NetworkManager.service
+    enabled: yes
+
+- name: Enable ntpd client
+  ansible.builtin.systemd:
+    name: ntpd.service
+    enabled: yes

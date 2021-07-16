@@ -1,3 +1,6 @@
+#Credits
+# https://stackoverflow.com/questions/48451171/ansible-pass-output-of-shell-command-to-variable
+
 ---
 - name: Create Basic Partitions
   ansible.builtin.shell:
@@ -50,4 +53,15 @@
     cmd: |
       pacstrap /mnt --noconfirm {{ item }}
   loop: "{{ packages }}"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Ansible local host
+  ansible.builtin.blockinfile:
+    path: /mnt/etc/ansible/hosts
+    marker: "{mark}"
+    marker_begin: "# Local Ansible Host"
+    marker_end: "#=================================================================================================================="
+    block: |
+      [local]
+      localhost ansible_connection=local
   when: ansible_facts['distribution'] == 'Archlinux'
