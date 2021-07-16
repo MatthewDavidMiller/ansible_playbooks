@@ -125,18 +125,6 @@
     flush: yes
   with_items: ["INPUT", "FORWARD", "OUTPUT"]
 
-- name: Allow ssh
-  ansible.builtin.iptables:
-    chain: INPUT
-    protocol: tcp
-    destination_port: "22"
-    source: "{{ ansible_address }}"
-    in_interface: "{{ interface_name }}"
-    limit: 1/minute
-    jump: ACCEPT
-  become: "yes"
-  when: ansible_facts['distribution'] == 'Archlinux'
-
 - name: Allow icmp
   ansible.builtin.iptables:
     chain: INPUT

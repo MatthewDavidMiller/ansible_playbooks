@@ -1,1 +1,53 @@
 ---
+- name: Create Basic Partitions
+  ansible.builtin.shell:
+    cmd: |
+      sgdisk -n 0:0:{{ partition_1_size }} -c "{{ disk }}1":"EFI System Partition" -t "{{ disk }}1":ef00 "{{ disk }}"
+      sgdisk -n 0:0:{{ partition_2_size }} -c "{{ disk }}2":"Linux Filesystem" -t "{{ disk }}2":8300 "{{ disk }}"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Create Luks Partitions
+  ansible.builtin.shell:
+    cmd: |
+      printf '%s\n' "{{ disk_password }}" >'/tmp/disk_password'
+      cryptsetup -q luksFormat "{{ disk }}2" <'/tmp/disk_password'
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Create Basic LVM
+  ansible.builtin.shell:
+    cmd: |
+      cryptsetup open "{{ disk }}2" cryptlvm <"{{ disk_password }}"
+      pvcreate '/dev/mapper/cryptlvm'
+      vgcreate "{{ lvm_name }}" '/dev/mapper/cryptlvm'
+      lvcreate -l "{{ root_partition_size }}" "{{ lvm_name }}" -n root
+      rm -f "/tmp/disk_password"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Create Basic Filesystem
+  ansible.builtin.shell:
+    cmd: |
+      mkfs.ext4 "/dev/{{ lvm_name }}/root"
+      mkfs.fat -F32 "{{ disk }}1"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Mount Basic Filesystem
+  ansible.builtin.shell:
+    cmd: |
+      mount "/dev/{{ lvm_name }}/root" /mnt
+      mkdir -p '/mnt/boot'
+      mount "{{ disk }}1" '/mnt/boot'
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Configure Mirrors
+  ansible.builtin.shell:
+    cmd: |
+      cp '/etc/pacman.d/mirrorlist' '/etc/pacman.d/mirrorlist.backup'
+      reflector --latest 200 --protocol https --sort rate --save '/etc/pacman.d/mirrorlist'
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Install Base Packages
+  ansible.builtin.shell:
+    cmd: |
+      pacstrap /mnt --noconfirm {{ item }}
+  loop: "{{ packages }}"
+  when: ansible_facts['distribution'] == 'Archlinux'
