@@ -7,7 +7,8 @@
     device: "{{ disk }}"
     number: 1
     state: present
-    fs_type: efi
+    flags: [boot]
+    fs_type: fat32
     part_end: 1GiB
   when: ansible_facts['distribution'] == 'Archlinux'
 
@@ -16,7 +17,8 @@
     device: "{{ disk }}"
     number: 2
     state: present
-    flags: "[ lvm ]"
+    flags: [lvm]
+    part_start: 1GiB
     part_end: "100%"
   when: ansible_facts['distribution'] == 'Archlinux'
 
@@ -25,6 +27,9 @@
     device: "{{ disk }}2"
     state: "opened"
     passphrase: "{{ disk_password }}"
+    hash: sha512
+    name: mycrypt
+    type: luks2
   when: ansible_facts['distribution'] == 'Archlinux'
 
 - name: Create Logical Volume group
