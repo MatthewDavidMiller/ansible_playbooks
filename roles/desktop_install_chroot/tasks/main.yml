@@ -37,8 +37,8 @@
     marker_begin: "# Base fstab"
     marker_end: "#=================================================================================================================="
     block: |
-      UUID={{ root_uuid }} / ext4 defaults 0 0
-      UUID={{ boot_uuid }} /boot vfat defaults 0 0
+      UUID={{ root_uuid.stdout }} / ext4 defaults 0 0
+      UUID={{ boot_uuid.stdout }} /boot vfat defaults 0 0
   when: ansible_facts['distribution'] == 'Archlinux'
 
 - name: Configure kernel

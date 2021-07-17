@@ -10,6 +10,7 @@
     flags: [boot]
     fs_type: fat32
     part_end: 1GiB
+    label: gpt
   when: ansible_facts['distribution'] == 'Archlinux'
 
 - name: Create Main Partition
@@ -20,6 +21,7 @@
     flags: [lvm]
     part_start: 1GiB
     part_end: "100%"
+    label: gpt
   when: ansible_facts['distribution'] == 'Archlinux'
 
 - name: Create Luks Partition
@@ -84,12 +86,6 @@
   when: ansible_facts['distribution'] == 'Archlinux'
 
 - name: Ansible local host
-  ansible.builtin.blockinfile:
-    path: /mnt/etc/ansible/hosts
-    marker: "{mark}"
-    marker_begin: "# Local Ansible Host"
-    marker_end: "#=================================================================================================================="
-    block: |
-      [local]
-      localhost ansible_connection=local
-  when: ansible_facts['distribution'] == 'Archlinux'
+  ansible.builtin.copy:
+    src: /etc/ansible/hosts
+    dest: /mnt/etc/ansible/hosts
