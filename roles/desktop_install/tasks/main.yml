@@ -35,8 +35,8 @@
 - name: Create Logical Volume group
   community.general.lvg:
     vg: "{{ lvm_name }}"
-    pvs: "{{ disk }}2"
-    pesize: yes
+    pvs: "/dev/mapper/mycrypt"
+    pvresize: yes
   when: ansible_facts['distribution'] == 'Archlinux'
 
 - name: Create root logical volume
@@ -58,16 +58,21 @@
       mkfs.fat -F32 "{{ disk }}1"
   when: ansible_facts['distribution'] == 'Archlinux'
 
+- name: Mount RootFilesystem
+  ansible.builtin.shell:
+    cmd: |
+      mount "/dev/{{ lvm_name }}/root" /mnt
+  when: ansible_facts['distribution'] == 'Archlinux'
+
 - name: Create boot path
   ansible.builtin.file:
     path: "/mnt/boot"
     state: directory
   when: ansible_facts['distribution'] == 'Archlinux'
 
-- name: Mount Basic Filesystem
+- name: Mount Boot Filesystem
   ansible.builtin.shell:
     cmd: |
-      mount "/dev/{{ lvm_name }}/root" /mnt
       mount "{{ disk }}1" '/mnt/boot'
   when: ansible_facts['distribution'] == 'Archlinux'
 
