@@ -267,3 +267,9 @@
     owner: "{{ user_name }}"
     mode: "0744"
   when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Enable bluetooth
+  ansible.builtin.systemd:
+    name: bluetooth.service
+    enabled: yes
+  when: ansible_facts['distribution'] == 'Archlinux'
