@@ -105,9 +105,16 @@
     mode: "0744"
   when: ansible_facts['distribution'] == 'Archlinux'
 
+- name: Create user profile path
+  ansible.builtin.file:
+    path: "/home/{{ user_name }}/.profile"
+    state: touch
+  when:
+    - ansible_facts['distribution'] == 'Archlinux'
+
 - name: Autostart sway at login
   ansible.builtin.blockinfile:
-    path: "/home/{{ user_name }}.profile"
+    path: "/home/{{ user_name }}/.profile"
     block: |
       # If running from tty1 start sway
       if [ "$(tty)" = "/dev/tty1" ]; then
@@ -237,14 +244,15 @@
     path: /etc/iptables/rules.v6
   when: ansible_facts['distribution'] == 'Archlinux'
 
-- name: SSH configuration
-  ansible.builtin.template:
-    src: sshd_config.j2
-    dest: /etc/ssh/sshd_config
-    owner: root
-    group: root
-    mode: "0644"
-  when: ansible_facts['distribution'] == 'Archlinux'
+- name: Enable iptables
+  ansible.builtin.systemd:
+    name: iptables.service
+    enabled: yes
+
+- name: Enable ip6tables
+  ansible.builtin.systemd:
+    name: ip6tables.service
+    enabled: yes
 
 - name: Configure git
   ansible.builtin.shell:
@@ -252,21 +260,5 @@
       git config --global user.name {{ git_name }}
       git config --global user.email {{ email }}
       git config --global core.sshCommand "ssh -i /home/{{ user_name }}/.ssh/{{ key }} -F /dev/null"
-  when:
-    - ansible_facts['distribution'] == 'Archlinux'
-
-- name: Install snap packages
-  ansible.builtin.shell:
-    cmd: |
-      snap install "{{ item }}"
-  loop: "{{ snap_packages }}"
-  when:
-    - ansible_facts['distribution'] == 'Archlinux'
-
-- name: Install snap packages classic
-  ansible.builtin.shell:
-    cmd: |
-      snap install "{{ item }}" --classic
-  loop: "{{ snap_packages_classic }}"
   when:
     - ansible_facts['distribution'] == 'Archlinux'
