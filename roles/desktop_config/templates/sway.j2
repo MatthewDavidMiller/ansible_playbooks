@@ -9,7 +9,7 @@ set $term alacritty
 
 set $menu dmenu_path | dmenu | xargs swaymsg exec --
 
-output * bg /usr/share/backgrounds/sway/Sway_Wallpaper_Blue_1920x1080.png fill
+output * bg /usr/share/backgrounds/sway/{{ wallpaper }} fill
 
 bindsym $mod+Return exec $term
 
