@@ -311,13 +311,26 @@
     src: /usr/lib/fwupd/efi/fwupdx64.efi
     dest: /boot/EFI/
 
+- name: Configure gnome-keyring auth
+  ansible.builtin.lineinfile:
+    path: /etc/pam.d/login
+    regexp: "^auth optional pam_gnome_keyring.so"
+    insertafter: "^auth"
+    line: auth optional pam_gnome_keyring.so
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Configure gnome-keyring session
+  ansible.builtin.lineinfile:
+    path: /etc/pam.d/login
+    regexp: "^session optional pam_gnome_keyring.so auto_start"
+    insertafter: "^session"
+    line: session optional pam_gnome_keyring.so auto_start
+  when: ansible_facts['distribution'] == 'Archlinux'
+
 - name: Automatically unlock gnome-keyring with user
-  ansible.builtin.blockinfile:
-    path: "/etc/pam.d/passwd"
-    block: |
-      password optional pam_gnome_keyring.so
-    marker: "{mark}"
-    marker_begin: "# Automatically unlock gnome-keyring with user"
-    marker_end: "#=================================================================================================================="
-  when:
-    - ansible_facts['distribution'] == 'Archlinux'
+  ansible.builtin.lineinfile:
+    path: /etc/pam.d/passwd
+    regexp: "^password optional pam_gnome_keyring.so"
+    insertafter: "^password"
+    line: password optional pam_gnome_keyring.so
+  when: ansible_facts['distribution'] == 'Archlinux'
