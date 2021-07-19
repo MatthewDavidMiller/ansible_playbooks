@@ -310,3 +310,14 @@
   ansible.builtin.copy:
     src: /usr/lib/fwupd/efi/fwupdx64.efi
     dest: /boot/EFI/
+
+- name: Automatically unlock gnome-keyring with user
+  ansible.builtin.blockinfile:
+    path: "/etc/pam.d/passwd"
+    block: |
+      password optional pam_gnome_keyring.so
+    marker: "{mark}"
+    marker_begin: "# Automatically unlock gnome-keyring with user"
+    marker_end: "#=================================================================================================================="
+  when:
+    - ansible_facts['distribution'] == 'Archlinux'
