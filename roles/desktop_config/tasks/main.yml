@@ -273,3 +273,40 @@
     name: bluetooth.service
     enabled: yes
   when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Enable paccache
+  ansible.builtin.systemd:
+    name: paccache.timer
+    enabled: yes
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Getty path
+  ansible.builtin.file:
+    path: "/etc/systemd/system/getty@tty1.service.d"
+    state: directory
+  when:
+    - ansible_facts['distribution'] == 'Archlinux'
+
+- name: Autologin user
+  ansible.builtin.template:
+    src: getty_override.j2
+    dest: /etc/systemd/system/getty@tty1.service.d/override.conf
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Pacman hooks path
+  ansible.builtin.file:
+    path: "/etc/pacman.d/hooks"
+    state: directory
+  when:
+    - ansible_facts['distribution'] == 'Archlinux'
+
+- name: fwupd configuration
+  ansible.builtin.template:
+    src: fwupd.j2
+    dest: /etc/pacman.d/hooks/fwupd-to-esp.hook
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: fwupd copy
+  ansible.builtin.copy:
+    src: /usr/lib/fwupd/efi/fwupdx64.efi
+    dest: /boot/EFI/
