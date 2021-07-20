@@ -5,3 +5,10 @@ PATH="/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin"
 
 nmcli connect up {{ wifi_name }}
 nextcloud &
+
+# Autostart Gnome-Keyring
+if [ -n "$DESKTOP_SESSION" ];then
+    eval $(gnome-keyring-daemon --start)
+    export SSH_AUTH_SOCK
+fi
+#==================================================================================================================
