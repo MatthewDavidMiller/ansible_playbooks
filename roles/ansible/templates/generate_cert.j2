@@ -2,4 +2,7 @@
 # Credits
 # https://marcincuber.medium.com/lets-encrypt-generating-wildcard-ssl-certificate-using-certbot-ae1c9484c101
 
-certbot certonly --manual --preferred-challenges=dns --agree-tos --manual-public-ip-logging-ok -d "*.{{ ssl_cert }}"
+certbot certonly --manual --preferred-challenges=dns --email "{{ email }}" --agree-tos --manual-public-ip-logging-ok -d "*.{{ ssl_cert }}"
+mv "/etc/letsencrypt/live/{{ ssl_cert }}*" "/etc/letsencrypt/live/{{ ssl_cert }}"
+cat "/etc/letsencrypt/live/{{ ssl_cert }}/cert.pem" >> "/etc/letsencrypt/live/{{ ssl_cert }}/cert_privkey_combined.pem"
+cat "/etc/letsencrypt/live/{{ ssl_cert }}/privkey.pem" >> "/etc/letsencrypt/live/{{ ssl_cert }}/cert_privkey_combined.pem"
