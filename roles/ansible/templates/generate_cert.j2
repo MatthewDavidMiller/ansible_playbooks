@@ -1,0 +1,3 @@
+#!/bin/bash
+
+certbot certonly --manual --preferred-challenges=dns --agree-tos --manual-public-ip-logging-ok -d “*.{{ ssl_cert }}”

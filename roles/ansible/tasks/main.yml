@@ -150,3 +150,10 @@
     group: root
   when:
     - ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Certbot script
+  ansible.builtin.template:
+    src: generate_cert.j2
+    dest: "/usr/local/bin/generate_cert.sh"
+  when:
+    - ansible_facts['distribution'] == 'Ubuntu'
