@@ -1,5 +1,5 @@
 for i in $(ls {{ nextcloud_path }}/git)
     do
-        mkdir "{{ nextcloud_path }}/env_backup/${i}"
+        mkdir -p "{{ nextcloud_path }}/env_backup/${i}"
         cp -r "{{ nextcloud_path }}/git/${i}/env" "{{ nextcloud_path }}/env_backup/${i}/"
     done
