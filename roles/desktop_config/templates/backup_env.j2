@@ -1,5 +1,11 @@
-for i in $(ls {{ nextcloud_path }}/git)
+#!/bin/bash
+# Credits
+# https://superuser.com/questions/31464/looping-through-ls-results-in-bash-shell-script
+# https://stackoverflow.com/questions/965053/extract-filename-and-extension-in-bash
+
+for i in {{ nextcloud_path }}/git/*
     do
-        mkdir -p "{{ nextcloud_path }}/env_backup/${i}"
-        cp -r "{{ nextcloud_path }}/git/${i}/env" "{{ nextcloud_path }}/env_backup/${i}/"
+        name=$(basename "${i}")
+        mkdir -p "{{ nextcloud_path }}/env_backup/${name}"
+        cp -r "{{ nextcloud_path }}/git/${name}/env" "{{ nextcloud_path }}/env_backup/${name}/"
     done
