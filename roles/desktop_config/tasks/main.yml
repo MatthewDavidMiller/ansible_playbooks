@@ -322,3 +322,9 @@
     name: reflector.service
     enabled: yes
   when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: env backup script
+  ansible.builtin.template:
+    src: backup_env.j2
+    dest: /usr/local/bin/backup_env.sh
+  when: ansible_facts['distribution'] == 'Archlinux'
