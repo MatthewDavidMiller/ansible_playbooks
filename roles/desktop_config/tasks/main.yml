@@ -1,4 +1,19 @@
 ---
+- name: locale configuration
+  ansible.builtin.template:
+    src: locale.j2
+    dest: /etc/locale.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: generate locale
+  ansible.builtin.shell:
+    cmd: |
+      locale-gen
+  when: ansible_facts['distribution'] == 'Archlinux'
+
 - name: Install packages
   ansible.builtin.shell:
     cmd: |
