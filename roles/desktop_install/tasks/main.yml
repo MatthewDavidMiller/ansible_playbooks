@@ -2,6 +2,21 @@
 # https://stackoverflow.com/questions/48451171/ansible-pass-output-of-shell-command-to-variable
 
 ---
+- name: locale configuration
+  ansible.builtin.template:
+    src: locale.j2
+    dest: /etc/locale.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: generate locale
+  ansible.builtin.shell:
+    cmd: |
+      locale-gen
+  when: ansible_facts['distribution'] == 'Archlinux'
+
 - name: Create EFI System Partition
   community.general.parted:
     device: "{{ disk }}"
