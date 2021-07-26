@@ -33,6 +33,7 @@
   ansible.builtin.shell:
     cmd: |
       locale-gen
+  become: "yes"
   when: ansible_facts['distribution'] == 'Archlinux'
 
 - name: Install extra packages

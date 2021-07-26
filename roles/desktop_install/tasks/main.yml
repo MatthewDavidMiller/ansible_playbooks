@@ -15,6 +15,7 @@
   ansible.builtin.shell:
     cmd: |
       locale-gen
+  become: "yes"
   when: ansible_facts['distribution'] == 'Archlinux'
 
 - name: Create EFI System Partition
