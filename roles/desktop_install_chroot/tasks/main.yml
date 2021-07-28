@@ -36,6 +36,13 @@
   become: "yes"
   when: ansible_facts['distribution'] == 'Archlinux'
 
+- name: configure umask
+  ansible.builtin.lineinfile:
+    path: /etc/profile
+    regexp: "^umask "
+    line: umask 0077
+  when: ansible_facts['distribution'] == 'Archlinux'
+
 - name: Install extra packages
   ansible.builtin.shell:
     cmd: |
