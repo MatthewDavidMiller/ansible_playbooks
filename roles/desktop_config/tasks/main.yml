@@ -15,6 +15,18 @@
   become: "yes"
   when: ansible_facts['distribution'] == 'Archlinux'
 
+- name: Enabe multilib repo
+  ansible.builtin.blockinfile:
+    path: "/etc/pacman.conf"
+    block: |
+      [multilib]
+      Include = /etc/pacman.d/mirrorlist
+    marker: "{mark}"
+    marker_begin: "# Enable multilib"
+    marker_end: "#=================================================================================================================="
+  when:
+    - ansible_facts['distribution'] == 'Archlinux'
+
 - name: Install packages
   ansible.builtin.shell:
     cmd: |
