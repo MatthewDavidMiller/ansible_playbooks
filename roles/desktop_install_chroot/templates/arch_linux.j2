@@ -1,5 +1,5 @@
-title   Arch Linux LTS Kernel
-linux   /vmlinuz-linux-lts
+title   Arch Linux Kernel
+linux   /vmlinuz-{{ kernel }}
 initrd  /{{ ucode }}.img
-initrd  /initramfs-linux-lts.img
+initrd  /initramfs-{{ kernel }}.img
 options cryptdevice=UUID={{ luks_uuid.stdout }}:mycrypt root=UUID={{ root_uuid.stdout }} rw module.sig_enforce=1

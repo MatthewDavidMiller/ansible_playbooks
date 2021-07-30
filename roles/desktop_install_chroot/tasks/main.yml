@@ -101,10 +101,10 @@
     state: directory
   when: ansible_facts['distribution'] == 'Archlinux'
 
-- name: LTS kernel boot loader config
+- name: kernel boot loader config
   ansible.builtin.template:
-    src: arch_linux_lts.j2
-    dest: /boot/loader/entries/arch_linux_lts.conf
+    src: arch_linux.j2
+    dest: /boot/loader/entries/arch_linux.conf
     owner: root
     group: root
     mode: "0644"
