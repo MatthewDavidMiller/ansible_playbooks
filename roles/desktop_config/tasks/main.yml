@@ -1,3 +1,6 @@
+# Credits
+# https://stackoverflow.com/questions/37147949/how-to-use-variable-in-when-statement-in-ansible
+
 ---
 - name: locale configuration
   ansible.builtin.template:
@@ -91,17 +94,17 @@
   when:
     - ansible_facts['distribution'] == 'Archlinux'
 
-- name: Sway configuration
+- name: Sway or i3 configuration
   ansible.builtin.template:
     src: sway.j2
-    dest: /home/{{ user_name }}/.config/sway/config
+    dest: /home/{{ user_name }}/.config/{{ wm }}/config
     owner: "{{ user_name }}"
   when: ansible_facts['distribution'] == 'Archlinux'
 
-- name: Sway autostart script
+- name: Sway or i3 autostart script
   ansible.builtin.template:
     src: sway_autostart.j2
-    dest: /usr/local/bin/sway_autostart.sh
+    dest: /usr/local/bin/{{ wm }}_autostart.sh
     owner: "{{ user_name }}"
     mode: "0744"
   when: ansible_facts['distribution'] == 'Archlinux'
@@ -113,16 +116,16 @@
   when:
     - ansible_facts['distribution'] == 'Archlinux'
 
-- name: Autostart sway at login
+- name: Autostart sway or i3 at login
   ansible.builtin.blockinfile:
     path: "/home/{{ user_name }}/.profile"
     block: |
       # If running from tty1 start sway
       if [ "$(tty)" = "/dev/tty1" ]; then
-      exec sway
+      {{ autostart_wm }}
       fi
     marker: "{mark}"
-    marker_begin: "# Autostart Sway"
+    marker_begin: "# Autostart {{ wm }}"
     marker_end: "#=================================================================================================================="
   when:
     - ansible_facts['distribution'] == 'Archlinux'
@@ -350,6 +353,14 @@
     name: reflector.service
     enabled: yes
   when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Enable gdm
+  ansible.builtin.systemd:
+    name: gdm.service
+    enabled: yes
+  when:
+    - ansible_facts['distribution'] == 'Archlinux'
+    - gdm_status == "yes"
 
 - name: env backup script
   ansible.builtin.template:

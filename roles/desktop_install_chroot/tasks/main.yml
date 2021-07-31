@@ -41,7 +41,7 @@
   ansible.builtin.lineinfile:
     path: /etc/profile
     regexp: "^umask "
-    line: umask 0037
+    line: umask 0027
   when: ansible_facts['distribution'] == 'Archlinux'
 
 - name: Install extra packages
