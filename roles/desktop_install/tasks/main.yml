@@ -24,7 +24,7 @@
     number: 1
     state: present
     flags: [boot]
-    fs_type: fat32
+    fs_type: EF00
     part_end: 1GiB
     label: gpt
   when: ansible_facts['distribution'] == 'Archlinux'
