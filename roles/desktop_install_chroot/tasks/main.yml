@@ -1,5 +1,6 @@
 #Credits
 # https://stackoverflow.com/questions/48451171/ansible-pass-output-of-shell-command-to-variable
+# https://www.lisenet.com/2019/ansible-generate-crypted-passwords-for-the-user-module/
 
 ---
 - name: Hosts file configuration
@@ -40,7 +41,7 @@
   ansible.builtin.lineinfile:
     path: /etc/profile
     regexp: "^umask "
-    line: umask 0077
+    line: umask 0037
   when: ansible_facts['distribution'] == 'Archlinux'
 
 - name: Install extra packages
@@ -136,6 +137,11 @@
     name: ntpd.service
     enabled: yes
   when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Create sudo group
+  ansible.builtin.group:
+    name: sudo
+    state: present
 
 - name: Add a user
   ansible.builtin.user:
