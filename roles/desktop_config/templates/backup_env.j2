@@ -9,3 +9,5 @@ for i in {{ nextcloud_path }}/git/*
         mkdir -p "{{ nextcloud_path }}/env_backup/${name}"
         cp -r "{{ nextcloud_path }}/git/${name}/env" "{{ nextcloud_path }}/env_backup/${name}/"
     done
+
+tar -czf {{ nextcloud_path }}/env_backup.tar.gz -C {{ nextcloud_path }}/env_backup/*
