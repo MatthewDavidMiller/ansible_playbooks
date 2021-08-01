@@ -367,3 +367,9 @@
     src: backup_env.j2
     dest: /usr/local/bin/backup_env.sh
   when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Enable cups
+  ansible.builtin.systemd:
+    name: cups.service
+    enabled: yes
+  when: ansible_facts['distribution'] == 'Archlinux'
