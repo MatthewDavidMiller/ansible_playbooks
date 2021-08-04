@@ -10,4 +10,6 @@ for i in {{ nextcloud_path }}/git/*
         cp -r "{{ nextcloud_path }}/git/${name}/env" "{{ nextcloud_path }}/env_backup/${name}/"
     done
 
-tar -czf {{ nextcloud_path }}/env_backup.tar.gz -C {{ nextcloud_path }}/env_backup/*
+cd {{ nextcloud_path }} || exit
+
+tar -czf env_backup.tar.gz env_backup/*
