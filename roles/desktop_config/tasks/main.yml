@@ -87,9 +87,9 @@
     create: "yes"
   when: ansible_facts['distribution'] == 'Archlinux'
 
-- name: Create sway config path
+- name: Create sway or i3 config path
   ansible.builtin.file:
-    path: "/home/{{ user_name }}/.config/sway"
+    path: /home/{{ user_name }}/.config/{{ wm }}
     state: directory
   when:
     - ansible_facts['distribution'] == 'Archlinux'
