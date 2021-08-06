@@ -412,3 +412,11 @@
     groups: libvirt,sudo
     append: yes
   when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Set user home ownership to user
+  ansible.builtin.shell:
+    cmd: |
+      chown -R {{ user_name }} /home/{{ user_name }}
+  become_user: "{{ user_name }}"
+  when:
+    - ansible_facts['distribution'] == 'Archlinux'
