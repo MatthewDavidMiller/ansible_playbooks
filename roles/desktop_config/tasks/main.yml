@@ -420,3 +420,11 @@
   become_user: "{{ user_name }}"
   when:
     - ansible_facts['distribution'] == 'Archlinux'
+
+- name: rpi-imager aur build
+  ansible.builtin.template:
+    src: rpi_imager_aur.j2
+    dest: /home/{{ user_name }}/aur/rpi_imager.sh
+    owner: "{{ user_name }}"
+    mode: "0744"
+  when: ansible_facts['distribution'] == 'Archlinux'
