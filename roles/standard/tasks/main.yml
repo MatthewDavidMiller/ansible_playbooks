@@ -8,7 +8,7 @@
     name: "{{ packages }}"
     state: latest
     update_cache: "yes"
-  when: ansible_facts['distribution'] == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Install packages OpenWrt
   community.general.opkg:
@@ -20,7 +20,7 @@
 - name: Set the timezone
   community.general.timezone:
     name: US/Eastern
-  when: ansible_facts['distribution'] == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Add a user
   ansible.builtin.user:
@@ -28,27 +28,27 @@
     groups: sudo
     append: "yes"
     password: "{{ user_name_password }}"
-  when: (ansible_facts['distribution'] == 'Ubuntu') or (ansible_facts['os_family'] == 'OpenWrt')
+  when: (ansible_facts['distribution'] == 'Debian') or (ansible_facts['os_family'] == 'OpenWrt')
 
 - name: Set the root password
   ansible.builtin.user:
     name: root
     append: "yes"
     password: "{{ root_password }}"
-  when: (ansible_facts['distribution'] == 'Ubuntu') or (ansible_facts['os_family'] == 'OpenWrt')
+  when: (ansible_facts['distribution'] == 'Debian') or (ansible_facts['os_family'] == 'OpenWrt')
 
 - name: Check if swap file exists
   ansible.builtin.stat:
     path: /swapfile
   register: swapfile_status
-  when: ansible_facts['distribution'] == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Create swap file
   ansible.builtin.shell:
     cmd: |
       dd if=/dev/zero of=/swapfile bs=1M count={{ swap_file_size }} status=progress
   when:
-    - ansible_facts['distribution'] == 'Ubuntu'
+    - ansible_facts['distribution'] == 'Debian'
     - swapfile_status.stat.exists == false
 
 - name: Set swap file permissions
@@ -57,7 +57,7 @@
     owner: root
     group: root
     mode: "0677"
-  when: ansible_facts['distribution'] == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Set file as swap file
   ansible.builtin.shell:
@@ -65,7 +65,7 @@
       mkswap /swapfile
   when:
     - swapfile_status.stat.exists == false
-    - ansible_facts['distribution'] == 'Ubuntu'
+    - ansible_facts['distribution'] == 'Debian'
 
 - name: Turn on swapfile
   ansible.builtin.shell:
@@ -73,14 +73,14 @@
       swapon /swapfile
   when:
     - swapfile_status.stat.exists == false
-    - ansible_facts['distribution'] == 'Ubuntu'
+    - ansible_facts['distribution'] == 'Debian'
 
 - name: Add swapfile to fstab
   ansible.builtin.lineinfile:
     path: /etc/fstab
     line: /swapfile none swap defaults 0 0
     create: "yes"
-  when: ansible_facts['distribution'] == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Flush Iptables rules
   ansible.builtin.iptables:
@@ -98,7 +98,7 @@
     limit: 6/minute
     jump: ACCEPT
   become: "yes"
-  when: ansible_facts['distribution'] == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Allow ssh ipv6
   ansible.builtin.iptables:
@@ -111,7 +111,7 @@
     jump: ACCEPT
     ip_version: ipv6
   become: "yes"
-  when: ansible_facts['distribution'] == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Allow icmp
   ansible.builtin.iptables:
@@ -121,7 +121,7 @@
     in_interface: "{{ interface_name }}"
     jump: ACCEPT
   become: "yes"
-  when: ansible_facts['distribution'] == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Allow icmpv6
   ansible.builtin.iptables:
@@ -132,7 +132,7 @@
     jump: ACCEPT
     ip_version: ipv6
   become: "yes"
-  when: ansible_facts['distribution'] == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Allow loopback
   ansible.builtin.iptables:
@@ -141,7 +141,7 @@
     in_interface: lo
     jump: ACCEPT
   become: "yes"
-  when: ansible_facts['distribution'] == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Allow loopback ipv6
   ansible.builtin.iptables:
@@ -151,7 +151,7 @@
     jump: ACCEPT
     ip_version: ipv6
   become: "yes"
-  when: ansible_facts['distribution'] == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Allow established connections
   ansible.builtin.iptables:
@@ -159,25 +159,25 @@
     ctstate: ESTABLISHED,RELATED
     jump: ACCEPT
   become: "yes"
-  when: ansible_facts['distribution'] == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Drop inbound by default
   ansible.builtin.iptables:
     chain: INPUT
     policy: DROP
-  when: ansible_facts['distribution'] == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Allow outbound by default
   ansible.builtin.iptables:
     chain: OUTPUT
     policy: ACCEPT
-  when: ansible_facts['distribution'] == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Drop forwarding by default
   ansible.builtin.iptables:
     chain: FORWARD
     policy: DROP
-  when: ansible_facts['distribution'] == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Allow established connections ipv6
   ansible.builtin.iptables:
@@ -186,28 +186,28 @@
     jump: ACCEPT
     ip_version: ipv6
   become: "yes"
-  when: ansible_facts['distribution'] == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Drop inbound by default ipv6
   ansible.builtin.iptables:
     chain: INPUT
     policy: DROP
     ip_version: ipv6
-  when: ansible_facts['distribution'] == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Allow outbound by default ipv6
   ansible.builtin.iptables:
     chain: OUTPUT
     policy: ACCEPT
     ip_version: ipv6
-  when: ansible_facts['distribution'] == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Drop forwarding by default ipv6
   ansible.builtin.iptables:
     chain: FORWARD
     policy: DROP
     ip_version: ipv6
-  when: ansible_facts['distribution'] == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Save Iptables Rules
   community.general.iptables_state:
@@ -215,7 +215,7 @@
     table: filter
     state: saved
     path: /etc/iptables/rules.v4
-  when: ansible_facts['distribution'] == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Save Iptables Rules ipv6
   community.general.iptables_state:
@@ -223,7 +223,7 @@
     table: filter
     state: saved
     path: /etc/iptables/rules.v6
-  when: ansible_facts['distribution'] == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Hosts file configuration
   ansible.builtin.template:
@@ -232,7 +232,7 @@
     owner: root
     group: root
     mode: "0644"
-  when: ansible_facts['distribution'] == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Hostname file configuration
   ansible.builtin.template:
@@ -241,7 +241,7 @@
     owner: root
     group: root
     mode: "0644"
-  when: ansible_facts['distribution'] == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Network interfaces configuration
   ansible.builtin.template:
@@ -250,7 +250,7 @@
     owner: root
     group: root
     mode: "0644"
-  when: ansible_facts['distribution'] == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: locale configuration
   ansible.builtin.template:
@@ -259,7 +259,7 @@
     owner: root
     group: root
     mode: "0644"
-  when: ansible_facts['distribution'] == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: SSH configuration
   ansible.builtin.template:
@@ -268,9 +268,9 @@
     owner: root
     group: root
     mode: "0644"
-  when: ansible_facts['distribution'] == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Reboot machine
   reboot:
     reboot_timeout: "60"
-  when: ansible_facts['distribution'] == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Debian'
