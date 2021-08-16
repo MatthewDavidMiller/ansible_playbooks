@@ -1,5 +1,6 @@
 cd /home/{{ user_name }}/aur
 git clone 'https://aur.archlinux.org/visual-studio-code-bin.git'
-cd visual-studio-code-bin
+cd visual-studio-code-bin || exit
+git pull
 less PKGBUILD
 makepkg -sirc
