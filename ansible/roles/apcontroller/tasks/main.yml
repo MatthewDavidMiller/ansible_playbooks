@@ -51,6 +51,18 @@
   become: "yes"
   when: ansible_facts['distribution'] == 'Ubuntu'
 
+- name: Allow AP Controller udp
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: udp
+    destination_ports:
+      - "29810:29813"
+    source: "{{ network_prefix }}"
+    in_interface: "{{ interface_name }}"
+    jump: ACCEPT
+  become: "yes"
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
 - name: Allow AP Controller ipv6
   ansible.builtin.iptables:
     chain: INPUT
@@ -59,6 +71,19 @@
       - "8088"
       - "8043"
       - "8843"
+      - "29810:29813"
+    source: "fe80::/10"
+    in_interface: "{{ interface_name }}"
+    jump: ACCEPT
+    ip_version: ipv6
+  become: "yes"
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Allow AP Controller ipv6 udp
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: udp
+    destination_ports:
       - "29810:29813"
     source: "fe80::/10"
     in_interface: "{{ interface_name }}"
