@@ -140,7 +140,7 @@
 - name: Unbound container
   community.docker.docker_container:
     name: unbound
-    image: debian:latest
+    image: debian:stable-slim
     detach: yes
     mounts:
       - type: bind
