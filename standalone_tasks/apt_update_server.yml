@@ -1,6 +1,6 @@
 ---
-- name: Update Ubuntu packages
-  hosts: ubuntu
+- name: Update Debian packages
+  hosts: debian
 
   tasks:
     - name: Update all packages to their latest version
@@ -8,4 +8,4 @@
         name: "*"
         state: latest
         update_cache: "yes"
-      when: ansible_facts['distribution'] == 'Ubuntu'
+      when: ansible_facts['distribution'] == 'Debian'
