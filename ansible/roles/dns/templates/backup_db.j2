@@ -2,3 +2,4 @@
 
 /usr/bin/sqlite3 /home/{{ user_name }}/pihole/etc-pihole/gravity.db ".backup '/home/{{ user_name }}/pihole/database_backups/pihole_gravity_db-$(date +%m_%d_%Y).db'"
 /usr/bin/rclone copy /home/{{ user_name }}/pihole/database_backups Nextcloud:{{ pihole_backup_location }}
+rm /home/{{ user_name }}/pihole/database_backups/*
