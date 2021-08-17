@@ -3,6 +3,20 @@
 # https://techviewleo.com/list-of-ansible-os-family-distributions-facts/
 
 ---
+- name: Enable BTRFS compression
+  ansible.builtin.lineinfile:
+    path: /etc/fstab
+    regexp: btrfs\s*defaults,subvol=@rootfs
+    line: btrfs defaults,subvol=@rootfs,compress=zlib
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: BTRFS compress files
+  ansible.builtin.shell:
+    cmd: |
+      btrfs filesystem defrag -r -c /
+  when:
+    - ansible_facts['distribution'] == 'Debian'
+
 - name: Install packages
   apt:
     name: "{{ packages }}"
@@ -43,6 +57,16 @@
   register: swapfile_status
   when: ansible_facts['distribution'] == 'Debian'
 
+- name: BTRFS initialize swap file
+  ansible.builtin.shell:
+    cmd: |
+      truncate -s 0 /swapfile
+      chattr +C /swapfile
+      btrfs property set /swapfile compression none
+  when:
+    - ansible_facts['distribution'] == 'Debian'
+    - swapfile_status.stat.exists == false
+
 - name: Create swap file
   ansible.builtin.shell:
     cmd: |
@@ -56,7 +80,7 @@
     path: /swapfile
     owner: root
     group: root
-    mode: "0677"
+    mode: "0600"
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: Set file as swap file
