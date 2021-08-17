@@ -4,7 +4,7 @@
     path: "/home/{{ user_name }}/apcontroller"
     state: directory
   when:
-    - ansible_facts['distribution'] == 'Ubuntu'
+    - ansible_facts['distribution'] == 'Debian'
 
 - name: APController container
   community.docker.docker_container:
@@ -34,7 +34,7 @@
     restart_policy: unless-stopped
     pull: yes
   when:
-    - ansible_facts['distribution'] == 'Ubuntu'
+    - ansible_facts['distribution'] == 'Debian'
 
 - name: Allow AP Controller
   ansible.builtin.iptables:
@@ -49,7 +49,7 @@
     in_interface: "{{ interface_name }}"
     jump: ACCEPT
   become: "yes"
-  when: ansible_facts['distribution'] == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Allow AP Controller udp
   ansible.builtin.iptables:
@@ -61,7 +61,7 @@
     in_interface: "{{ interface_name }}"
     jump: ACCEPT
   become: "yes"
-  when: ansible_facts['distribution'] == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Allow AP Controller ipv6
   ansible.builtin.iptables:
@@ -77,7 +77,7 @@
     jump: ACCEPT
     ip_version: ipv6
   become: "yes"
-  when: ansible_facts['distribution'] == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Allow AP Controller ipv6 udp
   ansible.builtin.iptables:
@@ -90,7 +90,7 @@
     jump: ACCEPT
     ip_version: ipv6
   become: "yes"
-  when: ansible_facts['distribution'] == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Save Iptables Rules
   community.general.iptables_state:
@@ -98,7 +98,7 @@
     table: filter
     state: saved
     path: /etc/iptables/rules.v4
-  when: ansible_facts['distribution'] == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Save Iptables Rules ipv6
   community.general.iptables_state:
@@ -106,7 +106,7 @@
     table: filter
     state: saved
     path: /etc/iptables/rules.v6
-  when: ansible_facts['distribution'] == 'Ubuntu'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Watchtower Container
   community.docker.docker_container:
