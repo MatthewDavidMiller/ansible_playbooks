@@ -49,14 +49,14 @@
     regexp: "DNSStubListener="
     line: DNSStubListener=no
   when:
-    - ansible_facts['os_family'] == 'Debian'
+    - ansible_facts['os_family'] == 'Ubuntu'
 
 - name: Fix Ubuntu DNS part 2
   ansible.builtin.shell:
     cmd: |
       rm /etc/resolv.conf && ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf
   when:
-    - ansible_facts['os_family'] == 'Debian'
+    - ansible_facts['os_family'] == 'Ubuntu'
 
 - name: Unbound configuration
   ansible.builtin.template:
