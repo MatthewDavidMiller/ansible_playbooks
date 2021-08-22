@@ -352,3 +352,10 @@
     line: DNS=127.0.0.1
   when:
     - ansible_facts['os_family'] == 'Debian'
+
+- name: Fix resolv conf
+  ansible.builtin.template:
+    src: resolv.j2
+    dest: "/etc/resolv.conf"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
