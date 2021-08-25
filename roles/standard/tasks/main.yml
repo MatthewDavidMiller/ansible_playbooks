@@ -267,13 +267,18 @@
     mode: "0644"
   when: ansible_facts['distribution'] == 'Debian'
 
-- name: Network interfaces configuration
-  ansible.builtin.template:
-    src: interfaces.j2
-    dest: /etc/network/interfaces
-    owner: root
-    group: root
-    mode: "0644"
+- name: Configure Network
+  community.general.nmcli:
+    conn_name: "{{ interface_name }}"
+    ifname: "{{ interface_name }}"
+    type: ethernet
+    ip4: "{{ ip_address_cidr }}"
+    gw4: "{{ gateway_address }}"
+    dns4: "{{ dns_address }}"
+    dns4_search: "{{ domain_name }}"
+    ip6: "{{ ipv6_link_local_address_cidr }}"
+    autoconnect: yes
+    state: present
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: locale configuration
