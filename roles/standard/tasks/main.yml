@@ -268,17 +268,12 @@
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: Configure Network
-  community.general.nmcli:
-    conn_name: "{{ interface_name }}"
-    ifname: "{{ interface_name }}"
-    type: ethernet
-    ip4: "{{ ip_address_cidr }}"
-    gw4: "{{ gateway_address }}"
-    dns4: "{{ dns_address }}"
-    dns4_search: "{{ domain_name }}"
-    ip6: "{{ ipv6_link_local_address_cidr }}"
-    autoconnect: yes
-    state: present
+  ansible.builtin.template:
+    src: systemd_network.j2
+    dest: /etc/systemd/network/6-static.network
+    owner: root
+    group: root
+    mode: "0644"
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: locale configuration
@@ -297,6 +292,18 @@
     owner: root
     group: root
     mode: "0644"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Enable Network
+  ansible.builtin.systemd:
+    name: systemd-networkd
+    enabled: yes
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Remove old network config
+  ansible.builtin.file:
+    path: /etc/network/interfaces
+    state: absent
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: Reboot machine
