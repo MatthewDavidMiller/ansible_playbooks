@@ -2,6 +2,7 @@
 # https://stackoverflow.com/questions/36059804/ansible-store-commands-stdout-in-new-variable
 # https://github.com/SchemaStore/schemastore/issues/1397
 # https://serverfault.com/questions/952498/ansible-multiline-results-and-loop
+# https://serdima.wordpress.com/2018/04/23/tutorial-updating-dynamic-dns-with-ddclient/
 
 ---
 - name: Get the Linux headers output
@@ -212,3 +213,11 @@
       systemctl enable wg-quick@{{ wireguard_interface }}
   when:
     - ansible_facts['distribution'] == 'Debian'
+
+- name: Enable ddclient daemon
+  ansible.builtin.lineinfile:
+    path: /etc/default/ddclient
+    regexp: "^run_daemon="
+    line: run_daemon="true"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
