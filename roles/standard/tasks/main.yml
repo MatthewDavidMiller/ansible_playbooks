@@ -34,22 +34,22 @@
 - name: Set the timezone
   community.general.timezone:
     name: US/Eastern
-  when: ansible_facts['distribution'] == 'Debian'
+  when: (ansible_facts['distribution'] == 'Debian') or (ansible_facts['os_family'] == 'RedHat')
 
 - name: Add a user
   ansible.builtin.user:
     name: "{{ user_name }}"
-    groups: sudo
+    groups: wheel
     append: "yes"
     password: "{{ user_name_password }}"
-  when: (ansible_facts['distribution'] == 'Debian') or (ansible_facts['os_family'] == 'OpenWrt')
+  when: (ansible_facts['distribution'] == 'Debian') or (ansible_facts['os_family'] == 'RedHat') or (ansible_facts['os_family'] == 'OpenWrt')
 
 - name: Set the root password
   ansible.builtin.user:
     name: root
     append: "yes"
     password: "{{ root_password }}"
-  when: (ansible_facts['distribution'] == 'Debian') or (ansible_facts['os_family'] == 'OpenWrt')
+  when: (ansible_facts['distribution'] == 'Debian') or (ansible_facts['os_family'] == 'RedHat') or (ansible_facts['os_family'] == 'OpenWrt')
 
 - name: Check if swap file exists
   ansible.builtin.stat:
@@ -111,6 +111,7 @@
     chain: "{{ item }}"
     flush: yes
   with_items: ["INPUT", "FORWARD", "OUTPUT"]
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Allow ssh
   ansible.builtin.iptables:
@@ -256,7 +257,7 @@
     owner: root
     group: root
     mode: "0644"
-  when: ansible_facts['distribution'] == 'Debian'
+  when: (ansible_facts['distribution'] == 'Debian') or (ansible_facts['os_family'] == 'RedHat')
 
 - name: Hostname file configuration
   ansible.builtin.template:
@@ -265,7 +266,7 @@
     owner: root
     group: root
     mode: "0644"
-  when: ansible_facts['distribution'] == 'Debian'
+  when: (ansible_facts['distribution'] == 'Debian') or (ansible_facts['os_family'] == 'RedHat')
 
 - name: Configure Network
   ansible.builtin.template:
@@ -274,7 +275,7 @@
     owner: root
     group: root
     mode: "0644"
-  when: ansible_facts['distribution'] == 'Debian'
+  when: (ansible_facts['distribution'] == 'Debian') or (ansible_facts['os_family'] == 'RedHat')
 
 - name: locale configuration
   ansible.builtin.template:
@@ -283,7 +284,7 @@
     owner: root
     group: root
     mode: "0644"
-  when: ansible_facts['distribution'] == 'Debian'
+  when: (ansible_facts['distribution'] == 'Debian') or (ansible_facts['os_family'] == 'RedHat')
 
 - name: SSH configuration
   ansible.builtin.template:
@@ -292,19 +293,19 @@
     owner: root
     group: root
     mode: "0644"
-  when: ansible_facts['distribution'] == 'Debian'
+  when: (ansible_facts['distribution'] == 'Debian') or (ansible_facts['os_family'] == 'RedHat')
 
 - name: Enable Network
   ansible.builtin.systemd:
     name: systemd-networkd
     enabled: yes
-  when: ansible_facts['distribution'] == 'Debian'
+  when: (ansible_facts['distribution'] == 'Debian') or (ansible_facts['os_family'] == 'RedHat')
 
 - name: Remove old network config
   ansible.builtin.file:
     path: /etc/network/interfaces
     state: absent
-  when: ansible_facts['distribution'] == 'Debian'
+  when: (ansible_facts['distribution'] == 'Debian') or (ansible_facts['os_family'] == 'RedHat')
 
 - name: Reboot machine
   reboot:
