@@ -431,7 +431,7 @@
 
 - name: Allow sudo group in sudo
   ansible.builtin.lineinfile:
-    path: /etc/libvirt/libvirtd.conf
+    path: /etc/sudoers
     regexp: '^\s*#*\s*%sudo\s*ALL=\(ALL\)\s*ALL'
     line: "%sudo   ALL=(ALL) ALL"
   when: ansible_facts['distribution'] == 'Archlinux'
