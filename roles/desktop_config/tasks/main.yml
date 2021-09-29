@@ -118,7 +118,7 @@
 
 - name: Autostart sway or i3 at login
   ansible.builtin.blockinfile:
-    path: "/home/{{ user_name }}/.profile"
+    path: "/home/{{ user_name }}/.bashrc"
     block: |
       # If running from tty1 start sway
       if [ "$(tty)" = "/dev/tty1" ]; then
@@ -427,4 +427,11 @@
     dest: /home/{{ user_name }}/aur/rpi_imager.sh
     owner: "{{ user_name }}"
     mode: "0744"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Allow sudo group in sudo
+  ansible.builtin.lineinfile:
+    path: /etc/libvirt/libvirtd.conf
+    regexp: '^#?%sudo\s*ALL=\(ALL\)\s*ALL'
+    line: "%sudo   ALL=(ALL) ALL"
   when: ansible_facts['distribution'] == 'Archlinux'
