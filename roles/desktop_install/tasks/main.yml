@@ -14,7 +14,7 @@
 - name: set locale to generate
   ansible.builtin.lineinfile:
     path: /etc/locale.gen
-    regexp: ^en_US\.UTF-8 UTF-8
+    regexp: ^#?en_US\.UTF-8 UTF-8
     line: en_US.UTF-8 UTF-8
   when: ansible_facts['distribution'] == 'Archlinux'
 
