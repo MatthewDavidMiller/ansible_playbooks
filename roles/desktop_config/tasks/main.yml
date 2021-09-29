@@ -435,3 +435,11 @@
     regexp: '^\s*#*\s*%sudo\s*ALL=\(ALL\)\s*ALL'
     line: "%sudo   ALL=(ALL) ALL"
   when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: paru aur build
+  ansible.builtin.template:
+    src: paru.j2
+    dest: /home/{{ user_name }}/aur/paru.sh
+    owner: "{{ user_name }}"
+    mode: "0744"
+  when: ansible_facts['distribution'] == 'Archlinux'
