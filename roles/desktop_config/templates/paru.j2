@@ -1,0 +1,6 @@
+cd /home/matthew/aur
+git clone 'https://aur.archlinux.org/paru.git'
+cd paru || exit
+git pull
+less PKGBUILD
+makepkg -sirc
