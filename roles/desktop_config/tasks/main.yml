@@ -383,14 +383,14 @@
 - name: set libvirt socket group
   ansible.builtin.lineinfile:
     path: /etc/libvirt/libvirtd.conf
-    regexp: ^unix_sock_group =
+    regexp: ^#?unix_sock_group =
     line: unix_sock_group = "libvirt"
   when: ansible_facts['distribution'] == 'Archlinux'
 
 - name: set libvirt socket permissions
   ansible.builtin.lineinfile:
     path: /etc/libvirt/libvirtd.conf
-    regexp: ^unix_sock_rw_perms =
+    regexp: ^#?unix_sock_rw_perms =
     line: unix_sock_rw_perms = "0770"
   when: ansible_facts['distribution'] == 'Archlinux'
 
