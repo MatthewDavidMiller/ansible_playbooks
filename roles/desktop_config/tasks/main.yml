@@ -443,3 +443,11 @@
     owner: "{{ user_name }}"
     mode: "0744"
   when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: openwrt image builder
+  ansible.builtin.template:
+    src: build_openwrt_image.j2
+    dest: /usr/local/bin/build_openwrt_image.sh
+    owner: "{{ user_name }}"
+    mode: "0744"
+  when: ansible_facts['distribution'] == 'Archlinux'

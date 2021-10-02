@@ -1,0 +1,16 @@
+#!/bin/bash
+# Credits
+# https://openwrt.org/docs/guide-user/additional-software/imagebuilder
+
+# Dependecies
+sudo pacman -S --needed base-devel ncurses zlib gawk git gettext openssl libxslt wget unzip python
+
+mkdir /home/{{ user_name }}/openwrt_image
+cd /home/{{ user_name }}/openwrt_image || exit
+
+curl {{ openwrt_image_builder_url }} -O openwrt_imagebuilder.tar.xz
+
+tar -J -x -f openwrt_imagebuilder.tar.xz
+cd openwrt_imagebuilder/ || exit
+
+make image PROFILE="{{ openwrt_image_profile }}" PACKAGES="{{ openwrt_image_packages }}"
