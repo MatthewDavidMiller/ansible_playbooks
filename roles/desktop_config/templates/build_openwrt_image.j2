@@ -11,6 +11,6 @@ cd "/home/{{ user_name }}/openwrt_image" || exit
 curl "{{ openwrt_image_builder_url }}" -o "openwrt_imagebuilder.tar.xz"
 
 tar -J -x -f "openwrt_imagebuilder.tar.xz"
-cd openwrt_imagebuilder/ || exit
+cd openwrt-imagebuilder-*/ || exit
 
 make image PROFILE="{{ openwrt_image_profile }}" PACKAGES="{{ openwrt_image_packages }}"
