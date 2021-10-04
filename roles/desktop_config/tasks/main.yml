@@ -451,3 +451,13 @@
     owner: "{{ user_name }}"
     mode: "0744"
   when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Add terminal text
+  ansible.builtin.blockinfile:
+    path: "/home/{{ user_name }}/.bashrc"
+    block: "{{ custom_terminal_text }}"
+    marker: "{mark}"
+    marker_begin: "# Custom Terminal Text"
+    marker_end: "#=================================================================================================================="
+  when:
+    - ansible_facts['distribution'] == 'Archlinux'
