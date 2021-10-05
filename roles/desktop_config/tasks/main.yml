@@ -461,3 +461,22 @@
     marker_end: "#=================================================================================================================="
   when:
     - ansible_facts['distribution'] == 'Archlinux'
+
+- name: Download imgview plugin
+  ansible.builtin.get_url:
+    url: https://raw.githubusercontent.com/jarun/nnn/master/plugins/imgview
+    dest: "/home/{{ user_name }}/.config/nnn/plugins/imgview"
+    mode: "0740"
+    owner: "{{ user_name }}"
+  when:
+    - ansible_facts['distribution'] == 'Archlinux'
+
+- name: Add imgview plugin for nnn
+  ansible.builtin.blockinfile:
+    path: "/home/{{ user_name }}/.bashrc"
+    block: "export NNN_PLUG='v:imgview'"
+    marker: "{mark}"
+    marker_begin: "# nnn plugins"
+    marker_end: "#=================================================================================================================="
+  when:
+    - ansible_facts['distribution'] == 'Archlinux'
