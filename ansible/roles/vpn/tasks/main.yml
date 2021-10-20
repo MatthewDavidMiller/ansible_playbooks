@@ -221,3 +221,22 @@
     line: run_daemon="true"
   when:
     - ansible_facts['os_family'] == 'Debian'
+
+- name: Add terminal text
+  ansible.builtin.blockinfile:
+    path: "/home/{{ user_name }}/.bashrc"
+    block: |
+      red=$(printf '\033[0;31m')
+      green=$(printf '\033[0;32m')
+      orange=$(printf '\033[0;33m')
+      no_color=$(printf '\033[0m')
+
+      cat <<EOF
+      To generate qr code: ${green}qrencode -t ansiutf8 <${no_color} ${orange}"file_path"${no_color}
+
+      EOF
+    marker: "{mark}"
+    marker_begin: "# Custom Terminal Text"
+    marker_end: "#=================================================================================================================="
+  when:
+    - ansible_facts['os_family'] == 'Debian'
