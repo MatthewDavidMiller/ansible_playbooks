@@ -1,6 +1,6 @@
 # Credits
 # https://stackoverflow.com/questions/37147949/how-to-use-variable-in-when-statement-in-ansible
-
+# https://github.com/swaywm/sway/wiki
 ---
 - name: locale configuration
   ansible.builtin.template:
@@ -477,6 +477,20 @@
     block: "export NNN_PLUG='v:imgview'"
     marker: "{mark}"
     marker_begin: "# nnn plugins"
+    marker_end: "#=================================================================================================================="
+  when:
+    - ansible_facts['distribution'] == 'Archlinux'
+
+- name: Fix java applications in sway
+  ansible.builtin.blockinfile:
+    path: "/home/{{ user_name }}/.bashrc"
+    block: |
+      if [ "$XDG_SESSION_DESKTOP" = "sway" ] ; then
+        # https://github.com/swaywm/sway/issues/595
+        export _JAVA_AWT_WM_NONREPARENTING=1
+      fi
+    marker: "{mark}"
+    marker_begin: "# Fix Java Applications in Sway"
     marker_end: "#=================================================================================================================="
   when:
     - ansible_facts['distribution'] == 'Archlinux'
