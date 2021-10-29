@@ -122,7 +122,8 @@
     block: |
       # If running from tty1 start sway
       if [ "$(tty)" = "/dev/tty1" ]; then
-      {{ autostart_wm }}
+        {{ autostart_wm }}
+        export _JAVA_AWT_WM_NONREPARENTING=1
       fi
     marker: "{mark}"
     marker_begin: "# Autostart {{ wm }}"
