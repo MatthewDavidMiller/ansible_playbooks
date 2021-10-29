@@ -480,17 +480,3 @@
     marker_end: "#=================================================================================================================="
   when:
     - ansible_facts['distribution'] == 'Archlinux'
-
-- name: Fix java applications in sway
-  ansible.builtin.blockinfile:
-    path: "/home/{{ user_name }}/.bashrc"
-    block: |
-      if [ "$(tty)" = "/dev/tty1" ]; then
-        # https://github.com/swaywm/sway/issues/595
-        export _JAVA_AWT_WM_NONREPARENTING=1
-      fi
-    marker: "{mark}"
-    marker_begin: "# Fix Java Applications in Sway"
-    marker_end: "#=================================================================================================================="
-  when:
-    - ansible_facts['distribution'] == 'Archlinux'
