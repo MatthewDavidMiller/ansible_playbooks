@@ -123,7 +123,6 @@
       # If running from tty1 start sway
       if [ "$(tty)" = "/dev/tty1" ]; then
         {{ autostart_wm }}
-        export _JAVA_AWT_WM_NONREPARENTING=1
       fi
     marker: "{mark}"
     marker_begin: "# Autostart {{ wm }}"
@@ -478,6 +477,16 @@
     block: "export NNN_PLUG='v:imgview'"
     marker: "{mark}"
     marker_begin: "# nnn plugins"
+    marker_end: "#=================================================================================================================="
+  when:
+    - ansible_facts['distribution'] == 'Archlinux'
+
+- name: Fix Java Applications in Sway
+  ansible.builtin.blockinfile:
+    path: "/home/{{ user_name }}/.bashrc"
+    block: "export _JAVA_AWT_WM_NONREPARENTING=1"
+    marker: "{mark}"
+    marker_begin: "# Fix Java Applications in Sway"
     marker_end: "#=================================================================================================================="
   when:
     - ansible_facts['distribution'] == 'Archlinux'
