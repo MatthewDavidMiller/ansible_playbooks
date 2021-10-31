@@ -97,6 +97,15 @@
     line: HOOKS=(base udev autodetect keyboard keymap consolefont modconf block encrypt lvm2 filesystems fsck)
   when: ansible_facts['distribution'] == 'Archlinux'
 
+- name: Configure kernel Nvidia
+  ansible.builtin.lineinfile:
+    path: /etc/mkinitcpio.conf
+    regexp: "^#?MODULES="
+    line: MODULES=(nvidia nvidia_modeset nvidia_uvm nvidia_drm)
+  when:
+    - ansible_facts['distribution'] == 'Archlinux'
+    - nvidia_in_use == "yes"
+
 - name: Run kernel build
   ansible.builtin.shell:
     cmd: |
