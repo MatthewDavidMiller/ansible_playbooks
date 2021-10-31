@@ -462,6 +462,14 @@
   when:
     - ansible_facts['distribution'] == 'Archlinux'
 
+- name: Create imgview path
+  ansible.builtin.file:
+    path: /home/{{ user_name }}/.config/nnn/plugins
+    state: directory
+    owner: "{{ user_name }}"
+  when:
+    - ansible_facts['distribution'] == 'Archlinux'
+
 - name: Download imgview plugin
   ansible.builtin.get_url:
     url: https://raw.githubusercontent.com/jarun/nnn/master/plugins/imgview
