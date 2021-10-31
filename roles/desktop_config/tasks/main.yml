@@ -129,6 +129,7 @@
     marker_end: "#=================================================================================================================="
   when:
     - ansible_facts['distribution'] == 'Archlinux'
+    - gdm_status == "no"
 
 - name: Flush Iptables rules
   ansible.builtin.iptables:
@@ -322,7 +323,9 @@
   ansible.builtin.template:
     src: getty_override.j2
     dest: /etc/systemd/system/getty@tty1.service.d/override.conf
-  when: ansible_facts['distribution'] == 'Archlinux'
+  when:
+    - ansible_facts['distribution'] == 'Archlinux'
+    - gdm_status == "no"
 
 - name: Pacman hooks path
   ansible.builtin.file:
@@ -498,3 +501,4 @@
     marker_end: "#=================================================================================================================="
   when:
     - ansible_facts['distribution'] == 'Archlinux'
+    - gdm_status == "no"
