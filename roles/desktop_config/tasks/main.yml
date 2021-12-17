@@ -34,57 +34,12 @@
   ansible.builtin.shell:
     cmd: |
       pacman -S --noconfirm --needed "{{ item }}"
-  loop: "{{ packages }}"
+  loop: "{{ post_packages }}"
   when: ansible_facts['distribution'] == 'Archlinux'
 
 - name: Set the timezone
   community.general.timezone:
     name: US/Eastern
-  when: ansible_facts['distribution'] == 'Archlinux'
-
-- name: Check if swap file exists
-  ansible.builtin.stat:
-    path: /swapfile
-  register: swapfile_status
-  when: ansible_facts['distribution'] == 'Archlinux'
-
-- name: Create swap file
-  ansible.builtin.shell:
-    cmd: |
-      dd if=/dev/zero of=/swapfile bs=1M count={{ swap_file_size }} status=progress
-  when:
-    - ansible_facts['distribution'] == 'Archlinux'
-    - swapfile_status.stat.exists == false
-
-- name: Set swap file permissions
-  ansible.builtin.file:
-    path: /swapfile
-    owner: root
-    group: root
-    mode: "0677"
-  when: ansible_facts['distribution'] == 'Archlinux'
-
-- name: Set file as swap file
-  ansible.builtin.shell:
-    cmd: |
-      mkswap /swapfile
-  when:
-    - swapfile_status.stat.exists == false
-    - ansible_facts['distribution'] == 'Archlinux'
-
-- name: Turn on swapfile
-  ansible.builtin.shell:
-    cmd: |
-      swapon /swapfile
-  when:
-    - swapfile_status.stat.exists == false
-    - ansible_facts['distribution'] == 'Archlinux'
-
-- name: Add swapfile to fstab
-  ansible.builtin.lineinfile:
-    path: /etc/fstab
-    line: /swapfile none swap defaults 0 0
-    create: "yes"
   when: ansible_facts['distribution'] == 'Archlinux'
 
 - name: Create sway or i3 config path
