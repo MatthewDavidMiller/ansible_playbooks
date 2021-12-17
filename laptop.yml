@@ -1,0 +1,7 @@
+---
+- hosts: local
+  roles:
+    - laptop_var
+    - desktop_install
+#    - desktop_install_chroot
+#    - desktop_config
