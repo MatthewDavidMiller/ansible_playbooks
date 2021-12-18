@@ -99,13 +99,6 @@
     size: "{{ home_partition_size }}"
   when: ansible_facts['distribution'] == 'Archlinux'
 
-- name: Create etc logical volume
-  community.general.lvol:
-    vg: "{{ lvm_name }}"
-    lv: etc
-    size: "{{ etc_partition_size }}"
-  when: ansible_facts['distribution'] == 'Archlinux'
-
 - name: Create root filesystem
   community.general.filesystem:
     fstype: ext4
@@ -136,12 +129,6 @@
     dev: "/dev/{{ lvm_name }}/home"
   when: ansible_facts['distribution'] == 'Archlinux'
 
-- name: Create etc filesystem
-  community.general.filesystem:
-    fstype: ext4
-    dev: "/dev/{{ lvm_name }}/etc"
-  when: ansible_facts['distribution'] == 'Archlinux'
-
 - name: Create boot filesystem
   ansible.builtin.shell:
     cmd: |
@@ -170,12 +157,6 @@
   ansible.builtin.shell:
     cmd: |
       mount "/dev/{{ lvm_name }}/home" /mnt/home
-  when: ansible_facts['distribution'] == 'Archlinux'
-
-- name: Mount etcFilesystem
-  ansible.builtin.shell:
-    cmd: |
-      mount "/dev/{{ lvm_name }}/etc" /mnt/etc
   when: ansible_facts['distribution'] == 'Archlinux'
 
 - name: Create boot path
