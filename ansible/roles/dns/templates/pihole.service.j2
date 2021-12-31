@@ -1,0 +1,24 @@
+[Unit]
+Description=Podman container-pihole.service
+Documentation=man:podman-generate-systemd(1)
+Wants=network.target
+After=network-online.target
+
+[Service]
+Environment=PODMAN_SYSTEMD_UNIT=%n
+Restart=on-failure
+TimeoutStopSec=70
+ExecStartPre=/usr/bin/podman rm --ignore pihole
+ExecStartPre=/usr/bin/podman pull docker.io/pihole/pihole:latest
+ExecStart=/usr/bin/podman run --name=pihole --volume /home/{{ user_name }}/pihole/etc-pihole:/etc/pihole \
+          --volume /home/{{ user_name }}/pihole/etc-dnsmasq.d:/etc/dnsmasq.d \
+          --mount type=bind,source=/home/{{ user_name }}/pihole/etc-lighttpd/external.conf,destination=/etc/lighttpd/external.conf \
+          --mount type=bind,source=/home/{{ user_name }}/pihole/etc-lighttpd/cert_privkey_combined.pem,destination=/etc/lighttpd/cert_privkey_combined.pem \
+          --dns=172.16.1.3 --network=pihole_net --ip=172.16.1.2 -e TZ=America/Chicago \
+          -e WEBPASSWORD={{ web_password }} -p 53:53/tcp -p 53:53/udp -p 443:443/tcp -p 80:80/tcp -d docker.io/pihole/pihole:latest
+ExecStop=/usr/bin/podman stop --ignore pihole
+ExecStopPost=/usr/bin/podman rm --ignore -f pihole
+Type=forking
+
+[Install]
+WantedBy=multi-user.target default.target
