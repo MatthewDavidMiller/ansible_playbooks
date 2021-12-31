@@ -94,6 +94,22 @@
     state: disabled
   when: ansible_facts['os_family'] == 'RedHat'
 
+- name: Disable dhcpv6-client in default zone
+  ansible.posix.firewalld:
+    zone: public
+    service: dhcpv6-client
+    permanent: yes
+    state: disabled
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Disable mdns in default zone
+  ansible.posix.firewalld:
+    zone: public
+    service: mdns
+    permanent: yes
+    state: disabled
+  when: ansible_facts['os_family'] == 'RedHat'
+
 - name: Hosts file configuration
   ansible.builtin.template:
     src: hosts.j2
