@@ -100,7 +100,7 @@
 - name: SSH configuration
   ansible.builtin.template:
     src: sshd_config.j2
-    dest: /etc/ssh/sshd_config.d/1-sshd_custom
+    dest: /etc/ssh/sshd_config.d/01-sshd_custom.conf
     owner: root
     group: root
     mode: "0644"
