@@ -10,24 +10,12 @@
     update_cache: yes
   when: ansible_facts['os_family'] == 'OpenWrt'
 
-- name: Set the timezone
-  community.general.timezone:
-    name: US/Eastern
-  when: ansible_facts['os_family'] == 'RedHat'
-
 - name: Add a user
   ansible.builtin.user:
     name: "{{ user_name }}"
     groups: wheel
     append: "yes"
     password: "{{ user_name_password }}"
-  when: (ansible_facts['os_family'] == 'RedHat') or (ansible_facts['os_family'] == 'OpenWrt')
-
-- name: Set the root password
-  ansible.builtin.user:
-    name: root
-    append: "yes"
-    password: "{{ root_password }}"
   when: (ansible_facts['os_family'] == 'RedHat') or (ansible_facts['os_family'] == 'OpenWrt')
 
 - name: Set default action for public to drop
@@ -108,33 +96,6 @@
     service: mdns
     permanent: yes
     state: disabled
-  when: ansible_facts['os_family'] == 'RedHat'
-
-- name: Hosts file configuration
-  ansible.builtin.template:
-    src: hosts.j2
-    dest: /etc/hosts
-    owner: root
-    group: root
-    mode: "0644"
-  when: ansible_facts['os_family'] == 'RedHat'
-
-- name: Hostname file configuration
-  ansible.builtin.template:
-    src: hostname.j2
-    dest: /etc/hostname
-    owner: root
-    group: root
-    mode: "0644"
-  when: ansible_facts['os_family'] == 'RedHat'
-
-- name: locale configuration
-  ansible.builtin.template:
-    src: locale.j2
-    dest: /etc/locale.conf
-    owner: root
-    group: root
-    mode: "0644"
   when: ansible_facts['os_family'] == 'RedHat'
 
 - name: SSH configuration
