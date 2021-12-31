@@ -3,27 +3,6 @@
 # https://techviewleo.com/list-of-ansible-os-family-distributions-facts/
 
 ---
-- name: Enable BTRFS compression
-  ansible.builtin.lineinfile:
-    path: /etc/fstab
-    regexp: btrfs\s*defaults,subvol=@rootfs
-    line: btrfs defaults,subvol=@rootfs,compress=zlib
-  when: ansible_facts['distribution'] == 'Debian'
-
-- name: BTRFS compress files
-  ansible.builtin.shell:
-    cmd: |
-      btrfs filesystem defrag -r -c /
-  when:
-    - ansible_facts['distribution'] == 'Debian'
-
-- name: Install packages
-  apt:
-    name: "{{ packages }}"
-    state: latest
-    update_cache: "yes"
-  when: ansible_facts['distribution'] == 'Debian'
-
 - name: Install packages OpenWrt
   community.general.opkg:
     name: "{{ packages }}"
@@ -34,7 +13,7 @@
 - name: Set the timezone
   community.general.timezone:
     name: US/Eastern
-  when: (ansible_facts['distribution'] == 'Debian') or (ansible_facts['os_family'] == 'RedHat')
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Add a user
   ansible.builtin.user:
@@ -42,213 +21,78 @@
     groups: wheel
     append: "yes"
     password: "{{ user_name_password }}"
-  when: (ansible_facts['distribution'] == 'Debian') or (ansible_facts['os_family'] == 'RedHat') or (ansible_facts['os_family'] == 'OpenWrt')
+  when: (ansible_facts['os_family'] == 'RedHat') or (ansible_facts['os_family'] == 'OpenWrt')
 
 - name: Set the root password
   ansible.builtin.user:
     name: root
     append: "yes"
     password: "{{ root_password }}"
-  when: (ansible_facts['distribution'] == 'Debian') or (ansible_facts['os_family'] == 'RedHat') or (ansible_facts['os_family'] == 'OpenWrt')
+  when: (ansible_facts['os_family'] == 'RedHat') or (ansible_facts['os_family'] == 'OpenWrt')
 
-- name: Check if swap file exists
-  ansible.builtin.stat:
-    path: /swapfile
-  register: swapfile_status
-  when: ansible_facts['distribution'] == 'Debian'
+- name: Set default action for public to drop
+  ansible.posix.firewalld:
+    zone: public
+    target: DROP
+    permanent: yes
+    state: present
+  when: ansible_facts['os_family'] == 'RedHat'
 
-- name: BTRFS initialize swap file
-  ansible.builtin.shell:
-    cmd: |
-      truncate -s 0 /swapfile
-      chattr +C /swapfile
-      btrfs property set /swapfile compression none
-  when:
-    - ansible_facts['distribution'] == 'Debian'
-    - swapfile_status.stat.exists == false
+- name: Create new zone and set it to drop
+  ansible.posix.firewalld:
+    zone: homelab
+    target: DROP
+    permanent: yes
+    state: present
+  when: ansible_facts['os_family'] == 'RedHat'
 
-- name: Create swap file
-  ansible.builtin.shell:
-    cmd: |
-      dd if=/dev/zero of=/swapfile bs=1M count={{ swap_file_size }} status=progress
-  when:
-    - ansible_facts['distribution'] == 'Debian'
-    - swapfile_status.stat.exists == false
-
-- name: Set swap file permissions
-  ansible.builtin.file:
-    path: /swapfile
-    owner: root
-    group: root
-    mode: "0600"
-  when: ansible_facts['distribution'] == 'Debian'
-
-- name: Set file as swap file
-  ansible.builtin.shell:
-    cmd: |
-      mkswap /swapfile
-  when:
-    - swapfile_status.stat.exists == false
-    - ansible_facts['distribution'] == 'Debian'
-
-- name: Turn on swapfile
-  ansible.builtin.shell:
-    cmd: |
-      swapon /swapfile
-  when:
-    - swapfile_status.stat.exists == false
-    - ansible_facts['distribution'] == 'Debian'
-
-- name: Add swapfile to fstab
-  ansible.builtin.lineinfile:
-    path: /etc/fstab
-    line: /swapfile none swap defaults 0 0
-    create: "yes"
-  when: ansible_facts['distribution'] == 'Debian'
-
-- name: Flush Iptables rules
-  ansible.builtin.iptables:
-    chain: "{{ item }}"
-    flush: yes
-  with_items: ["INPUT", "FORWARD", "OUTPUT"]
-  when: ansible_facts['distribution'] == 'Debian'
-
-- name: Allow ssh
-  ansible.builtin.iptables:
-    chain: INPUT
-    protocol: tcp
-    destination_port: "22"
+- name: Set ipv4 source for zone
+  ansible.posix.firewalld:
+    zone: homelab
     source: "{{ network_prefix }}"
-    in_interface: "{{ interface_name }}"
-    limit: 6/minute
-    jump: ACCEPT
-  become: "yes"
-  when: ansible_facts['distribution'] == 'Debian'
+    permanent: yes
+    state: enabled
+  when: ansible_facts['os_family'] == 'RedHat'
 
-- name: Allow ssh ipv6
-  ansible.builtin.iptables:
-    chain: INPUT
-    protocol: tcp
-    destination_port: "22"
+- name: Set ipv6 source for zone
+  ansible.posix.firewalld:
+    zone: homelab
     source: "fe80::/10"
-    in_interface: "{{ interface_name }}"
-    limit: 6/minute
-    jump: ACCEPT
-    ip_version: ipv6
-  become: "yes"
-  when: ansible_facts['distribution'] == 'Debian'
+    permanent: yes
+    state: enabled
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Enable icmp block inversion
+  ansible.posix.firewalld:
+    zone: homelab
+    icmp_block_inversion: yes
+    permanent: yes
+    state: enabled
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Allow SSH
+  ansible.posix.firewalld:
+    zone: homelab
+    service: ssh
+    permanent: yes
+    state: enabled
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Allow icmp
-  ansible.builtin.iptables:
-    chain: INPUT
-    protocol: icmp
-    source: "{{ network_prefix }}"
-    in_interface: "{{ interface_name }}"
-    jump: ACCEPT
-  become: "yes"
-  when: ansible_facts['distribution'] == 'Debian'
+  ansible.posix.firewalld:
+    zone: homelab
+    icmp_block: echo-request
+    permanent: yes
+    state: enabled
+  when: ansible_facts['os_family'] == 'RedHat'
 
-- name: Allow icmpv6
-  ansible.builtin.iptables:
-    chain: INPUT
-    protocol: icmpv6
-    source: "fe80::/10"
-    in_interface: "{{ interface_name }}"
-    jump: ACCEPT
-    ip_version: ipv6
-  become: "yes"
-  when: ansible_facts['distribution'] == 'Debian'
-
-- name: Allow loopback
-  ansible.builtin.iptables:
-    chain: INPUT
-    source: "127.0.0.1"
-    in_interface: lo
-    jump: ACCEPT
-  become: "yes"
-  when: ansible_facts['distribution'] == 'Debian'
-
-- name: Allow loopback ipv6
-  ansible.builtin.iptables:
-    chain: INPUT
-    source: "::1"
-    in_interface: lo
-    jump: ACCEPT
-    ip_version: ipv6
-  become: "yes"
-  when: ansible_facts['distribution'] == 'Debian'
-
-- name: Allow established connections
-  ansible.builtin.iptables:
-    chain: INPUT
-    ctstate: ESTABLISHED,RELATED
-    jump: ACCEPT
-  become: "yes"
-  when: ansible_facts['distribution'] == 'Debian'
-
-- name: Drop inbound by default
-  ansible.builtin.iptables:
-    chain: INPUT
-    policy: DROP
-  when: ansible_facts['distribution'] == 'Debian'
-
-- name: Allow outbound by default
-  ansible.builtin.iptables:
-    chain: OUTPUT
-    policy: ACCEPT
-  when: ansible_facts['distribution'] == 'Debian'
-
-- name: Drop forwarding by default
-  ansible.builtin.iptables:
-    chain: FORWARD
-    policy: DROP
-  when: ansible_facts['distribution'] == 'Debian'
-
-- name: Allow established connections ipv6
-  ansible.builtin.iptables:
-    chain: INPUT
-    ctstate: ESTABLISHED,RELATED
-    jump: ACCEPT
-    ip_version: ipv6
-  become: "yes"
-  when: ansible_facts['distribution'] == 'Debian'
-
-- name: Drop inbound by default ipv6
-  ansible.builtin.iptables:
-    chain: INPUT
-    policy: DROP
-    ip_version: ipv6
-  when: ansible_facts['distribution'] == 'Debian'
-
-- name: Allow outbound by default ipv6
-  ansible.builtin.iptables:
-    chain: OUTPUT
-    policy: ACCEPT
-    ip_version: ipv6
-  when: ansible_facts['distribution'] == 'Debian'
-
-- name: Drop forwarding by default ipv6
-  ansible.builtin.iptables:
-    chain: FORWARD
-    policy: DROP
-    ip_version: ipv6
-  when: ansible_facts['distribution'] == 'Debian'
-
-- name: Save Iptables Rules
-  community.general.iptables_state:
-    ip_version: ipv4
-    table: filter
-    state: saved
-    path: /etc/iptables/rules.v4
-  when: ansible_facts['distribution'] == 'Debian'
-
-- name: Save Iptables Rules ipv6
-  community.general.iptables_state:
-    ip_version: ipv6
-    table: filter
-    state: saved
-    path: /etc/iptables/rules.v6
-  when: ansible_facts['distribution'] == 'Debian'
+- name: Disable SSH in default zone
+  ansible.posix.firewalld:
+    zone: public
+    service: ssh
+    permanent: yes
+    state: disabled
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Hosts file configuration
   ansible.builtin.template:
@@ -257,7 +101,7 @@
     owner: root
     group: root
     mode: "0644"
-  when: (ansible_facts['distribution'] == 'Debian') or (ansible_facts['os_family'] == 'RedHat')
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Hostname file configuration
   ansible.builtin.template:
@@ -266,16 +110,7 @@
     owner: root
     group: root
     mode: "0644"
-  when: (ansible_facts['distribution'] == 'Debian') or (ansible_facts['os_family'] == 'RedHat')
-
-- name: Configure Network
-  ansible.builtin.template:
-    src: systemd_network.j2
-    dest: /etc/systemd/network/6-static.network
-    owner: root
-    group: root
-    mode: "0644"
-  when: (ansible_facts['distribution'] == 'Debian') or (ansible_facts['os_family'] == 'RedHat')
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: locale configuration
   ansible.builtin.template:
@@ -284,7 +119,7 @@
     owner: root
     group: root
     mode: "0644"
-  when: (ansible_facts['distribution'] == 'Debian') or (ansible_facts['os_family'] == 'RedHat')
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: SSH configuration
   ansible.builtin.template:
@@ -293,21 +128,4 @@
     owner: root
     group: root
     mode: "0644"
-  when: (ansible_facts['distribution'] == 'Debian') or (ansible_facts['os_family'] == 'RedHat')
-
-- name: Enable Network
-  ansible.builtin.systemd:
-    name: systemd-networkd
-    enabled: yes
-  when: (ansible_facts['distribution'] == 'Debian') or (ansible_facts['os_family'] == 'RedHat')
-
-- name: Remove old network config
-  ansible.builtin.file:
-    path: /etc/network/interfaces
-    state: absent
-  when: (ansible_facts['distribution'] == 'Debian') or (ansible_facts['os_family'] == 'RedHat')
-
-- name: Reboot machine
-  reboot:
-    reboot_timeout: "60"
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['os_family'] == 'RedHat'
