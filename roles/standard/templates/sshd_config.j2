@@ -1,4 +1,3 @@
-AcceptEnv LANG LC_*
 AuthorizedKeysFile .ssh/authorized_keys
 
 ChallengeResponseAuthentication no
@@ -7,16 +6,12 @@ PasswordAuthentication no
 
 PermitEmptyPasswords no
 
+GSSAPIAuthentication no
+
 PermitRootLogin no
 
-MaxAuthTries 64
-
-PrintMotd no
+MaxAuthTries 6
 
 PubkeyAuthentication yes
 
-Subsystem       sftp    /usr/lib/openssh/sftp-server
-
 UsePAM no
-
-X11Forwarding yes
