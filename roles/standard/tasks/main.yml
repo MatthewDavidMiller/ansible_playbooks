@@ -21,6 +21,13 @@
 - name: Create new zone and set it to drop
   ansible.posix.firewalld:
     zone: homelab
+    permanent: yes
+    state: present
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Set zone to drop
+  ansible.posix.firewalld:
+    zone: homelab
     target: DROP
     permanent: yes
     state: present
