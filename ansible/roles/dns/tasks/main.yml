@@ -1,55 +1,41 @@
 ---
 # Credits
 
+- name: Install rclone
+  community.general.rpm_ostree_pkg:
+    name: rclone
+    state: present
+  when: ansible_facts['os_family'] == 'RedHat'
+
 - name: Create Pihole container path
   ansible.builtin.file:
     path: "/home/{{ user_name }}/pihole"
     state: directory
-  when:
-    - ansible_facts['os_family'] == 'Debian'
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Create unbound path
   ansible.builtin.file:
     path: "/home/{{ user_name }}/pihole/etc-unbound/unbound.conf.d"
     state: directory
-  when:
-    - ansible_facts['os_family'] == 'Debian'
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Create etc-pihole path
   ansible.builtin.file:
     path: "/home/{{ user_name }}/pihole/etc-pihole"
     state: directory
-  when:
-    - ansible_facts['os_family'] == 'Debian'
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Create etc-lighttpd path
   ansible.builtin.file:
     path: "/home/{{ user_name }}/pihole/etc-lighttpd"
     state: directory
-  when:
-    - ansible_facts['os_family'] == 'Debian'
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Rclone config path
   ansible.builtin.file:
     path: "/root/.config/rclone"
     state: directory
-  when:
-    - ansible_facts['os_family'] == 'Debian'
-
-- name: Fix Ubuntu DNS
-  ansible.builtin.lineinfile:
-    path: /etc/systemd/resolved.conf
-    regexp: "DNSStubListener="
-    line: DNSStubListener=no
-  when:
-    - ansible_facts['os_family'] == 'Ubuntu'
-
-- name: Fix Ubuntu DNS part 2
-  ansible.builtin.shell:
-    cmd: |
-      rm /etc/resolv.conf && ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf
-  when:
-    - ansible_facts['os_family'] == 'Ubuntu'
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Unbound configuration
   ansible.builtin.template:
@@ -58,75 +44,67 @@
     owner: root
     group: root
     mode: "0644"
-  when:
-    - ansible_facts['os_family'] == 'Debian'
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Download root hints
   get_url:
     url: https://www.internic.net/domain/named.root
     dest: "/home/{{ user_name }}/pihole/etc-unbound/root.hints"
-  when:
-    - ansible_facts['os_family'] == 'Debian'
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: External Config
   ansible.builtin.template:
     src: external.j2
     dest: "/home/{{ user_name }}/pihole/etc-lighttpd/external.conf"
-  when:
-    - ansible_facts['os_family'] == 'Debian'
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Copy pem file
   ansible.builtin.copy:
     src: "/etc/letsencrypt/live/{{ ssl_cert }}/cert_privkey_combined.pem"
     dest: "/home/{{ user_name }}/pihole/etc-lighttpd/cert_privkey_combined.pem"
-  when:
-    - ansible_facts['os_family'] == 'Debian'
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Pihole Config
   ansible.builtin.template:
     src: setup_vars.j2
     dest: /home/{{ user_name }}/pihole/etc-pihole/setupVars.conf
-  when:
-    - ansible_facts['os_family'] == 'Debian'
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Create pihole container network
   ansible.builtin.shell:
     cmd: |
       podman network create --subnet 172.16.1.0/29 pihole_net
-  when: ansible_facts['os_family'] == 'Debian'
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Pihole Service
   ansible.builtin.template:
     src: pihole.service.j2
     dest: "/etc/systemd/system/pihole.service"
-  when:
-    - ansible_facts['os_family'] == 'Debian'
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Unbound Service
   ansible.builtin.template:
     src: unbound_container.service.j2
     dest: "/etc/systemd/system/unbound_container.service"
-  when:
-    - ansible_facts['os_family'] == 'Debian'
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Enable unbound
   ansible.builtin.systemd:
     name: unbound_container.service
     enabled: yes
-  when: ansible_facts['os_family'] == 'Debian'
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Enable Pihole
   ansible.builtin.systemd:
     name: pihole.service
     enabled: yes
-  when: ansible_facts['os_family'] == 'Debian'
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Create Pihole DB backups path
   ansible.builtin.file:
     path: "/home/{{ user_name }}/pihole/database_backups"
     state: directory
-  when:
-    - ansible_facts['os_family'] == 'Debian'
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Backup Database Script
   ansible.builtin.template:
@@ -135,14 +113,14 @@
     owner: root
     group: root
     mode: "0644"
-  when:
-    - ansible_facts['os_family'] == 'Debian'
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Backup Pihole Daily
   ansible.builtin.cron:
     name: "Backup Pihole DB"
     special_time: daily
     job: /bin/bash /usr/local/bin/backup_db.sh
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Rclone config file
   ansible.builtin.template:
@@ -151,8 +129,7 @@
     owner: root
     group: root
     mode: "0644"
-  when:
-    - ansible_facts['os_family'] == 'Debian'
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Custom Domains
   ansible.builtin.lineinfile:
@@ -160,198 +137,76 @@
     line: "{{ item }}"
     create: "yes"
   loop: "{{ domains_list }}"
-  when:
-    - ansible_facts['os_family'] == 'Debian'
+  when: ansible_facts['os_family'] == 'RedHat'
 
-- name: Allow dns tcp
-  ansible.builtin.iptables:
-    chain: INPUT
-    protocol: tcp
-    destination_port: "53"
-    source: "{{ network_prefix }}"
-    in_interface: "{{ interface_name }}"
-    jump: ACCEPT
-  become: "yes"
-  when:
-    - ansible_facts['os_family'] == 'Debian'
-
-- name: Allow dns forward tcp
-  ansible.builtin.iptables:
-    chain: FORWARD
-    protocol: tcp
-    destination_port: "53"
-    source: "{{ network_prefix }}"
-    in_interface: "{{ interface_name }}"
-    destination: "172.16.1.2"
-    jump: ACCEPT
-  become: "yes"
-  when:
-    - ansible_facts['os_family'] == 'Debian'
-
-- name: Allow http forward tcp
-  ansible.builtin.iptables:
-    chain: FORWARD
-    protocol: tcp
-    destination_port: "80"
-    source: "{{ network_prefix }}"
-    in_interface: "{{ interface_name }}"
-    destination: "172.16.1.2"
-    jump: ACCEPT
-  become: "yes"
-  when:
-    - ansible_facts['os_family'] == 'Debian'
-
-- name: Allow https forward tcp
-  ansible.builtin.iptables:
-    chain: FORWARD
-    protocol: tcp
-    destination_port: "443"
-    source: "{{ network_prefix }}"
-    in_interface: "{{ interface_name }}"
-    destination: "172.16.1.2"
-    jump: ACCEPT
-  become: "yes"
-  when:
-    - ansible_facts['os_family'] == 'Debian'
-
-- name: Allow dns forward udp
-  ansible.builtin.iptables:
-    chain: FORWARD
-    protocol: udp
-    destination_port: "53"
-    source: "{{ network_prefix }}"
-    in_interface: "{{ interface_name }}"
-    destination: "172.16.1.2"
-    jump: ACCEPT
-  become: "yes"
-  when:
-    - ansible_facts['os_family'] == 'Debian'
-
-- name: Allow dns tcp ipv6
-  ansible.builtin.iptables:
-    chain: INPUT
-    protocol: tcp
-    destination_port: "53"
-    source: "fe80::/10"
-    in_interface: "{{ interface_name }}"
-    jump: ACCEPT
-    ip_version: ipv6
-  become: "yes"
-  when:
-    - ansible_facts['os_family'] == 'Debian'
-
-- name: Allow dns udp
-  ansible.builtin.iptables:
-    chain: INPUT
-    protocol: udp
-    destination_port: "53"
-    source: "{{ network_prefix }}"
-    in_interface: "{{ interface_name }}"
-    jump: ACCEPT
-  become: "yes"
-  when:
-    - ansible_facts['os_family'] == 'Debian'
-
-- name: Allow dns udp ipv6
-  ansible.builtin.iptables:
-    chain: INPUT
-    protocol: udp
-    destination_port: "53"
-    source: "fe80::/10"
-    in_interface: "{{ interface_name }}"
-    jump: ACCEPT
-    ip_version: ipv6
-  become: "yes"
-  when:
-    - ansible_facts['os_family'] == 'Debian'
+- name: Allow dns
+  ansible.posix.firewalld:
+    zone: homelab
+    service: dns
+    permanent: yes
+    state: enabled
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Allow http
-  ansible.builtin.iptables:
-    chain: INPUT
-    protocol: tcp
-    destination_port: "80"
-    source: "{{ network_prefix }}"
-    in_interface: "{{ interface_name }}"
-    jump: ACCEPT
-  become: "yes"
-  when:
-    - ansible_facts['os_family'] == 'Debian'
-
-- name: Allow http ipv6
-  ansible.builtin.iptables:
-    chain: INPUT
-    protocol: tcp
-    destination_port: "80"
-    source: "fe80::/10"
-    in_interface: "{{ interface_name }}"
-    jump: ACCEPT
-    ip_version: ipv6
-  become: "yes"
-  when:
-    - ansible_facts['os_family'] == 'Debian'
+  ansible.posix.firewalld:
+    zone: homelab
+    service: http
+    permanent: yes
+    state: enabled
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Allow https
-  ansible.builtin.iptables:
-    chain: INPUT
-    protocol: tcp
-    destination_port: "443"
-    source: "{{ network_prefix }}"
-    in_interface: "{{ interface_name }}"
-    jump: ACCEPT
-  become: "yes"
-  when:
-    - ansible_facts['os_family'] == 'Debian'
+  ansible.posix.firewalld:
+    zone: homelab
+    service: https
+    permanent: yes
+    state: enabled
+  when: ansible_facts['os_family'] == 'RedHat'
 
-- name: Allow https ipv6
-  ansible.builtin.iptables:
-    chain: INPUT
-    protocol: tcp
-    destination_port: "443"
-    source: "fe80::/10"
-    in_interface: "{{ interface_name }}"
-    jump: ACCEPT
-    ip_version: ipv6
-  become: "yes"
-  when:
-    - ansible_facts['os_family'] == 'Debian'
+- name: Forward dns to container tcp
+  ansible.posix.firewalld:
+    zone: homelab
+    port_forward:
+      port: 53
+      proto: tcp
+      toaddr: 172.16.1.2
+      toport: 53
+    permanent: yes
+    state: enabled
+  when: ansible_facts['os_family'] == 'RedHat'
 
-- name: Save Iptables Rules
-  community.general.iptables_state:
-    ip_version: ipv4
-    table: filter
-    state: saved
-    path: /etc/iptables/rules.v4
-  when:
-    - ansible_facts['os_family'] == 'Debian'
+- name: Forward dns to container udp
+  ansible.posix.firewalld:
+    zone: homelab
+    port_forward:
+      port: 53
+      proto: udp
+      toaddr: 172.16.1.2
+      toport: 53
+    permanent: yes
+    state: enabled
+  when: ansible_facts['os_family'] == 'RedHat'
 
-- name: Save Iptables Rules ipv6
-  community.general.iptables_state:
-    ip_version: ipv6
-    table: filter
-    state: saved
-    path: /etc/iptables/rules.v6
-  when:
-    - ansible_facts['os_family'] == 'Debian'
+- name: Forward http to container
+  ansible.posix.firewalld:
+    zone: homelab
+    port_forward:
+      port: 80
+      proto: tcp
+      toaddr: 172.16.1.2
+      toport: 80
+    permanent: yes
+    state: enabled
+  when: ansible_facts['os_family'] == 'RedHat'
 
-- name: Set DNS server to loopback
-  ansible.builtin.lineinfile:
-    path: /etc/network/interfaces
-    regexp: "^dns-nameservers "
-    line: dns-nameservers 127.0.0.1
-  when:
-    - ansible_facts['os_family'] == 'Debian'
-
-- name: Set DNS server to loopback 2
-  ansible.builtin.lineinfile:
-    path: /etc/systemd/resolved.conf
-    regexp: "^DNS="
-    line: DNS=127.0.0.1
-  when:
-    - ansible_facts['os_family'] == 'Debian'
-
-- name: Fix resolv conf
-  ansible.builtin.template:
-    src: resolv.j2
-    dest: "/etc/resolv.conf"
-  when:
-    - ansible_facts['os_family'] == 'Debian'
+- name: Forward https to container
+  ansible.posix.firewalld:
+    zone: homelab
+    port_forward:
+      port: 443
+      proto: tcp
+      toaddr: 172.16.1.2
+      toport: 443
+    permanent: yes
+    state: enabled
+  when: ansible_facts['os_family'] == 'RedHat'
