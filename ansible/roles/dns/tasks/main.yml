@@ -15,13 +15,6 @@
   when:
     - ansible_facts['os_family'] == 'Debian'
 
-- name: Create unbound var path
-  ansible.builtin.file:
-    path: "/home/{{ user_name }}/pihole/var-lib-unbound"
-    state: directory
-  when:
-    - ansible_facts['os_family'] == 'Debian'
-
 - name: Create etc-pihole path
   ansible.builtin.file:
     path: "/home/{{ user_name }}/pihole/etc-pihole"
@@ -71,7 +64,7 @@
 - name: Download root hints
   get_url:
     url: https://www.internic.net/domain/named.root
-    dest: "/home/{{ user_name }}/pihole/var-lib-unbound/root.hints"
+    dest: "/home/{{ user_name }}/pihole/etc-unbound/root.hints"
   when:
     - ansible_facts['os_family'] == 'Debian'
 
@@ -96,75 +89,37 @@
   when:
     - ansible_facts['os_family'] == 'Debian'
 
-- name: Create Pihole Container Network
-  community.docker.docker_network:
-    name: pihole_net
-    driver: bridge
-    ipam_config:
-      - subnet: 172.16.1.0/29
+- name: Create pihole container network
+  ansible.builtin.shell:
+    cmd: |
+      podman network create --subnet 172.16.1.0/29 pihole_net
+  when: ansible_facts['os_family'] == 'Debian'
 
-- name: Pihole container
-  community.docker.docker_container:
-    name: pihole
-    image: pihole/pihole:latest
-    detach: yes
-    container_default_behavior: compatibility
-    network_mode: default
-    volumes:
-      - /home/{{ user_name }}/pihole/etc-pihole:/etc/pihole
-      - /home/{{ user_name }}/pihole/etc-dnsmasq.d:/etc/dnsmasq.d
-    mounts:
-      - type: bind
-        source: /home/{{ user_name }}/pihole/etc-lighttpd/external.conf
-        target: /etc/lighttpd/external.conf
+- name: Pihole Service
+  ansible.builtin.template:
+    src: pihole.service.j2
+    dest: "/etc/systemd/system/pihole.service"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
-      - type: bind
-        source: /home/{{ user_name }}/pihole/etc-lighttpd/cert_privkey_combined.pem
-        target: /etc/lighttpd/cert_privkey_combined.pem
-    dns_servers:
-      - 172.16.1.3
-    networks:
-      - name: pihole_net
-        ipv4_address: 172.16.1.2
-    env:
-      TZ: "America/Chicago"
-      WEBPASSWORD: "{{ web_password }}"
-    published_ports:
-      - "53:53/tcp"
-      - "53:53/udp"
-      - "443:443/tcp"
-      - "80:80/tcp"
-    restart_policy: unless-stopped
-    pull: yes
+- name: Unbound Service
+  ansible.builtin.template:
+    src: unbound_container.service.j2
+    dest: "/etc/systemd/system/unbound_container.service"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
 
-- name: Unbound container
-  community.docker.docker_container:
-    name: unbound
-    image: debian:stable-slim
-    detach: yes
-    mounts:
-      - type: bind
-        source: /home/{{ user_name }}/pihole/etc-unbound/unbound.conf
-        target: /etc/unbound/unbound.conf
+- name: Enable unbound
+  ansible.builtin.systemd:
+    name: unbound_container.service
+    enabled: yes
+  when: ansible_facts['os_family'] == 'Debian'
 
-      - type: bind
-        source: /home/{{ user_name }}/pihole/var-lib-unbound/root.hints
-        target: /var/lib/unbound/root.hints
-    dns_servers:
-      - 8.8.8.8
-      - 1.1.1.1
-    networks:
-      - name: pihole_net
-        ipv4_address: 172.16.1.3
-    env:
-      TZ: "America/Chicago"
-    published_ports:
-      - "5353:53/tcp"
-      - "5353:53/udp"
-    tty: yes
-    restart_policy: unless-stopped
-    pull: yes
-    command: bash -c "apt-get update ; DEBIAN_FRONTEND=noninteractive apt-get install -o Dpkg::Options::=--force-confold -y unbound ; apt-get autoclean ; set -e && /usr/sbin/unbound && sleep infinity"
+- name: Enable Pihole
+  ansible.builtin.systemd:
+    name: pihole.service
+    enabled: yes
+  when: ansible_facts['os_family'] == 'Debian'
 
 - name: Create Pihole DB backups path
   ansible.builtin.file:
@@ -215,6 +170,58 @@
     destination_port: "53"
     source: "{{ network_prefix }}"
     in_interface: "{{ interface_name }}"
+    jump: ACCEPT
+  become: "yes"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
+- name: Allow dns forward tcp
+  ansible.builtin.iptables:
+    chain: FORWARD
+    protocol: tcp
+    destination_port: "53"
+    source: "{{ network_prefix }}"
+    in_interface: "{{ interface_name }}"
+    destination: "172.16.1.2"
+    jump: ACCEPT
+  become: "yes"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
+- name: Allow http forward tcp
+  ansible.builtin.iptables:
+    chain: FORWARD
+    protocol: tcp
+    destination_port: "80"
+    source: "{{ network_prefix }}"
+    in_interface: "{{ interface_name }}"
+    destination: "172.16.1.2"
+    jump: ACCEPT
+  become: "yes"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
+- name: Allow https forward tcp
+  ansible.builtin.iptables:
+    chain: FORWARD
+    protocol: tcp
+    destination_port: "443"
+    source: "{{ network_prefix }}"
+    in_interface: "{{ interface_name }}"
+    destination: "172.16.1.2"
+    jump: ACCEPT
+  become: "yes"
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+
+- name: Allow dns forward udp
+  ansible.builtin.iptables:
+    chain: FORWARD
+    protocol: udp
+    destination_port: "53"
+    source: "{{ network_prefix }}"
+    in_interface: "{{ interface_name }}"
+    destination: "172.16.1.2"
     jump: ACCEPT
   become: "yes"
   when:
@@ -325,17 +332,6 @@
     path: /etc/iptables/rules.v6
   when:
     - ansible_facts['os_family'] == 'Debian'
-
-- name: Watchtower Container
-  community.docker.docker_container:
-    name: watchtower
-    image: containrrr/watchtower:latest
-    detach: yes
-    env:
-      WATCHTOWER_POLL_INTERVAL: "604800"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    pull: yes
 
 - name: Set DNS server to loopback
   ansible.builtin.lineinfile:
