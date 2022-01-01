@@ -157,38 +157,10 @@
   loop: "{{ domains_list }}"
   when: ansible_facts['os_family'] == 'RedHat'
 
-- name: Allow dns
-  ansible.posix.firewalld:
-    zone: homelab
-    service: dns
-    permanent: yes
-    state: enabled
-  when: ansible_facts['os_family'] == 'RedHat'
-
-- name: Allow http
-  ansible.posix.firewalld:
-    zone: homelab
-    service: http
-    permanent: yes
-    state: enabled
-  when: ansible_facts['os_family'] == 'RedHat'
-
-- name: Allow https
-  ansible.posix.firewalld:
-    zone: homelab
-    service: https
-    permanent: yes
-    state: enabled
-  when: ansible_facts['os_family'] == 'RedHat'
-
 - name: Forward dns to container tcp
   ansible.posix.firewalld:
     zone: homelab
-    port_forward:
-      port: 53
-      proto: tcp
-      toaddr: 172.16.1.2
-      toport: 53
+    rich_rule: rule family=ipv4 source address={{ network_prefix }}  destination address=172.16.1.2 forward-port protocol=tcp port=53 to-port=53
     permanent: yes
     state: enabled
   when: ansible_facts['os_family'] == 'RedHat'
@@ -196,11 +168,7 @@
 - name: Forward dns to container udp
   ansible.posix.firewalld:
     zone: homelab
-    port_forward:
-      port: 53
-      proto: udp
-      toaddr: 172.16.1.2
-      toport: 53
+    rich_rule: rule family=ipv4 source address={{ network_prefix }}  destination address=172.16.1.2 forward-port protocol=udp port=53 to-port=53
     permanent: yes
     state: enabled
   when: ansible_facts['os_family'] == 'RedHat'
@@ -208,11 +176,7 @@
 - name: Forward http to container
   ansible.posix.firewalld:
     zone: homelab
-    port_forward:
-      port: 80
-      proto: tcp
-      toaddr: 172.16.1.2
-      toport: 80
+    rich_rule: rule family=ipv4 source address={{ network_prefix }}  destination address=172.16.1.2 forward-port protocol=tcp port=80 to-port=80
     permanent: yes
     state: enabled
   when: ansible_facts['os_family'] == 'RedHat'
@@ -220,11 +184,7 @@
 - name: Forward https to container
   ansible.posix.firewalld:
     zone: homelab
-    port_forward:
-      port: 443
-      proto: tcp
-      toaddr: 172.16.1.2
-      toport: 443
+    rich_rule: rule family=ipv4 source address={{ network_prefix }}  destination address=172.16.1.2 forward-port protocol=tcp port=443 to-port=443
     permanent: yes
     state: enabled
   when: ansible_facts['os_family'] == 'RedHat'
