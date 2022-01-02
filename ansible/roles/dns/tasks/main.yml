@@ -104,7 +104,7 @@
 - name: Create pihole container network
   ansible.builtin.shell:
     cmd: |
-      podman network create --subnet 172.16.1.0/29 pihole_net
+      podman network create --subnet 172.16.1.0/29  --disable-dns pihole_net
   when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Pihole Service
