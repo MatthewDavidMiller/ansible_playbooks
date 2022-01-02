@@ -43,10 +43,29 @@
     state: directory
   when: ansible_facts['os_family'] == 'RedHat'
 
+- name: Create etc-dnsmasq.d path
+  ansible.builtin.file:
+    path: "/home/{{ user_name }}/pihole/etc-dnsmasq.d"
+    state: directory
+  when: ansible_facts['os_family'] == 'RedHat'
+
 - name: Rclone config path
   ansible.builtin.file:
     path: "/root/.config/rclone"
     state: directory
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Fix Systemd DNS resolver
+  ansible.builtin.lineinfile:
+    path: /etc/systemd/resolved.conf
+    regexp: "DNSStubListener="
+    line: DNSStubListener=no
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Disable Systemd resolved Service
+  ansible.builtin.systemd:
+    name: systemd-resolved.service
+    enabled: no
   when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Unbound configuration
@@ -155,36 +174,4 @@
     line: "{{ item }}"
     create: "yes"
   loop: "{{ domains_list }}"
-  when: ansible_facts['os_family'] == 'RedHat'
-
-- name: Forward dns to container tcp
-  ansible.posix.firewalld:
-    zone: homelab
-    rich_rule: rule family=ipv4 source address={{ network_prefix }}  destination address=172.16.1.2 forward-port protocol=tcp port=53 to-port=53
-    permanent: yes
-    state: enabled
-  when: ansible_facts['os_family'] == 'RedHat'
-
-- name: Forward dns to container udp
-  ansible.posix.firewalld:
-    zone: homelab
-    rich_rule: rule family=ipv4 source address={{ network_prefix }}  destination address=172.16.1.2 forward-port protocol=udp port=53 to-port=53
-    permanent: yes
-    state: enabled
-  when: ansible_facts['os_family'] == 'RedHat'
-
-- name: Forward http to container
-  ansible.posix.firewalld:
-    zone: homelab
-    rich_rule: rule family=ipv4 source address={{ network_prefix }}  destination address=172.16.1.2 forward-port protocol=tcp port=80 to-port=80
-    permanent: yes
-    state: enabled
-  when: ansible_facts['os_family'] == 'RedHat'
-
-- name: Forward https to container
-  ansible.posix.firewalld:
-    zone: homelab
-    rich_rule: rule family=ipv4 source address={{ network_prefix }}  destination address=172.16.1.2 forward-port protocol=tcp port=443 to-port=443
-    permanent: yes
-    state: enabled
   when: ansible_facts['os_family'] == 'RedHat'
