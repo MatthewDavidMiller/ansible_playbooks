@@ -11,9 +11,9 @@ TimeoutStopSec=70
 ExecStartPre=/usr/bin/podman rm --ignore -f unbound
 ExecStart=/usr/bin/podman run --cgroups=no-conmon \
           --replace --name=unbound \
-          --volume /home/{{ user_name }}/pihole/etc-unbound:/opt/unbound/etc/unbound/:z \
+          --volume /home/{{ user_name }}/pihole/etc-unbound:/opt/unbound/etc/unbound/:Z \
           --dns={{ dns_server1 }} --dns={{ dns_server2 }} --network=pihole_net --ip=172.16.1.3 \
-          -e TZ=America/Chicago -p 5353:5353/tcp -p 5353:5353/udp -d docker.io/mvance/unbound-rpi:latest
+          -e TZ=America/Chicago -p 5353:53/tcp -p 5353:53/udp -d docker.io/mvance/unbound-rpi:latest
 ExecStop=/usr/bin/podman stop --ignore unbound
 ExecStopPost=/usr/bin/podman rm --ignore -f unbound
 Type=forking
