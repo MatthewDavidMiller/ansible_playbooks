@@ -10,6 +10,39 @@
     update_cache: yes
   when: ansible_facts['os_family'] == 'OpenWrt'
 
+- name: Install rclone
+  community.general.rpm_ostree_pkg:
+    name: rclone
+    state: present
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Install cronie
+  community.general.rpm_ostree_pkg:
+    name: cronie
+    state: present
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Rclone config path
+  ansible.builtin.file:
+    path: "/root/.config/rclone"
+    state: directory
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Enable cron
+  ansible.builtin.systemd:
+    name: crond.service
+    enabled: yes
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Rclone config file
+  ansible.builtin.template:
+    src: rclone_config.j2
+    dest: "/root/.config/rclone/rclone.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  when: ansible_facts['os_family'] == 'RedHat'
+
 - name: Set default action for public to drop
   ansible.posix.firewalld:
     zone: public
@@ -104,4 +137,11 @@
     owner: root
     group: root
     mode: "0644"
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Create homelab container network
+  ansible.builtin.shell:
+    cmd: |
+      podman network create -d macvlan -o parent={{ interface_name }} --gateway={{ homelab_gateway }} --subnet {{ homelab_network }} homelab
+    ignore_errors: yes
   when: ansible_facts['os_family'] == 'RedHat'
