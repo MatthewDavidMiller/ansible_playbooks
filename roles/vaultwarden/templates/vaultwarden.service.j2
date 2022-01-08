@@ -1,0 +1,22 @@
+[Unit]
+Description=Podman container-vaultwarden.service
+Documentation=man:podman-generate-systemd(1)
+Wants=network.target
+After=network-online.target
+
+[Service]
+Environment=PODMAN_SYSTEMD_UNIT=%n
+Restart=on-failure
+TimeoutStopSec=70
+ExecStartPre=/usr/bin/podman rm --ignore vaultwarden
+ExecStartPre=/usr/bin/podman pull docker.io/vaultwarden/server:latest
+ExecStart=/usr/bin/podman run --name=vaultwarden --volume /home/{{ user_name }}/vaultwarden/vw-data:/data/:Z \
+          --volume /home/{{ user_name }}/vaultwarden/ssl_certs:/ssl_certs/:Z \
+          -e ROCKET_TLS='{certs="/ssl_certs/fullchain.pem",key="/ssl_certs/privkey.pem"}' \
+          -p 10000:80/tcp -d docker.io/vaultwarden/server:latest
+ExecStop=/usr/bin/podman stop --ignore vaultwarden
+ExecStopPost=/usr/bin/podman rm --ignore -f vaultwarden
+Type=forking
+
+[Install]
+WantedBy=multi-user.target default.target
