@@ -93,7 +93,7 @@
   ansible.builtin.shell:
     cmd: |
       podman network create --subnet 172.16.1.0/29  --disable-dns pihole_net
-    ignore_errors: yes
+  ignore_errors: true
   when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Pihole Service
