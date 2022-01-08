@@ -1,0 +1,33 @@
+[Unit]
+Description=Podman container-apcontroller.service
+Documentation=man:podman-generate-systemd(1)
+Wants=network.target
+After=network-online.target
+
+[Service]
+Environment=PODMAN_SYSTEMD_UNIT=%n
+Restart=on-failure
+TimeoutStopSec=70
+ExecStartPre=/usr/bin/podman rm --ignore apcontroller
+ExecStartPre=/usr/bin/podman pull docker.io/mbentley/omada-controller:latest-arm64
+ExecStart=/usr/bin/podman run \
+          --name=apcontroller \
+          --volume /home/{{ user_name }}/apcontroller/data:/opt/tplink/EAPController/data/:Z \
+          --volume /home/{{ user_name }}/apcontroller/work:/opt/tplink/EAPController/work/:Z \
+          --volume /home/{{ user_name }}/apcontroller/logs:/opt/tplink/EAPController/logs/:Z \
+          -e TZ=Etc/UTC \
+          -e MANAGE_HTTP_PORT=8088 \
+          -e MANAGE_HTTPS_PORT=8043 \
+          -e PORTAL_HTTP_PORT=8088 \
+          -e PORTAL_HTTPS_PORT=8843 \
+          -e SHOW_SERVER_LOGS=true \
+          -e SHOW_MONGODB_LOGS=false \
+          -p 8088:8088/tcp -p 8043:8043/tcp -p 8843:8843/tcp \
+          -p 29810:29810/udp -p 29811-29814:29811-29814/tcp \
+          -d docker.io/mbentley/omada-controller:latest-arm64
+ExecStop=/usr/bin/podman stop --ignore apcontroller
+ExecStopPost=/usr/bin/podman rm --ignore -f apcontroller
+Type=forking
+
+[Install]
+WantedBy=multi-user.target default.target
