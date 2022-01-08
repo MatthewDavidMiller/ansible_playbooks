@@ -143,5 +143,5 @@
   ansible.builtin.shell:
     cmd: |
       podman network create -d macvlan -o parent={{ interface_name }} --gateway={{ homelab_gateway }} --subnet {{ homelab_network }} homelab
-    ignore_errors: yes
+  ignore_errors: true
   when: ansible_facts['os_family'] == 'RedHat'
