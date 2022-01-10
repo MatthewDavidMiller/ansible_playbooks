@@ -1,0 +1,34 @@
+[Unit]
+Description=Podman container-wireguard.service
+Documentation=man:podman-generate-systemd(1)
+Wants=network.target
+After=network-online.target
+
+[Service]
+Environment=PODMAN_SYSTEMD_UNIT=%n
+Restart=on-failure
+TimeoutStopSec=70
+ExecStartPre=/usr/bin/podman rm --ignore wireguard
+ExecStartPre=/usr/bin/podman pull lscr.io/linuxserver/wireguard:arm64v8-latest
+ExecStart=/usr/bin/podman run --name=wireguard --volume /home/{{ user_name }}/wireguard/config:/config/:Z \
+          --volume /lib/modules:/lib/modules/:Z \
+          --cap-add=NET_ADMIN \
+          --cap-add=SYS_MODULE \
+          -e PUID=1000 \
+          -e PGID=1000 \
+          -e TZ=America/Chicago \
+          -e SERVERURL={{ public_dns_ip_address }} \
+          -e SERVERPORT={{ listen_port }} \
+          -e PEERS={{ wireguard_user_name }} \
+          -e PEERDNS={{ wireguard_dns_server }} \
+          -e INTERNAL_SUBNET={{ wireguard_server_network_prefix }} \
+          -e ALLOWEDIPS={{ wireguard_allowed_ips }} \
+          -p {{ listen_port }}:{{ listen_port }}/udp \
+          --sysctl="net.ipv4.conf.all.src_valid_mark=1" \
+          -d lscr.io/linuxserver/wireguard:arm64v8-latest
+ExecStop=/usr/bin/podman stop --ignore wireguard
+ExecStopPost=/usr/bin/podman rm --ignore -f wireguard
+Type=forking
+
+[Install]
+WantedBy=multi-user.target default.target
