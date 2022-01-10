@@ -23,6 +23,12 @@
     state: directory
   when: ansible_facts['os_family'] == 'RedHat'
 
+- name: Wireguard Module
+  ansible.builtin.template:
+    src: wireguard.module.j2
+    dest: "/etc/modules-load.d/wireguard.conf"
+  when: ansible_facts['os_family'] == 'RedHat'
+
 - name: Wireguard Service
   ansible.builtin.template:
     src: wireguard.service.j2
