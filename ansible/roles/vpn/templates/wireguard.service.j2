@@ -14,8 +14,8 @@ ExecStart=/usr/bin/podman run --name=wireguard --volume /home/{{ user_name }}/wi
           --volume /lib/modules:/lib/modules/:Z \
           --cap-add=NET_ADMIN \
           --cap-add=SYS_MODULE \
-          -e PUID=1000 \
-          -e PGID=1000 \
+          -e PUID={{ wireguard_pid }} \
+          -e PGID={{ wireguard_gid }} \
           -e TZ=America/Chicago \
           -e SERVERURL={{ public_dns_ip_address }} \
           -e SERVERPORT={{ listen_port }} \
