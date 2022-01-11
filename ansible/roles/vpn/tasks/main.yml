@@ -47,9 +47,8 @@
     dest: "/etc/ddclient.conf"
   when: ansible_facts['os_family'] == 'RedHat'
 
-- name: Enable ddclient daemon
-  ansible.builtin.lineinfile:
-    path: /etc/default/ddclient
-    regexp: "^run_daemon="
-    line: run_daemon="true"
+- name: Enable Ddclient
+  ansible.builtin.systemd:
+    name: ddclient.service
+    enabled: yes
   when: ansible_facts['os_family'] == 'RedHat'
