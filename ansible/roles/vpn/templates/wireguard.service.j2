@@ -12,8 +12,7 @@ ExecStartPre=/usr/bin/podman rm --ignore wireguard
 ExecStartPre=/usr/bin/podman pull lscr.io/linuxserver/wireguard:arm64v8-latest
 ExecStart=/usr/bin/podman run --name=wireguard --volume /home/{{ user_name }}/wireguard/config:/config/:Z \
           --volume /lib/modules:/lib/modules/:Z \
-          --cap-add=NET_ADMIN \
-          --cap-add=SYS_MODULE \
+          --privileged=true \
           -e PUID={{ wireguard_pid }} \
           -e PGID={{ wireguard_gid }} \
           -e TZ=America/Chicago \
@@ -23,7 +22,7 @@ ExecStart=/usr/bin/podman run --name=wireguard --volume /home/{{ user_name }}/wi
           -e PEERDNS={{ wireguard_dns_server }} \
           -e INTERNAL_SUBNET={{ wireguard_server_network_prefix }} \
           -e ALLOWEDIPS={{ wireguard_allowed_ips }} \
-          -p {{ listen_port }}:{{ listen_port }}/udp \
+          -p {{ listen_port }}:51820/udp \
           --sysctl="net.ipv4.conf.all.src_valid_mark=1" \
           -d lscr.io/linuxserver/wireguard:arm64v8-latest
 ExecStop=/usr/bin/podman stop --ignore wireguard
