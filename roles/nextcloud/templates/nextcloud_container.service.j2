@@ -1,0 +1,31 @@
+[Unit]
+Description=Podman container-nextcloud.service
+Documentation=man:podman-generate-systemd(1)
+Wants=network.target
+After=network-online.target
+
+[Service]
+Environment=PODMAN_SYSTEMD_UNIT=%n
+Restart=on-failure
+TimeoutStopSec=70
+ExecStartPre=/usr/bin/podman rm --ignore nextcloud
+ExecStartPre=/usr/bin/podman pull docker.io/nextcloud:latest
+ExecStart=/usr/bin/podman run \
+          --name=nextcloud \
+          --volume /home/{{ user_name }}/nextcloud/base:/var/www/html/:Z \
+          --volume /home/{{ user_name }}/nextcloud/data:/var/www/html/data/:Z \
+          --volume /home/{{ user_name }}/nextcloud/config:/var/www/html/config/:Z \
+          --volume /home/{{ user_name }}/nextcloud/apps:/var/www/html/custom_apps/:Z \
+          -e MYSQL_DATABASE={{ nextcloud_database_name }} \
+          -e MYSQL_USER={{ nextcloud_database_user }} \
+          -e MYSQL_PASSWORD={{ nextcloud_database_password }} \
+          -e NEXTCLOUD_ADMIN_USER={{ nextcloud_admin_user }} \
+          -e NEXTCLOUD_ADMIN_PASSWORD={{ nextcloud_admin_password }} \
+          -e NEXTCLOUD_TRUSTED_DOMAINS={{ nextcloud_trusted_domains }} \
+          -p {{ nextcloud_port }}:80/tcp -d docker.io/nextcloud:latest
+ExecStop=/usr/bin/podman stop --ignore nextcloud
+ExecStopPost=/usr/bin/podman rm --ignore -f nextcloud
+Type=forking
+
+[Install]
+WantedBy=multi-user.target default.target
