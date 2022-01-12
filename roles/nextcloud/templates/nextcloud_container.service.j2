@@ -19,7 +19,7 @@ ExecStart=/usr/bin/podman run \
           --volume /home/{{ user_name }}/nextcloud/apps:/var/www/html/custom_apps/:Z \
           -e MYSQL_DATABASE={{ nextcloud_database_name }} \
           -e MYSQL_USER={{ nextcloud_database_user }} \
-          -e MYSQL_PASSWORD={{ nextcloud_database_password }} \
+          -e MYSQL_PASSWORD={{ nextcloud_database_user_password }} \
           -e NEXTCLOUD_ADMIN_USER={{ nextcloud_admin_user }} \
           -e NEXTCLOUD_ADMIN_PASSWORD={{ nextcloud_admin_password }} \
           -e NEXTCLOUD_TRUSTED_DOMAINS={{ nextcloud_trusted_domains }} \
