@@ -1,98 +1,46 @@
 ---
-- name: Install nextcloud
-  ansible.builtin.shell:
-    cmd: |
-      snap install nextcloud
-  when:
-    - ansible_facts['os_family'] == 'Debian'
+- name: Mount storage for Nextcloud
+  ansible.posix.mount:
+    path: "/home/{{ user_name }}/nextcloud"
+    src: "{{ nextcloud_storage }}"
+    boot: yes
+    opts: rw,nofail
+    state: mounted
+    fstype: ext4
+  when: ansible_facts['os_family'] == 'RedHat
 
-- name: Copy ssl cert
-  ansible.builtin.copy:
-    src: "/etc/letsencrypt/live/{{ ssl_cert }}/"
-    dest: /var/snap/nextcloud/current/certs/custom/
-  when:
-    - ansible_facts['os_family'] == 'Debian'
+- name: Create Nextcloud base container path
+  ansible.builtin.file:
+    path: "/home/{{ user_name }}/nextcloud/base"
+    state: directory
+  when: ansible_facts['os_family'] == 'RedHat'
 
-- name: Install ssl cert
-  ansible.builtin.shell:
-    cmd: |
-      nextcloud.enable-https custom -s cert.pem privkey.pem chain.pem
-  become: "yes"
-  when:
-    - ansible_facts['os_family'] == 'Debian'
+- name: Create Nextcloud data container path
+  ansible.builtin.file:
+    path: "/home/{{ user_name }}/nextcloud/data"
+    state: directory
+  when: ansible_facts['os_family'] == 'RedHat'
 
-- name: Set custom domains
-  ansible.builtin.shell:
-    cmd: |
-      snap run nextcloud.occ config:system:set trusted_domains 1 --value={{ nextcloud_domain_name }}
-  become: "yes"
-  when:
-    - ansible_facts['os_family'] == 'Debian'
+- name: Create Nextcloud config container path
+  ansible.builtin.file:
+    path: "/home/{{ user_name }}/nextcloud/config"
+    state: directory
+  when: ansible_facts['os_family'] == 'RedHat'
 
-- name: Allow http
-  ansible.builtin.iptables:
-    chain: INPUT
-    protocol: tcp
-    destination_port: "80"
-    source: "{{ network_prefix }}"
-    in_interface: "{{ interface_name }}"
-    jump: ACCEPT
-  become: "yes"
-  when:
-    - ansible_facts['os_family'] == 'Debian'
+- name: Create Nextcloud apps container path
+  ansible.builtin.file:
+    path: "/home/{{ user_name }}/nextcloud/apps"
+    state: directory
+  when: ansible_facts['os_family'] == 'RedHat'
 
-- name: Allow http ipv6
-  ansible.builtin.iptables:
-    chain: INPUT
-    protocol: tcp
-    destination_port: "80"
-    source: "fe80::/10"
-    in_interface: "{{ interface_name }}"
-    jump: ACCEPT
-    ip_version: ipv6
-  become: "yes"
-  when:
-    - ansible_facts['os_family'] == 'Debian'
+- name: Nextcloud Service
+  ansible.builtin.template:
+    src: nextcloud_container.service.j2
+    dest: "/etc/systemd/system/nextcloud_container.service"
+  when: ansible_facts['os_family'] == 'RedHat'
 
-- name: Allow https
-  ansible.builtin.iptables:
-    chain: INPUT
-    protocol: tcp
-    destination_port: "443"
-    source: "{{ network_prefix }}"
-    in_interface: "{{ interface_name }}"
-    jump: ACCEPT
-  become: "yes"
-  when:
-    - ansible_facts['os_family'] == 'Debian'
-
-- name: Allow https ipv6
-  ansible.builtin.iptables:
-    chain: INPUT
-    protocol: tcp
-    destination_port: "443"
-    source: "fe80::/10"
-    in_interface: "{{ interface_name }}"
-    jump: ACCEPT
-    ip_version: ipv6
-  become: "yes"
-  when:
-    - ansible_facts['os_family'] == 'Debian'
-
-- name: Save Iptables Rules
-  community.general.iptables_state:
-    ip_version: ipv4
-    table: filter
-    state: saved
-    path: /etc/iptables/rules.v4
-  when:
-    - ansible_facts['os_family'] == 'Debian'
-
-- name: Save Iptables Rules ipv6
-  community.general.iptables_state:
-    ip_version: ipv6
-    table: filter
-    state: saved
-    path: /etc/iptables/rules.v6
-  when:
-    - ansible_facts['os_family'] == 'Debian'
+- name: Enable Nextcloud
+  ansible.builtin.systemd:
+    name: nextcloud_container.service
+    enabled: yes
+  when: ansible_facts['os_family'] == 'RedHat'
