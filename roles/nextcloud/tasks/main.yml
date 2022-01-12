@@ -1,13 +1,19 @@
 ---
 - name: Mount storage for Nextcloud
   ansible.posix.mount:
-    path: "/home/{{ user_name }}/nextcloud"
+    path: "/home/{{ user_name }}/nextcloud/data"
     src: "{{ nextcloud_storage }}"
     boot: yes
     opts: rw,nofail
     state: mounted
     fstype: ext4
   when: ansible_facts['os_family'] == 'RedHat
+
+- name: Create Mariadb database container path
+  ansible.builtin.file:
+    path: "/home/{{ user_name }}/mariadb"
+    state: directory
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Create Nextcloud base container path
   ansible.builtin.file:
@@ -31,6 +37,18 @@
   ansible.builtin.file:
     path: "/home/{{ user_name }}/nextcloud/apps"
     state: directory
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Mariadb Service
+  ansible.builtin.template:
+    src: mariadb_container.service.j2
+    dest: "/etc/systemd/system/mariadb_container.service"
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Enable Mariadb
+  ansible.builtin.systemd:
+    name: mariadb_container.service
+    enabled: yes
   when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Nextcloud Service

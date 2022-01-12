@@ -1,0 +1,24 @@
+[Unit]
+Description=Podman container-mariadb.service
+Documentation=man:podman-generate-systemd(1)
+Wants=network.target
+After=network-online.target
+
+[Service]
+Environment=PODMAN_SYSTEMD_UNIT=%n
+Restart=on-failure
+TimeoutStopSec=70
+ExecStartPre=/usr/bin/podman rm --ignore mariadb
+ExecStartPre=/usr/bin/podman pull docker.io/mariadb:latest
+ExecStart=/usr/bin/podman run \
+          --name=mariadb \
+          --volume /home/{{ user_name }}/mariadb:/var/lib/mysql/:z \
+          -e MYSQL_DATABASE={{ nextcloud_database_name }} \
+          -e MYSQL_ROOT_PASSWORD={{ nextcloud_database_password }} \
+          -d docker.io/mariadb:latest
+ExecStop=/usr/bin/podman stop --ignore mariadb
+ExecStopPost=/usr/bin/podman rm --ignore -f mariadb
+Type=forking
+
+[Install]
+WantedBy=multi-user.target default.target
