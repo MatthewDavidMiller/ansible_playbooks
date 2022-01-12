@@ -12,6 +12,7 @@ ExecStartPre=/usr/bin/podman rm --ignore nextcloud
 ExecStartPre=/usr/bin/podman pull docker.io/nextcloud:latest
 ExecStart=/usr/bin/podman run \
           --name=nextcloud \
+          --network=nextcloud_mariadb_net \
           --volume /home/{{ user_name }}/nextcloud/base:/var/www/html/:Z \
           --volume /home/{{ user_name }}/nextcloud/data:/var/www/html/data/:Z \
           --volume /home/{{ user_name }}/nextcloud/config:/var/www/html/config/:Z \
