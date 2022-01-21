@@ -3,6 +3,17 @@
 # https://techviewleo.com/list-of-ansible-os-family-distributions-facts/
 
 ---
+- name: Disable wifi and bluetooth for pi
+  ansible.builtin.blockinfile:
+    path: "/boot/config.txt"
+    block: |
+      dtoverlay=disable-wifi
+      dtoverlay=disable-bt
+    marker: "{mark}"
+    marker_begin: "# Disable wifi and bluetooth"
+    marker_end: "#=================================================================================================================="
+  when: ansible_facts['os_family'] == 'RedHat'
+
 - name: Install packages OpenWrt
   community.general.opkg:
     name: "{{ packages }}"
