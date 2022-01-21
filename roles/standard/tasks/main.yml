@@ -34,6 +34,18 @@
     enabled: yes
   when: ansible_facts['os_family'] == 'RedHat'
 
+- name: Disable zerzere service
+  ansible.builtin.systemd:
+    name: zezere_ignition.service
+    enabled: no
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Disable zerzere timer
+  ansible.builtin.systemd:
+    name: zezere_ignition.timer
+    enabled: no
+  when: ansible_facts['os_family'] == 'RedHat'
+
 - name: Rclone config file
   ansible.builtin.template:
     src: rclone_config.j2
