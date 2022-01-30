@@ -9,16 +9,16 @@
     fstype: ext4
   when: ansible_facts['os_family'] == 'RedHat'
 
-- name: Create nextcloud and mariadb container network
+- name: Create nextcloud and postgres container network
   ansible.builtin.shell:
     cmd: |
-      podman network create nextcloud_mariadb_net
+      podman network create --subnet 172.16.1.8/29 nextcloud_postgres_net
   ignore_errors: true
   when: ansible_facts['os_family'] == 'RedHat'
 
-- name: Create Mariadb database container path
+- name: Create postgres database container path
   ansible.builtin.file:
-    path: "/home/{{ user_name }}/mariadb"
+    path: "/home/{{ user_name }}/postgres"
     state: directory
   when: ansible_facts['os_family'] == 'RedHat'
 
@@ -46,15 +46,15 @@
     state: directory
   when: ansible_facts['os_family'] == 'RedHat'
 
-- name: Mariadb Service
+- name: postgres Service
   ansible.builtin.template:
-    src: mariadb_container.service.j2
-    dest: "/etc/systemd/system/mariadb_container.service"
+    src: postgres_container.service.j2
+    dest: "/etc/systemd/system/postgres_container.service"
   when: ansible_facts['os_family'] == 'RedHat'
 
-- name: Enable Mariadb
+- name: Enable postgres
   ansible.builtin.systemd:
-    name: mariadb_container.service
+    name: postgres_container.service
     enabled: yes
   when: ansible_facts['os_family'] == 'RedHat'
 

@@ -12,18 +12,19 @@ ExecStartPre=/usr/bin/podman rm --ignore nextcloud
 ExecStartPre=/usr/bin/podman pull docker.io/nextcloud:latest
 ExecStart=/usr/bin/podman run \
           --name=nextcloud \
-          --network=nextcloud_mariadb_net \
+          --network=nextcloud_postgres_net \
           --volume /home/{{ user_name }}/nextcloud/base:/var/www/html/:Z \
           --volume /home/{{ user_name }}/nextcloud/data:/var/www/html/data/:Z \
           --volume /home/{{ user_name }}/nextcloud/config:/var/www/html/config/:Z \
           --volume /home/{{ user_name }}/nextcloud/apps:/var/www/html/custom_apps/:Z \
-          -e MYSQL_DATABASE={{ nextcloud_database_name }} \
-          -e MYSQL_USER={{ nextcloud_database_user }} \
-          -e MYSQL_PASSWORD={{ nextcloud_database_user_password }} \
+          -e POSTGRES_DB={{ nextcloud_database_name }} \
+          -e POSTGRES_USER={{ nextcloud_database_user }} \
+          -e POSTGRES_PASSWORD={{ nextcloud_database_user_password }} \
           -e NEXTCLOUD_ADMIN_USER={{ nextcloud_admin_user }} \
           -e NEXTCLOUD_ADMIN_PASSWORD={{ nextcloud_admin_password }} \
           -e NEXTCLOUD_TRUSTED_DOMAINS={{ nextcloud_trusted_domains }} \
-          --requires=mariadb \
+          -e POSTGRES_HOST=172.16.1.10 \
+          --requires=postgres \
           -p {{ nextcloud_port }}:80/tcp -d docker.io/nextcloud:latest
 ExecStop=/usr/bin/podman stop --ignore nextcloud
 ExecStopPost=/usr/bin/podman rm --ignore -f nextcloud
