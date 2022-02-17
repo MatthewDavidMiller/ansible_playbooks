@@ -12,7 +12,7 @@
 - name: Create nextcloud and postgres container network
   ansible.builtin.shell:
     cmd: |
-      podman network create --subnet 172.16.1.8/29 nextcloud_postgres_net
+      podman network create --subnet 172.16.1.8/29 --disable-dns nextcloud_postgres_net
   ignore_errors: true
   when: ansible_facts['os_family'] == 'RedHat'
 
