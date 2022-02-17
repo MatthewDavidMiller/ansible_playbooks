@@ -37,38 +37,9 @@
   loop: "{{ universal_packages }}"
   when: ansible_facts['distribution'] == 'Archlinux'
 
-- name: Install packages
-  ansible.builtin.shell:
-    cmd: |
-      pacman -S --noconfirm --needed "{{ item }}"
-  loop: "{{ post_packages }}"
-  when: ansible_facts['distribution'] == 'Archlinux'
-
 - name: Set the timezone
   community.general.timezone:
     name: US/Eastern
-  when: ansible_facts['distribution'] == 'Archlinux'
-
-- name: Create sway or i3 config path
-  ansible.builtin.file:
-    path: /home/{{ user_name }}/.config/{{ wm }}
-    state: directory
-  when:
-    - ansible_facts['distribution'] == 'Archlinux'
-
-- name: Sway or i3 configuration
-  ansible.builtin.template:
-    src: sway.j2
-    dest: /home/{{ user_name }}/.config/{{ wm }}/config
-    owner: "{{ user_name }}"
-  when: ansible_facts['distribution'] == 'Archlinux'
-
-- name: Sway or i3 autostart script
-  ansible.builtin.template:
-    src: sway_autostart.j2
-    dest: /usr/local/bin/{{ wm }}_autostart.sh
-    owner: "{{ user_name }}"
-    mode: "0744"
   when: ansible_facts['distribution'] == 'Archlinux'
 
 - name: Create user profile path
@@ -77,21 +48,6 @@
     state: touch
   when:
     - ansible_facts['distribution'] == 'Archlinux'
-
-- name: Autostart sway or i3 at login
-  ansible.builtin.blockinfile:
-    path: "/home/{{ user_name }}/.bashrc"
-    block: |
-      # If running from tty1 start sway
-      if [ "$(tty)" = "/dev/tty1" ]; then
-        {{ autostart_wm }}
-      fi
-    marker: "{mark}"
-    marker_begin: "# Autostart {{ wm }}"
-    marker_end: "#=================================================================================================================="
-  when:
-    - ansible_facts['distribution'] == 'Archlinux'
-    - gdm_status == "no"
 
 - name: Flush Iptables rules
   ansible.builtin.iptables:
@@ -325,7 +281,6 @@
     enabled: yes
   when:
     - ansible_facts['distribution'] == 'Archlinux'
-    - gdm_status == "yes"
 
 - name: env backup script
   ansible.builtin.template:
@@ -453,14 +408,3 @@
     marker_end: "#=================================================================================================================="
   when:
     - ansible_facts['distribution'] == 'Archlinux'
-
-- name: Fix Java Applications in Sway
-  ansible.builtin.blockinfile:
-    path: "/home/{{ user_name }}/.bashrc"
-    block: "export _JAVA_AWT_WM_NONREPARENTING=1"
-    marker: "{mark}"
-    marker_begin: "# Fix Java Applications in Sway"
-    marker_end: "#=================================================================================================================="
-  when:
-    - ansible_facts['distribution'] == 'Archlinux'
-    - gdm_status == "no"
