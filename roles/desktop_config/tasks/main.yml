@@ -18,7 +18,7 @@
   become: "yes"
   when: ansible_facts['distribution'] == 'Archlinux'
 
-- name: Enabe multilib repo
+- name: Enable multilib repo
   ansible.builtin.blockinfile:
     path: "/etc/pacman.conf"
     block: |
@@ -37,6 +37,44 @@
   loop: "{{ universal_packages }}"
   when: ansible_facts['distribution'] == 'Archlinux'
 
+- name: Enable firewalld
+  ansible.builtin.systemd:
+    name: firewalld.service
+    enabled: no
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Set default action for public to drop
+  ansible.posix.firewalld:
+    zone: public
+    target: DROP
+    permanent: yes
+    state: present
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Disable SSH in default zone
+  ansible.posix.firewalld:
+    zone: public
+    service: ssh
+    permanent: yes
+    state: disabled
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Disable dhcpv6-client in default zone
+  ansible.posix.firewalld:
+    zone: public
+    service: dhcpv6-client
+    permanent: yes
+    state: disabled
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Disable mdns in default zone
+  ansible.posix.firewalld:
+    zone: public
+    service: mdns
+    permanent: yes
+    state: disabled
+  when: ansible_facts['distribution'] == 'Archlinux'
+
 - name: Set the timezone
   community.general.timezone:
     name: US/Eastern
@@ -48,134 +86,6 @@
     state: touch
   when:
     - ansible_facts['distribution'] == 'Archlinux'
-
-- name: Flush Iptables rules
-  ansible.builtin.iptables:
-    chain: "{{ item }}"
-    flush: yes
-  with_items: ["INPUT", "FORWARD", "OUTPUT"]
-
-- name: Allow icmp
-  ansible.builtin.iptables:
-    chain: INPUT
-    protocol: icmp
-    source: "{{ network_prefix }}"
-    in_interface: "{{ interface_name }}"
-    jump: ACCEPT
-  become: "yes"
-  when: ansible_facts['distribution'] == 'Archlinux'
-
-- name: Allow icmpv6
-  ansible.builtin.iptables:
-    chain: INPUT
-    protocol: icmpv6
-    source: "fe80::/10"
-    in_interface: "{{ interface_name }}"
-    jump: ACCEPT
-    ip_version: ipv6
-  become: "yes"
-  when: ansible_facts['distribution'] == 'Archlinux'
-
-- name: Allow loopback
-  ansible.builtin.iptables:
-    chain: INPUT
-    source: "127.0.0.1"
-    in_interface: lo
-    jump: ACCEPT
-  become: "yes"
-  when: ansible_facts['distribution'] == 'Archlinux'
-
-- name: Allow loopback ipv6
-  ansible.builtin.iptables:
-    chain: INPUT
-    source: "::1"
-    in_interface: lo
-    jump: ACCEPT
-    ip_version: ipv6
-  become: "yes"
-  when: ansible_facts['distribution'] == 'Archlinux'
-
-- name: Allow established connections
-  ansible.builtin.iptables:
-    chain: INPUT
-    ctstate: ESTABLISHED,RELATED
-    jump: ACCEPT
-  become: "yes"
-  when: ansible_facts['distribution'] == 'Archlinux'
-
-- name: Drop inbound by default
-  ansible.builtin.iptables:
-    chain: INPUT
-    policy: DROP
-  when: ansible_facts['distribution'] == 'Archlinux'
-
-- name: Allow outbound by default
-  ansible.builtin.iptables:
-    chain: OUTPUT
-    policy: ACCEPT
-  when: ansible_facts['distribution'] == 'Archlinux'
-
-- name: Drop forwarding by default
-  ansible.builtin.iptables:
-    chain: FORWARD
-    policy: DROP
-  when: ansible_facts['distribution'] == 'Archlinux'
-
-- name: Allow established connections ipv6
-  ansible.builtin.iptables:
-    chain: INPUT
-    ctstate: ESTABLISHED,RELATED
-    jump: ACCEPT
-    ip_version: ipv6
-  become: "yes"
-  when: ansible_facts['distribution'] == 'Archlinux'
-
-- name: Drop inbound by default ipv6
-  ansible.builtin.iptables:
-    chain: INPUT
-    policy: DROP
-    ip_version: ipv6
-  when: ansible_facts['distribution'] == 'Archlinux'
-
-- name: Allow outbound by default ipv6
-  ansible.builtin.iptables:
-    chain: OUTPUT
-    policy: ACCEPT
-    ip_version: ipv6
-  when: ansible_facts['distribution'] == 'Archlinux'
-
-- name: Drop forwarding by default ipv6
-  ansible.builtin.iptables:
-    chain: FORWARD
-    policy: DROP
-    ip_version: ipv6
-  when: ansible_facts['distribution'] == 'Archlinux'
-
-- name: Save Iptables Rules
-  community.general.iptables_state:
-    ip_version: ipv4
-    table: filter
-    state: saved
-    path: /etc/iptables/rules.v4
-  when: ansible_facts['distribution'] == 'Archlinux'
-
-- name: Save Iptables Rules ipv6
-  community.general.iptables_state:
-    ip_version: ipv6
-    table: filter
-    state: saved
-    path: /etc/iptables/rules.v6
-  when: ansible_facts['distribution'] == 'Archlinux'
-
-- name: Enable iptables
-  ansible.builtin.systemd:
-    name: iptables.service
-    enabled: yes
-
-- name: Enable ip6tables
-  ansible.builtin.systemd:
-    name: ip6tables.service
-    enabled: yes
 
 - name: Configure git
   ansible.builtin.shell:
@@ -230,21 +140,6 @@
     enabled: yes
   when: ansible_facts['distribution'] == 'Archlinux'
 
-- name: Getty path
-  ansible.builtin.file:
-    path: "/etc/systemd/system/getty@tty1.service.d"
-    state: directory
-  when:
-    - ansible_facts['distribution'] == 'Archlinux'
-
-- name: Autologin user
-  ansible.builtin.template:
-    src: getty_override.j2
-    dest: /etc/systemd/system/getty@tty1.service.d/override.conf
-  when:
-    - ansible_facts['distribution'] == 'Archlinux'
-    - gdm_status == "no"
-
 - name: Pacman hooks path
   ansible.builtin.file:
     path: "/etc/pacman.d/hooks"
@@ -262,6 +157,7 @@
   ansible.builtin.copy:
     src: /usr/lib/fwupd/efi/fwupdx64.efi
     dest: /boot/EFI/
+  when: ansible_facts['distribution'] == 'Archlinux'
 
 - name: reflector configuration
   ansible.builtin.template:
@@ -378,33 +274,6 @@
     block: "{{ custom_terminal_text }}"
     marker: "{mark}"
     marker_begin: "# Custom Terminal Text"
-    marker_end: "#=================================================================================================================="
-  when:
-    - ansible_facts['distribution'] == 'Archlinux'
-
-- name: Create imgview path
-  ansible.builtin.file:
-    path: /home/{{ user_name }}/.config/nnn/plugins
-    state: directory
-    owner: "{{ user_name }}"
-  when:
-    - ansible_facts['distribution'] == 'Archlinux'
-
-- name: Download imgview plugin
-  ansible.builtin.get_url:
-    url: https://raw.githubusercontent.com/jarun/nnn/master/plugins/imgview
-    dest: "/home/{{ user_name }}/.config/nnn/plugins/imgview"
-    mode: "0740"
-    owner: "{{ user_name }}"
-  when:
-    - ansible_facts['distribution'] == 'Archlinux'
-
-- name: Add imgview plugin for nnn
-  ansible.builtin.blockinfile:
-    path: "/home/{{ user_name }}/.bashrc"
-    block: "export NNN_PLUG='v:imgview'"
-    marker: "{mark}"
-    marker_begin: "# nnn plugins"
     marker_end: "#=================================================================================================================="
   when:
     - ansible_facts['distribution'] == 'Archlinux'
