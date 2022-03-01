@@ -40,7 +40,7 @@
 - name: Enable firewalld
   ansible.builtin.systemd:
     name: firewalld.service
-    enabled: no
+    enabled: yes
   when: ansible_facts['distribution'] == 'Archlinux'
 
 - name: Set default action for public to drop
