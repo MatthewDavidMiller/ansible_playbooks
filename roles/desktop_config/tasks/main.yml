@@ -90,6 +90,8 @@
   ansible.builtin.file:
     path: "/home/{{ user_name }}/.profile"
     state: touch
+  become: yes
+  become_user: "{{ user_name }}"
   when:
     - ansible_facts['distribution'] == 'Archlinux'
 
@@ -104,12 +106,23 @@
   when:
     - ansible_facts['distribution'] == 'Archlinux'
 
-- name: generate psd config
-  ansible.builtin.shell:
-    cmd: |
-      psd
+- name: Create config path
+  ansible.builtin.file:
+    path: "/home/{{ user_name }}/.config/psd/psd.conf"
+    state: touch
   become: yes
   become_user: "{{ user_name }}"
+  when:
+    - ansible_facts['distribution'] == 'Archlinux'
+
+- name: psd config
+  ansible.builtin.blockinfile:
+    path: /home/{{ user_name }}/.config/psd/psd.conf
+    marker: "{mark}"
+    marker_begin: "# Psd Config"
+    marker_end: "#=================================================================================================================="
+    block: |
+      USE_OVERLAYFS="yes"
   when: ansible_facts['distribution'] == 'Archlinux'
 
 - name: Aur build path
