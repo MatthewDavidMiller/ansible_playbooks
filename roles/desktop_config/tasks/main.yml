@@ -43,6 +43,12 @@
     enabled: yes
   when: ansible_facts['distribution'] == 'Archlinux'
 
+- name: Enable apparmor
+  ansible.builtin.systemd:
+    name: apparmor.service
+    enabled: yes
+  when: ansible_facts['distribution'] == 'Archlinux'
+
 - name: Set default action for public to drop
   ansible.posix.firewalld:
     zone: public
