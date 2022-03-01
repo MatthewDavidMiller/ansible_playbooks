@@ -93,9 +93,18 @@
       git config --global user.name {{ git_name }}
       git config --global user.email {{ email }}
       git config --global core.sshCommand "ssh -i /home/{{ user_name }}/.ssh/{{ key }} -F /dev/null"
+  become: yes
   become_user: "{{ user_name }}"
   when:
     - ansible_facts['distribution'] == 'Archlinux'
+
+- name: generate psd config
+  ansible.builtin.shell:
+    cmd: |
+      psd
+  become: yes
+  become_user: "{{ user_name }}"
+  when: ansible_facts['distribution'] == 'Archlinux'
 
 - name: Aur build path
   ansible.builtin.file:
@@ -138,6 +147,15 @@
   ansible.builtin.systemd:
     name: paccache.timer
     enabled: yes
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Enable psd
+  ansible.builtin.systemd:
+    name: psd.service
+    enabled: yes
+    scope: user
+  become: yes
+  become_user: "{{ user_name }}"
   when: ansible_facts['distribution'] == 'Archlinux'
 
 - name: Pacman hooks path
@@ -232,8 +250,7 @@
 - name: Set user home ownership to user
   ansible.builtin.shell:
     cmd: |
-      chown -R {{ user_name }} /home/{{ user_name }}
-  become_user: "{{ user_name }}"
+      chown -R {{ user_name }}:{{ user_name }} /home/{{ user_name }}
   when:
     - ansible_facts['distribution'] == 'Archlinux'
 
@@ -250,6 +267,16 @@
     path: /etc/sudoers
     regexp: '^\s*#*\s*%sudo\s*ALL=\(ALL\)\s*ALL'
     line: "%sudo   ALL=(ALL) ALL"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Allow user access to profile sync daemon
+  ansible.builtin.blockinfile:
+    path: /etc/sudoers
+    marker: "{mark}"
+    marker_begin: "# Profile sync daemon"
+    marker_end: "#=================================================================================================================="
+    block: |
+      {{ user_name }} ALL=(ALL) NOPASSWD: /usr/bin/psd-overlay-helper
   when: ansible_facts['distribution'] == 'Archlinux'
 
 - name: paru aur build

@@ -78,13 +78,6 @@
     size: "{{ var_partition_size }}"
   when: ansible_facts['distribution'] == 'Archlinux'
 
-- name: Create tmp logical volume
-  community.general.lvol:
-    vg: "{{ lvm_name }}"
-    lv: tmp
-    size: "{{ tmp_partition_size }}"
-  when: ansible_facts['distribution'] == 'Archlinux'
-
 - name: Create swap logical volume
   community.general.lvol:
     vg: "{{ lvm_name }}"
@@ -109,12 +102,6 @@
   community.general.filesystem:
     fstype: ext4
     dev: "/dev/{{ lvm_name }}/var"
-  when: ansible_facts['distribution'] == 'Archlinux'
-
-- name: Create tmp filesystem
-  community.general.filesystem:
-    fstype: ext4
-    dev: "/dev/{{ lvm_name }}/tmp"
   when: ansible_facts['distribution'] == 'Archlinux'
 
 - name: Create swap filesystem
@@ -145,12 +132,6 @@
   ansible.builtin.shell:
     cmd: |
       mount "/dev/{{ lvm_name }}/var" /mnt/var
-  when: ansible_facts['distribution'] == 'Archlinux'
-
-- name: Mount tmpFilesystem
-  ansible.builtin.shell:
-    cmd: |
-      mount "/dev/{{ lvm_name }}/tmp" /mnt/tmp
   when: ansible_facts['distribution'] == 'Archlinux'
 
 - name: Mount homeFilesystem
