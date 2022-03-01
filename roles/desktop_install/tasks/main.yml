@@ -128,10 +128,22 @@
       mount "/dev/{{ lvm_name }}/root" /mnt
   when: ansible_facts['distribution'] == 'Archlinux'
 
+- name: Create var path
+  ansible.builtin.file:
+    path: "/mnt/var"
+    state: directory
+  when: ansible_facts['distribution'] == 'Archlinux'
+
 - name: Mount varFilesystem
   ansible.builtin.shell:
     cmd: |
       mount "/dev/{{ lvm_name }}/var" /mnt/var
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Create home path
+  ansible.builtin.file:
+    path: "/mnt/home"
+    state: directory
   when: ansible_facts['distribution'] == 'Archlinux'
 
 - name: Mount homeFilesystem
