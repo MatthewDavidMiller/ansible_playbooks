@@ -327,8 +327,8 @@
 - name: Confiure firejail
   ansible.builtin.lineinfile:
     path: /etc/firejail/firecfg.config
-    regexp: ^steam
-    line: #{{ item }}
+    regexp: ^{{ item }}
+    state: absent
   loop:
     - steam
     - steam-native
