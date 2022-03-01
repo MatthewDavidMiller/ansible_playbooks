@@ -79,13 +79,6 @@
   register: var_uuid
   when: ansible_facts['distribution'] == 'Archlinux'
 
-- name: Get tmp partition uuid
-  ansible.builtin.shell:
-    cmd: |
-      blkid -o value -s UUID "/dev/{{ lvm_name }}/tmp"
-  register: tmp_uuid
-  when: ansible_facts['distribution'] == 'Archlinux'
-
 - name: Get swap partition uuid
   ansible.builtin.shell:
     cmd: |
@@ -116,7 +109,7 @@
     block: |
       UUID={{ root_uuid.stdout }} / ext4 defaults 0 0
       UUID={{ var_uuid.stdout }} /var ext4 defaults 0 0
-      UUID={{ tmp_uuid.stdout }} /tmp ext4 defaults 0 0
+      tmpfs /tmp tmpfs rw,nodev,nosuid,size=12G 0 0
       UUID={{ swap_uuid.stdout }} none swap defaults 0 0
       UUID={{ home_uuid.stdout }} /home ext4 defaults 0 0
       UUID={{ boot_uuid.stdout }} /boot vfat defaults 0 0
