@@ -1,0 +1,12 @@
+---
+- name: Create traefik container path
+  ansible.builtin.file:
+    path: "/home/{{ user_name }}/traefik"
+    state: directory
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Traefik Service
+  ansible.builtin.template:
+    src: traefik_container.service.j2
+    dest: "/etc/systemd/system/traefik_container.service"
+  when: ansible_facts['os_family'] == 'RedHat'
