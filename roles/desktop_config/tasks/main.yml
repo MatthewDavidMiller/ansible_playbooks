@@ -128,7 +128,7 @@
   ansible.builtin.file:
     path: "/home/{{ user_name }}/.profile"
     state: touch
-  owner: "{{ user_name }}"
+    owner: "{{ user_name }}"
   when:
     - ansible_facts['distribution'] == 'Archlinux'
 
@@ -147,7 +147,7 @@
   ansible.builtin.file:
     path: "/home/{{ user_name }}/.config/psd/psd.conf"
     state: touch
-  owner: "{{ user_name }}"
+    owner: "{{ user_name }}"
   when:
     - ansible_facts['distribution'] == 'Archlinux'
 
