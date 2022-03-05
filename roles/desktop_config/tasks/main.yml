@@ -26,7 +26,7 @@
       Include = /etc/pacman.d/mirrorlist
     marker: "{mark}"
     marker_begin: "# Enable multilib"
-    marker_end: "#=================================================================================================================="
+    marker_end: "# Enable multilib=================================================================================================================="
   when:
     - ansible_facts['distribution'] == 'Archlinux'
 
@@ -115,7 +115,7 @@
     marker: "{mark}"
     owner: "{{ user_name }}"
     marker_begin: "# Autostart {{ wm }}"
-    marker_end: "#=================================================================================================================="
+    marker_end: "# Autostart {{ wm }}=================================================================================================================="
   when:
     - ansible_facts['distribution'] == 'Archlinux'
 
@@ -157,7 +157,7 @@
     marker: "{mark}"
     owner: "{{ user_name }}"
     marker_begin: "# Psd Config"
-    marker_end: "#=================================================================================================================="
+    marker_end: "# Psd Config=================================================================================================================="
     block: |
       USE_OVERLAYFS="yes"
   when: ansible_facts['distribution'] == 'Archlinux'
@@ -324,7 +324,7 @@
     path: /etc/sudoers
     marker: "{mark}"
     marker_begin: "# Profile sync daemon"
-    marker_end: "#=================================================================================================================="
+    marker_end: "# Profile sync daemon=================================================================================================================="
     block: |
       {{ user_name }} ALL=(ALL) NOPASSWD: /usr/bin/psd-overlay-helper
   when: ansible_facts['distribution'] == 'Archlinux'
@@ -352,7 +352,7 @@
     owner: "{{ user_name }}"
     marker: "{mark}"
     marker_begin: "# Custom Terminal Text"
-    marker_end: "#=================================================================================================================="
+    marker_end: "# Custom Terminal Text=================================================================================================================="
   when:
     - ansible_facts['distribution'] == 'Archlinux'
 
@@ -381,7 +381,7 @@
     block: "export _JAVA_AWT_WM_NONREPARENTING=1"
     marker: "{mark}"
     marker_begin: "# Fix Java Applications in Sway"
-    marker_end: "#=================================================================================================================="
+    marker_end: " Fix Java Applications in Sway=================================================================================================================="
   when:
     - ansible_facts['distribution'] == 'Archlinux'
 
