@@ -81,6 +81,44 @@
     state: disabled
   when: ansible_facts['distribution'] == 'Archlinux'
 
+- name: Create sway or i3 config path
+  ansible.builtin.file:
+    path: /home/{{ user_name }}/.config/{{ wm }}
+    owner: "{{ user_name }}"
+    state: directory
+  when:
+    - ansible_facts['distribution'] == 'Archlinux'
+
+- name: Sway or i3 configuration
+  ansible.builtin.template:
+    src: sway.j2
+    dest: /home/{{ user_name }}/.config/{{ wm }}/config
+    owner: "{{ user_name }}"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Sway or i3 autostart script
+  ansible.builtin.template:
+    src: sway_autostart.j2
+    dest: /usr/local/bin/{{ wm }}_autostart.sh
+    owner: "{{ user_name }}"
+    mode: "0744"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Autostart sway or i3 at login
+  ansible.builtin.blockinfile:
+    path: "/home/{{ user_name }}/.bashrc"
+    block: |
+      # If running from tty1 start sway
+      if [ "$(tty)" = "/dev/tty1" ]; then
+        {{ autostart_wm }}
+      fi
+    marker: "{mark}"
+    owner: "{{ user_name }}"
+    marker_begin: "# Autostart {{ wm }}"
+    marker_end: "#=================================================================================================================="
+  when:
+    - ansible_facts['distribution'] == 'Archlinux'
+
 - name: Set the timezone
   community.general.timezone:
     name: US/Eastern
@@ -90,8 +128,7 @@
   ansible.builtin.file:
     path: "/home/{{ user_name }}/.profile"
     state: touch
-  become: yes
-  become_user: "{{ user_name }}"
+  owner: "{{ user_name }}"
   when:
     - ansible_facts['distribution'] == 'Archlinux'
 
@@ -110,8 +147,7 @@
   ansible.builtin.file:
     path: "/home/{{ user_name }}/.config/psd/psd.conf"
     state: touch
-  become: yes
-  become_user: "{{ user_name }}"
+  owner: "{{ user_name }}"
   when:
     - ansible_facts['distribution'] == 'Archlinux'
 
@@ -119,6 +155,7 @@
   ansible.builtin.blockinfile:
     path: /home/{{ user_name }}/.config/psd/psd.conf
     marker: "{mark}"
+    owner: "{{ user_name }}"
     marker_begin: "# Psd Config"
     marker_end: "#=================================================================================================================="
     block: |
@@ -128,6 +165,7 @@
 - name: Aur build path
   ansible.builtin.file:
     path: "/home/{{ user_name }}/aur"
+    owner: "{{ user_name }}"
     state: directory
   when:
     - ansible_facts['distribution'] == 'Archlinux'
@@ -207,13 +245,6 @@
     name: reflector.service
     enabled: yes
   when: ansible_facts['distribution'] == 'Archlinux'
-
-- name: Enable gdm
-  ansible.builtin.systemd:
-    name: gdm.service
-    enabled: yes
-  when:
-    - ansible_facts['distribution'] == 'Archlinux'
 
 - name: env backup script
   ansible.builtin.template:
@@ -318,6 +349,7 @@
   ansible.builtin.blockinfile:
     path: "/home/{{ user_name }}/.bashrc"
     block: "{{ custom_terminal_text }}"
+    owner: "{{ user_name }}"
     marker: "{mark}"
     marker_begin: "# Custom Terminal Text"
     marker_end: "#=================================================================================================================="
@@ -341,3 +373,28 @@
       apparmor_parser -r /etc/apparmor.d/firejail-default
       firecfg
   when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Fix Java Applications in Sway
+  ansible.builtin.blockinfile:
+    path: "/home/{{ user_name }}/.bashrc"
+    owner: "{{ user_name }}"
+    block: "export _JAVA_AWT_WM_NONREPARENTING=1"
+    marker: "{mark}"
+    marker_begin: "# Fix Java Applications in Sway"
+    marker_end: "#=================================================================================================================="
+  when:
+    - ansible_facts['distribution'] == 'Archlinux'
+
+- name: Getty path
+  ansible.builtin.file:
+    path: "/etc/systemd/system/getty@tty1.service.d"
+    state: directory
+  when:
+    - ansible_facts['distribution'] == 'Archlinux'
+
+- name: Autologin user
+  ansible.builtin.template:
+    src: getty_override.j2
+    dest: /etc/systemd/system/getty@tty1.service.d/override.conf
+  when:
+    - ansible_facts['distribution'] == 'Archlinux'
