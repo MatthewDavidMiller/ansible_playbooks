@@ -40,6 +40,8 @@ ExecStart=/usr/bin/podman run \
           -p 29813:29813/udp \
           -p 29814:29814 \
           -p 29814:29814/udp \
+          --label="traefik.http.services.apcontroller.loadbalancer.server.port=8088" \
+          --label="traefik.https.services.apcontroller.loadbalancer.server.port=8043"
           -d docker.io/mbentley/omada-controller:latest-arm64
 ExecStop=/usr/bin/podman stop --ignore apcontroller
 ExecStopPost=/usr/bin/podman rm --ignore -f apcontroller
