@@ -3,10 +3,24 @@
   ansible.builtin.file:
     path: "/home/{{ user_name }}/traefik"
     state: directory
+    owner: root
+    group: root
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Traefik config file
+  ansible.builtin.template:
+    src: traefik.j2
+    dest: "/home/{{ user_name }}/traefik.yml"
   when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Traefik Service
   ansible.builtin.template:
     src: traefik_container.service.j2
     dest: "/etc/systemd/system/traefik_container.service"
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Enable Traefik
+  ansible.builtin.systemd:
+    name: traefik_container.service
+    enabled: yes
   when: ansible_facts['os_family'] == 'RedHat'
