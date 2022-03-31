@@ -71,6 +71,18 @@
     dest: /etc/ansible/main_playbook
   when: ansible_facts['os_family'] == 'RedHat'
 
+- name: Clone reverse proxy Repo
+  ansible.builtin.git:
+    repo: https://github.com/MatthewDavidMiller/reverse_proxy.git
+    dest: "/home/{{ user_name }}/ansible_configs/git/reverse_proxy"
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Copy reverse proxy role
+  ansible.builtin.copy:
+    src: /home/{{ user_name }}/ansible_configs/git/reverse_proxy/roles
+    dest: /etc/ansible/main_playbook
+  when: ansible_facts['os_family'] == 'RedHat'
+
 - name: Clone VPN Repo
   ansible.builtin.git:
     repo: https://github.com/MatthewDavidMiller/VPN-Server-Configuration.git
