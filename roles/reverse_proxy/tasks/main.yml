@@ -1,4 +1,8 @@
 ---
+# Credits
+# https://blog.fabiancdng.com/running-nextcloud-using-docker-and-traefik/
+# https://medium.com/@containeroo/traefik-2-0-wildcard-lets-encrypt-certificates-1658370adc68
+# https://kevinquillen.com/setting-traefik-2-local-ssl-certificate
 - name: Create traefik container path
   ansible.builtin.file:
     path: "/home/{{ user_name }}/traefik"
@@ -7,10 +11,30 @@
     group: root
   when: ansible_facts['os_family'] == 'RedHat'
 
+- name: Create traefik certs path
+  ansible.builtin.file:
+    path: "/home/{{ user_name }}/traefik/certs"
+    state: directory
+    owner: root
+    group: root
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Copy cert pem file
+  ansible.builtin.copy:
+    src: "/etc/letsencrypt/live/{{ ssl_cert }}/cert.pem"
+    dest: "/home/{{ user_name }}/traefik/certs/cert.pem"
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Copy privkey pem file
+  ansible.builtin.copy:
+    src: "/etc/letsencrypt/live/{{ ssl_cert }}/privkey.pem"
+    dest: "/home/{{ user_name }}/traefik/certs/privkey.pem"
+  when: ansible_facts['os_family'] == 'RedHat'
+
 - name: Traefik config file
   ansible.builtin.template:
     src: traefik.j2
-    dest: "/home/{{ user_name }}/traefik.yml"
+    dest: "/home/{{ user_name }}/traefik/traefik.yml"
   when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Traefik Service

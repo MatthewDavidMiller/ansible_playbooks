@@ -10,9 +10,15 @@ Restart=on-failure
 TimeoutStopSec=70
 ExecStartPre=/usr/bin/podman rm --ignore traefik
 ExecStartPre=/usr/bin/podman pull docker.io/traefik:latest
-ExecStart=/usr/bin/podman run --name=traefik --volume /home/{{ user_name }}/traefik/traefik.yml::/etc/traefik/traefik.yml:Z \
+ExecStart=/usr/bin/podman run --name=traefik \
+          --volume /home/{{ user_name }}/traefik/traefik.yml:/etc/traefik/traefik.yml:Z \
+          --volume /home/{{ user_name }}/traefik/certs:/tools/certs/:Z \
           --volume /var/run/podman/podman.sock:/var/run/docker.sock:Z \
-          -p 10006:443/tcp -p 10005:80/tcp -d docker.io/traefik:latest
+          --network=nextcloud_postgres_net \
+          --label="traefik.http.routers.traefik.tls=true" \
+          --label="traefik.http.routers.traefik.tls.domains[0].main=*.{{ domain_name }}" \
+          --label="traefik.http.routers.traefik.tls.domains[0].sans=*.{{ domain_name }}" \
+          -p 80:80/tcp -p 443:443/tcp -p 10005:8080/tcp -d docker.io/traefik:latest
 ExecStop=/usr/bin/podman stop --ignore traefik
 ExecStopPost=/usr/bin/podman rm --ignore -f traefik
 Type=forking
