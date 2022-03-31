@@ -168,3 +168,9 @@
       podman network create -d macvlan -o parent={{ interface_name }} --gateway={{ homelab_gateway }} --subnet {{ homelab_network }} homelab
   ignore_errors: true
   when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Enable podman service
+  ansible.builtin.systemd:
+    name: podman.service
+    enabled: yes
+  when: ansible_facts['os_family'] == 'RedHat'
