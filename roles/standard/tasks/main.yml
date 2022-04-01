@@ -169,8 +169,23 @@
   ignore_errors: true
   when: ansible_facts['os_family'] == 'RedHat'
 
+- name: Install K3s
+  ansible.builtin.shell:
+    cmd: |
+      curl -sfL https://get.k3s.io | sh -
+  ignore_errors: true
+  when: ansible_facts['os_family'] == 'RedHat'
+
 - name: Enable podman service
   ansible.builtin.systemd:
     name: podman.service
     enabled: yes
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Create kubernetes path
+  ansible.builtin.file:
+    path: "/home/{{ user_name }}/kubernetes"
+    state: directory
+    owner: root
+    group: root
   when: ansible_facts['os_family'] == 'RedHat'
