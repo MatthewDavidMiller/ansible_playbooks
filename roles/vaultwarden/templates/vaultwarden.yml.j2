@@ -9,21 +9,20 @@ metadata:
     app: vaultwarden
   name: vaultwarden
 spec:
-
   volumes:
   - name: vaultwarden-vw-data
     hostPath:
       path: /home/{{ user_name }}/vaultwarden/vw-data
       type: Directory
 
-  - name: vaultwarden-ssl_certs
+  - name: vaultwarden-ssl-certs
     hostPath:
       path: /home/{{ user_name }}/vaultwarden/ssl_certs
       type: Directory
 
   containers:
+  - name: vaultwarden
     image: docker.io/vaultwarden/server:latest
-    name: vaultwarden
 
     env:
     - name: ROCKET_TLS
@@ -44,5 +43,5 @@ spec:
     - name: vaultwarden-vw-data
       mountPath: /data/
 
-    - name: vaultwarden-ssl_certs
+    - name: vaultwarden-ssl-certs
       mountPath: /ssl_certs/
