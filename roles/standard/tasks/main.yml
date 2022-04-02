@@ -21,14 +21,20 @@
     update_cache: yes
   when: ansible_facts['os_family'] == 'OpenWrt'
 
+- name: Install epel
+  ansible.builtin.dnf:
+    name: epel-release
+    state: present
+  when: ansible_facts['os_family'] == 'RedHat'
+
 - name: Install rclone
-  community.general.rpm_ostree_pkg:
+  ansible.builtin.dnf:
     name: rclone
     state: present
   when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Install cronie
-  community.general.rpm_ostree_pkg:
+  ansible.builtin.dnf:
     name: cronie
     state: present
   when: ansible_facts['os_family'] == 'RedHat'
@@ -43,18 +49,6 @@
   ansible.builtin.systemd:
     name: crond.service
     enabled: yes
-  when: ansible_facts['os_family'] == 'RedHat'
-
-- name: Disable zerzere service
-  ansible.builtin.systemd:
-    name: zezere_ignition.service
-    enabled: no
-  when: ansible_facts['os_family'] == 'RedHat'
-
-- name: Disable zerzere timer
-  ansible.builtin.systemd:
-    name: zezere_ignition.timer
-    enabled: no
   when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Rclone config file
@@ -153,6 +147,14 @@
     state: disabled
   when: ansible_facts['os_family'] == 'RedHat'
 
+- name: Disable cockpit in default zone
+  ansible.posix.firewalld:
+    zone: public
+    service: cockpit
+    permanent: yes
+    state: disabled
+  when: ansible_facts['os_family'] == 'RedHat'
+
 - name: SSH configuration
   ansible.builtin.template:
     src: sshd_config.j2
@@ -160,13 +162,6 @@
     owner: root
     group: root
     mode: "0644"
-  when: ansible_facts['os_family'] == 'RedHat'
-
-- name: Create homelab container network
-  ansible.builtin.shell:
-    cmd: |
-      podman network create -d macvlan -o parent={{ interface_name }} --gateway={{ homelab_gateway }} --subnet {{ homelab_network }} homelab
-  ignore_errors: true
   when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Install K3s
