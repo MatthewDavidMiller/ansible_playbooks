@@ -2,7 +2,7 @@
 # Credits
 
 - name: Install sqlite
-  community.general.rpm_ostree_pkg:
+  ansible.builtin.dnf:
     name: sqlite
     state: present
   when: ansible_facts['os_family'] == 'RedHat'
@@ -89,37 +89,6 @@
     dest: /home/{{ user_name }}/pihole/etc-pihole/setupVars.conf
   when: ansible_facts['os_family'] == 'RedHat'
 
-- name: Create pihole container network
-  ansible.builtin.shell:
-    cmd: |
-      podman network create --subnet 172.16.1.0/29  --disable-dns pihole_net
-  ignore_errors: true
-  when: ansible_facts['os_family'] == 'RedHat'
-
-- name: Pihole Service
-  ansible.builtin.template:
-    src: pihole.service.j2
-    dest: "/etc/systemd/system/pihole.service"
-  when: ansible_facts['os_family'] == 'RedHat'
-
-- name: Unbound Service
-  ansible.builtin.template:
-    src: unbound_container.service.j2
-    dest: "/etc/systemd/system/unbound_container.service"
-  when: ansible_facts['os_family'] == 'RedHat'
-
-- name: Enable unbound
-  ansible.builtin.systemd:
-    name: unbound_container.service
-    enabled: yes
-  when: ansible_facts['os_family'] == 'RedHat'
-
-- name: Enable Pihole
-  ansible.builtin.systemd:
-    name: pihole.service
-    enabled: yes
-  when: ansible_facts['os_family'] == 'RedHat'
-
 - name: Create Pihole DB backups path
   ansible.builtin.file:
     path: "/home/{{ user_name }}/pihole/database_backups"
@@ -154,4 +123,16 @@
   ansible.builtin.template:
     src: pihole.yml.j2
     dest: "/home/{{ user_name }}/kubernetes/pihole.yml"
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Pihole Service
+  ansible.builtin.template:
+    src: pihole.service.j2
+    dest: "/etc/systemd/system/pihole.service"
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Enable Pihole
+  ansible.builtin.systemd:
+    name: pihole.service
+    enabled: yes
   when: ansible_facts['os_family'] == 'RedHat'
