@@ -6,9 +6,9 @@ After=network-online.target
 [Service]
 Restart=on-failure
 TimeoutStopSec=70
-ExecStartPre=kubectl delete -f "/home/{{ user_name }}/kubernetes/nextcloud.yml"
-ExecStart=kubectl create -f "/home/{{ user_name }}/kubernetes/nextcloud.yml"
-ExecStop=kubectl delete -f "/home/{{ user_name }}/kubernetes/nextcloud.yml"
+ExecStartPre=/usr/local/bin/kubectl delete -f "/home/{{ user_name }}/kubernetes/nextcloud.yml"
+ExecStart=/usr/local/bin/kubectl create -f "/home/{{ user_name }}/kubernetes/nextcloud.yml"
+ExecStop=/usr/local/bin/kubectl delete -f "/home/{{ user_name }}/kubernetes/nextcloud.yml"
 Type=forking
 
 [Install]
