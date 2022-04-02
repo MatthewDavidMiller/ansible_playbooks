@@ -3,40 +3,40 @@
   ansible.builtin.file:
     path: "/home/{{ user_name }}/apcontroller"
     state: directory
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: Create APController data path
   ansible.builtin.file:
     path: "/home/{{ user_name }}/apcontroller/data"
     state: directory
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: Create APController work path
   ansible.builtin.file:
     path: "/home/{{ user_name }}/apcontroller/work"
     state: directory
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: Create APController logs path
   ansible.builtin.file:
     path: "/home/{{ user_name }}/apcontroller/logs"
     state: directory
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: APcontroller Service
   ansible.builtin.template:
     src: apcontroller.service.j2
     dest: "/etc/systemd/system/apcontroller.service"
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: APcontroller Pod file
   ansible.builtin.template:
     src: apcontroller.yml.j2
     dest: "/home/{{ user_name }}/kubernetes/apcontroller.yml"
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: Enable APcontroller
   ansible.builtin.systemd:
     name: apcontroller.service
     enabled: yes
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
