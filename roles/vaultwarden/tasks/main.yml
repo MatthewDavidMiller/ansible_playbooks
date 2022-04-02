@@ -3,49 +3,49 @@
   ansible.builtin.file:
     path: "/home/{{ user_name }}/vaultwarden"
     state: directory
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: Create Vaultwarden container data path
   ansible.builtin.file:
     path: "/home/{{ user_name }}/vaultwarden/vw-data"
     state: directory
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: Create Vaultwarden container ssl certs path
   ansible.builtin.file:
     path: "/home/{{ user_name }}/vaultwarden/ssl_certs"
     state: directory
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: Create Vaultwarden backups path
   ansible.builtin.file:
     path: "/home/{{ user_name }}/vaultwarden/database_backups"
     state: directory
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: Copy fullchain pem file
   ansible.builtin.copy:
     src: "/etc/letsencrypt/live/{{ ssl_cert }}/fullchain.pem"
     dest: "/home/{{ user_name }}/vaultwarden/ssl_certs/fullchain.pem"
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: Copy privkey pem file
   ansible.builtin.copy:
     src: "/etc/letsencrypt/live/{{ ssl_cert }}/privkey.pem"
     dest: "/home/{{ user_name }}/vaultwarden/ssl_certs/privkey.pem"
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: Vaultwarden Service
   ansible.builtin.template:
     src: vaultwarden.service.j2
     dest: "/etc/systemd/system/vaultwarden.service"
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: Enable Vaultwarden
   ansible.builtin.systemd:
     name: vaultwarden.service
     enabled: yes
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: Backup Database Script
   ansible.builtin.template:
@@ -54,17 +54,17 @@
     owner: root
     group: root
     mode: "0644"
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: Backup Vaultwarden Daily
   ansible.builtin.cron:
     name: "Backup Vaultwarden"
     special_time: daily
     job: /bin/bash /usr/local/bin/backup_vaultwarden_db.sh
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: Vaultwarden Pod file
   ansible.builtin.template:
     src: vaultwarden.yml.j2
     dest: "/home/{{ user_name }}/kubernetes/vaultwarden.yml"
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
