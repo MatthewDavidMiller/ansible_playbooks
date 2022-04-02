@@ -12,7 +12,7 @@
     marker: "{mark}"
     marker_begin: "# Disable wifi and bluetooth"
     marker_end: "#=================================================================================================================="
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: Install packages OpenWrt
   community.general.opkg:
@@ -25,31 +25,32 @@
   ansible.builtin.dnf:
     name: epel-release
     state: present
-  when: ansible_facts['os_family'] == 'RedHat'
+    update_cache: yes
+  when: ansible_distribution == 'Rocky'
 
 - name: Install rclone
   ansible.builtin.dnf:
     name: rclone
     state: present
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: Install cronie
   ansible.builtin.dnf:
     name: cronie
     state: present
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: Rclone config path
   ansible.builtin.file:
     path: "/root/.config/rclone"
     state: directory
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: Enable cron
   ansible.builtin.systemd:
     name: crond.service
     enabled: yes
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: Rclone config file
   ansible.builtin.template:
@@ -58,7 +59,7 @@
     owner: root
     group: root
     mode: "0644"
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: Set default action for public to drop
   ansible.posix.firewalld:
@@ -66,14 +67,14 @@
     target: DROP
     permanent: yes
     state: present
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: Create new zone and set it to drop
   ansible.posix.firewalld:
     zone: homelab
     permanent: yes
     state: present
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: Set zone to drop
   ansible.posix.firewalld:
@@ -81,7 +82,7 @@
     target: DROP
     permanent: yes
     state: present
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: Set ipv4 source for zone
   ansible.posix.firewalld:
@@ -89,7 +90,7 @@
     source: "{{ network_prefix }}"
     permanent: yes
     state: enabled
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: Set ipv6 source for zone
   ansible.posix.firewalld:
@@ -97,7 +98,7 @@
     source: "fe80::/10"
     permanent: yes
     state: enabled
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: Enable icmp block inversion
   ansible.posix.firewalld:
@@ -105,7 +106,7 @@
     icmp_block_inversion: yes
     permanent: yes
     state: enabled
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: Allow SSH
   ansible.posix.firewalld:
@@ -113,7 +114,7 @@
     service: ssh
     permanent: yes
     state: enabled
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: Allow icmp
   ansible.posix.firewalld:
@@ -121,7 +122,7 @@
     icmp_block: echo-request
     permanent: yes
     state: enabled
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: Disable SSH in default zone
   ansible.posix.firewalld:
@@ -129,7 +130,7 @@
     service: ssh
     permanent: yes
     state: disabled
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: Disable dhcpv6-client in default zone
   ansible.posix.firewalld:
@@ -137,7 +138,7 @@
     service: dhcpv6-client
     permanent: yes
     state: disabled
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: Disable mdns in default zone
   ansible.posix.firewalld:
@@ -145,7 +146,7 @@
     service: mdns
     permanent: yes
     state: disabled
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: Disable cockpit in default zone
   ansible.posix.firewalld:
@@ -153,7 +154,7 @@
     service: cockpit
     permanent: yes
     state: disabled
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: SSH configuration
   ansible.builtin.template:
@@ -162,20 +163,20 @@
     owner: root
     group: root
     mode: "0644"
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: Install K3s
   ansible.builtin.shell:
     cmd: |
       curl -sfL https://get.k3s.io | sh -
   ignore_errors: true
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: Enable podman service
   ansible.builtin.systemd:
     name: podman.service
     enabled: yes
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: Create kubernetes path
   ansible.builtin.file:
@@ -183,4 +184,4 @@
     state: directory
     owner: root
     group: root
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
