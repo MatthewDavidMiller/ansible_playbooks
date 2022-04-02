@@ -6,9 +6,9 @@ After=network-online.target
 [Service]
 Restart=on-failure
 TimeoutStopSec=70
-ExecStartPre=kubectl delete -f "/home/{{ user_name }}/kubernetes/pihole.yml"
-ExecStart=kubectl create -f "/home/{{ user_name }}/kubernetes/pihole.yml"
-ExecStop=kubectl delete -f "/home/{{ user_name }}/kubernetes/pihole.yml"
+ExecStartPre=/usr/local/bin/kubectl delete -f "/home/{{ user_name }}/kubernetes/pihole.yml"
+ExecStart=/usr/local/bin/kubectl create -f "/home/{{ user_name }}/kubernetes/pihole.yml"
+ExecStop=/usr/local/bin/kubectl delete -f "/home/{{ user_name }}/kubernetes/pihole.yml"
 Type=forking
 
 [Install]
