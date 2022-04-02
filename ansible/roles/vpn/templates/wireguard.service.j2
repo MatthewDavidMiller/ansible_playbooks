@@ -6,9 +6,9 @@ After=network-online.target
 [Service]
 Restart=on-failure
 TimeoutStopSec=70
-ExecStartPre=kubectl delete -f "/home/{{ user_name }}/kubernetes/wireguard.yml"
-ExecStart=kubectl create -f "/home/{{ user_name }}/kubernetes/wireguard.yml"
-ExecStop=kubectl delete -f "/home/{{ user_name }}/kubernetes/wireguard.yml"
+ExecStartPre=/usr/local/bin/kubectl delete -f "/home/{{ user_name }}/kubernetes/wireguard.yml"
+ExecStart=/usr/local/bin/kubectl create -f "/home/{{ user_name }}/kubernetes/wireguard.yml"
+ExecStop=/usr/local/bin/kubectl delete -f "/home/{{ user_name }}/kubernetes/wireguard.yml"
 Type=forking
 
 [Install]
