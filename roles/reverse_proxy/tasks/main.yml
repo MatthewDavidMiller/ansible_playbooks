@@ -9,7 +9,7 @@
     state: directory
     owner: root
     group: root
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: Create traefik certs path
   ansible.builtin.file:
@@ -17,34 +17,34 @@
     state: directory
     owner: root
     group: root
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: Copy cert pem file
   ansible.builtin.copy:
     src: "/etc/letsencrypt/live/{{ ssl_cert }}/cert.pem"
     dest: "/home/{{ user_name }}/traefik/certs/cert.pem"
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: Copy privkey pem file
   ansible.builtin.copy:
     src: "/etc/letsencrypt/live/{{ ssl_cert }}/privkey.pem"
     dest: "/home/{{ user_name }}/traefik/certs/privkey.pem"
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: Traefik config file
   ansible.builtin.template:
     src: traefik.j2
     dest: "/home/{{ user_name }}/traefik/traefik.yml"
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: Traefik Service
   ansible.builtin.template:
     src: traefik_container.service.j2
     dest: "/etc/systemd/system/traefik_container.service"
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
 
 - name: Enable Traefik
   ansible.builtin.systemd:
     name: traefik_container.service
     enabled: yes
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_distribution == 'Rocky'
