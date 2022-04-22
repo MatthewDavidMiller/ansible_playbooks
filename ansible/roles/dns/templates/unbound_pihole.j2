@@ -39,6 +39,7 @@ server:
     so-rcvbuf: 1m
 
     interface: 0.0.0.0
+    access-control: 172.16.1.0/29 allow
     access-control: 127.0.0.0/8 allow
 
     # Ensure privacy of local IP ranges
