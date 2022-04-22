@@ -9,52 +9,52 @@
   ansible.builtin.dnf:
     name: ddclient
     state: present
-  when: ansible_distribution == 'Rocky'
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Create Wireguard container path
   ansible.builtin.file:
     path: "/home/{{ user_name }}/wireguard"
     state: directory
-  when: ansible_distribution == 'Rocky'
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Create Wireguard container config path
   ansible.builtin.file:
     path: "/home/{{ user_name }}/wireguard/config"
     state: directory
-  when: ansible_distribution == 'Rocky'
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Wireguard Module
   ansible.builtin.template:
     src: wireguard.module.j2
     dest: "/etc/modules-load.d/wireguard.conf"
-  when: ansible_distribution == 'Rocky'
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Wireguard Service
   ansible.builtin.template:
     src: wireguard.service.j2
     dest: "/etc/systemd/system/wireguard.service"
-  when: ansible_distribution == 'Rocky'
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Enable Wireguard
   ansible.builtin.systemd:
     name: wireguard.service
     enabled: yes
-  when: ansible_distribution == 'Rocky'
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: DDClient Config
   ansible.builtin.template:
     src: ddclient_config.j2
     dest: "/etc/ddclient.conf"
-  when: ansible_distribution == 'Rocky'
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Enable Ddclient
   ansible.builtin.systemd:
     name: ddclient.service
     enabled: yes
-  when: ansible_distribution == 'Rocky'
+  when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Wireguard Pod file
   ansible.builtin.template:
     src: wireguard.yml.j2
     dest: "/home/{{ user_name }}/kubernetes/wireguard.yml"
-  when: ansible_distribution == 'Rocky'
+  when: ansible_facts['os_family'] == 'RedHat'
