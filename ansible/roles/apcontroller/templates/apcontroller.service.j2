@@ -2,16 +2,49 @@
 # https://github.com/mbentley/docker-omada-controller
 
 [Unit]
-Description=Pod container-apcontroller.service
+Description=Podman container-apcontroller.service
+Documentation=man:podman-generate-systemd(1)
 Wants=network.target
 After=network-online.target
 
 [Service]
+Environment=PODMAN_SYSTEMD_UNIT=%n
 Restart=on-failure
 TimeoutStopSec=70
-ExecStartPre=kubectl delete -f "/home/{{ user_name }}/kubernetes/apcontroller.yml"
-ExecStart=kubectl create -f "/home/{{ user_name }}/kubernetes/apcontroller.yml"
-ExecStop=kubectl delete -f "/home/{{ user_name }}/kubernetes/apcontroller.yml"
+ExecStartPre=/usr/bin/podman rm --ignore apcontroller
+ExecStartPre=/usr/bin/podman pull docker.io/mbentley/omada-controller:latest-arm64
+ExecStart=/usr/bin/podman run \
+          --name=apcontroller \
+          --network=homelab
+          --ip={{ ap_controller_ip_address }}
+          --volume /home/{{ user_name }}/apcontroller/data:/opt/tplink/EAPController/data/:Z \
+          --volume /home/{{ user_name }}/apcontroller/work:/opt/tplink/EAPController/work/:Z \
+          --volume /home/{{ user_name }}/apcontroller/logs:/opt/tplink/EAPController/logs/:Z \
+          -e TZ=Etc/UTC \
+          -e MANAGE_HTTP_PORT=8088 \
+          -e MANAGE_HTTPS_PORT=8043 \
+          -e PORTAL_HTTP_PORT=8088 \
+          -e PORTAL_HTTPS_PORT=8843 \
+          -e SHOW_SERVER_LOGS=true \
+          -e SHOW_MONGODB_LOGS=false \
+          -p 8088:8088 \
+          -p 8043:8043 \
+          -p 8843:8843 \
+          -p 29810:29810 \
+          -p 29810:29810/udp \
+          -p 29811:29811 \
+          -p 29811:29811/udp \
+          -p 29812:29812 \
+          -p 29812:29812/udp \
+          -p 29813:29813 \
+          -p 29813:29813/udp \
+          -p 29814:29814 \
+          -p 29814:29814/udp \
+          --label="traefik.http.services.apcontroller.loadbalancer.server.port=8088" \
+          --label="traefik.https.services.apcontroller.loadbalancer.server.port=8043"
+          -d docker.io/mbentley/omada-controller:latest-arm64
+ExecStop=/usr/bin/podman stop --ignore apcontroller
+ExecStopPost=/usr/bin/podman rm --ignore -f apcontroller
 Type=forking
 
 [Install]
