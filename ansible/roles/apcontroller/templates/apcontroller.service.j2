@@ -9,9 +9,9 @@ After=network-online.target
 [Service]
 Restart=on-failure
 TimeoutStopSec=70
-ExecStartPre=/usr/local/bin/kubectl delete -f "/home/{{ user_name }}/kubernetes/apcontroller.yml"
-ExecStart=/usr/local/bin/kubectl create -f "/home/{{ user_name }}/kubernetes/apcontroller.yml"
-ExecStop=/usr/local/bin/kubectl delete -f "/home/{{ user_name }}/kubernetes/apcontroller.yml"
+ExecStartPre=kubectl delete -f "/home/{{ user_name }}/kubernetes/apcontroller.yml"
+ExecStart=kubectl create -f "/home/{{ user_name }}/kubernetes/apcontroller.yml"
+ExecStop=kubectl delete -f "/home/{{ user_name }}/kubernetes/apcontroller.yml"
 Type=forking
 
 [Install]
