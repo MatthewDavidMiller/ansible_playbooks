@@ -1,18 +1,18 @@
 ---
 - name: Install ansible
-  ansible.builtin.dnf:
+  community.general.rpm_ostree_pkg:
     name: ansible
     state: present
   when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Install git
-  ansible.builtin.dnf:
+  community.general.rpm_ostree_pkg:
     name: git
     state: present
   when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Install certbot
-  ansible.builtin.dnf:
+  community.general.rpm_ostree_pkg:
     name: certbot
     state: present
   when: ansible_facts['os_family'] == 'RedHat'
