@@ -63,8 +63,8 @@ spec:
 
     dnsConfig:
       nameservers:
-        - {{ dns_server1 }}
-        - {{ dns_server2 }}
+      - {{ dns_server1 }}
+      - {{ dns_server2 }}
 
     volumeMounts:
     - name: etc-unbound
@@ -103,7 +103,7 @@ spec:
 
     dnsConfig:
       nameservers:
-        - 127.0.0.1
+      - 127.0.0.1
 
     volumeMounts:
     - name: etc-pihole
