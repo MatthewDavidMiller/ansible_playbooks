@@ -25,7 +25,6 @@ ExecStart=/usr/bin/podman run \
           -e NEXTCLOUD_TRUSTED_DOMAINS={{ nextcloud_trusted_domains }} \
           -e POSTGRES_HOST=172.16.1.10 \
           --requires=postgres \
-          --label="traefik.http.services.nextcloud.loadbalancer.server.port=10001" \
           -p {{ nextcloud_port }}:80/tcp -d docker.io/nextcloud:latest
 ExecStop=/usr/bin/podman stop --ignore nextcloud
 ExecStopPost=/usr/bin/podman rm --ignore -f nextcloud
