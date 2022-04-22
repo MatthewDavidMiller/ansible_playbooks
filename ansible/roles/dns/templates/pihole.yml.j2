@@ -5,32 +5,30 @@ kind: Pod
 metadata:
   name: pihole-annotations
   annotations:
-    bind-mount-options: "/home/{{ user_name }}/pihole/etc-dnsmasq.d:Z"
-    bind-mount-options: "/home/{{ user_name }}/pihole/etc-pihole:Z"
-    bind-mount-options: "/home/{{ user_name }}/pihole/etc-unbound:Z"
+    bind-mount-options: "/home/{{ user_name }}/pihole/etc-dnsmasq.d: Z"
+    bind-mount-options: "/home/{{ user_name }}/pihole/etc-pihole: Z"
+    bind-mount-options: "/home/{{ user_name }}/pihole/etc-unbound: Z"
   labels:
     app: pihole
   name: pihole
 spec:
-  restartPolicy: Always
-
   volumes:
   - name: etc-pihole
     hostPath:
       path: /home/{{ user_name }}/pihole/etc-pihole
       type: Directory
 
-  - name: etc-lighttpd-external
+  - name: etc-lighttpd-external.conf
     hostPath:
       path: /home/{{ user_name }}/pihole/etc-lighttpd/external.conf
       type: File
 
-  - name: etc-lighttpd-cert-privkey-combined
+  - name: etc-lighttpd-cert_privkey_combined.pem
     hostPath:
       path: /home/{{ user_name }}/pihole/etc-lighttpd/cert_privkey_combined.pem
       type: File
 
-  - name: etc-dnsmasq
+  - name: etc-dnsmasq.d
     hostPath:
       path: /home/{{ user_name }}/pihole/etc-dnsmasq.d
       type: Directory
@@ -40,14 +38,9 @@ spec:
       path: /home/{{ user_name }}/pihole/etc-unbound
       type: Directory
 
-  dnsConfig:
-    nameservers:
-      - {{ dns_server1 }}
-      - {{ dns_server2 }}
-
   containers:
-  - name: unbound
-    image: docker.io/mvance/unbound-rpi:latest
+  - image: docker.io/mvance/unbound-rpi:latest
+    name: unbound
 
     env:
     - name: TZ
@@ -68,12 +61,17 @@ spec:
         - CAP_NET_RAW
         - CAP_AUDIT_WRITE
 
+    dnsConfig:
+      nameservers:
+        - {{ dns_server1 }}
+        - {{ dns_server2 }}
+
     volumeMounts:
     - name: etc-unbound
       mountPath: /opt/unbound/etc/unbound/
 
-  - name: pihole
-    image: docker.io/pihole/pihole:latest
+  - image: docker.io/pihole/pihole:latest
+    name: pihole
 
     env:
     - name: TZ
@@ -103,15 +101,19 @@ spec:
         - CAP_NET_RAW
         - CAP_AUDIT_WRITE
 
+    dnsConfig:
+      nameservers:
+        - 127.0.0.1
+
     volumeMounts:
     - name: etc-pihole
       mountPath: /etc/pihole
 
-    - name: etc-lighttpd-external
-      mountPath: "/etc/lighttpd/external.conf:Z"
+    - name: etc-lighttpd-external.conf
+      mountPath: /etc/lighttpd/external.conf:Z
 
-    - name: etc-lighttpd-cert-privkey-combined
-      mountPath: "/etc/lighttpd/cert_privkey_combined.pem:Z"
+    - name: etc-lighttpd-cert_privkey_combined.pem
+      mountPath: /etc/lighttpd/cert_privkey_combined.pem:Z
 
-    - name: etc-dnsmasq
-      mountPath: "/etc/dnsmasq.d/:Z"
+    - name: etc-dnsmasq.d
+      mountPath: /etc/dnsmasq.d/:Z
