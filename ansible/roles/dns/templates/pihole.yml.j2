@@ -3,11 +3,10 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: pihole-annotations
   annotations:
-    bind-mount-options: "/home/{{ user_name }}/pihole/etc-dnsmasq.d: Z"
-    bind-mount-options: "/home/{{ user_name }}/pihole/etc-pihole: Z"
-    bind-mount-options: "/home/{{ user_name }}/pihole/etc-unbound: Z"
+    bind-mount-options:/home/{{ user_name }}/pihole/etc-dnsmasq.d: Z
+    bind-mount-options:/home/{{ user_name }}/pihole/etc-pihole: Z
+    bind-mount-options:/home/{{ user_name }}/pihole/etc-unbound: Z
   labels:
     app: pihole
   name: pihole
@@ -31,18 +30,17 @@ spec:
         - CAP_NET_RAW
         - CAP_AUDIT_WRITE
     volumeMounts:
-    - name: etc-unbound
-      mountPath: /opt/unbound/etc/unbound/
-
-    dnslocalhostConfig:
-      nameservers:
-      - {{ dns_server1 }}
-      - {{ dns_server2 }}
-    volumes:
-    - name: etc-unbound
-      hostPath:
-        path: /home/{{ user_name }}/pihole/etc-unbound
-        type: Directory
+    - mountPath: /opt/unbound/etc/unbound/
+      name: home-{{ user_name }}-pihole-etc-unbound-host-0
+  dnsConfig:
+    nameservers:
+    - {{ dns_server1 }}
+    - {{ dns_server2 }}
+  volumes:
+  - hostPath:
+      path: /home/{{ user_name }}/pihole/etc-unbound
+      type: Directory
+    name: home-{{ user_name }}-pihole-etc-unbound-host-0
 
   - image: docker.io/pihole/pihole:latest
     name: pihole
@@ -68,37 +66,31 @@ spec:
         - CAP_NET_RAW
         - CAP_AUDIT_WRITE
     volumeMounts:
-    - name: etc-pihole
-      mountPath: /etc/pihole
-
-    - name: etc-lighttpd-external.conf
-      mountPath: /etc/lighttpd/external.conf:Z
-
-    - name: etc-lighttpd-cert_privkey_combined.pem
-      mountPath: /etc/lighttpd/cert_privkey_combined.pem:Z
-
-    - name: etc-dnsmasq.d
-      mountPath: /etc/dnsmasq.d/:Z
-    dnsConfig:
-      nameservers:
-      - 127.0.0.1
-    volumes:
-    - name: etc-pihole
-      hostPath:
-        path: /home/{{ user_name }}/pihole/etc-pihole
-        type: Directory
-
-    - name: etc-lighttpd-external.conf
-      hostPath:
-        path: /home/{{ user_name }}/pihole/etc-lighttpd/external.conf
-        type: File
-
-    - name: etc-lighttpd-cert_privkey_combined.pem
-      hostPath:
-        path: /home/{{ user_name }}/pihole/etc-lighttpd/cert_privkey_combined.pem
-        type: File
-
-    - name: etc-dnsmasq.d
-      hostPath:
-        path: /home/{{ user_name }}/pihole/etc-dnsmasq.d
-        type: Directory
+    - mountPath: /etc/pihole
+      name: home-{{ user_name }}-pihole-etc-pihole-host-0
+    - mountPath: /etc/lighttpd/external.conf:Z
+      name: home-{{ user_name }}-pihole-etc-lighttpd-external.conf-host-1
+    - mountPath: /etc/lighttpd/cert_privkey_combined.pem:Z
+      name: home-{{ user_name }}-pihole-etc-lighttpd-cert_privkey_combined.pem-host-2
+    - mountPath: /etc/dnsmasq.d/
+      name: home-{{ user_name }}-pihole-etc-dnsmasq.d-host-3
+  dnsConfig:
+    nameservers:
+    - localhost
+  volumes:
+  - hostPath:
+      path: /home/{{ user_name }}/pihole/etc-pihole
+      type: Directory
+    name: home-{{ user_name }}-pihole-etc-pihole-host-0
+  - hostPath:
+      path: /home/{{ user_name }}/pihole/etc-lighttpd/external.conf
+      type: File
+    name: home-{{ user_name }}-pihole-etc-lighttpd-external.conf-host-1
+  - hostPath:
+      path: /home/{{ user_name }}/pihole/etc-lighttpd/cert_privkey_combined.pem
+      type: File
+    name: home-{{ user_name }}-pihole-etc-lighttpd-cert_privkey_combined.pem-host-2
+  - hostPath:
+      path: /home/{{ user_name }}/pihole/etc-dnsmasq.d
+      type: Directory
+    name: home-{{ user_name }}-pihole-etc-dnsmasq.d-host-3
