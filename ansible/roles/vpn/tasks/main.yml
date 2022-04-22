@@ -52,9 +52,3 @@
     name: ddclient.service
     enabled: yes
   when: ansible_facts['os_family'] == 'RedHat'
-
-- name: Wireguard Pod file
-  ansible.builtin.template:
-    src: wireguard.yml.j2
-    dest: "/home/{{ user_name }}/kubernetes/wireguard.yml"
-  when: ansible_facts['os_family'] == 'RedHat'
