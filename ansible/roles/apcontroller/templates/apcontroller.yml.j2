@@ -3,35 +3,29 @@ apiVersion: v1
 kind: Pod
 metadata:
   annotations:
-    bind-mount-options: "/home/{{ user_name }}/apcontroller/data:Z"
-    bind-mount-options: "/home/{{ user_name }}/apcontroller/logs:Z"
-    bind-mount-options: "/home/{{ user_name }}/apcontroller/work:Z"
+    bind-mount-options:/home/{{ user_name }}/apcontroller/data: Z
+    bind-mount-options:/home/{{ user_name }}/apcontroller/logs: Z
+    bind-mount-options:/home/{{ user_name }}/apcontroller/work: Z
   labels:
     app: apcontroller
   name: apcontroller
 spec:
-  hostNetwork: true
-
-  volumes:
-    - name: apcontroller-data
-      hostPath:
-        path: /home/{{ user_name }}/apcontroller/data
-        type: Directory
-
-    - name: apcontroller-work
-      hostPath:
-        path: /home/{{ user_name }}/apcontroller/work
-        type: Directory
-
-    - name: apcontroller-logs
-      hostPath:
-        path: /home/{{ user_name }}/apcontroller/logs
-        type: Directory
-
   containers:
-    - name: apcontroller
+    - args:
+        - /usr/bin/java
+        - -server
+        - -Xms128m
+        - -Xmx1024m
+        - -XX:MaxHeapFreeRatio=60
+        - -XX:MinHeapFreeRatio=30
+        - -XX:+HeapDumpOnOutOfMemoryError
+        - -XX:HeapDumpPath=/opt/tplink/EAPController/logs/java_heapdump.hprof
+        - -Djava.awt.headless=true
+        - -cp
+        - "/opt/tplink/EAPController/lib/*::/opt/tplink/EAPController/properties:"
+        - com.tplink.smb.omada.starter.OmadaLinuxMain
       image: docker.io/mbentley/omada-controller:latest-arm64
-
+      name: apcontroller
       env:
       - name: TZ
         value: "Etc/UTC"
@@ -47,7 +41,6 @@ spec:
         value: "true"
       - name: SHOW_MONGODB_LOGS
         value: "false"
-
       ports:
         - containerPort: 8088
           hostPort: 8088
@@ -87,11 +80,22 @@ spec:
             - CAP_NET_RAW
             - CAP_AUDIT_WRITE
       volumeMounts:
-        - name: apcontroller-data
-          mountPath: /opt/tplink/EAPController/data/
-
-        - name: apcontroller-work
-          mountPath: /opt/tplink/EAPController/work/
-
-        - name: apcontroller-logs
-          mountPath: /opt/tplink/EAPController/logs/
+        - mountPath: /opt/tplink/EAPController/data/
+          name: home-{{ user_name }}-apcontroller-data-host-0
+        - mountPath: /opt/tplink/EAPController/work/
+          name: home-{{ user_name }}-apcontroller-work-host-1
+        - mountPath: /opt/tplink/EAPController/logs/
+          name: home-{{ user_name }}-apcontroller-logs-host-2
+  volumes:
+    - hostPath:
+        path: /home/{{ user_name }}/apcontroller/data
+        type: Directory
+      name: home-{{ user_name }}-apcontroller-data-host-0
+    - hostPath:
+        path: /home/{{ user_name }}/apcontroller/work
+        type: Directory
+      name: home-{{ user_name }}-apcontroller-work-host-1
+    - hostPath:
+        path: /home/{{ user_name }}/apcontroller/logs
+        type: Directory
+      name: home-{{ user_name }}-apcontroller-logs-host-2
