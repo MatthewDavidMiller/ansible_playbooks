@@ -29,12 +29,6 @@
     dest: "/etc/systemd/system/apcontroller.service"
   when: ansible_facts['os_family'] == 'RedHat'
 
-- name: APcontroller Pod file
-  ansible.builtin.template:
-    src: apcontroller.yml.j2
-    dest: "/home/{{ user_name }}/kubernetes/apcontroller.yml"
-  when: ansible_facts['os_family'] == 'RedHat'
-
 - name: Enable APcontroller
   ansible.builtin.systemd:
     name: apcontroller.service
