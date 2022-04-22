@@ -3,14 +3,6 @@
 # https://techviewleo.com/list-of-ansible-os-family-distributions-facts/
 
 ---
-- name: Create boot config file
-  ansible.builtin.file:
-    path: "/boot/config.txt"
-    state: touch
-    owner: root
-    group: root
-  when: ansible_distribution == 'Rocky'
-
 - name: Disable wifi and bluetooth for pi
   ansible.builtin.blockinfile:
     path: "/boot/config.txt"
@@ -164,14 +156,6 @@
     state: disabled
   when: ansible_distribution == 'Rocky'
 
-- name: Create sshd_config.d path
-  ansible.builtin.file:
-    path: "/etc/ssh/sshd_config.d"
-    state: directory
-    owner: root
-    group: root
-  when: ansible_distribution == 'Rocky'
-
 - name: SSH configuration
   ansible.builtin.template:
     src: sshd_config.j2
@@ -188,18 +172,16 @@
   ignore_errors: true
   when: ansible_distribution == 'Rocky'
 
+- name: Enable podman service
+  ansible.builtin.systemd:
+    name: podman.service
+    enabled: yes
+  when: ansible_distribution == 'Rocky'
+
 - name: Create kubernetes path
   ansible.builtin.file:
     path: "/home/{{ user_name }}/kubernetes"
     state: directory
-    owner: root
-    group: root
-  when: ansible_distribution == 'Rocky'
-
-- name: boot cmdline configuration
-  ansible.builtin.template:
-    src: cmdline.txt.j2
-    dest: /boot/cmdline.txt
     owner: root
     group: root
   when: ansible_distribution == 'Rocky'
