@@ -1,0 +1,27 @@
+[Unit]
+Description=Podman container-postgres.service
+Documentation=man:podman-generate-systemd(1)
+Wants=network.target
+After=network-online.target
+
+[Service]
+Environment=PODMAN_SYSTEMD_UNIT=%n
+Restart=on-failure
+TimeoutStopSec=70
+ExecStartPre=/usr/bin/podman rm --ignore postgres
+ExecStartPre=/usr/bin/podman pull docker.io/postgres:latest
+ExecStart=/usr/bin/podman run \
+          --name=postgres \
+          --network=nextcloud_postgres_net \
+          --ip=172.16.1.10 \
+          --volume /home/{{ user_name }}/postgres:/var/lib/postgresql/data/:Z \
+          --env POSTGRES_USER={{ nextcloud_database_user }} \
+          --env POSTGRES_PASSWORD={{ nextcloud_database_user_password }} \
+          -e POSTGRES_DB={{ nextcloud_database_name }} \
+          -d docker.io/postgres:latest
+ExecStop=/usr/bin/podman stop --ignore postgres
+ExecStopPost=/usr/bin/podman rm --ignore -f postgres
+Type=forking
+
+[Install]
+WantedBy=multi-user.target default.target
