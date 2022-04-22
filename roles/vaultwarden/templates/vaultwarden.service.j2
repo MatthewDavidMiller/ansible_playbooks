@@ -13,7 +13,6 @@ ExecStartPre=/usr/bin/podman pull docker.io/vaultwarden/server:latest
 ExecStart=/usr/bin/podman run --name=vaultwarden --volume /home/{{ user_name }}/vaultwarden/vw-data:/data/:Z \
           --volume /home/{{ user_name }}/vaultwarden/ssl_certs:/ssl_certs/:Z \
           -e ROCKET_TLS='{certs="/ssl_certs/fullchain.pem",key="/ssl_certs/privkey.pem"}' \
-          --label="traefik.https.services.vaultwarden.loadbalancer.server.port=10000" \
           -p 10000:80/tcp -d docker.io/vaultwarden/server:latest
 ExecStop=/usr/bin/podman stop --ignore vaultwarden
 ExecStopPost=/usr/bin/podman rm --ignore -f vaultwarden
