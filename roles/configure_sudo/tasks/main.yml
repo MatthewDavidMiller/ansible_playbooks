@@ -1,0 +1,20 @@
+---
+- name: Add sudo group
+  ansible.builtin.group:
+    name: sudo
+    state: present
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Add user to sudo group
+  ansible.builtin.user:
+    name: "{{ user_name }}"
+    groups: sudo
+    append: yes
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Allow sudo group in sudo
+  ansible.builtin.lineinfile:
+    path: /etc/sudoers
+    regexp: '^\s*#*\s*%sudo\s*ALL=\(ALL\)\s*ALL'
+    line: "%sudo   ALL=(ALL) ALL"
+  when: ansible_facts['distribution'] == 'Archlinux'

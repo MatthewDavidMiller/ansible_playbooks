@@ -1,0 +1,6 @@
+---
+- name: Enable firewalld
+  ansible.builtin.systemd:
+    name: firewalld.service
+    enabled: yes
+  when: ansible_facts['distribution'] == 'Archlinux'

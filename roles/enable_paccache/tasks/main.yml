@@ -1,0 +1,6 @@
+---
+- name: Enable paccache
+  ansible.builtin.systemd:
+    name: paccache.timer
+    enabled: yes
+  when: ansible_facts['distribution'] == 'Archlinux'

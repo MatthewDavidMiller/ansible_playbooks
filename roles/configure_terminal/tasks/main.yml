@@ -1,0 +1,11 @@
+---
+- name: Add terminal text
+  ansible.builtin.blockinfile:
+    path: "/home/{{ user_name }}/.bashrc"
+    block: "{{ custom_terminal_text }}"
+    owner: "{{ user_name }}"
+    marker: "{mark}"
+    marker_begin: "# Custom Terminal Text"
+    marker_end: "# Custom Terminal Text=================================================================================================================="
+  when:
+    - ansible_facts['distribution'] == 'Archlinux'

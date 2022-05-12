@@ -1,0 +1,38 @@
+---
+- name: Create config path
+  ansible.builtin.file:
+    path: "/home/{{ user_name }}/.config/psd/psd.conf"
+    state: touch
+    owner: "{{ user_name }}"
+  when:
+    - ansible_facts['distribution'] == 'Archlinux'
+
+- name: psd config
+  ansible.builtin.blockinfile:
+    path: /home/{{ user_name }}/.config/psd/psd.conf
+    marker: "{mark}"
+    owner: "{{ user_name }}"
+    marker_begin: "# Psd Config"
+    marker_end: "# Psd Config=================================================================================================================="
+    block: |
+      USE_OVERLAYFS="yes"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Enable psd
+  ansible.builtin.systemd:
+    name: psd.service
+    enabled: yes
+    scope: user
+  become: yes
+  become_user: "{{ user_name }}"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Allow user access to profile sync daemon
+  ansible.builtin.blockinfile:
+    path: /etc/sudoers
+    marker: "{mark}"
+    marker_begin: "# Profile sync daemon"
+    marker_end: "# Profile sync daemon=================================================================================================================="
+    block: |
+      {{ user_name }} ALL=(ALL) NOPASSWD: /usr/bin/psd-overlay-helper
+  when: ansible_facts['distribution'] == 'Archlinux'

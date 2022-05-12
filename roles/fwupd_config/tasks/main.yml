@@ -1,0 +1,12 @@
+---
+- name: fwupd configuration
+  ansible.builtin.template:
+    src: fwupd.j2
+    dest: /etc/pacman.d/hooks/fwupd-to-esp.hook
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: fwupd copy
+  ansible.builtin.copy:
+    src: /usr/lib/fwupd/efi/fwupdx64.efi
+    dest: /boot/EFI/
+  when: ansible_facts['distribution'] == 'Archlinux'

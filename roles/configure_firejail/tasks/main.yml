@@ -1,0 +1,19 @@
+---
+- name: Confiure firejail
+  ansible.builtin.lineinfile:
+    path: /etc/firejail/firecfg.config
+    regexp: ^{{ item }}
+    state: absent
+  loop:
+    - steam
+    - steam-native
+    - steam-runtime
+    - code
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Enable firejail by default
+  ansible.builtin.shell:
+    cmd: |
+      apparmor_parser -r /etc/apparmor.d/firejail-default
+      firecfg
+  when: ansible_facts['distribution'] == 'Archlinux'
