@@ -1,0 +1,5 @@
+---
+- name: Set the timezone
+  community.general.timezone:
+    name: US/Eastern
+  when: ansible_facts['distribution'] == 'Archlinux'

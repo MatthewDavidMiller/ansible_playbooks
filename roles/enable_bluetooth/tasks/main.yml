@@ -1,0 +1,6 @@
+---
+- name: Enable bluetooth
+  ansible.builtin.systemd:
+    name: bluetooth.service
+    enabled: yes
+  when: ansible_facts['distribution'] == 'Archlinux'
