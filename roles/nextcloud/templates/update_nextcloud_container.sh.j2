@@ -1,0 +1,6 @@
+podman stop --ignore nextcloud
+podman rm --ignore -f nextcloud
+podman pull docker.io/nextcloud:latest
+podman stop --ignore postgres
+podman rm --ignore -f postgres
+podman pull docker.io/postgres:latest
