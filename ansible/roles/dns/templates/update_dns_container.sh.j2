@@ -1,0 +1,6 @@
+podman stop --ignore unbound
+podman rm --ignore -f unbound
+podman pull docker.io/mvance/unbound-rpi:latest
+podman stop --ignore pihole
+podman rm --ignore pihole
+podman pull docker.io/pihole/pihole:latest
