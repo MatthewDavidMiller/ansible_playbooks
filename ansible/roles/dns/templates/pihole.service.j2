@@ -9,7 +9,6 @@ Environment=PODMAN_SYSTEMD_UNIT=%n
 Restart=on-failure
 TimeoutStopSec=70
 ExecStartPre=/usr/bin/podman rm --ignore pihole
-ExecStartPre=/usr/bin/podman pull docker.io/pihole/pihole:latest
 ExecStart=/usr/bin/podman run --name=pihole --volume /home/{{ user_name }}/pihole/etc-pihole:/etc/pihole:Z \
           --volume /home/{{ user_name }}/pihole/etc-dnsmasq.d:/etc/dnsmasq.d/:Z \
           --mount type=bind,source=/home/{{ user_name }}/pihole/etc-lighttpd/external.conf,destination=/etc/lighttpd/external.conf:Z \
