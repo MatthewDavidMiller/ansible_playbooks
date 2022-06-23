@@ -12,7 +12,6 @@ Environment=PODMAN_SYSTEMD_UNIT=%n
 Restart=on-failure
 TimeoutStopSec=70
 ExecStartPre=/usr/bin/podman rm --ignore apcontroller
-ExecStartPre=/usr/bin/podman pull docker.io/mbentley/omada-controller:latest-arm64
 ExecStart=/usr/bin/podman run \
           --name=apcontroller \
           --network=homelab
