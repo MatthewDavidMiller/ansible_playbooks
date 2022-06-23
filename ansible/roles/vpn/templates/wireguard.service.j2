@@ -9,7 +9,6 @@ Environment=PODMAN_SYSTEMD_UNIT=%n
 Restart=on-failure
 TimeoutStopSec=70
 ExecStartPre=/usr/bin/podman rm --ignore wireguard
-ExecStartPre=/usr/bin/podman pull docker.io/linuxserver/wireguard:arm64v8-latest
 ExecStart=/usr/bin/podman run --name=wireguard --volume /home/{{ user_name }}/wireguard/config:/config/:Z \
           --volume /lib/modules:/lib/modules/:Z \
           --privileged=true \
