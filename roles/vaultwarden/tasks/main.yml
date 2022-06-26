@@ -62,3 +62,15 @@
     special_time: daily
     job: /bin/bash /usr/local/bin/backup_vaultwarden_db.sh
   when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Vaultwarden script
+  ansible.builtin.template:
+    src: vaultwarden.sh.j2
+    dest: "/usr/local/bin/vaultwarden.sh"
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Update vaultwarden container script
+  ansible.builtin.template:
+    src: update_vaultwarden_container.sh.j2
+    dest: "/usr/local/bin/update_vaultwarden_container.sh"
+  when: ansible_facts['os_family'] == 'RedHat'
