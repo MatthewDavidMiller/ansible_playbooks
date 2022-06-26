@@ -52,3 +52,15 @@
     name: ddclient.service
     enabled: yes
   when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Wireguard script
+  ansible.builtin.template:
+    src: wireguard.sh.j2
+    dest: "/usr/local/bin/wireguard.sh"
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Update wireguard container
+  ansible.builtin.template:
+    src: update_wireguard_container.sh.j2
+    dest: "/usr/local/bin/update_wireguard_container.sh"
+  when: ansible_facts['os_family'] == 'RedHat'
