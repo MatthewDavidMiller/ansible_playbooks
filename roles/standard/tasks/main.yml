@@ -6,6 +6,7 @@
 - name: Disable wifi and bluetooth for pi
   ansible.builtin.blockinfile:
     path: "/boot/config.txt"
+    create: "yes"
     block: |
       dtoverlay=disable-wifi
       dtoverlay=disable-bt
@@ -22,13 +23,13 @@
   when: ansible_facts['os_family'] == 'OpenWrt'
 
 - name: Install rclone
-  community.general.rpm_ostree_pkg:
+  ansible.builtin.yum:
     name: rclone
     state: present
   when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Install cronie
-  community.general.rpm_ostree_pkg:
+  ansible.builtin.yum:
     name: cronie
     state: present
   when: ansible_facts['os_family'] == 'RedHat'
