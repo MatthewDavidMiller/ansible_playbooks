@@ -25,7 +25,7 @@
 
 - name: Wireguard Module
   ansible.builtin.template:
-    src: wireguard.module.j2
+    src: wireguard_module.j2
     dest: "/etc/modules-load.d/wireguard.conf"
   when: ansible_facts['os_family'] == 'RedHat'
 
