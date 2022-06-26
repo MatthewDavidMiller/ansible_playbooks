@@ -34,3 +34,15 @@
     name: apcontroller.service
     enabled: yes
   when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Apcontroller script
+  ansible.builtin.template:
+    src: apcontroller.sh.j2
+    dest: "/usr/local/bin/apcontroller.sh"
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Update apcontroller container script
+  ansible.builtin.template:
+    src: update_apcontroller_container.sh.j2
+    dest: "/usr/local/bin/update_apcontroller_container.sh"
+  when: ansible_facts['os_family'] == 'RedHat'
