@@ -81,3 +81,9 @@
     src: postgres_container.sh.j2
     dest: "/usr/local/bin/postgres_container.sh"
   when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Update Nextcloud Container script
+  ansible.builtin.template:
+    src: update_nextcloud_container.sh.j2
+    dest: "/usr/local/bin/update_nextcloud_container.sh"
+  when: ansible_facts['os_family'] == 'RedHat'
