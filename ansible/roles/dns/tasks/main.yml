@@ -149,3 +149,21 @@
     create: "yes"
   loop: "{{ domains_list }}"
   when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Unbound script
+  ansible.builtin.template:
+    src: unbound_container.sh.j2
+    dest: "/usr/local/bin/unbound_container.sh"
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Pihole script
+  ansible.builtin.template:
+    src: pihole.sh.j2
+    dest: "/usr/local/bin/pihole.sh"
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Update DNS Container script
+  ansible.builtin.template:
+    src: update_dns_container.sh.j2
+    dest: "/usr/local/bin/update_dns_container.sh"
+  when: ansible_facts['os_family'] == 'RedHat'
