@@ -1,7 +1,7 @@
 /usr/bin/podman run \
 --name=apcontroller \
---network=homelab
---ip={{ ap_controller_ip_address }}
+--network=homelab \
+--ip={{ ap_controller_ip_address }} \
 --volume /home/{{ user_name }}/apcontroller/data:/opt/tplink/EAPController/data/:Z \
 --volume /home/{{ user_name }}/apcontroller/work:/opt/tplink/EAPController/work/:Z \
 --volume /home/{{ user_name }}/apcontroller/logs:/opt/tplink/EAPController/logs/:Z \
