@@ -1,14 +1,4 @@
 ---
-- name: Mount storage for Nextcloud
-  ansible.posix.mount:
-    path: "/home/{{ user_name }}/nextcloud/data"
-    src: "{{ nextcloud_storage }}"
-    boot: yes
-    opts: rw,nofail
-    state: mounted
-    fstype: ext4
-  when: ansible_facts['os_family'] == 'RedHat'
-
 - name: Create nextcloud and postgres container network
   ansible.builtin.shell:
     cmd: |
