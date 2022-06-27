@@ -1,6 +1,7 @@
 # Credits
 # https://www.decodingdevops.com/ansible-when-file-exists/
 # https://techviewleo.com/list-of-ansible-os-family-distributions-facts/
+# https://www.jeffgeerling.com/blog/2021/taking-control-pi-poe-hats-overly-aggressive-fan
 
 ---
 - name: Disable wifi and bluetooth for pi
@@ -12,6 +13,20 @@
       dtoverlay=disable-bt
     marker: "{mark}"
     marker_begin: "# Disable wifi and bluetooth"
+    marker_end: "#=================================================================================================================="
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Adjust POE hat speeds for pi
+  ansible.builtin.blockinfile:
+    path: "/boot/config.txt"
+    create: "yes"
+    block: |
+      dtparam=poe_fan_temp0=50000
+      dtparam=poe_fan_temp1=60000
+      dtparam=poe_fan_temp2=70000
+      dtparam=poe_fan_temp3=80000
+    marker: "{mark}"
+    marker_begin: "# PoE Hat Fan Speeds"
     marker_end: "#=================================================================================================================="
   when: ansible_facts['os_family'] == 'RedHat'
 
