@@ -184,3 +184,21 @@
       podman network create -d macvlan -o parent={{ interface_name }} --gateway={{ homelab_gateway }} --subnet {{ homelab_network }} homelab
   ignore_errors: true
   when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Update System Script
+  ansible.builtin.template:
+    src: update_system.j2
+    dest: "/usr/local/bin/update_system.sh"
+    owner: root
+    group: root
+    mode: "0644"
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Update System Weekly
+  ansible.builtin.cron:
+    name: "Update System Weekly"
+    minute: 0
+    hour: 4
+    weekday: 6
+    job: /bin/bash /usr/local/bin/update_system.sh
+  when: ansible_facts['os_family'] == 'RedHat'
