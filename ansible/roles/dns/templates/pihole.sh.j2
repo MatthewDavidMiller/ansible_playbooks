@@ -4,15 +4,12 @@
 --volume /home/{{ user_name }}/pihole/etc-dnsmasq.d:/etc/dnsmasq.d/:Z \
 --mount type=bind,source=/home/{{ user_name }}/pihole/etc-lighttpd/external.conf,destination=/etc/lighttpd/external.conf:Z \
 --mount type=bind,source=/home/{{ user_name }}/pihole/etc-lighttpd/cert_privkey_combined.pem,destination=/etc/lighttpd/cert_privkey_combined.pem:Z \
---dns=172.16.1.3 \
---network=pihole_net \
---ip=172.16.1.2 \
+--dns=208.67.222.222 \
+--dns=208.67.220.220 \
+--network homelab:ip={{ pihole_ip_address }} \
 -e TZ=America/Chicago \
 --label="traefik.http.services.pihole.loadbalancer.server.port=80" \
 --label="traefik.https.services.pihole.loadbalancer.server.port=443" \
--e WEBPASSWORD={{ web_password }} \
--p 53:53/tcp \
--p 53:53/udp \
--p 443:443/tcp \
--p 80:80/tcp \
+-e DNSMASQ_USER=root \
+-e PIHOLE_UID=0 \
 -d docker.io/pihole/pihole:latest
