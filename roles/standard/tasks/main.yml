@@ -159,6 +159,22 @@
     state: disabled
   when: ansible_facts['os_family'] == 'RedHat'
 
+- name: Disable SSH in default zone 2
+  ansible.posix.firewalld:
+    zone: public
+    port: 22/tcp
+    permanent: yes
+    state: disabled
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Disable cockpit in default zone
+  ansible.posix.firewalld:
+    zone: public
+    service: cockpit
+    permanent: yes
+    state: disabled
+  when: ansible_facts['os_family'] == 'RedHat'
+
 - name: Disable dhcpv6-client in default zone
   ansible.posix.firewalld:
     zone: public
