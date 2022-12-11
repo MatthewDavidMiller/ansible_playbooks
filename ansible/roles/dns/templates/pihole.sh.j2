@@ -8,6 +8,7 @@
 --dns=208.67.220.220 \
 --network homelab:ip={{ pihole_ip_address }} \
 -e TZ=America/Chicago \
+-e WEBPASSWORD="{{ web_password }}" \
 --label="traefik.http.services.pihole.loadbalancer.server.port=80" \
 --label="traefik.https.services.pihole.loadbalancer.server.port=443" \
 -e DNSMASQ_USER=root \
