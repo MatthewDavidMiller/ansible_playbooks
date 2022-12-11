@@ -1,7 +1,7 @@
 /usr/bin/podman run \
 --name=vaultwarden \
---network homelab:ip={{ vaultwarden_ip_address }} \
 --volume /home/{{ user_name }}/vaultwarden/vw-data:/data/:Z \
 --volume /home/{{ user_name }}/vaultwarden/ssl_certs:/ssl_certs/:Z \
 -e ROCKET_TLS='{certs="/ssl_certs/fullchain.pem",key="/ssl_certs/privkey.pem"}' \
+-p 10000:80/tcp \
 -d docker.io/vaultwarden/server:latest
