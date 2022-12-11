@@ -206,10 +206,26 @@
       setsebool -P virt_sandbox_use_netlink 1
   when: ansible_facts['os_family'] == 'RedHat'
 
+- name: SELinux Allow domain to kernel load modules
+  ansible.builtin.shell:
+    cmd: |
+      setsebool -P domain_kernel_load_modules 1
+  when: ansible_facts['os_family'] == 'RedHat'
+
 - name: Create homelab container network
   ansible.builtin.shell:
     cmd: |
       podman network create -d macvlan -o parent={{ interface_name }} --gateway={{ homelab_gateway }} --subnet {{ homelab_network }} homelab
+  ignore_errors: true
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Create macvlan
+  ansible.builtin.shell:
+    cmd: |
+      nmcli connection add con-name {{ macvlan_name }} type macvlan ifname {{ macvlan_name }} ipv4.addresses {{ macvlan_ip_address }} dev {{ interface_name }} mode bridge
+      nmcli connection modify {{ macvlan_name }} ipv4.method manual
+      nmcli connection modify {{ macvlan_name }} ipv4.routes "{{ nextcloud_ip_address }}/32"
+      nmcli connection up {{ macvlan_name }}
   ignore_errors: true
   when: ansible_facts['os_family'] == 'RedHat'
 
