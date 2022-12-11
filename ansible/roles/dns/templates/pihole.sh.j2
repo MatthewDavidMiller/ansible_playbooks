@@ -6,9 +6,12 @@
 --mount type=bind,source=/home/{{ user_name }}/pihole/etc-lighttpd/cert_privkey_combined.pem,destination=/etc/lighttpd/cert_privkey_combined.pem:Z \
 --dns=208.67.222.222 \
 --dns=208.67.220.220 \
---network homelab:ip={{ pihole_ip_address }} \
 -e TZ=America/Chicago \
 -e WEBPASSWORD="{{ web_password }}" \
+-p 53:53/tcp \
+-p 53:53/udp \
+-p 10003:443/tcp \
+-p 10002:80/tcp \
 --label="traefik.http.services.pihole.loadbalancer.server.port=80" \
 --label="traefik.https.services.pihole.loadbalancer.server.port=443" \
 -e DNSMASQ_USER=root \
