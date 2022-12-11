@@ -219,16 +219,6 @@
   ignore_errors: true
   when: ansible_facts['os_family'] == 'RedHat'
 
-- name: Create macvlan
-  ansible.builtin.shell:
-    cmd: |
-      nmcli connection add con-name {{ macvlan_name }} type macvlan ifname {{ macvlan_name }} ipv4.addresses {{ macvlan_ip_address }} dev {{ interface_name }} mode bridge
-      nmcli connection modify {{ macvlan_name }} ipv4.method manual
-      nmcli connection modify {{ macvlan_name }} ipv4.routes "{{ nextcloud_ip_address }}/32"
-      nmcli connection up {{ macvlan_name }}
-  ignore_errors: true
-  when: ansible_facts['os_family'] == 'RedHat'
-
 - name: Update System Script
   ansible.builtin.template:
     src: update_system.j2
