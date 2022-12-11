@@ -110,27 +110,3 @@
     src: update_dns_container.sh.j2
     dest: "/usr/local/bin/update_dns_container.sh"
   when: ansible_facts['os_family'] == 'RedHat'
-
-- name: Allow HTTP
-  ansible.posix.firewalld:
-    zone: homelab
-    service: http
-    permanent: yes
-    state: enabled
-  when: ansible_facts['os_family'] == 'RedHat'
-
-- name: Allow HTTPS
-  ansible.posix.firewalld:
-    zone: homelab
-    service: https
-    permanent: yes
-    state: enabled
-  when: ansible_facts['os_family'] == 'RedHat'
-
-- name: Allow DNS
-  ansible.posix.firewalld:
-    zone: homelab
-    service: dns
-    permanent: yes
-    state: enabled
-  when: ansible_facts['os_family'] == 'RedHat'
