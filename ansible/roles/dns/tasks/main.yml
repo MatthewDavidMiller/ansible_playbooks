@@ -13,12 +13,6 @@
     state: directory
   when: ansible_facts['os_family'] == 'RedHat'
 
-- name: Create unbound path
-  ansible.builtin.file:
-    path: "/home/{{ user_name }}/pihole/etc-unbound/unbound.conf.d"
-    state: directory
-  when: ansible_facts['os_family'] == 'RedHat'
-
 - name: Create etc-pihole path
   ansible.builtin.file:
     path: "/home/{{ user_name }}/pihole/etc-pihole"
@@ -37,31 +31,18 @@
     state: directory
   when: ansible_facts['os_family'] == 'RedHat'
 
-- name: Unbound configuration
-  ansible.builtin.template:
-    src: unbound_pihole.j2
-    dest: "/home/{{ user_name }}/pihole/etc-unbound/unbound.conf"
-    owner: root
-    group: root
-    mode: "0644"
-  when: ansible_facts['os_family'] == 'RedHat'
-
-- name: Download root hints
-  get_url:
-    url: https://www.internic.net/domain/named.root
-    dest: "/home/{{ user_name }}/pihole/etc-unbound/root.hints"
-  when: ansible_facts['os_family'] == 'RedHat'
-
 - name: External Config
   ansible.builtin.template:
     src: external.j2
     dest: "/home/{{ user_name }}/pihole/etc-lighttpd/external.conf"
   when: ansible_facts['os_family'] == 'RedHat'
 
-- name: sysctl Config
-  ansible.builtin.template:
-    src: 01_sysctl.j2
-    dest: "/etc/sysctl.d/01_sysctl.conf"
+- name: sysctl Config increase memory
+  ansible.builtin.lineinfile:
+    path: "/etc/sysctl.d/01_sysctl.conf"
+    regexp: '^net\.core\.rmem_max='
+    line: net.core.rmem_max=1048576
+    create: yes
   when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Copy pem file
@@ -76,29 +57,10 @@
     dest: /home/{{ user_name }}/pihole/etc-pihole/setupVars.conf
   when: ansible_facts['os_family'] == 'RedHat'
 
-- name: Create pihole container network
-  ansible.builtin.shell:
-    cmd: |
-      podman network create --subnet 172.16.1.0/29  --disable-dns pihole_net
-  ignore_errors: true
-  when: ansible_facts['os_family'] == 'RedHat'
-
 - name: Pihole Service
   ansible.builtin.template:
     src: pihole.service.j2
     dest: "/etc/systemd/system/pihole.service"
-  when: ansible_facts['os_family'] == 'RedHat'
-
-- name: Unbound Service
-  ansible.builtin.template:
-    src: unbound_container.service.j2
-    dest: "/etc/systemd/system/unbound_container.service"
-  when: ansible_facts['os_family'] == 'RedHat'
-
-- name: Enable unbound
-  ansible.builtin.systemd:
-    name: unbound_container.service
-    enabled: yes
   when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Enable Pihole
@@ -137,12 +99,6 @@
   loop: "{{ domains_list }}"
   when: ansible_facts['os_family'] == 'RedHat'
 
-- name: Unbound script
-  ansible.builtin.template:
-    src: unbound_container.sh.j2
-    dest: "/usr/local/bin/unbound_container.sh"
-  when: ansible_facts['os_family'] == 'RedHat'
-
 - name: Pihole script
   ansible.builtin.template:
     src: pihole.sh.j2
@@ -153,4 +109,28 @@
   ansible.builtin.template:
     src: update_dns_container.sh.j2
     dest: "/usr/local/bin/update_dns_container.sh"
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Allow HTTP
+  ansible.posix.firewalld:
+    zone: homelab
+    service: http
+    permanent: yes
+    state: enabled
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Allow HTTPS
+  ansible.posix.firewalld:
+    zone: homelab
+    service: https
+    permanent: yes
+    state: enabled
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Allow DNS
+  ansible.posix.firewalld:
+    zone: homelab
+    service: dns
+    permanent: yes
+    state: enabled
   when: ansible_facts['os_family'] == 'RedHat'
