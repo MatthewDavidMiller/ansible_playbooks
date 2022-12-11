@@ -1,6 +1,6 @@
 /usr/bin/podman run \
 --name=nextcloud \
---network=nextcloud_postgres_net \
+--network=nextcloud_postgres_container_net \
 --volume /home/{{ user_name }}/nextcloud/base:/var/www/html/:Z \
 --volume /home/{{ user_name }}/nextcloud/data:/var/www/html/data/:Z \
 --volume /home/{{ user_name }}/nextcloud/config:/var/www/html/config/:Z \
