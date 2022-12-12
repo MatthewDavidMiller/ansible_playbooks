@@ -4,6 +4,7 @@
 --volume /home/{{ user_name }}/pihole/etc-dnsmasq.d:/etc/dnsmasq.d/:Z \
 --mount type=bind,source=/home/{{ user_name }}/pihole/etc-lighttpd/external.conf,destination=/etc/lighttpd/external.conf:Z \
 --mount type=bind,source=/home/{{ user_name }}/pihole/etc-lighttpd/cert_privkey_combined.pem,destination=/etc/lighttpd/cert_privkey_combined.pem:Z \
+--network pihole_container_net:ip={{ pihole_container_ip_address }} \
 --dns=208.67.222.222 \
 --dns=208.67.220.220 \
 -e TZ=America/Chicago \

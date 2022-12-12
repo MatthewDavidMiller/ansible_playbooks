@@ -57,6 +57,13 @@
     dest: /home/{{ user_name }}/pihole/etc-pihole/setupVars.conf
   when: ansible_facts['os_family'] == 'RedHat'
 
+- name: Create pihole container network
+  ansible.builtin.shell:
+    cmd: |
+      podman network create --subnet {{ pihole_container_network }}  --disable-dns pihole_container_net
+  ignore_errors: true
+  when: ansible_facts['os_family'] == 'RedHat'
+
 - name: Pihole Service
   ansible.builtin.template:
     src: pihole.service.j2
