@@ -1,0 +1,21 @@
+---
+# https://borgbackup.readthedocs.io/en/stable/quickstart.html
+
+- name: Install Borg Backup
+  ansible.builtin.yum:
+    name: borgbackup
+    state: present
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Backup Script
+  ansible.builtin.template:
+    src: backup_files.sh.j2
+    dest: "/usr/local/bin/backup_files.sh"
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Backup Daily
+  ansible.builtin.cron:
+    name: "Borg Backup"
+    special_time: daily
+    job: /bin/bash /usr/local/bin/backup_files.sh
+  when: ansible_facts['os_family'] == 'RedHat'
