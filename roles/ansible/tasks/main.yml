@@ -143,6 +143,18 @@
     dest: /etc/ansible/main_playbook
   when: ansible_facts['os_family'] == 'RedHat'
 
+- name: Clone backup Repo
+  ansible.builtin.git:
+    repo: https://github.com/MatthewDavidMiller/backup.git
+    dest: "/home/{{ user_name }}/ansible_configs/git/backup"
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Copy backup role
+  ansible.builtin.copy:
+    src: /home/{{ user_name }}/ansible_configs/git/backup/roles
+    dest: /etc/ansible/main_playbook
+  when: ansible_facts['os_family'] == 'RedHat'
+
 - name: Certbot script
   ansible.builtin.template:
     src: generate_cert.j2
