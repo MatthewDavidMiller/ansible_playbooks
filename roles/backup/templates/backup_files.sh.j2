@@ -2,7 +2,7 @@
 borg create "{{ borg_backup_path }}::nextcloud_backup-$(date +%m_%d_%Y)" "{{ nextcloud_backup_path }}"
 
 # Prune Nextcloud Backups
-borg prune --keep-daily 7 --keep-weekly 4 --keep-monthly 3 --glob-archives 'nextcloud_backup-' "{{ borg_backup_path }}
+borg prune --keep-daily 7 --keep-weekly 4 --keep-monthly 3 --glob-archives 'nextcloud_backup-' "{{ borg_backup_path }}"
 
 # Free disk space
-borg compact "{{ borg_backup_path }}
+borg compact "{{ borg_backup_path }}"
