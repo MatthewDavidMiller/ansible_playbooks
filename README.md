@@ -1,4 +1,4 @@
-# Duplicati Ansible Configuration
+# Borg Backup Ansible Configuration
 
 Copyright (c) Matthew David Miller. All rights reserved.
 
