@@ -1,0 +1,18 @@
+---
+- name: Install certbot
+  ansible.builtin.apt:
+    name: certbot
+    state: present
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Create cert path
+  ansible.builtin.file:
+    path: "/etc/letsencrypt/live/{{ ssl_cert }}"
+    state: directory
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Certbot script
+  ansible.builtin.template:
+    src: generate_cert.j2
+    dest: "/usr/local/bin/generate_cert.sh"
+  when: ansible_facts['distribution'] == 'Debian'

@@ -1,6 +1,6 @@
 ---
-- name: Install ansible
+- name: Install python
   ansible.builtin.apt:
-    name: ansible
+    name: python3
     state: present
   when: ansible_facts['distribution'] == 'Debian'

@@ -1,0 +1,120 @@
+---
+- name: Create main playbook path
+  ansible.builtin.file:
+    path: "{{ ansible_playbooks_path }}"
+    state: directory
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Ansible clone path
+  ansible.builtin.file:
+    path: "{{ git_data }}"
+    state: directory
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Clone Ansible Repo
+  ansible.builtin.git:
+    repo: https://github.com/MatthewDavidMiller/ansible_configuration.git
+    dest: "{{ git_data }}/ansible_configuration"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Copy Ansible and standard role
+  ansible.builtin.copy:
+    src: "{{ git_data }}/ansible_configuration/roles"
+    dest: "{{ ansible_playbooks_path }}"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Clone Dns Repo
+  ansible.builtin.git:
+    repo: https://github.com/MatthewDavidMiller/DNS-Server-Configuration.git
+    dest: "{{ git_data }}/DNS-Server-Configuration"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Copy DNS role
+  ansible.builtin.copy:
+    src: "{{ git_data }}/DNS-Server-Configuration/ansible/roles"
+    dest: "{{ ansible_playbooks_path }}"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Clone VPN Repo
+  ansible.builtin.git:
+    repo: https://github.com/MatthewDavidMiller/VPN-Server-Configuration.git
+    dest: "{{ git_data }}/VPN-Server-Configuration"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Copy VPN role
+  ansible.builtin.copy:
+    src: "{{ git_data }}/VPN-Server-Configuration/ansible/roles"
+    dest: "{{ ansible_playbooks_path }}"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Clone Nextcloud Repo
+  ansible.builtin.git:
+    repo: https://github.com/MatthewDavidMiller/nextcloud_ansible.git
+    dest: "{{ git_data }}/nextcloud_ansible"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Copy Nextcloud role
+  ansible.builtin.copy:
+    src: "{{ git_data }}/nextcloud_ansible/roles"
+    dest: "{{ ansible_playbooks_path }}"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Clone Router Repo
+  ansible.builtin.git:
+    repo: https://github.com/MatthewDavidMiller/Router-Configuration.git
+    dest: "{{ git_data }}/Router-Configuration"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Copy Router role
+  ansible.builtin.copy:
+    src: "{{ git_data }}/Router-Configuration/ansible/roles"
+    dest: "{{ ansible_playbooks_path }}"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Clone Vaultwarden Repo
+  ansible.builtin.git:
+    repo: https://github.com/MatthewDavidMiller/Vaultwarden_Ansible_Configuration.git
+    dest: "{{ git_data }}/Vaultwarden_Ansible_Configuration"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Copy Vaultwarden role
+  ansible.builtin.copy:
+    src: "{{ git_data }}/Vaultwarden_Ansible_Configuration/roles"
+    dest: "{{ ansible_playbooks_path }}"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Clone ApController Repo
+  ansible.builtin.git:
+    repo: https://github.com/MatthewDavidMiller/Access-Point-Controller-Configuration.git
+    dest: "{{ git_data }}/APController_Ansible_Configuration"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Copy ApController role
+  ansible.builtin.copy:
+    src: "{{ git_data }}/APController_Ansible_Configuration/ansible/roles"
+    dest: "{{ ansible_playbooks_path }}"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Clone Desktop Repo
+  ansible.builtin.git:
+    repo: https://github.com/MatthewDavidMiller/Desktop_Configuration.git
+    dest: "{{ git_data }}/Desktop_Configuration"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Copy Desktop role
+  ansible.builtin.copy:
+    src: "{{ git_data }}/Desktop_Configuration/roles"
+    dest: "{{ ansible_playbooks_path }}"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Clone backup Repo
+  ansible.builtin.git:
+    repo: https://github.com/MatthewDavidMiller/backup.git
+    dest: "{{ git_data }}/backup"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Copy backup role
+  ansible.builtin.copy:
+    src: "{{ git_data }}/backup/roles"
+    dest: "{{ ansible_playbooks_path }}"
+  when: ansible_facts['distribution'] == 'Debian'

@@ -1,0 +1,21 @@
+---
+- name: Install rclone
+  ansible.builtin.apt:
+    name: rclone
+    state: present
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Rclone config path
+  ansible.builtin.file:
+    path: "/root/.config/rclone"
+    state: directory
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Rclone config file
+  ansible.builtin.template:
+    src: rclone_config.j2
+    dest: "/root/.config/rclone/rclone.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  when: ansible_facts['distribution'] == 'Debian'
