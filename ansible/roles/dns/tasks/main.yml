@@ -1,41 +1,41 @@
 ---
 # Credits
 
-- name: Install sqlite
-  ansible.builtin.yum:
-    name: sqlite
+- name: Install sqlite3
+  ansible.builtin.apt:
+    name: sqlite3
     state: present
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Create Pihole container path
   ansible.builtin.file:
     path: "/home/{{ user_name }}/pihole"
     state: directory
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Create etc-pihole path
   ansible.builtin.file:
     path: "/home/{{ user_name }}/pihole/etc-pihole"
     state: directory
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Create etc-lighttpd path
   ansible.builtin.file:
     path: "/home/{{ user_name }}/pihole/etc-lighttpd"
     state: directory
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Create etc-dnsmasq.d path
   ansible.builtin.file:
     path: "/home/{{ user_name }}/pihole/etc-dnsmasq.d"
     state: directory
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: External Config
   ansible.builtin.template:
     src: external.j2
     dest: "/home/{{ user_name }}/pihole/etc-lighttpd/external.conf"
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: sysctl Config increase memory
   ansible.builtin.lineinfile:
@@ -43,44 +43,44 @@
     regexp: '^net\.core\.rmem_max='
     line: net.core.rmem_max=1048576
     create: yes
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Copy pem file
   ansible.builtin.copy:
     src: "/etc/letsencrypt/live/{{ ssl_cert }}/cert_privkey_combined.pem"
     dest: "/home/{{ user_name }}/pihole/etc-lighttpd/cert_privkey_combined.pem"
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Pihole Config
   ansible.builtin.template:
     src: setup_vars.j2
     dest: /home/{{ user_name }}/pihole/etc-pihole/setupVars.conf
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Create pihole container network
   ansible.builtin.shell:
     cmd: |
       podman network create --subnet {{ pihole_container_network }}  --disable-dns pihole_container_net
   ignore_errors: true
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Pihole Service
   ansible.builtin.template:
     src: pihole.service.j2
     dest: "/etc/systemd/system/pihole.service"
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Enable Pihole
   ansible.builtin.systemd:
     name: pihole.service
     enabled: yes
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Create Pihole DB backups path
   ansible.builtin.file:
     path: "/home/{{ user_name }}/pihole/database_backups"
     state: directory
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Backup Database Script
   ansible.builtin.template:
@@ -89,14 +89,14 @@
     owner: root
     group: root
     mode: "0644"
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Backup Pihole Daily
   ansible.builtin.cron:
     name: "Backup Pihole DB"
     special_time: daily
     job: /bin/bash /usr/local/bin/backup_pihole_db.sh
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Custom Domains
   ansible.builtin.lineinfile:
@@ -104,16 +104,16 @@
     line: "{{ item }}"
     create: "yes"
   loop: "{{ domains_list }}"
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Pihole script
   ansible.builtin.template:
     src: pihole.sh.j2
     dest: "/usr/local/bin/pihole.sh"
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Update DNS Container script
   ansible.builtin.template:
     src: update_dns_container.sh.j2
     dest: "/usr/local/bin/update_dns_container.sh"
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_facts['distribution'] == 'Debian'
