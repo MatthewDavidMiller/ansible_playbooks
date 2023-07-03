@@ -1,0 +1,12 @@
+---
+- name: Install git
+  ansible.builtin.apt:
+    name: git
+    state: present
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Create Git repo path
+  ansible.builtin.file:
+    path: "{{ git_data }}"
+    state: directory
+  when: ansible_facts['distribution'] == 'Debian'

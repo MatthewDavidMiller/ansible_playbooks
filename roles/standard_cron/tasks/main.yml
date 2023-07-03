@@ -1,0 +1,21 @@
+---
+- name: Install cron
+  ansible.builtin.apt:
+    name: cron
+    state: present
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Enable cron
+  ansible.builtin.systemd:
+    name: crond.service
+    enabled: yes
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Update System Weekly
+  ansible.builtin.cron:
+    name: "Update System Weekly"
+    minute: 0
+    hour: 4
+    weekday: 6
+    job: /usr/bin/bash /usr/local/bin/update_system.sh
+  when: ansible_facts['distribution'] == 'Debian'
