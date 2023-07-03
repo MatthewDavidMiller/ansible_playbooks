@@ -9,40 +9,40 @@
   ansible.builtin.file:
     path: "/home/{{ user_name }}/wireguard"
     state: directory
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Create Wireguard container config path
   ansible.builtin.file:
     path: "/home/{{ user_name }}/wireguard/config"
     state: directory
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Wireguard Module
   ansible.builtin.template:
     src: wireguard_module.j2
     dest: "/etc/modules-load.d/wireguard.conf"
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Wireguard Service
   ansible.builtin.template:
     src: wireguard.service.j2
     dest: "/etc/systemd/system/wireguard.service"
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Enable Wireguard
   ansible.builtin.systemd:
     name: wireguard.service
     enabled: yes
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Wireguard script
   ansible.builtin.template:
     src: wireguard.sh.j2
     dest: "/usr/local/bin/wireguard.sh"
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Update wireguard container
   ansible.builtin.template:
     src: update_wireguard_container.sh.j2
     dest: "/usr/local/bin/update_wireguard_container.sh"
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: ansible_facts['distribution'] == 'Debian'
