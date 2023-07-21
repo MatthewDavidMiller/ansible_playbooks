@@ -7,7 +7,7 @@
 
 - name: Enable cron
   ansible.builtin.systemd:
-    name: crond.service
+    name: cron.service
     enabled: yes
   when: ansible_facts['distribution'] == 'Debian'
 
