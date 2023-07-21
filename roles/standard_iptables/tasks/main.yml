@@ -11,8 +11,7 @@
     chain: INPUT
     protocol: tcp
     destination_port: "22"
-    source: "{{ network_prefix }}"
-    in_interface: "{{ interface_name }}"
+    source: "{{ management_network }}"
     limit: 6/minute
     jump: ACCEPT
   become: "yes"
@@ -22,8 +21,7 @@
   ansible.builtin.iptables:
     chain: INPUT
     protocol: icmp
-    source: "{{ network_prefix }}"
-    in_interface: "{{ interface_name }}"
+    source: "{{ management_network }}"
     jump: ACCEPT
   become: "yes"
   when: ansible_facts['distribution'] == 'Debian'

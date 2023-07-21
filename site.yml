@@ -1,6 +1,0 @@
-# Place hosts in here and roles to run
----
-- hosts: examplehost
-  roles:
-    - examplerole1
-    - examplerole2

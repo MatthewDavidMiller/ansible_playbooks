@@ -15,7 +15,7 @@
   ansible.builtin.cron:
     name: "Update System Weekly"
     minute: 0
-    hour: 4
-    weekday: 6
+    hour: "{{ patching_hour }}"
+    weekday: "{{ patching_weekday }}"
     job: /usr/bin/bash /usr/local/bin/update_system.sh
   when: ansible_facts['distribution'] == 'Debian'
