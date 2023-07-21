@@ -1,0 +1,11 @@
+# Place hosts in here and roles to run
+---
+- hosts: ansible
+  roles:
+    - standard_ssh
+    - standard_patching
+    - standard_cron
+    - standard_iptables
+    - ansible
+    - ansible_git
+    - ansible_playbooks
