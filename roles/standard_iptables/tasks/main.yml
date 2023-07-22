@@ -23,7 +23,6 @@
     protocol: tcp
     destination_port: "22"
     source: "{{ ip_ansible }}"
-    limit: 6/minute
     jump: ACCEPT
   become: "yes"
   when:
@@ -36,7 +35,6 @@
     protocol: tcp
     destination_port: "22"
     source: "{{ backup_host }}"
-    limit: 6/minute
     jump: ACCEPT
   become: "yes"
   when:
