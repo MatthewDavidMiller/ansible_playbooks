@@ -7,6 +7,28 @@
     state: present
   when: ansible_facts['distribution'] == 'Debian'
 
+- name: Create Borg Backup directory
+  ansible.builtin.file:
+    path: "{{ borg_backup_path }}"
+    state: directory
+    owner: "{{ borg_user }}"
+    group: "{{ borg_user }}"
+    mode: "0740"
+
+- name: Create SSH FS directory
+  ansible.builtin.file:
+    path: "{{ ssh_mount_path }}"
+    state: directory
+    mode: "0740"
+
+- name: Mount Disk for backups
+  ansible.posix.mount:
+    path: "{{ borg_backup_path }}"
+    src: "{{ backup_disk }}"
+    fstype: ext4
+    opts: rw,auto
+    state: present
+
 - name: Backup Script
   ansible.builtin.template:
     src: backup_files.sh.j2
