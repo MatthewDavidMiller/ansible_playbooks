@@ -28,7 +28,7 @@
   become: "yes"
   when:
     - ansible_facts['distribution'] == 'Debian'
-    - ansible_host is defined
+    - ip_ansible is defined
 
 - name: Allow ssh backup
   ansible.builtin.iptables:
