@@ -1,0 +1,9 @@
+# Place hosts in here and roles to run
+---
+- hosts: backup
+  roles:
+    - standard_ssh
+    - standard_patching
+    - standard_cron
+    - standard_iptables
+    - backup
