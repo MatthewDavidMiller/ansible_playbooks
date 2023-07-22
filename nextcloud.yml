@@ -6,4 +6,5 @@
     - standard_patching
     - standard_cron
     - standard_iptables
+    - standard_podman
     - nextcloud

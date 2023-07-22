@@ -15,6 +15,23 @@
     mode: "0770"
   when: ansible_facts['distribution'] == 'Debian'
 
+- name: Create Nextcloud container path
+  ansible.builtin.file:
+    path: "{{ nextcloud_path }}"
+    state: directory
+    owner: "{{ user_name }}"
+    group: root
+    mode: "0770"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Mount Disk for backups
+  ansible.posix.mount:
+    path: "{{ nextcloud_path }}"
+    src: "{{ nextcloud_disk }}"
+    fstype: ext4
+    opts: rw,auto
+    state: mounted
+
 - name: Create Nextcloud base container path
   ansible.builtin.file:
     path: "{{ nextcloud_path }}/base"
