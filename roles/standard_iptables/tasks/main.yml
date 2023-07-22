@@ -22,7 +22,7 @@
     chain: INPUT
     protocol: tcp
     destination_port: "22"
-    source: "{{ ansible_host }}"
+    source: "{{ ip_ansible }}"
     limit: 6/minute
     jump: ACCEPT
   become: "yes"
