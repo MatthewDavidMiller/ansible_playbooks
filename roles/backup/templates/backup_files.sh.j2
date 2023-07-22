@@ -1,5 +1,7 @@
 # Backup Nextcloud
-/bin/borg create "{{ borg_backup_path }}::nextcloud_backup-$(date +%m_%d_%Y)" "{{ nextcloud_backup_path }}"
+sshfs {{ user_name }}@{{ nextcloud_host }}:{{ nextcloud_backup_path }} {{ ssh_mount_path }}
+/bin/borg create "{{ borg_backup_path }}::nextcloud_backup-$(date +%m_%d_%Y)" {{ ssh_mount_path }}
+fusermount -u {{ ssh_mount_path }}
 
 # Prune Nextcloud Backups
 /bin/borg prune --keep-daily 7 --keep-weekly 4 --keep-monthly 3 --glob-archives 'nextcloud_backup-' "{{ borg_backup_path }}"
