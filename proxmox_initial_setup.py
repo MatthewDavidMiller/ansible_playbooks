@@ -58,21 +58,10 @@ subprocess.call(
 )
 
 # Setup disk for cloud init
-subprocess.call([r"qm", r"set", r"400", r"--ide2", r"local-lvm:cloudinit"])
+subprocess.call([r"qm", r"set", r"400", r"--scsi1", r"local-lvm:cloudinit"])
 
 # Set boot to Disk image
 subprocess.call([r"qm", r"set", r"400", r"--boot", r"c", r"--bootdisk", r"scsi0"])
-
-# Set efi disk
-subprocess.call(
-    [
-        r"qm",
-        r"set",
-        r"100",
-        r"--efidisk0",
-        r"local-lvm:1,format=raw,efitype=4m,pre-enrolled-keys=1",
-    ]
-)
 
 # Add serial console
 subprocess.call([r"qm", r"set", r"400", r"--serial0", r"socket", r"--vga", r"serial0"])
