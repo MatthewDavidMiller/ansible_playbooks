@@ -83,3 +83,21 @@ subprocess.call([r"qm", r"template", r"400"])
 
 # Create Ansible VM
 subprocess.call([r"qm", r"clone", r"400", r"100", r"--name", r"Ansible"])
+
+# Create Nextcloud VM
+subprocess.call([r"qm", r"clone", r"400", r"101", r"--name", r"Nextcloud"])
+
+# Create Vaultwarden VM
+subprocess.call([r"qm", r"clone", r"400", r"102", r"--name", r"Vaultwarden"])
+
+# Create Pihole VM
+subprocess.call([r"qm", r"clone", r"400", r"103", r"--name", r"Pihole"])
+
+# Create NetworkController VM
+subprocess.call([r"qm", r"clone", r"400", r"104", r"--name", r"NetworkController"])
+
+# Create VPN VM
+subprocess.call([r"qm", r"clone", r"400", r"105", r"--name", r"VPN"])
+
+# Create Backup VM
+subprocess.call([r"qm", r"clone", r"400", r"106", r"--name", r"Backup"])
