@@ -63,6 +63,17 @@ subprocess.call([r"qm", r"set", r"400", r"--ide2", r"local-lvm:cloudinit"])
 # Set boot to Disk image
 subprocess.call([r"qm", r"set", r"400", r"--boot", r"c", r"--bootdisk", r"scsi0"])
 
+# Set efi disk
+subprocess.call(
+    [
+        r"qm",
+        r"set",
+        r"100",
+        r"--efidisk0",
+        r"local-lvm:1,format=raw,efitype=4m,pre-enrolled-keys=1",
+    ]
+)
+
 # Add serial console
 subprocess.call([r"qm", r"set", r"400", r"--serial0", r"socket", r"--vga", r"serial0"])
 
@@ -84,20 +95,97 @@ subprocess.call([r"qm", r"template", r"400"])
 # Create Ansible VM
 subprocess.call([r"qm", r"clone", r"400", r"100", r"--name", r"Ansible"])
 
+# Set efi disk
+subprocess.call(
+    [
+        r"qm",
+        r"set",
+        r"100",
+        r"--efidisk0",
+        r"local-lvm:1,format=raw,efitype=4m,pre-enrolled-keys=1",
+    ]
+)
+
 # Create Nextcloud VM
 subprocess.call([r"qm", r"clone", r"400", r"101", r"--name", r"Nextcloud"])
+
+# Set efi disk
+subprocess.call(
+    [
+        r"qm",
+        r"set",
+        r"101",
+        r"--efidisk0",
+        r"local-lvm:1,format=raw,efitype=4m,pre-enrolled-keys=1",
+    ]
+)
 
 # Create Vaultwarden VM
 subprocess.call([r"qm", r"clone", r"400", r"102", r"--name", r"Vaultwarden"])
 
+# Set efi disk
+subprocess.call(
+    [
+        r"qm",
+        r"set",
+        r"102",
+        r"--efidisk0",
+        r"local-lvm:1,format=raw,efitype=4m,pre-enrolled-keys=1",
+    ]
+)
+
 # Create Pihole VM
 subprocess.call([r"qm", r"clone", r"400", r"103", r"--name", r"Pihole"])
+
+# Set efi disk
+subprocess.call(
+    [
+        r"qm",
+        r"set",
+        r"103",
+        r"--efidisk0",
+        r"local-lvm:1,format=raw,efitype=4m,pre-enrolled-keys=1",
+    ]
+)
 
 # Create NetworkController VM
 subprocess.call([r"qm", r"clone", r"400", r"104", r"--name", r"NetworkController"])
 
+# Set efi disk
+subprocess.call(
+    [
+        r"qm",
+        r"set",
+        r"104",
+        r"--efidisk0",
+        r"local-lvm:1,format=raw,efitype=4m,pre-enrolled-keys=1",
+    ]
+)
+
 # Create VPN VM
 subprocess.call([r"qm", r"clone", r"400", r"105", r"--name", r"VPN"])
 
+# Set efi disk
+subprocess.call(
+    [
+        r"qm",
+        r"set",
+        r"105",
+        r"--efidisk0",
+        r"local-lvm:1,format=raw,efitype=4m,pre-enrolled-keys=1",
+    ]
+)
+
 # Create Backup VM
 subprocess.call([r"qm", r"clone", r"400", r"106", r"--name", r"Backup"])
+
+# Set efi disk
+subprocess.call(
+    [
+        r"qm",
+        r"set",
+        r"106",
+        r"--efidisk0",
+        r"local-lvm:1,format=raw,efitype=4m,pre-enrolled-keys=1",
+    ]
+)
