@@ -8,32 +8,47 @@
 
 - name: Create postgres database container path
   ansible.builtin.file:
-    path: "/home/{{ user_name }}/postgres"
+    path: "{{ postgres_path }}"
     state: directory
+    owner: "{{ user_name }}"
+    group: root
+    mode: "0770"
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: Create Nextcloud base container path
   ansible.builtin.file:
-    path: "/home/{{ user_name }}/nextcloud/base"
+    path: "{{ nextcloud_path }}/base"
     state: directory
+    owner: "{{ user_name }}"
+    group: root
+    mode: "0770"
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: Create Nextcloud data container path
   ansible.builtin.file:
-    path: "/home/{{ user_name }}/nextcloud/data"
+    path: "{{ nextcloud_path }}/data"
     state: directory
+    owner: "{{ user_name }}"
+    group: root
+    mode: "0770"
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: Create Nextcloud config container path
   ansible.builtin.file:
-    path: "/home/{{ user_name }}/nextcloud/config"
+    path: "{{ nextcloud_path }}/config"
     state: directory
+    owner: "{{ user_name }}"
+    group: root
+    mode: "0770"
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: Create Nextcloud apps container path
   ansible.builtin.file:
-    path: "/home/{{ user_name }}/nextcloud/apps"
+    path: "{{ nextcloud_path }}/apps"
     state: directory
+    owner: "{{ user_name }}"
+    group: root
+    mode: "0770"
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: postgres Service
@@ -64,16 +79,25 @@
   ansible.builtin.template:
     src: nextcloud_container.sh.j2
     dest: "/usr/local/bin/nextcloud_container.sh"
+    owner: "{{ user_name }}"
+    group: root
+    mode: "0770"
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: Postgres script
   ansible.builtin.template:
     src: postgres_container.sh.j2
     dest: "/usr/local/bin/postgres_container.sh"
+    owner: "{{ user_name }}"
+    group: root
+    mode: "0770"
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: Update Nextcloud Container script
   ansible.builtin.template:
     src: update_nextcloud_container.sh.j2
     dest: "/usr/local/bin/update_nextcloud_container.sh"
+    owner: "{{ user_name }}"
+    group: root
+    mode: "0770"
   when: ansible_facts['distribution'] == 'Debian'

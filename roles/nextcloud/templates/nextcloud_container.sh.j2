@@ -1,10 +1,10 @@
 /usr/bin/podman run \
 --name=nextcloud \
 --network=nextcloud_postgres_container_net \
---volume /home/{{ user_name }}/nextcloud/base:/var/www/html/:Z \
---volume /home/{{ user_name }}/nextcloud/data:/var/www/html/data/:Z \
---volume /home/{{ user_name }}/nextcloud/config:/var/www/html/config/:Z \
---volume /home/{{ user_name }}/nextcloud/apps:/var/www/html/custom_apps/:Z \
+--volume {{ nextcloud_path }}/base:/var/www/html/:Z \
+--volume {{ nextcloud_path }}/data:/var/www/html/data/:Z \
+--volume {{ nextcloud_path }}/config:/var/www/html/config/:Z \
+--volume {{ nextcloud_path }}/apps:/var/www/html/custom_apps/:Z \
 -e POSTGRES_DB={{ nextcloud_database_name }} \
 -e POSTGRES_USER={{ nextcloud_database_user }} \
 -e POSTGRES_PASSWORD={{ nextcloud_database_user_password }} \
@@ -13,4 +13,4 @@
 -e NEXTCLOUD_TRUSTED_DOMAINS={{ nextcloud_trusted_domains }} \
 -e POSTGRES_HOST=172.16.1.10 \
 --requires=postgres \
--p {{ nextcloud_port }}:80/tcp -d docker.io/nextcloud:latest
+-p 80:80/tcp -d docker.io/nextcloud:latest
