@@ -27,7 +27,7 @@
     src: "{{ backup_disk }}"
     fstype: ext4
     opts: rw,auto
-    state: present
+    state: mounted
 
 - name: Backup Script
   ansible.builtin.template:
