@@ -5,13 +5,6 @@
     state: present
   when: ansible_facts['distribution'] == 'Debian'
 
-- name: Create homelab container network
-  ansible.builtin.shell:
-    cmd: |
-      podman network create -d macvlan -o parent={{ interface_name }} --gateway={{ homelab_gateway }} --subnet {{ homelab_network }} homelab
-  ignore_errors: true
-  when: ansible_facts['distribution'] == 'Debian'
-
 - name: Login to Docker Service
   ansible.builtin.template:
     src: login_to_docker.j2
