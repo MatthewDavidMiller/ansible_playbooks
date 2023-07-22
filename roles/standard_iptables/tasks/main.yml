@@ -17,6 +17,32 @@
   become: "yes"
   when: ansible_facts['distribution'] == 'Debian'
 
+- name: Allow ssh ansible
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: tcp
+    destination_port: "22"
+    source: "{{ ansible_host }}"
+    limit: 6/minute
+    jump: ACCEPT
+  become: "yes"
+  when:
+    - ansible_facts['distribution'] == 'Debian'
+    - ansible_host is defined
+
+- name: Allow ssh backup
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: tcp
+    destination_port: "22"
+    source: "{{ backup_host }}"
+    limit: 6/minute
+    jump: ACCEPT
+  become: "yes"
+  when:
+    - ansible_facts['distribution'] == 'Debian'
+    - backup_host is defined
+
 - name: Allow icmp
   ansible.builtin.iptables:
     chain: INPUT
