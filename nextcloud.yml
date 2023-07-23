@@ -3,6 +3,7 @@
 - hosts: nextcloud
   roles:
     - standard_ssh
+    - standard_ssh_sftp
     - standard_qemu_guest_agent
     - standard_update_packages
     - standard_patching
