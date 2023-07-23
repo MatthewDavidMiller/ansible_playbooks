@@ -4,3 +4,6 @@ podman pull docker.io/nextcloud:latest
 podman stop --ignore postgres
 podman rm --ignore -f postgres
 podman pull docker.io/postgres:latest
+podman stop --ignore swag
+podman rm --ignore -f swag
+podman pull docker.io/linuxserver/swag:latest

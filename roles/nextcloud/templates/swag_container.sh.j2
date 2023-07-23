@@ -1,0 +1,13 @@
+/usr/bin/podman run \
+--name=swag \
+--network=nextcloud_container_net \
+--cap-add=NET_ADMIN \
+-e URL={{ top_domain }} \
+-e SUBDOMAINS={{ nextcloud_host_domain }} \
+-e VALIDATION=dns \
+-e DNSPLUGIN=porkbun \
+-e ONLY_SUBDOMAINS=true \
+-v {{ swag_path }}:/config:Z \
+--requires=postgres \
+--requires=nextcloud \
+-p 443:443/tcp -d docker.io/linuxserver/swag:latest
