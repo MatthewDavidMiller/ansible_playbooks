@@ -124,9 +124,3 @@
     name: "{{ user_name }}"
     group: www-data
     append: yes
-
-- name: Allow sftp ssh
-  ansible.builtin.lineinfile:
-    path: /etc/ssh/sshd_config
-    regexp: "^Subsystem sftp"
-    line: Subsystem sftp /usr/lib/sftp-server
