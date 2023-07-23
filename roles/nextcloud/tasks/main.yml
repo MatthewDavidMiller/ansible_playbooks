@@ -42,6 +42,7 @@
     fstype: ext4
     opts: rw,auto
     state: mounted
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Create Nextcloud base container path
   ansible.builtin.file:
@@ -156,32 +157,39 @@
     name: "{{ user_name }}"
     groups: www-data
     append: yes
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Copy file nginx nextcloud sample
   ansible.builtin.copy:
-    remote_src: "{{ nextcloud_proxy_config_path }}.sample"
+    src: "{{ nextcloud_proxy_config_path }}.sample"
     dest: "{{ nextcloud_proxy_config_path }}"
+    remote_src: yes
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Set server name nginx
   ansible.builtin.lineinfile:
     path: "{{ nextcloud_proxy_config_path }}"
     regexp: "^\\s*server_name nextcloud|^server_name nextcloud"
     line: "server_name {{ nextcloud_fqdn }};"
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Set upstream app nginx
   ansible.builtin.lineinfile:
     path: "{{ nextcloud_proxy_config_path }}"
     regexp: "^\\s*set [$]upstream_app nextcloud|^set [$]upstream_app nextcloud"
     line: "set $upstream_app {{ nextcloud_container_dns_name }};"
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Set upstream port nginx
   ansible.builtin.lineinfile:
     path: "{{ nextcloud_proxy_config_path }}"
     regexp: "^\\s*set [$]upstream_port|^set [$]upstream_port"
     line: "set $upstream_port 80;"
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Set upstream protocol nginx
   ansible.builtin.lineinfile:
     path: "{{ nextcloud_proxy_config_path }}"
     regexp: "^\\s*set [$]upstream_proto|^set [$]upstream_proto"
     line: "set $upstream_proto http;"
+  when: ansible_facts['distribution'] == 'Debian'
