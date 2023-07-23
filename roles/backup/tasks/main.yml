@@ -11,8 +11,6 @@
   ansible.builtin.file:
     path: "{{ borg_backup_path }}"
     state: directory
-    owner: "{{ borg_user }}"
-    group: "{{ borg_user }}"
     mode: "0740"
 
 - name: Create SSH FS directory
