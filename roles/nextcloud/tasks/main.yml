@@ -22,7 +22,7 @@
     path: "{{ nextcloud_path }}"
     state: directory
     owner: "www-data"
-    group: root
+    group: "www-data"
     mode: "0770"
   when: ansible_facts['distribution'] == 'Debian'
 
@@ -49,7 +49,7 @@
     path: "{{ nextcloud_path }}/base"
     state: directory
     owner: "www-data"
-    group: root
+    group: "www-data"
     mode: "0770"
   when: ansible_facts['distribution'] == 'Debian'
 
@@ -58,7 +58,7 @@
     path: "{{ nextcloud_path }}/data"
     state: directory
     owner: "www-data"
-    group: root
+    group: "www-data"
     mode: "0770"
   when: ansible_facts['distribution'] == 'Debian'
 
@@ -67,7 +67,7 @@
     path: "{{ nextcloud_path }}/config"
     state: directory
     owner: "www-data"
-    group: root
+    group: "www-data"
     mode: "0770"
   when: ansible_facts['distribution'] == 'Debian'
 
@@ -76,7 +76,7 @@
     path: "{{ nextcloud_path }}/apps"
     state: directory
     owner: "www-data"
-    group: root
+    group: "www-data"
     mode: "0770"
   when: ansible_facts['distribution'] == 'Debian'
 
