@@ -21,7 +21,7 @@
   ansible.builtin.file:
     path: "{{ nextcloud_path }}"
     state: directory
-    owner: "{{ user_name }}"
+    owner: "www-data"
     group: root
     mode: "0770"
   when: ansible_facts['distribution'] == 'Debian'
@@ -47,7 +47,7 @@
   ansible.builtin.file:
     path: "{{ nextcloud_path }}/base"
     state: directory
-    owner: "{{ user_name }}"
+    owner: "www-data"
     group: root
     mode: "0770"
   when: ansible_facts['distribution'] == 'Debian'
@@ -56,7 +56,7 @@
   ansible.builtin.file:
     path: "{{ nextcloud_path }}/data"
     state: directory
-    owner: "{{ user_name }}"
+    owner: "www-data"
     group: root
     mode: "0770"
   when: ansible_facts['distribution'] == 'Debian'
@@ -65,7 +65,7 @@
   ansible.builtin.file:
     path: "{{ nextcloud_path }}/config"
     state: directory
-    owner: "{{ user_name }}"
+    owner: "www-data"
     group: root
     mode: "0770"
   when: ansible_facts['distribution'] == 'Debian'
@@ -74,7 +74,7 @@
   ansible.builtin.file:
     path: "{{ nextcloud_path }}/apps"
     state: directory
-    owner: "{{ user_name }}"
+    owner: "www-data"
     group: root
     mode: "0770"
   when: ansible_facts['distribution'] == 'Debian'
@@ -156,3 +156,32 @@
     name: "{{ user_name }}"
     groups: www-data
     append: yes
+
+- name: Copy file nginx nextcloud sample
+  ansible.builtin.copy:
+    remote_src: "{{ nextcloud_proxy_config_path }}.sample"
+    dest: "{{ nextcloud_proxy_config_path }}"
+
+- name: Set server name nginx
+  ansible.builtin.lineinfile:
+    path: "{{ nextcloud_proxy_config_path }}"
+    regexp: "^\\s*server_name nextcloud|^server_name nextcloud"
+    line: "server_name {{ nextcloud_fqdn }};"
+
+- name: Set upstream app nginx
+  ansible.builtin.lineinfile:
+    path: "{{ nextcloud_proxy_config_path }}"
+    regexp: "^\\s*set [$]upstream_app nextcloud|^set [$]upstream_app nextcloud"
+    line: "set $upstream_app {{ nextcloud_container_dns_name }};"
+
+- name: Set upstream port nginx
+  ansible.builtin.lineinfile:
+    path: "{{ nextcloud_proxy_config_path }}"
+    regexp: "^\\s*set [$]upstream_port|^set [$]upstream_port"
+    line: "set $upstream_port 80;"
+
+- name: Set upstream protocol nginx
+  ansible.builtin.lineinfile:
+    path: "{{ nextcloud_proxy_config_path }}"
+    regexp: "^\\s*set [$]upstream_proto|^set [$]upstream_proto"
+    line: "set $upstream_proto http;"
