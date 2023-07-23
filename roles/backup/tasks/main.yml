@@ -7,6 +7,12 @@
     state: present
   when: ansible_facts['distribution'] == 'Debian'
 
+- name: Install sshfs
+  ansible.builtin.apt:
+    name: sshfs
+    state: present
+  when: ansible_facts['distribution'] == 'Debian'
+
 - name: Create Borg Backup directory
   ansible.builtin.file:
     path: "{{ borg_backup_path }}"
@@ -26,6 +32,12 @@
     fstype: ext4
     opts: rw,auto
     state: mounted
+
+- name: Init backup repo Script
+  ansible.builtin.template:
+    src: init_backup_repo.sh.j2
+    dest: "/usr/local/bin/init_backup_repo.sh"
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Backup Script
   ansible.builtin.template:
