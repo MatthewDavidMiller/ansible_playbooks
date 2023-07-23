@@ -122,5 +122,5 @@
 - name: Add user to www-data group
   ansible.builtin.user:
     name: "{{ user_name }}"
-    group: www-data
+    groups: www-data
     append: yes
