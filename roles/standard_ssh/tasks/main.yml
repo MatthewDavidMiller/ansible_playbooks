@@ -2,7 +2,7 @@
 - name: Set sftp ssh
   ansible.builtin.lineinfile:
     path: /etc/ssh/sshd_config
-    regexp: "^Subsystem\s*sftp"
+    regexp: "^Subsystem\\s*sftp"
     line: Subsystem sftp /usr/lib/openssh/sftp-server
 
 - name: Set ssh authorized keys
