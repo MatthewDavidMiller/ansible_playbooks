@@ -5,6 +5,12 @@
     state: present
   when: ansible_facts['distribution'] == 'Debian'
 
+- name: Install podman dns
+  ansible.builtin.apt:
+    name: golang-github-containernetworking-plugin-dnsname
+    state: present
+  when: ansible_facts['distribution'] == 'Debian'
+
 - name: Login to Docker Service
   ansible.builtin.template:
     src: login_to_docker.j2
