@@ -4,3 +4,9 @@
     name: qemu-guest-agent
     state: present
   when: ansible_facts['distribution'] == 'Debian'
+
+- name: Enable qemu-guest-agent
+  ansible.builtin.systemd:
+    name: qemu-guest-agent.service
+    enabled: yes
+  when: ansible_facts['distribution'] == 'Debian'
