@@ -1,17 +1,7 @@
-# Domain 1
-protocol=dyndns2
-use=web
-server={{ ddclient_server }}
-ssl=yes
-login={{ ddclient_username }}
-password={{ ddclient_password }}
-{{ public_dns_ip_address }}
-
-# OpenDNS
-protocol=dyndns2
-use=web
-server=updates.opendns.com
-ssl=yes
-login={{ opendns_ddclient_username }}
-password={{ opendns_ddclient_password }}
-{{ opendns_network_label }}
+# Porkbun
+daemon=600
+use=web, web=checkip.dyndns.com/, web-skip='IP Address'
+protocol=porkbun
+apikey="{{ porkbun_api_key }}"
+secretapikey="{{ porkbun_api_key_secret }}"
+{{ homelab_domain }}

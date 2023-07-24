@@ -1,14 +1,12 @@
 /usr/bin/podman run \
 --name=wireguard \
---volume /home/{{ user_name }}/wireguard/config:/config/:Z \
+--volume {{ vpn_path }}/config:/config/:Z \
 --volume /lib/modules:/lib/modules/:Z \
 --privileged=true \
--e PUID={{ wireguard_pid }} \
--e PGID={{ wireguard_gid }} \
 -e TZ=America/Chicago \
--e SERVERURL={{ public_dns_ip_address }} \
+-e SERVERURL={{ homelab_domain }} \
 -e SERVERPORT={{ listen_port }} \
--e PEERS={{ wireguard_user_name }} \
+-e PEERS={{ user_name }} \
 -e PEERDNS={{ wireguard_dns_server }} \
 -e INTERNAL_SUBNET={{ wireguard_server_network_prefix }} \
 -e ALLOWEDIPS={{ wireguard_allowed_ips }} \
