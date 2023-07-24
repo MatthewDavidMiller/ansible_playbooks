@@ -5,15 +5,21 @@
 # https://serdima.wordpress.com/2018/04/23/tutorial-updating-dynamic-dns-with-ddclient/
 
 ---
+- name: Install ddclient
+  ansible.builtin.apt:
+    name: ddclient
+    state: present
+  when: ansible_facts['distribution'] == 'Debian'
+
 - name: Create Wireguard container path
   ansible.builtin.file:
-    path: "/home/{{ user_name }}/wireguard"
+    path: "{{ vpn_path }}"
     state: directory
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: Create Wireguard container config path
   ansible.builtin.file:
-    path: "/home/{{ user_name }}/wireguard/config"
+    path: "{{ vpn_path }}/config"
     state: directory
   when: ansible_facts['distribution'] == 'Debian'
 
@@ -32,6 +38,18 @@
 - name: Enable Wireguard
   ansible.builtin.systemd:
     name: wireguard.service
+    enabled: yes
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: DDClient Config
+  ansible.builtin.template:
+    src: ddclient_config.j2
+    dest: "/etc/ddclient.conf"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Enable Ddclient
+  ansible.builtin.systemd:
+    name: ddclient.service
     enabled: yes
   when: ansible_facts['distribution'] == 'Debian'
 

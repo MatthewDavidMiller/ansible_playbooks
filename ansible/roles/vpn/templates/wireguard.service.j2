@@ -3,9 +3,6 @@ Description=Podman container-wireguard.service
 Documentation=man:podman-generate-systemd(1)
 Wants=network-online.target
 After=network-online.target
-After=firewalld.service
-After=pihole.service
-After=unbound_container.service
 
 [Service]
 Environment=PODMAN_SYSTEMD_UNIT=%n
