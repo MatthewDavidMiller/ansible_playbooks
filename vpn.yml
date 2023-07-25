@@ -1,0 +1,12 @@
+# Place hosts in here and roles to run
+---
+- hosts: vpn
+  roles:
+    - standard_ssh
+    - standard_qemu_guest_agent
+    - standard_update_packages
+    - standard_patching
+    - standard_cron
+    - standard_iptables
+    - standard_podman
+    - vpn
