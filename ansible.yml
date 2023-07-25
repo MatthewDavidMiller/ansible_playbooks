@@ -7,7 +7,7 @@
     - standard_update_packages
     - standard_patching
     - standard_cron
-    - standard_iptables
+    - standard_firewalld
     - ansible
     - ansible_git
     - ansible_playbooks
