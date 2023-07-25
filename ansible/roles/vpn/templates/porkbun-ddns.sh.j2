@@ -5,5 +5,6 @@
 -e SECRETAPIKEY="{{ porkbun_api_key_secret }}" \
 -e APIKEY="{{ porkbun_api_key }}" \
 -e SLEEP="600" \
+-e IPV4_ONLY="TRUE" \
 -e PYTHONUNBUFFERED="1" \
 -d docker.io/mietzen/porkbun-ddns:latest
