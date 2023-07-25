@@ -5,12 +5,6 @@
     state: present
   when: ansible_facts['distribution'] == 'Debian'
 
-- name: Enable firewalld
-  ansible.builtin.systemd:
-    name: firewalld.service
-    enabled: yes
-  when: ansible_facts['distribution'] == 'Debian'
-
 - name: Set default action for public to drop
   ansible.posix.firewalld:
     zone: public
@@ -114,4 +108,10 @@
     service: mdns
     permanent: yes
     state: disabled
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Enable firewalld
+  ansible.builtin.systemd:
+    name: firewalld.service
+    enabled: yes
   when: ansible_facts['distribution'] == 'Debian'
