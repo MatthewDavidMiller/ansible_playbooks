@@ -1,0 +1,9 @@
+/usr/bin/podman run \
+--name=porkbun-ddns \
+-e DOMAIN="{{ homelab_domain }}" \
+-e SUBDOMAINS="{{ homelab_subdomain }}" \
+-e SECRETAPIKEY="{{ porkbun_api_key_secret }}" \
+-e APIKEY="{{ porkbun_api_key }}" \
+-e SLEEP="600" \
+-e PYTHONUNBUFFERED="1" \
+-d docker.io/mietzen/porkbun-ddns:latest
