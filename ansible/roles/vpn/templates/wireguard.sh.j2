@@ -4,7 +4,7 @@
 --volume /lib/modules:/lib/modules/:Z \
 --privileged=true \
 -e TZ=America/Chicago \
--e SERVERURL={{ homelab_domain }} \
+-e SERVERURL={{ homelab_subdomain }}.{{ homelab_domain }} \
 -e SERVERPORT={{ listen_port }} \
 -e PEERS={{ user_name }} \
 -e PEERDNS={{ wireguard_dns_server }} \
