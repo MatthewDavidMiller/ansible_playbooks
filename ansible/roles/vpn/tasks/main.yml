@@ -11,12 +11,6 @@
     state: directory
   when: ansible_facts['distribution'] == 'Debian'
 
-- name: Create ddclient container path
-  ansible.builtin.file:
-    path: "{{ ddclient_path }}"
-    state: directory
-  when: ansible_facts['distribution'] == 'Debian'
-
 - name: Create Wireguard container config path
   ansible.builtin.file:
     path: "{{ vpn_path }}/config"
@@ -53,26 +47,20 @@
     dest: "/usr/local/bin/update_vpn_containers.sh"
   when: ansible_facts['distribution'] == 'Debian'
 
-- name: DDClient Service
+- name: porkbun-ddns Service
   ansible.builtin.template:
-    src: ddclient_container.service.j2
-    dest: "/etc/systemd/system/ddclient_container.service"
+    src: porkbun-ddns.service.j2
+    dest: "/etc/systemd/system/porkbun-ddns.service"
   when: ansible_facts['distribution'] == 'Debian'
 
-- name: Enable Ddclient
+- name: Enable porkbun-ddns
   ansible.builtin.systemd:
-    name: ddclient_container.service
+    name: porkbun-ddns.service
     enabled: yes
   when: ansible_facts['distribution'] == 'Debian'
 
-- name: DDClient script
+- name: porkbun-ddns script
   ansible.builtin.template:
-    src: ddclient.sh.j2
-    dest: "/usr/local/bin/ddclient.sh"
-  when: ansible_facts['distribution'] == 'Debian'
-
-- name: DDClient Config
-  ansible.builtin.template:
-    src: ddclient_config.j2
-    dest: "{{ ddclient_path }}/ddclient.conf"
+    src: porkbun-ddns.sh.j2
+    dest: "/usr/local/bin/porkbun-ddns.sh"
   when: ansible_facts['distribution'] == 'Debian'
