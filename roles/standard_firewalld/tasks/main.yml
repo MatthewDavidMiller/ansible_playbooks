@@ -110,6 +110,14 @@
     state: disabled
   when: ansible_facts['distribution'] == 'Debian'
 
+- name: Set interface for public zone
+  ansible.posix.firewalld:
+    zone: public
+    interface: "{{ default_interface }}"
+    permanent: yes
+    state: enabled
+  when: ansible_facts['distribution'] == 'Debian'
+
 - name: Enable firewalld
   ansible.builtin.systemd:
     name: firewalld.service
