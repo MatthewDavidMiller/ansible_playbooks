@@ -5,15 +5,15 @@
 # https://serdima.wordpress.com/2018/04/23/tutorial-updating-dynamic-dns-with-ddclient/
 
 ---
-- name: Install ddclient
-  ansible.builtin.apt:
-    name: ddclient
-    state: present
-  when: ansible_facts['distribution'] == 'Debian'
-
 - name: Create Wireguard container path
   ansible.builtin.file:
     path: "{{ vpn_path }}"
+    state: directory
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Create ddclient container path
+  ansible.builtin.file:
+    path: "{{ ddclient_path }}"
     state: directory
   when: ansible_facts['distribution'] == 'Debian'
 
@@ -41,26 +41,38 @@
     enabled: yes
   when: ansible_facts['distribution'] == 'Debian'
 
-- name: DDClient Config
-  ansible.builtin.template:
-    src: ddclient_config.j2
-    dest: "/etc/ddclient.conf"
-  when: ansible_facts['distribution'] == 'Debian'
-
-- name: Enable Ddclient
-  ansible.builtin.systemd:
-    name: ddclient.service
-    enabled: yes
-  when: ansible_facts['distribution'] == 'Debian'
-
 - name: Wireguard script
   ansible.builtin.template:
     src: wireguard.sh.j2
     dest: "/usr/local/bin/wireguard.sh"
   when: ansible_facts['distribution'] == 'Debian'
 
-- name: Update wireguard container
+- name: Update VPN containers
   ansible.builtin.template:
-    src: update_wireguard_container.sh.j2
-    dest: "/usr/local/bin/update_wireguard_container.sh"
+    src: update_vpn_containers.sh.j2
+    dest: "/usr/local/bin/update_vpn_containers.sh"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: DDClient Service
+  ansible.builtin.template:
+    src: ddclient_container.service.j2
+    dest: "/etc/systemd/system/ddclient_container.service"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Enable Ddclient
+  ansible.builtin.systemd:
+    name: ddclient_container.service
+    enabled: yes
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: DDClient script
+  ansible.builtin.template:
+    src: ddclient.sh.j2
+    dest: "/usr/local/bin/ddclient.sh"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: DDClient Config
+  ansible.builtin.template:
+    src: ddclient_config.j2
+    dest: "{{ ddclient_path }}/ddclient.conf"
   when: ansible_facts['distribution'] == 'Debian'

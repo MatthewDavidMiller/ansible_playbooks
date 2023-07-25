@@ -1,0 +1,18 @@
+[Unit]
+Description=Podman container-ddclient.service
+Documentation=man:podman-generate-systemd(1)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Environment=PODMAN_SYSTEMD_UNIT=%n
+Restart=on-failure
+TimeoutStopSec=70
+ExecStartPre=/usr/bin/podman rm --ignore ddclient
+ExecStart=/usr/bin/bash /usr/local/bin/ddclient.sh
+ExecStop=/usr/bin/podman stop --ignore ddclient
+ExecStopPost=/usr/bin/podman rm --ignore -f ddclient
+Type=forking
+
+[Install]
+WantedBy=multi-user.target default.target
