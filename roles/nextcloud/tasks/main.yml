@@ -26,15 +26,6 @@
     mode: "0770"
   when: ansible_facts['distribution'] == 'Debian'
 
-- name: Create swag container path
-  ansible.builtin.file:
-    path: "{{ swag_path }}"
-    state: directory
-    owner: "{{ user_name }}"
-    group: root
-    mode: "0770"
-  when: ansible_facts['distribution'] == 'Debian'
-
 - name: Mount Disk for backups
   ansible.posix.mount:
     path: "{{ nextcloud_path }}"
@@ -104,18 +95,6 @@
     enabled: yes
   when: ansible_facts['distribution'] == 'Debian'
 
-- name: Swag Service
-  ansible.builtin.template:
-    src: swag_container.service.j2
-    dest: "/etc/systemd/system/swag_container.service"
-  when: ansible_facts['distribution'] == 'Debian'
-
-- name: Enable Swag
-  ansible.builtin.systemd:
-    name: swag_container.service
-    enabled: yes
-  when: ansible_facts['distribution'] == 'Debian'
-
 - name: Nextcloud script
   ansible.builtin.template:
     src: nextcloud_container.sh.j2
@@ -129,15 +108,6 @@
   ansible.builtin.template:
     src: postgres_container.sh.j2
     dest: "/usr/local/bin/postgres_container.sh"
-    owner: "{{ user_name }}"
-    group: root
-    mode: "0770"
-  when: ansible_facts['distribution'] == 'Debian'
-
-- name: Swag script
-  ansible.builtin.template:
-    src: swag_container.sh.j2
-    dest: "/usr/local/bin/swag_container.sh"
     owner: "{{ user_name }}"
     group: root
     mode: "0770"
