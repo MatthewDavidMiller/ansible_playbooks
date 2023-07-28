@@ -9,32 +9,20 @@
 
 - name: Create Pihole container path
   ansible.builtin.file:
-    path: "/home/{{ user_name }}/pihole"
+    path: "{{ pihole_path }}"
     state: directory
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: Create etc-pihole path
   ansible.builtin.file:
-    path: "/home/{{ user_name }}/pihole/etc-pihole"
-    state: directory
-  when: ansible_facts['distribution'] == 'Debian'
-
-- name: Create etc-lighttpd path
-  ansible.builtin.file:
-    path: "/home/{{ user_name }}/pihole/etc-lighttpd"
+    path: "{{ pihole_path }}/etc-pihole"
     state: directory
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: Create etc-dnsmasq.d path
   ansible.builtin.file:
-    path: "/home/{{ user_name }}/pihole/etc-dnsmasq.d"
+    path: "{{ pihole_path }}/etc-dnsmasq.d"
     state: directory
-  when: ansible_facts['distribution'] == 'Debian'
-
-- name: External Config
-  ansible.builtin.template:
-    src: external.j2
-    dest: "/home/{{ user_name }}/pihole/etc-lighttpd/external.conf"
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: sysctl Config increase memory
@@ -45,16 +33,10 @@
     create: yes
   when: ansible_facts['distribution'] == 'Debian'
 
-- name: Copy pem file
-  ansible.builtin.copy:
-    src: "/etc/letsencrypt/live/{{ ssl_cert }}/cert_privkey_combined.pem"
-    dest: "/home/{{ user_name }}/pihole/etc-lighttpd/cert_privkey_combined.pem"
-  when: ansible_facts['distribution'] == 'Debian'
-
 - name: Pihole Config
   ansible.builtin.template:
     src: setup_vars.j2
-    dest: /home/{{ user_name }}/pihole/etc-pihole/setupVars.conf
+    dest: "{{ pihole_path }}/etc-pihole/setupVars.conf"
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: Create pihole container network
@@ -78,7 +60,7 @@
 
 - name: Create Pihole DB backups path
   ansible.builtin.file:
-    path: "/home/{{ user_name }}/pihole/database_backups"
+    path: "{{ pihole_path }}/database_backups"
     state: directory
   when: ansible_facts['distribution'] == 'Debian'
 
@@ -96,14 +78,6 @@
     name: "Backup Pihole DB"
     special_time: daily
     job: /bin/bash /usr/local/bin/backup_pihole_db.sh
-  when: ansible_facts['distribution'] == 'Debian'
-
-- name: Custom Domains
-  ansible.builtin.lineinfile:
-    path: "/home/{{ user_name }}/pihole/etc-pihole/custom.list"
-    line: "{{ item }}"
-    create: "yes"
-  loop: "{{ domains_list }}"
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: Pihole script
