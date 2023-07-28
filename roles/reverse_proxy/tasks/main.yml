@@ -66,11 +66,15 @@
     path: "{{ proxy_config_path }}"
     regexp: "^\\s*set [$]upstream_port|^set [$]upstream_port"
     line: "set $upstream_port {{ proxy_upstream_port }};"
-  when: ansible_facts['distribution'] == 'Debian'
+  when:
+    - ansible_facts['distribution'] == 'Debian'
+    - "'nextcloud.subdomain.conf' in proxy_config_path"
 
 - name: Set upstream protocol nginx
   ansible.builtin.lineinfile:
     path: "{{ proxy_config_path }}"
     regexp: "^\\s*set [$]upstream_proto|^set [$]upstream_proto"
     line: "set $upstream_proto {{ proxy_upstream_protocol }};"
-  when: ansible_facts['distribution'] == 'Debian'
+  when:
+    - ansible_facts['distribution'] == 'Debian'
+    - "'nextcloud.subdomain.conf' in proxy_config_path"
