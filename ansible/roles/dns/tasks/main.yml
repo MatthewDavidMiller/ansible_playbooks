@@ -11,18 +11,27 @@
   ansible.builtin.file:
     path: "{{ pihole_path }}"
     state: directory
+    mode: 0770
+    owner: 999
+    group: 33
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: Create etc-pihole path
   ansible.builtin.file:
     path: "{{ pihole_path }}/etc-pihole"
     state: directory
+    mode: 0770
+    owner: 999
+    group: 33
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: Create etc-dnsmasq.d path
   ansible.builtin.file:
     path: "{{ pihole_path }}/etc-dnsmasq.d"
     state: directory
+    mode: 0770
+    owner: 999
+    group: 33
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: sysctl Config increase memory
@@ -37,6 +46,9 @@
   ansible.builtin.template:
     src: setup_vars.j2
     dest: "{{ pihole_path }}/etc-pihole/setupVars.conf"
+    mode: 0770
+    owner: 999
+    group: 33
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: Create pihole container network
@@ -76,7 +88,7 @@
     dest: "/usr/local/bin/backup_pihole_db.sh"
     owner: root
     group: root
-    mode: "0644"
+    mode: "0640"
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: Backup Pihole Daily
