@@ -39,3 +39,38 @@
     src: porkbun.ini.j2
     dest: "{{ swag_path }}/dns-conf/porkbun.ini"
   when: ansible_facts['distribution'] == 'Debian'
+
+- name: Copy file nginx sample
+  ansible.builtin.copy:
+    src: "{{ proxy_config_path }}.sample"
+    dest: "{{ proxy_config_path }}"
+    remote_src: yes
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Set server name nginx
+  ansible.builtin.lineinfile:
+    path: "{{ proxy_config_path }}"
+    regexp: "^\\s*server_name {{ default_server_name }}|^server_name {{ default_server_name }}"
+    line: "server_name {{ proxy_fqdn }};"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Set upstream app nginx
+  ansible.builtin.lineinfile:
+    path: "{{ proxy_config_path }}"
+    regexp: "^\\s*set [$]upstream_app {{ default_app_name }}|^set [$]upstream_app {{ default_app_name }}"
+    line: "set $upstream_app {{ container_destination }};"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Set upstream port nginx
+  ansible.builtin.lineinfile:
+    path: "{{ proxy_config_path }}"
+    regexp: "^\\s*set [$]upstream_port|^set [$]upstream_port"
+    line: "set $upstream_port {{ proxy_upstream_port }};"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Set upstream protocol nginx
+  ansible.builtin.lineinfile:
+    path: "{{ proxy_config_path }}"
+    regexp: "^\\s*set [$]upstream_proto|^set [$]upstream_proto"
+    line: "set $upstream_proto {{ proxy_upstream_protocol }};"
+  when: ansible_facts['distribution'] == 'Debian'
