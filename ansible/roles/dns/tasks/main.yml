@@ -14,6 +14,7 @@
     mode: 0770
     owner: 999
     group: 33
+    recurse: true
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: Create etc-pihole path
@@ -23,6 +24,7 @@
     mode: 0770
     owner: 999
     group: 33
+    recurse: true
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: Create etc-dnsmasq.d path
@@ -32,6 +34,7 @@
     mode: 0770
     owner: 999
     group: 33
+    recurse: true
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: sysctl Config increase memory
@@ -80,6 +83,10 @@
   ansible.builtin.file:
     path: "{{ pihole_path }}/database_backups"
     state: directory
+    owner: root
+    group: root
+    mode: "0740"
+    recurse: true
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: Backup Database Script
