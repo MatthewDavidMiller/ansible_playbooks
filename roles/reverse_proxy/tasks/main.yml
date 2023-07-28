@@ -11,6 +11,7 @@
     owner: 1000
     group: 1000
     mode: "0770"
+    recurse: true
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: Swag Service
