@@ -24,6 +24,7 @@
     owner: "www-data"
     group: "www-data"
     mode: "0770"
+    recurse: true
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: Mount Disk for backups
@@ -42,6 +43,7 @@
     owner: "www-data"
     group: "www-data"
     mode: "0770"
+    recurse: true
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: Create Nextcloud data container path
@@ -51,6 +53,7 @@
     owner: "www-data"
     group: "www-data"
     mode: "0770"
+    recurse: true
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: Create Nextcloud config container path
@@ -60,6 +63,7 @@
     owner: "www-data"
     group: "www-data"
     mode: "0770"
+    recurse: true
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: Create Nextcloud apps container path
@@ -69,6 +73,7 @@
     owner: "www-data"
     group: "www-data"
     mode: "0770"
+    recurse: true
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: postgres Service
@@ -120,11 +125,4 @@
     owner: "{{ user_name }}"
     group: root
     mode: "0770"
-  when: ansible_facts['distribution'] == 'Debian'
-
-- name: Add user to www-data group
-  ansible.builtin.user:
-    name: "{{ user_name }}"
-    groups: www-data
-    append: yes
   when: ansible_facts['distribution'] == 'Debian'
