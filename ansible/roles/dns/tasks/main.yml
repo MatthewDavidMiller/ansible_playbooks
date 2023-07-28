@@ -97,3 +97,10 @@
     src: update_dns_container.sh.j2
     dest: "/usr/local/bin/update_dns_container.sh"
   when: ansible_facts['distribution'] == 'Debian'
+
+- name: Add dns server to proxy
+  ansible.builtin.lineinfile:
+    path: "/usr/local/bin/swag_container.sh"
+    insertafter: "--name=swag"
+    line: "--dns={{ pihole_container_ip_address }} \\"
+  when: ansible_facts['distribution'] == 'Debian'
