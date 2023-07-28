@@ -118,3 +118,15 @@
     src: "{{ git_data }}/backup/roles"
     dest: "{{ ansible_playbooks_path }}"
   when: ansible_facts['distribution'] == 'Debian'
+
+- name: Clone reverse proxy Repo
+  ansible.builtin.git:
+    repo: https://github.com/MatthewDavidMiller/reverse_proxy.git
+    dest: "{{ git_data }}/reverse_proxy"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Copy reverse proxy role
+  ansible.builtin.copy:
+    src: "{{ git_data }}/reverse_proxy/roles"
+    dest: "{{ ansible_playbooks_path }}"
+  when: ansible_facts['distribution'] == 'Debian'
