@@ -57,14 +57,14 @@
 - name: Set upstream app nginx
   ansible.builtin.replace:
     path: "{{ proxy_config_path }}"
-    regexp: "^\\s*set [$]upstream_app {{ default_app_name }}|^set [$]upstream_app {{ default_app_name }}"
+    regexp: "^\\s*set [$]upstream_app {{ default_app_name }}.*|^set [$]upstream_app {{ default_app_name }}.*"
     replace: "set $upstream_app {{ container_destination }};"
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: Set upstream port nginx
   ansible.builtin.replace:
     path: "{{ proxy_config_path }}"
-    regexp: "^\\s*set [$]upstream_port|^set [$]upstream_port"
+    regexp: "^\\s*set [$]upstream_port.*|^set [$]upstream_port.*"
     replace: "set $upstream_port {{ proxy_upstream_port }};"
   when:
     - ansible_facts['distribution'] == 'Debian'
@@ -73,7 +73,7 @@
 - name: Set upstream protocol nginx
   ansible.builtin.replace:
     path: "{{ proxy_config_path }}"
-    regexp: "^\\s*set [$]upstream_proto|^set [$]upstream_proto"
+    regexp: "^\\s*set [$]upstream_proto.*|^set [$]upstream_proto.*"
     replace: "set $upstream_proto {{ proxy_upstream_protocol }};"
   when:
     - ansible_facts['distribution'] == 'Debian'
