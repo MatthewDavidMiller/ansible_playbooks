@@ -58,6 +58,12 @@
     enabled: yes
   when: ansible_facts['distribution'] == 'Debian'
 
+- name: Disable systemd-resolved
+  ansible.builtin.systemd:
+    name: systemd-resolved.service
+    enabled: no
+  when: ansible_facts['distribution'] == 'Debian'
+
 - name: Create Pihole DB backups path
   ansible.builtin.file:
     path: "{{ pihole_path }}/database_backups"
