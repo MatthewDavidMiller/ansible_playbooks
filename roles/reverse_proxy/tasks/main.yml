@@ -55,26 +55,26 @@
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: Set upstream app nginx
-  ansible.builtin.lineinfile:
+  ansible.builtin.replace:
     path: "{{ proxy_config_path }}"
     regexp: "^\\s*set [$]upstream_app {{ default_app_name }}|^set [$]upstream_app {{ default_app_name }}"
-    line: "set $upstream_app {{ container_destination }};"
+    replace: "set $upstream_app {{ container_destination }};"
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: Set upstream port nginx
-  ansible.builtin.lineinfile:
+  ansible.builtin.replace:
     path: "{{ proxy_config_path }}"
     regexp: "^\\s*set [$]upstream_port|^set [$]upstream_port"
-    line: "set $upstream_port {{ proxy_upstream_port }};"
+    replace: "set $upstream_port {{ proxy_upstream_port }};"
   when:
     - ansible_facts['distribution'] == 'Debian'
     - "'nextcloud.subdomain.conf' in proxy_config_path"
 
 - name: Set upstream protocol nginx
-  ansible.builtin.lineinfile:
+  ansible.builtin.replace:
     path: "{{ proxy_config_path }}"
     regexp: "^\\s*set [$]upstream_proto|^set [$]upstream_proto"
-    line: "set $upstream_proto {{ proxy_upstream_protocol }};"
+    replace: "set $upstream_proto {{ proxy_upstream_protocol }};"
   when:
     - ansible_facts['distribution'] == 'Debian'
     - "'nextcloud.subdomain.conf' in proxy_config_path"
