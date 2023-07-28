@@ -8,5 +8,5 @@
 -e DNSPLUGIN={{ swag_dns_plugin }} \
 -e ONLY_SUBDOMAINS=true \
 -v {{ swag_path }}:/config:Z \
---requires={{ swag_requires }}
+--requires={{ swag_requires }} \
 -p 443:443/tcp -d docker.io/linuxserver/swag:latest
