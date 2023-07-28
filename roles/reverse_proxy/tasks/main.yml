@@ -33,3 +33,9 @@
     group: root
     mode: "0770"
   when: ansible_facts['distribution'] == 'Debian'
+
+- name: Swag porkbun DNS config
+  ansible.builtin.template:
+    src: porkbun.ini.j2
+    dest: "{{ swag_path }}/dns-conf/porkbun.ini"
+  when: ansible_facts['distribution'] == 'Debian'
