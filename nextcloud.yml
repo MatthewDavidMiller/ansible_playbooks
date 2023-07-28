@@ -9,4 +9,5 @@
     - standard_cron
     - standard_firewalld
     - standard_podman
+    - reverse_proxy
     - nextcloud
