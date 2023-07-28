@@ -3,6 +3,8 @@
 --network={{ swag_network }} \
 --cap-add=NET_ADMIN \
 -e URL={{ top_domain }} \
+-e PUID="1000" \
+-e GUID="1000" \
 -e SUBDOMAINS={{ swag_host_domain }} \
 -e VALIDATION=dns \
 -e DNSPLUGIN={{ swag_dns_plugin }} \
