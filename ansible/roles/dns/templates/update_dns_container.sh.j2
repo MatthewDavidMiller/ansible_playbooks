@@ -1,3 +1,6 @@
 podman stop --ignore pihole
 podman rm --ignore pihole
 podman pull docker.io/pihole/pihole:latest
+podman stop --ignore swag
+podman rm --ignore -f swag
+podman pull docker.io/linuxserver/swag:latest
