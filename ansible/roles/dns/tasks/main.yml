@@ -115,4 +115,7 @@
     path: "/usr/local/bin/swag_container.sh"
     insertafter: "--name=swag"
     line: "--dns={{ pihole_container_ip_address }} \\"
+    owner: 1000
+    group: 1000
+    mode: "0770"
   when: ansible_facts['distribution'] == 'Debian'
