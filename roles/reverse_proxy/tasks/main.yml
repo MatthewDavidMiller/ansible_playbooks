@@ -3,48 +3,33 @@
 # https://blog.fabiancdng.com/running-nextcloud-using-docker-and-traefik/
 # https://medium.com/@containeroo/traefik-2-0-wildcard-lets-encrypt-certificates-1658370adc68
 # https://kevinquillen.com/setting-traefik-2-local-ssl-certificate
-- name: Create traefik container path
+
+- name: Create swag container path
   ansible.builtin.file:
-    path: "/home/{{ user_name }}/traefik"
+    path: "{{ swag_path }}"
     state: directory
-    owner: root
+    owner: "{{ user_name }}"
     group: root
-  when: ansible_distribution == 'Rocky'
+    mode: "0770"
+  when: ansible_facts['distribution'] == 'Debian'
 
-- name: Create traefik certs path
-  ansible.builtin.file:
-    path: "/home/{{ user_name }}/traefik/certs"
-    state: directory
-    owner: root
-    group: root
-  when: ansible_distribution == 'Rocky'
-
-- name: Copy cert pem file
-  ansible.builtin.copy:
-    src: "/etc/letsencrypt/live/{{ ssl_cert }}/cert.pem"
-    dest: "/home/{{ user_name }}/traefik/certs/cert.pem"
-  when: ansible_distribution == 'Rocky'
-
-- name: Copy privkey pem file
-  ansible.builtin.copy:
-    src: "/etc/letsencrypt/live/{{ ssl_cert }}/privkey.pem"
-    dest: "/home/{{ user_name }}/traefik/certs/privkey.pem"
-  when: ansible_distribution == 'Rocky'
-
-- name: Traefik config file
+- name: Swag Service
   ansible.builtin.template:
-    src: traefik.j2
-    dest: "/home/{{ user_name }}/traefik/traefik.yml"
-  when: ansible_distribution == 'Rocky'
+    src: swag_container.service.j2
+    dest: "/etc/systemd/system/swag_container.service"
+  when: ansible_facts['distribution'] == 'Debian'
 
-- name: Traefik Service
-  ansible.builtin.template:
-    src: traefik_container.service.j2
-    dest: "/etc/systemd/system/traefik_container.service"
-  when: ansible_distribution == 'Rocky'
-
-- name: Enable Traefik
+- name: Enable Swag
   ansible.builtin.systemd:
-    name: traefik_container.service
+    name: swag_container.service
     enabled: yes
-  when: ansible_distribution == 'Rocky'
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Swag script
+  ansible.builtin.template:
+    src: swag_container.sh.j2
+    dest: "/usr/local/bin/swag_container.sh"
+    owner: "{{ user_name }}"
+    group: root
+    mode: "0770"
+  when: ansible_facts['distribution'] == 'Debian'
