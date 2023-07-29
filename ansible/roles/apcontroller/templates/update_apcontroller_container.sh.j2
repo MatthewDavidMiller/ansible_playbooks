@@ -1,3 +1,6 @@
 podman stop --ignore apcontroller
 podman rm --ignore -f apcontroller
 podman pull docker.io/mbentley/omada-controller:latest
+podman stop --ignore swag
+podman rm --ignore -f swag
+podman pull docker.io/linuxserver/swag:latest
