@@ -24,6 +24,16 @@
     recurse: true
   when: ansible_facts['distribution'] == 'Debian'
 
+- name: Create swag proxy-confs path
+  ansible.builtin.file:
+    path: "{{ swag_path }}/nginx/proxy-confs"
+    state: directory
+    owner: 1000
+    group: 1000
+    mode: "0770"
+    recurse: true
+  when: ansible_facts['distribution'] == 'Debian'
+
 - name: Swag Service
   ansible.builtin.template:
     src: swag_container.service.j2
@@ -54,56 +64,11 @@
     mode: "0770"
   when: ansible_facts['distribution'] == 'Debian'
 
-- name: Copy file nginx sample
-  ansible.builtin.copy:
-    src: "{{ proxy_config_path }}.sample"
-    dest: "{{ proxy_config_path }}"
-    owner: 1000
-    group: 1000
-    mode: "0770"
-    remote_src: yes
-  when: ansible_facts['distribution'] == 'Debian'
-
-- name: Set server name nginx
-  ansible.builtin.lineinfile:
-    path: "{{ proxy_config_path }}"
-    regexp: "^\\s*server_name {{ default_server_name }}|^server_name {{ default_server_name }}"
-    line: "server_name {{ proxy_fqdn }};"
+- name: Swag proxy config
+  ansible.builtin.template:
+    src: "{{ proxy_config }}_proxy.conf.j2"
+    dest: "{{ swag_path }}/nginx/proxy-confs/{{ proxy_config }}.conf"
     owner: 1000
     group: 1000
     mode: "0770"
   when: ansible_facts['distribution'] == 'Debian'
-
-- name: Set upstream app nginx
-  ansible.builtin.replace:
-    path: "{{ proxy_config_path }}"
-    regexp: "^\\s*set [$]upstream_app {{ default_app_name }}.*|^set [$]upstream_app {{ default_app_name }}.*"
-    replace: "set $upstream_app {{ container_destination }};"
-    owner: 1000
-    group: 1000
-    mode: "0770"
-  when: ansible_facts['distribution'] == 'Debian'
-
-- name: Set upstream port nginx
-  ansible.builtin.replace:
-    path: "{{ proxy_config_path }}"
-    regexp: "^\\s*set [$]upstream_port.*|^set [$]upstream_port.*"
-    replace: "set $upstream_port {{ proxy_upstream_port }};"
-    owner: 1000
-    group: 1000
-    mode: "0770"
-  when:
-    - ansible_facts['distribution'] == 'Debian'
-    - "'nextcloud.subdomain.conf' in proxy_config_path"
-
-- name: Set upstream protocol nginx
-  ansible.builtin.replace:
-    path: "{{ proxy_config_path }}"
-    regexp: "^\\s*set [$]upstream_proto.*|^set [$]upstream_proto.*"
-    replace: "set $upstream_proto {{ proxy_upstream_protocol }};"
-    owner: 1000
-    group: 1000
-    mode: "0770"
-  when:
-    - ansible_facts['distribution'] == 'Debian'
-    - "'nextcloud.subdomain.conf' in proxy_config_path"
