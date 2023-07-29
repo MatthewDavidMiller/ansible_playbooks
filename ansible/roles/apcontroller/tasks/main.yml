@@ -1,26 +1,49 @@
 ---
+- name: Create apcontroller container network
+  ansible.builtin.shell:
+    cmd: |
+      podman network create ap_container_net
+  ignore_errors: true
+  when: ansible_facts['distribution'] == 'Debian'
+
 - name: Create APController container path
   ansible.builtin.file:
-    path: "/home/{{ user_name }}/apcontroller"
+    path: "{{ apcontroller_path }}"
     state: directory
+    mode: 0770
+    owner: 508
+    group: 508
+    recurse: true
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: Create APController data path
   ansible.builtin.file:
-    path: "/home/{{ user_name }}/apcontroller/data"
+    path: "{{ apcontroller_path }}/data"
     state: directory
+    mode: 0770
+    owner: 508
+    group: 508
+    recurse: true
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: Create APController work path
   ansible.builtin.file:
-    path: "/home/{{ user_name }}/apcontroller/work"
+    path: "{{ apcontroller_path }}/work"
     state: directory
+    mode: 0770
+    owner: 508
+    group: 508
+    recurse: true
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: Create APController logs path
   ansible.builtin.file:
-    path: "/home/{{ user_name }}/apcontroller/logs"
+    path: "{{ apcontroller_path }}/logs"
     state: directory
+    mode: 0770
+    owner: 508
+    group: 508
+    recurse: true
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: APcontroller Service
