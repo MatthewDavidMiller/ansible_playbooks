@@ -1,4 +1,11 @@
 ---
+- name: Create vaultwarden container network
+  ansible.builtin.shell:
+    cmd: |
+      podman network create vaultwarden_container_net
+  ignore_errors: true
+  when: ansible_facts['distribution'] == 'Debian'
+
 - name: Create Vaultwarden container path
   ansible.builtin.file:
     path: "{{ vaultwarden_path }}"
