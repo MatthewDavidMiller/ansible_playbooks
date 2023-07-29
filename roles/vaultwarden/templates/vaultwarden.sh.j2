@@ -3,4 +3,5 @@
 --network=vaultwarden_container_net \
 --volume {{ vaultwarden_path }}/vw-data:/data/:Z \
 --volume {{ vaultwarden_path }}/ssl_certs:/ssl_certs/:Z \
+-e WEBSOCKET_ENABLED=true \
 -d docker.io/vaultwarden/server:latest
