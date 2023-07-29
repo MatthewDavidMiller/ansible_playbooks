@@ -67,7 +67,7 @@
 - name: Swag proxy config
   ansible.builtin.template:
     src: "{{ proxy_config }}_proxy.conf.j2"
-    dest: "{{ swag_path }}/nginx/proxy-confs/{{ proxy_config }}.conf"
+    dest: "{{ swag_path }}/nginx/proxy-confs/{{ proxy_config }}.subdomain.conf"
     owner: 1000
     group: 1000
     mode: "0770"
