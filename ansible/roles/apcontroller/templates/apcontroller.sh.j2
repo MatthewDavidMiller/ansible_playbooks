@@ -1,10 +1,9 @@
 /usr/bin/podman run \
 --name=apcontroller \
---network=homelab \
---ip={{ ap_controller_ip_address }} \
---volume /home/{{ user_name }}/apcontroller/data:/opt/tplink/EAPController/data/:Z \
---volume /home/{{ user_name }}/apcontroller/work:/opt/tplink/EAPController/work/:Z \
---volume /home/{{ user_name }}/apcontroller/logs:/opt/tplink/EAPController/logs/:Z \
+--network=ap_container_net \
+--volume {{ apcontroller_path }}/data:/opt/tplink/EAPController/data/:Z \
+--volume {{ apcontroller_path }}/work:/opt/tplink/EAPController/work/:Z \
+--volume {{ apcontroller_path }}/logs:/opt/tplink/EAPController/logs/:Z \
 -e TZ=Etc/UTC \
 -e MANAGE_HTTP_PORT=8088 \
 -e MANAGE_HTTPS_PORT=8043 \
@@ -12,9 +11,6 @@
 -e PORTAL_HTTPS_PORT=8843 \
 -e SHOW_SERVER_LOGS=true \
 -e SHOW_MONGODB_LOGS=false \
--p 8088:8088 \
--p 8043:8043 \
--p 8843:8843 \
 -p 29810:29810 \
 -p 29810:29810/udp \
 -p 29811:29811 \
