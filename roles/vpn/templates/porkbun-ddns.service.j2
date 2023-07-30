@@ -1,0 +1,19 @@
+[Unit]
+Description=Podman container-porkbun-ddns.service
+Documentation=man:podman-generate-systemd(1)
+Wants=network-online.target
+After=network-online.target
+After=firewalld.service
+
+[Service]
+Environment=PODMAN_SYSTEMD_UNIT=%n
+Restart=on-failure
+TimeoutStopSec=70
+ExecStartPre=/usr/bin/podman rm --ignore porkbun-ddns
+ExecStart=/usr/bin/bash /usr/local/bin/porkbun-ddns.sh
+ExecStop=/usr/bin/podman stop --ignore porkbun-ddns
+ExecStopPost=/usr/bin/podman rm --ignore -f porkbun-ddns
+Type=forking
+
+[Install]
+WantedBy=multi-user.target default.target
