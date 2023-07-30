@@ -1,0 +1,128 @@
+---
+# https://docs.linuxserver.io/general/swag
+
+- name: Create nextcloud and postgres container network
+  ansible.builtin.shell:
+    cmd: |
+      podman network create --subnet 172.16.1.8/29 nextcloud_container_net
+  ignore_errors: true
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Create postgres database container path
+  ansible.builtin.file:
+    path: "{{ postgres_path }}"
+    state: directory
+    owner: "{{ user_name }}"
+    group: root
+    mode: "0770"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Create Nextcloud container path
+  ansible.builtin.file:
+    path: "{{ nextcloud_path }}"
+    state: directory
+    owner: "www-data"
+    group: "www-data"
+    mode: "0770"
+    recurse: true
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Mount Disk for backups
+  ansible.posix.mount:
+    path: "{{ nextcloud_path }}"
+    src: "{{ nextcloud_disk }}"
+    fstype: ext4
+    opts: rw,auto
+    state: mounted
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Create Nextcloud base container path
+  ansible.builtin.file:
+    path: "{{ nextcloud_path }}/base"
+    state: directory
+    owner: "www-data"
+    group: "www-data"
+    mode: "0770"
+    recurse: true
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Create Nextcloud data container path
+  ansible.builtin.file:
+    path: "{{ nextcloud_path }}/data"
+    state: directory
+    owner: "www-data"
+    group: "www-data"
+    mode: "0770"
+    recurse: true
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Create Nextcloud config container path
+  ansible.builtin.file:
+    path: "{{ nextcloud_path }}/config"
+    state: directory
+    owner: "www-data"
+    group: "www-data"
+    mode: "0770"
+    recurse: true
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Create Nextcloud apps container path
+  ansible.builtin.file:
+    path: "{{ nextcloud_path }}/apps"
+    state: directory
+    owner: "www-data"
+    group: "www-data"
+    mode: "0770"
+    recurse: true
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: postgres Service
+  ansible.builtin.template:
+    src: postgres_container.service.j2
+    dest: "/etc/systemd/system/postgres_container.service"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Enable postgres
+  ansible.builtin.systemd:
+    name: postgres_container.service
+    enabled: yes
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Nextcloud Service
+  ansible.builtin.template:
+    src: nextcloud_container.service.j2
+    dest: "/etc/systemd/system/nextcloud_container.service"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Enable Nextcloud
+  ansible.builtin.systemd:
+    name: nextcloud_container.service
+    enabled: yes
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Nextcloud script
+  ansible.builtin.template:
+    src: nextcloud_container.sh.j2
+    dest: "/usr/local/bin/nextcloud_container.sh"
+    owner: "{{ user_name }}"
+    group: root
+    mode: "0770"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Postgres script
+  ansible.builtin.template:
+    src: postgres_container.sh.j2
+    dest: "/usr/local/bin/postgres_container.sh"
+    owner: "{{ user_name }}"
+    group: root
+    mode: "0770"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Update Nextcloud Container script
+  ansible.builtin.template:
+    src: update_nextcloud_container.sh.j2
+    dest: "/usr/local/bin/update_nextcloud_container.sh"
+    owner: "{{ user_name }}"
+    group: root
+    mode: "0770"
+  when: ansible_facts['distribution'] == 'Debian'
