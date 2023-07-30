@@ -1,0 +1,6 @@
+podman stop --ignore wireguard
+podman rm --ignore wireguard
+podman pull docker.io/linuxserver/wireguard:latest
+podman stop --ignore porkbun-ddns
+podman rm --ignore porkbun-ddns
+podman pull docker.io/mietzen/porkbun-ddns:latest
