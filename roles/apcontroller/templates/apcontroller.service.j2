@@ -1,0 +1,21 @@
+# Credits
+# https://github.com/mbentley/docker-omada-controller
+
+[Unit]
+Description=Podman container-apcontroller.service
+Documentation=man:podman-generate-systemd(1)
+Wants=network.target
+After=network-online.target
+
+[Service]
+Environment=PODMAN_SYSTEMD_UNIT=%n
+Restart=on-failure
+TimeoutStopSec=70
+ExecStartPre=/usr/bin/podman rm --ignore apcontroller
+ExecStart=/usr/bin/bash /usr/local/bin/apcontroller.sh
+ExecStop=/usr/bin/podman stop --ignore apcontroller
+ExecStopPost=/usr/bin/podman rm --ignore -f apcontroller
+Type=forking
+
+[Install]
+WantedBy=multi-user.target default.target
