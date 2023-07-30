@@ -1,0 +1,1 @@
+INSERT INTO adlist (id, address, enabled, comment) VALUES (1,'https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts',1,'Default All in one blocklist');

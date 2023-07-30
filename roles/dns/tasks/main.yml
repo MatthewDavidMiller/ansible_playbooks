@@ -1,0 +1,128 @@
+---
+# Credits
+
+- name: Install sqlite3
+  ansible.builtin.apt:
+    name: sqlite3
+    state: present
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Create Pihole container path
+  ansible.builtin.file:
+    path: "{{ pihole_path }}"
+    state: directory
+    mode: 0770
+    owner: 999
+    group: 33
+    recurse: true
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Create etc-pihole path
+  ansible.builtin.file:
+    path: "{{ pihole_path }}/etc-pihole"
+    state: directory
+    mode: 0770
+    owner: 999
+    group: 33
+    recurse: true
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Create etc-dnsmasq.d path
+  ansible.builtin.file:
+    path: "{{ pihole_path }}/etc-dnsmasq.d"
+    state: directory
+    mode: 0770
+    owner: 999
+    group: 33
+    recurse: true
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: sysctl Config increase memory
+  ansible.builtin.lineinfile:
+    path: "/etc/sysctl.d/01_sysctl.conf"
+    regexp: '^net\.core\.rmem_max='
+    line: net.core.rmem_max=1048576
+    create: yes
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Pihole Config
+  ansible.builtin.template:
+    src: setup_vars.j2
+    dest: "{{ pihole_path }}/etc-pihole/setupVars.conf"
+    mode: 0770
+    owner: 999
+    group: 33
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Create pihole container network
+  ansible.builtin.shell:
+    cmd: |
+      podman network create --subnet {{ pihole_container_network }}  --disable-dns pihole_container_net
+  ignore_errors: true
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Pihole Service
+  ansible.builtin.template:
+    src: pihole.service.j2
+    dest: "/etc/systemd/system/pihole.service"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Enable Pihole
+  ansible.builtin.systemd:
+    name: pihole.service
+    enabled: yes
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Disable systemd-resolved
+  ansible.builtin.systemd:
+    name: systemd-resolved.service
+    enabled: no
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Create Pihole DB backups path
+  ansible.builtin.file:
+    path: "{{ pihole_path }}/database_backups"
+    state: directory
+    owner: root
+    group: root
+    mode: "0740"
+    recurse: true
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Backup Database Script
+  ansible.builtin.template:
+    src: backup_db.j2
+    dest: "/usr/local/bin/backup_pihole_db.sh"
+    owner: root
+    group: root
+    mode: "0640"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Backup Pihole Daily
+  ansible.builtin.cron:
+    name: "Backup Pihole DB"
+    special_time: daily
+    job: /bin/bash /usr/local/bin/backup_pihole_db.sh
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Pihole script
+  ansible.builtin.template:
+    src: pihole.sh.j2
+    dest: "/usr/local/bin/pihole.sh"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Update DNS Container script
+  ansible.builtin.template:
+    src: update_dns_container.sh.j2
+    dest: "/usr/local/bin/update_dns_container.sh"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Add dns server to proxy
+  ansible.builtin.lineinfile:
+    path: "/usr/local/bin/swag_container.sh"
+    insertafter: "--name=swag"
+    line: "--dns={{ pihole_container_ip_address }} \\"
+    owner: 1000
+    group: 1000
+    mode: "0770"
+  when: ansible_facts['distribution'] == 'Debian'
