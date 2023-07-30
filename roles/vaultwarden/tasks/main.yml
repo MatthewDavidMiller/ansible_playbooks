@@ -1,0 +1,71 @@
+---
+- name: Create vaultwarden container network
+  ansible.builtin.shell:
+    cmd: |
+      podman network create vaultwarden_container_net
+  ignore_errors: true
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Create Vaultwarden container path
+  ansible.builtin.file:
+    path: "{{ vaultwarden_path }}"
+    state: directory
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Create Vaultwarden container data path
+  ansible.builtin.file:
+    path: "{{ vaultwarden_path }}/vw-data"
+    state: directory
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Create Vaultwarden container ssl certs path
+  ansible.builtin.file:
+    path: "{{ vaultwarden_path }}/ssl_certs"
+    state: directory
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Create Vaultwarden backups path
+  ansible.builtin.file:
+    path: "{{ vaultwarden_path }}/database_backups"
+    state: directory
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Vaultwarden Service
+  ansible.builtin.template:
+    src: vaultwarden.service.j2
+    dest: "/etc/systemd/system/vaultwarden.service"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Enable Vaultwarden
+  ansible.builtin.systemd:
+    name: vaultwarden.service
+    enabled: yes
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Backup Database Script
+  ansible.builtin.template:
+    src: backup_db.j2
+    dest: "/usr/local/bin/backup_vaultwarden_db.sh"
+    owner: root
+    group: root
+    mode: "0644"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Backup Vaultwarden Daily
+  ansible.builtin.cron:
+    name: "Backup Vaultwarden"
+    special_time: daily
+    job: /usr/bin/bash /usr/local/bin/backup_vaultwarden_db.sh
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Vaultwarden script
+  ansible.builtin.template:
+    src: vaultwarden.sh.j2
+    dest: "/usr/local/bin/vaultwarden.sh"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Update vaultwarden container script
+  ansible.builtin.template:
+    src: update_vaultwarden_container.sh.j2
+    dest: "/usr/local/bin/update_vaultwarden_container.sh"
+  when: ansible_facts['distribution'] == 'Debian'
