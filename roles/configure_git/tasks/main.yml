@@ -1,0 +1,11 @@
+---
+- name: Configure git
+  ansible.builtin.shell:
+    cmd: |
+      git config --global user.name {{ git_name }}
+      git config --global user.email {{ email }}
+      git config --global core.sshCommand "ssh -i /home/{{ user_name }}/.ssh/{{ key }} -F /dev/null"
+  become: yes
+  become_user: "{{ user_name }}"
+  when:
+    - ansible_facts['distribution'] == 'Archlinux'

@@ -1,0 +1,12 @@
+---
+- name: reflector configuration
+  ansible.builtin.template:
+    src: reflector.j2
+    dest: /etc/xdg/reflector/reflector.conf
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Enable reflector
+  ansible.builtin.systemd:
+    name: reflector.service
+    enabled: yes
+  when: ansible_facts['distribution'] == 'Archlinux'

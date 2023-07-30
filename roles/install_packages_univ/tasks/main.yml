@@ -1,0 +1,7 @@
+---
+- name: Install packages universal
+  ansible.builtin.shell:
+    cmd: |
+      pacman -S --noconfirm --needed "{{ item }}"
+  loop: "{{ universal_packages }}"
+  when: ansible_facts['distribution'] == 'Archlinux'

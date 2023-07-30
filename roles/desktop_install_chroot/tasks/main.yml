@@ -1,0 +1,206 @@
+#Credits
+# https://stackoverflow.com/questions/48451171/ansible-pass-output-of-shell-command-to-variable
+# https://www.lisenet.com/2019/ansible-generate-crypted-passwords-for-the-user-module/
+
+---
+- name: Hosts file configuration
+  ansible.builtin.template:
+    src: hosts.j2
+    dest: /etc/hosts
+    owner: root
+    group: root
+    mode: "0644"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Hostname file configuration
+  ansible.builtin.template:
+    src: hostname.j2
+    dest: /etc/hostname
+    owner: root
+    group: root
+    mode: "0644"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: locale configuration
+  ansible.builtin.template:
+    src: locale.j2
+    dest: /etc/locale.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: set locale to generate
+  ansible.builtin.lineinfile:
+    path: /etc/locale.gen
+    regexp: ^#?en_US\.UTF-8 UTF-8
+    line: en_US.UTF-8 UTF-8
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: generate locale
+  ansible.builtin.shell:
+    cmd: |
+      locale-gen
+  become: "yes"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: configure umask
+  ansible.builtin.lineinfile:
+    path: /etc/profile
+    regexp: "^#?umask "
+    line: umask 0027
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Install extra packages
+  ansible.builtin.shell:
+    cmd: |
+      pacman -S --noconfirm --needed "{{ item }}"
+  loop: "{{ extra_packages }}"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Get Luks partition uuid
+  ansible.builtin.shell:
+    cmd: |
+      blkid -o value -s UUID "{{ disk }}2"
+  register: luks_uuid
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Get root partition uuid
+  ansible.builtin.shell:
+    cmd: |
+      blkid -o value -s UUID "/dev/{{ lvm_name }}/root"
+  register: root_uuid
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Get var partition uuid
+  ansible.builtin.shell:
+    cmd: |
+      blkid -o value -s UUID "/dev/{{ lvm_name }}/var"
+  register: var_uuid
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Get swap partition uuid
+  ansible.builtin.shell:
+    cmd: |
+      blkid -o value -s UUID "/dev/{{ lvm_name }}/swap"
+  register: swap_uuid
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Get home partition uuid
+  ansible.builtin.shell:
+    cmd: |
+      blkid -o value -s UUID "/dev/{{ lvm_name }}/home"
+  register: home_uuid
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Get boot partition uuid
+  ansible.builtin.shell:
+    cmd: |
+      blkid -o value -s UUID "{{ disk }}1"
+  register: boot_uuid
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Configure fstab
+  ansible.builtin.blockinfile:
+    path: /etc/fstab
+    marker: "{mark}"
+    marker_begin: "# Base fstab"
+    marker_end: "#=================================================================================================================="
+    block: |
+      UUID={{ root_uuid.stdout }} / ext4 defaults 0 0
+      UUID={{ var_uuid.stdout }} /var ext4 defaults 0 0
+      tmpfs /tmp tmpfs rw,nodev,nosuid,size=12G 0 0
+      UUID={{ swap_uuid.stdout }} none swap defaults 0 0
+      UUID={{ home_uuid.stdout }} /home ext4 defaults 0 0
+      UUID={{ boot_uuid.stdout }} /boot vfat defaults 0 0
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Turn on swapfile
+  ansible.builtin.shell:
+    cmd: |
+      swapon /dev/{{ lvm_name }}/swap
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Configure kernel
+  ansible.builtin.lineinfile:
+    path: /etc/mkinitcpio.conf
+    regexp: "^#?HOOKS="
+    line: HOOKS=(base udev autodetect keyboard keymap consolefont modconf block encrypt lvm2 filesystems fsck)
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Configure kernel Nvidia
+  ansible.builtin.lineinfile:
+    path: /etc/mkinitcpio.conf
+    regexp: "^#?MODULES="
+    line: MODULES=(nvidia nvidia_modeset nvidia_uvm nvidia_drm)
+  when:
+    - ansible_facts['distribution'] == 'Archlinux'
+    - nvidia_in_use == "yes"
+
+- name: Run kernel build
+  ansible.builtin.shell:
+    cmd: |
+      mkinitcpio -P
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Create boot loader entry path
+  ansible.builtin.file:
+    path: "/boot/loader/entries"
+    state: directory
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: kernel boot loader config
+  ansible.builtin.template:
+    src: arch_linux.j2
+    dest: /boot/loader/entries/arch_linux.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: boot loader config
+  ansible.builtin.template:
+    src: loader.j2
+    dest: /boot/loader/loader.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Set systemd boot install path
+  ansible.builtin.shell:
+    cmd: |
+      bootctl --path=/boot install
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Enable network manager
+  ansible.builtin.systemd:
+    name: NetworkManager.service
+    enabled: yes
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Enable ntpd client
+  ansible.builtin.systemd:
+    name: ntpd.service
+    enabled: yes
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Create sudo group
+  ansible.builtin.group:
+    name: sudo
+    state: present
+
+- name: Add a user
+  ansible.builtin.user:
+    name: "{{ user_name }}"
+    groups: sudo
+    append: "yes"
+    password: "{{ user_name_password }}"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Set the root password
+  ansible.builtin.user:
+    name: root
+    append: "yes"
+    password: "{{ root_password }}"
+  when: ansible_facts['distribution'] == 'Archlinux'

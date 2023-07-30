@@ -1,0 +1,6 @@
+cd /home/{{ user_name }}/aur
+git clone 'https://aur.archlinux.org/rpi-imager.git'
+cd rpi-imager || exit
+git pull
+less PKGBUILD
+makepkg -sirc

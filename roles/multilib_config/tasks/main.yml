@@ -1,0 +1,12 @@
+---
+- name: Enable multilib repo
+  ansible.builtin.blockinfile:
+    path: "/etc/pacman.conf"
+    block: |
+      [multilib]
+      Include = /etc/pacman.d/mirrorlist
+    marker: "{mark}"
+    marker_begin: "# Enable multilib"
+    marker_end: "# Enable multilib=================================================================================================================="
+  when:
+    - ansible_facts['distribution'] == 'Archlinux'

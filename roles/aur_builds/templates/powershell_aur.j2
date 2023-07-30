@@ -1,0 +1,6 @@
+cd /home/{{ user_name }}/aur
+git clone 'https://aur.archlinux.org/powershell.git'
+cd powershell || exit
+git pull
+less PKGBUILD
+makepkg -sirc

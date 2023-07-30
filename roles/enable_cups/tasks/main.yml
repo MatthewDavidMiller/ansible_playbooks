@@ -1,0 +1,6 @@
+---
+- name: Enable cups
+  ansible.builtin.systemd:
+    name: cups.service
+    enabled: yes
+  when: ansible_facts['distribution'] == 'Archlinux'

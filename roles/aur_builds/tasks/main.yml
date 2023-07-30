@@ -1,0 +1,48 @@
+---
+- name: Aur build path
+  ansible.builtin.file:
+    path: "/home/{{ user_name }}/aur"
+    owner: "{{ user_name }}"
+    state: directory
+  when:
+    - ansible_facts['distribution'] == 'Archlinux'
+
+- name: Vscode aur build
+  ansible.builtin.template:
+    src: vscode_aur.j2
+    dest: /home/{{ user_name }}/aur/vscode.sh
+    owner: "{{ user_name }}"
+    mode: "0744"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Spotify aur build
+  ansible.builtin.template:
+    src: spotify_aur.j2
+    dest: /home/{{ user_name }}/aur/spotify.sh
+    owner: "{{ user_name }}"
+    mode: "0744"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: PowerShell aur build
+  ansible.builtin.template:
+    src: powershell_aur.j2
+    dest: /home/{{ user_name }}/aur/powershell.sh
+    owner: "{{ user_name }}"
+    mode: "0744"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: rpi-imager aur build
+  ansible.builtin.template:
+    src: rpi_imager_aur.j2
+    dest: /home/{{ user_name }}/aur/rpi_imager.sh
+    owner: "{{ user_name }}"
+    mode: "0744"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: paru aur build
+  ansible.builtin.template:
+    src: paru.j2
+    dest: /home/{{ user_name }}/aur/paru.sh
+    owner: "{{ user_name }}"
+    mode: "0744"
+  when: ansible_facts['distribution'] == 'Archlinux'
