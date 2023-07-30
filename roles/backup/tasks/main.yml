@@ -1,0 +1,53 @@
+---
+# https://borgbackup.readthedocs.io/en/stable/quickstart.html
+
+- name: Install Borg Backup
+  ansible.builtin.apt:
+    name: borgbackup
+    state: present
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Install sshfs
+  ansible.builtin.apt:
+    name: sshfs
+    state: present
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Create Borg Backup directory
+  ansible.builtin.file:
+    path: "{{ borg_backup_path }}"
+    state: directory
+    mode: "0740"
+
+- name: Create SSH FS directory
+  ansible.builtin.file:
+    path: "{{ ssh_mount_path }}"
+    state: directory
+    mode: "0740"
+
+- name: Mount Disk for backups
+  ansible.posix.mount:
+    path: "{{ borg_backup_path }}"
+    src: "{{ backup_disk }}"
+    fstype: ext4
+    opts: rw,auto
+    state: mounted
+
+- name: Init backup repo Script
+  ansible.builtin.template:
+    src: init_backup_repo.sh.j2
+    dest: "/usr/local/bin/init_backup_repo.sh"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Backup Script
+  ansible.builtin.template:
+    src: backup_files.sh.j2
+    dest: "/usr/local/bin/backup_files.sh"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Backup Daily
+  ansible.builtin.cron:
+    name: "Borg Backup"
+    special_time: daily
+    job: /usr/bin/bash /usr/local/bin/backup_files.sh
+  when: ansible_facts['distribution'] == 'Debian'
