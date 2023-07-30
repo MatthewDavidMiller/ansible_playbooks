@@ -1,0 +1,18 @@
+[Unit]
+Description=Podman container-postgres.service
+Documentation=man:podman-generate-systemd(1)
+Wants=network.target
+After=network-online.target
+
+[Service]
+Environment=PODMAN_SYSTEMD_UNIT=%n
+Restart=on-failure
+TimeoutStopSec=70
+ExecStartPre=/usr/bin/podman rm --ignore postgres
+ExecStart=/usr/bin/bash /usr/local/bin/postgres_container.sh
+ExecStop=/usr/bin/podman stop --ignore postgres
+ExecStopPost=/usr/bin/podman rm --ignore -f postgres
+Type=forking
+
+[Install]
+WantedBy=multi-user.target default.target
