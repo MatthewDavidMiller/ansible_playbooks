@@ -1,0 +1,177 @@
+#Credits
+# https://stackoverflow.com/questions/48451171/ansible-pass-output-of-shell-command-to-variable
+
+---
+- name: locale configuration
+  ansible.builtin.template:
+    src: locale.j2
+    dest: /etc/locale.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: set locale to generate
+  ansible.builtin.lineinfile:
+    path: /etc/locale.gen
+    regexp: ^#?en_US\.UTF-8 UTF-8
+    line: en_US.UTF-8 UTF-8
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: generate locale
+  ansible.builtin.shell:
+    cmd: |
+      locale-gen
+  become: "yes"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Create EFI System Partition
+  community.general.parted:
+    device: "{{ disk }}"
+    number: 1
+    state: present
+    flags: [boot]
+    fs_type: fat32
+    part_end: 1GiB
+    label: gpt
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Create Main Partition
+  community.general.parted:
+    device: "{{ disk }}"
+    number: 2
+    state: present
+    flags: [lvm]
+    part_start: 1GiB
+    part_end: "100%"
+    label: gpt
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Create Luks Partition
+  community.crypto.luks_device:
+    device: "{{ disk }}2"
+    state: "opened"
+    passphrase: "{{ disk_password }}"
+    hash: sha512
+    name: mycrypt
+    type: luks2
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Create Logical Volume group
+  community.general.lvg:
+    vg: "{{ lvm_name }}"
+    pvs: "/dev/mapper/mycrypt"
+    pvresize: yes
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Create root logical volume
+  community.general.lvol:
+    vg: "{{ lvm_name }}"
+    lv: root
+    size: "{{ root_partition_size }}"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Create var logical volume
+  community.general.lvol:
+    vg: "{{ lvm_name }}"
+    lv: var
+    size: "{{ var_partition_size }}"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Create swap logical volume
+  community.general.lvol:
+    vg: "{{ lvm_name }}"
+    lv: swap
+    size: "{{ swap_partition_size }}"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Create home logical volume
+  community.general.lvol:
+    vg: "{{ lvm_name }}"
+    lv: home
+    size: "{{ home_partition_size }}"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Create root filesystem
+  community.general.filesystem:
+    fstype: ext4
+    dev: "/dev/{{ lvm_name }}/root"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Create var filesystem
+  community.general.filesystem:
+    fstype: ext4
+    dev: "/dev/{{ lvm_name }}/var"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Create swap filesystem
+  community.general.filesystem:
+    fstype: swap
+    dev: "/dev/{{ lvm_name }}/swap"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Create home filesystem
+  community.general.filesystem:
+    fstype: ext4
+    dev: "/dev/{{ lvm_name }}/home"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Create boot filesystem
+  ansible.builtin.shell:
+    cmd: |
+      mkfs.fat -F32 "{{ disk }}1"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Mount RootFilesystem
+  ansible.builtin.shell:
+    cmd: |
+      mount "/dev/{{ lvm_name }}/root" /mnt
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Create var path
+  ansible.builtin.file:
+    path: "/mnt/var"
+    state: directory
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Mount varFilesystem
+  ansible.builtin.shell:
+    cmd: |
+      mount "/dev/{{ lvm_name }}/var" /mnt/var
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Create home path
+  ansible.builtin.file:
+    path: "/mnt/home"
+    state: directory
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Mount homeFilesystem
+  ansible.builtin.shell:
+    cmd: |
+      mount "/dev/{{ lvm_name }}/home" /mnt/home
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Create boot path
+  ansible.builtin.file:
+    path: "/mnt/boot"
+    state: directory
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Mount Boot Filesystem
+  ansible.builtin.shell:
+    cmd: |
+      mount "{{ disk }}1" '/mnt/boot'
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Install Base Packages
+  ansible.builtin.shell:
+    cmd: |
+      pacstrap /mnt --noconfirm {{ item }}
+  loop: "{{ packages }}"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Ansible local host
+  ansible.builtin.copy:
+    src: /etc/ansible/hosts
+    dest: /mnt/etc/ansible/hosts

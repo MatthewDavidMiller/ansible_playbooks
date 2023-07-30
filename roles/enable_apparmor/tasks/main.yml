@@ -1,0 +1,6 @@
+---
+- name: Enable apparmor
+  ansible.builtin.systemd:
+    name: apparmor.service
+    enabled: yes
+  when: ansible_facts['distribution'] == 'Archlinux'

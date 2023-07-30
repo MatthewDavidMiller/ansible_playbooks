@@ -1,0 +1,13 @@
+---
+- name: Aliases
+  ansible.builtin.blockinfile:
+    path: "/home/{{ user_name }}/.bashrc"
+    block: |
+      alias icat="kitty +kitten icat"
+      alias ssh="kitty +kitten ssh"
+    marker: "{mark}"
+    owner: "{{ user_name }}"
+    marker_begin: "# Aliases"
+    marker_end: "# Aliases=================================================================================================================="
+  when:
+    - ansible_facts['distribution'] == 'Archlinux'

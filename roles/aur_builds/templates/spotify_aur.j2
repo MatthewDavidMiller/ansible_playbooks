@@ -1,0 +1,7 @@
+cd /home/{{ user_name }}/aur
+git clone 'https://aur.archlinux.org/spotify.git'
+cd spotify || exit
+git pull
+less PKGBUILD
+curl -sS 'https://download.spotify.com/debian/pubkey_0D811D58.gpg' | gpg --import -
+makepkg -sirc
