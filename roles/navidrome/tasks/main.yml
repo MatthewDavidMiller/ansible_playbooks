@@ -17,9 +17,9 @@
     state: directory
   when: ansible_facts['distribution'] == 'Debian'
 
-- name: Create Navidrome container music path
+- name: Create Navidrome container nextcloud path
   ansible.builtin.file:
-    path: "{{ navidrome_path }}/music"
+    path: "{{ navidrome_path }}/nextcloud"
     state: directory
   when: ansible_facts['distribution'] == 'Debian'
 
@@ -42,10 +42,10 @@
     mode: "0600"
   when: ansible_facts['distribution'] == 'Debian'
 
-- name: Mount nextcloud music webdav
+- name: Mount nextcloud webdav
   ansible.posix.mount:
-    path: "{{ navidrome_path }}/music"
-    src: "{{ nextcloud_webdav_path }}/Music"
+    path: "{{ navidrome_path }}/nextcloud"
+    src: "{{ nextcloud_webdav_path }}"
     fstype: davfs
     opts: ro,auto
     state: mounted
