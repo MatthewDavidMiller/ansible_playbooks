@@ -1,6 +1,6 @@
 /usr/bin/podman run \
 --name=vaultwarden \
---network=vaultwarden_container_net \
+--network=vaultwarden_container_net:ip=172.16.1.18 \
 --volume {{ vaultwarden_path }}/vw-data:/data/:Z \
 --volume {{ vaultwarden_path }}/ssl_certs:/ssl_certs/:Z \
 -d docker.io/vaultwarden/server:latest
