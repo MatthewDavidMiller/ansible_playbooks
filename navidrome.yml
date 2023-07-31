@@ -1,0 +1,13 @@
+# Place hosts in here and roles to run
+---
+- hosts: navidrome
+  roles:
+    - standard_ssh
+    - standard_qemu_guest_agent
+    - standard_update_packages
+    - standard_patching
+    - standard_cron
+    - standard_firewalld
+    - standard_podman
+    - reverse_proxy
+    - navidrome

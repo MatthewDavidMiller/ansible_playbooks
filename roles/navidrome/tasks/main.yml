@@ -1,0 +1,72 @@
+- name: Install davfs2
+  ansible.builtin.apt:
+    name: davfs2
+    state: present
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Create navidrome container network
+  ansible.builtin.shell:
+    cmd: |
+      podman network create navidrome_container_net
+  ignore_errors: true
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Create Navidrome container path
+  ansible.builtin.file:
+    path: "{{ navidrome_path }}"
+    state: directory
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Create Navidrome container music path
+  ansible.builtin.file:
+    path: "{{ navidrome_path }}/music"
+    state: directory
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Create Navidrome container data path
+  ansible.builtin.file:
+    path: "{{ navidrome_path }}/data"
+    state: directory
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Create davfs2 user path
+  ansible.builtin.file:
+    path: "{{ navidrome_user_path }}/.davfs2"
+    state: directory
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: davfs2 config
+  ansible.builtin.template:
+    src: "davfs2_secrets.j2"
+    dest: "{{ navidrome_user_path }}/.davfs2/secrets"
+    mode: "0600"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Mount nextcloud music webdav
+  ansible.posix.mount:
+    path: "{{ navidrome_path }}/music"
+    src: "{{ nextcloud_webdav_path }}/Music"
+    fstype: davfs
+    opts: ro,auto
+    state: mounted
+
+- name: Navidrome Service
+  ansible.builtin.template:
+    src: navidrome_container.service.j2
+    dest: "/etc/systemd/system/navidrome_container.service"
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Enable Navidrome
+  ansible.builtin.systemd:
+    name: navidrome_container.service
+    enabled: yes
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Navidrome script
+  ansible.builtin.template:
+    src: navidrome_container.sh.j2
+    dest: "/usr/local/bin/navidrome_container.sh"
+    owner: root
+    group: root
+    mode: "0770"
+  when: ansible_facts['distribution'] == 'Debian'
