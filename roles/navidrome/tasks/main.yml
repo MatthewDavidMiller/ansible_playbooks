@@ -7,7 +7,7 @@
 - name: Create navidrome container network
   ansible.builtin.shell:
     cmd: |
-      podman network create navidrome_container_net
+      podman network create --subnet 172.16.1.24/29 navidrome_container_net
   ignore_errors: true
   when: ansible_facts['distribution'] == 'Debian'
 
