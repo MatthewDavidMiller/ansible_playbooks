@@ -1,0 +1,8 @@
+/usr/bin/podman run \
+--name navidrome \
+--network=navidrome_container_net \
+{% raw %}--user $(id -u):$(id -g) \{% endraw %}
+--volume {{ navidrome_path }}/music:/music \
+--volume {{ navidrome_path }}/data:/data \
+-e ND_LOGLEVEL=info \
+-d docker.io/deluan/navidrome:latest

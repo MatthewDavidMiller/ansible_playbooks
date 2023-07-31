@@ -1,0 +1,18 @@
+[Unit]
+Description=Podman container-navidrome.service
+Documentation=man:podman-generate-systemd(1)
+Wants=network.target
+After=network-online.target
+
+[Service]
+Environment=PODMAN_SYSTEMD_UNIT=%n
+Restart=on-failure
+TimeoutStopSec=70
+ExecStartPre=/usr/bin/podman rm --ignore navidrome
+ExecStart=/usr/bin/bash /usr/local/bin/navidrome_container.sh
+ExecStop=/usr/bin/podman stop --ignore navidrome
+ExecStopPost=/usr/bin/podman rm --ignore -f navidrome
+Type=forking
+
+[Install]
+WantedBy=multi-user.target default.target
