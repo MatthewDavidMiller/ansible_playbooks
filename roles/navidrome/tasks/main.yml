@@ -29,16 +29,10 @@
     state: directory
   when: ansible_facts['distribution'] == 'Debian'
 
-- name: Create davfs2 user path
-  ansible.builtin.file:
-    path: "{{ navidrome_user_path }}/.davfs2"
-    state: directory
-  when: ansible_facts['distribution'] == 'Debian'
-
 - name: davfs2 config
   ansible.builtin.template:
     src: "davfs2_secrets.j2"
-    dest: "{{ navidrome_user_path }}/.davfs2/secrets"
+    dest: "/etc/davfs2/secrets"
     mode: "0600"
   when: ansible_facts['distribution'] == 'Debian'
 
