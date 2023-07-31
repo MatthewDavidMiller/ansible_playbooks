@@ -1,6 +1,6 @@
 /usr/bin/podman run \
 --name=nextcloud \
---network=nextcloud_container_net \
+--network=nextcloud_container_net:ip=172.16.1.11 \
 --volume {{ nextcloud_path }}/base:/var/www/html/:Z \
 --volume {{ nextcloud_path }}/data:/var/www/html/data/:Z \
 --volume {{ nextcloud_path }}/config:/var/www/html/config/:Z \
