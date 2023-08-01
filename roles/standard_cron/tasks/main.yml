@@ -5,11 +5,17 @@
     state: present
   when: ansible_facts['distribution'] == 'Debian'
 
+- name: Install cron
+  community.general.pacman:
+    name: cron
+    state: present
+  when: ansible_facts['distribution'] == 'Archlinux'
+
 - name: Enable cron
   ansible.builtin.systemd:
     name: cron.service
     enabled: yes
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Update System Weekly
   ansible.builtin.cron:
@@ -18,4 +24,4 @@
     hour: "{{ patching_hour }}"
     weekday: "{{ patching_weekday }}"
     job: /usr/bin/bash /usr/local/bin/update_system.sh
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'

@@ -5,20 +5,26 @@
     state: present
   when: ansible_facts['distribution'] == 'Debian'
 
+- name: Install firewalld
+  community.general.pacman:
+    name: firewalld
+    state: present
+  when: ansible_facts['distribution'] == 'Archlinux'
+
 - name: Set default action for public to drop
   ansible.posix.firewalld:
     zone: public
     target: DROP
     permanent: yes
     state: present
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Create new zone and set it to drop
   ansible.posix.firewalld:
     zone: homelab
     permanent: yes
     state: present
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Set zone to drop
   ansible.posix.firewalld:
@@ -26,7 +32,7 @@
     target: DROP
     permanent: yes
     state: present
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Set management source for zone
   ansible.posix.firewalld:
@@ -34,7 +40,7 @@
     source: "{{ management_network }}"
     permanent: yes
     state: enabled
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Set ansible source for zone
   ansible.posix.firewalld:
@@ -43,7 +49,7 @@
     permanent: yes
     state: enabled
   when:
-    - ansible_facts['distribution'] == 'Debian'
+    - ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
     - ip_ansible is defined
 
 - name: Enable icmp block inversion
@@ -52,7 +58,7 @@
     icmp_block_inversion: yes
     permanent: yes
     state: enabled
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Allow SSH
   ansible.posix.firewalld:
@@ -60,7 +66,7 @@
     service: ssh
     permanent: yes
     state: enabled
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Allow icmp
   ansible.posix.firewalld:
@@ -68,7 +74,7 @@
     icmp_block: echo-request
     permanent: yes
     state: enabled
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Disable SSH in default zone
   ansible.posix.firewalld:
@@ -76,7 +82,7 @@
     service: ssh
     permanent: yes
     state: disabled
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Disable SSH in default zone 2
   ansible.posix.firewalld:
@@ -84,7 +90,7 @@
     port: 22/tcp
     permanent: yes
     state: disabled
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Disable cockpit in default zone
   ansible.posix.firewalld:
@@ -92,7 +98,7 @@
     service: cockpit
     permanent: yes
     state: disabled
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Disable dhcpv6-client in default zone
   ansible.posix.firewalld:
@@ -100,7 +106,7 @@
     service: dhcpv6-client
     permanent: yes
     state: disabled
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Disable mdns in default zone
   ansible.posix.firewalld:
@@ -108,7 +114,7 @@
     service: mdns
     permanent: yes
     state: disabled
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Set interface for public zone
   ansible.posix.firewalld:
@@ -116,10 +122,10 @@
     interface: "{{ default_interface }}"
     permanent: yes
     state: enabled
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Enable firewalld
   ansible.builtin.systemd:
     name: firewalld.service
     enabled: yes
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'

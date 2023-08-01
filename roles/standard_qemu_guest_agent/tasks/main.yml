@@ -5,8 +5,14 @@
     state: present
   when: ansible_facts['distribution'] == 'Debian'
 
+- name: Install qemu-guest-agent
+  community.general.pacman:
+    name: qemu-guest-agent
+    state: present
+  when: ansible_facts['distribution'] == 'Archlinux'
+
 - name: Enable qemu-guest-agent
   ansible.builtin.systemd:
     name: qemu-guest-agent.service
     enabled: yes
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'

@@ -5,3 +5,10 @@
     state: latest
     update_cache: "yes"
   when: ansible_facts['distribution'] == 'Debian'
+
+- name: Update all packages to their latest version
+  community.general.pacman:
+    name: "*"
+    state: latest
+    update_cache: "yes"
+  when: ansible_facts['distribution'] == 'Archlinux'
