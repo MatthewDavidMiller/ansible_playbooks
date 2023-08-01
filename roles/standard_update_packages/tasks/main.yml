@@ -8,7 +8,6 @@
 
 - name: Update all packages to their latest version
   community.general.pacman:
-    name: "*"
-    state: latest
-    update_cache: "yes"
+    update_cache: true
+    upgrade: true
   when: ansible_facts['distribution'] == 'Archlinux'
