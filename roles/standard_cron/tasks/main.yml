@@ -15,7 +15,13 @@
   ansible.builtin.systemd:
     name: cron.service
     enabled: yes
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Enable cronie
+  ansible.builtin.systemd:
+    name: cronie.service
+    enabled: yes
+  when: ansible_facts['distribution'] == 'Archlinux'
 
 - name: Update System Weekly
   ansible.builtin.cron:
