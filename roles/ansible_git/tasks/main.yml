@@ -5,8 +5,14 @@
     state: present
   when: ansible_facts['distribution'] == 'Debian'
 
+- name: Install git
+  community.general.pacman:
+    name: git
+    state: present
+  when: ansible_facts['distribution'] == 'Archlinux'
+
 - name: Create Git repo path
   ansible.builtin.file:
     path: "{{ git_data }}"
     state: directory
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
