@@ -152,7 +152,7 @@ subprocess.call([r"qm", r"template", r"400"])
 subprocess.call([r"qm", r"template", r"401"])
 
 # Create Ansible VM
-subprocess.call([r"qm", r"clone", r"400", r"100", r"--name", r"Ansible"])
+subprocess.call([r"qm", r"clone", r"401", r"100", r"--name", r"Ansible"])
 
 # Set efi disk
 subprocess.call(
@@ -161,7 +161,7 @@ subprocess.call(
         r"set",
         r"100",
         r"--efidisk0",
-        r"local-lvm:1,format=raw,efitype=4m,pre-enrolled-keys=1",
+        r"local-lvm:1,format=raw,efitype=4m,pre-enrolled-keys=0",
     ]
 )
 
