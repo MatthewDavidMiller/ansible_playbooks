@@ -11,3 +11,12 @@
     group: root
     mode: "0644"
   when: ansible_facts['distribution'] == 'Debian'
+
+- name: Update System Script
+  ansible.builtin.template:
+    src: update_system_arch.j2
+    dest: "/usr/local/bin/update_system.sh"
+    owner: root
+    group: root
+    mode: "0644"
+  when: ansible_facts['distribution'] == 'Archlinux'
