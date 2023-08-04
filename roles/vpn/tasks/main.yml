@@ -9,58 +9,58 @@
   ansible.builtin.file:
     path: "{{ vpn_path }}"
     state: directory
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Create Wireguard container config path
   ansible.builtin.file:
     path: "{{ vpn_path }}/config"
     state: directory
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Wireguard Module
   ansible.builtin.template:
     src: wireguard_module.j2
     dest: "/etc/modules-load.d/wireguard.conf"
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Wireguard Service
   ansible.builtin.template:
     src: wireguard.service.j2
     dest: "/etc/systemd/system/wireguard.service"
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Enable Wireguard
   ansible.builtin.systemd:
     name: wireguard.service
     enabled: yes
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Wireguard script
   ansible.builtin.template:
     src: wireguard.sh.j2
     dest: "/usr/local/bin/wireguard.sh"
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Update VPN containers
   ansible.builtin.template:
     src: update_vpn_containers.sh.j2
     dest: "/usr/local/bin/update_vpn_containers.sh"
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: porkbun-ddns Service
   ansible.builtin.template:
     src: porkbun-ddns.service.j2
     dest: "/etc/systemd/system/porkbun-ddns.service"
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Enable porkbun-ddns
   ansible.builtin.systemd:
     name: porkbun-ddns.service
     enabled: yes
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: porkbun-ddns script
   ansible.builtin.template:
     src: porkbun-ddns.sh.j2
     dest: "/usr/local/bin/porkbun-ddns.sh"
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'

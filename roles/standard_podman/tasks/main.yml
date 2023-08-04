@@ -5,20 +5,32 @@
     state: present
   when: ansible_facts['distribution'] == 'Debian'
 
+- name: Install podman
+  community.general.pacman:
+    name: podman
+    state: present
+  when: ansible_facts['distribution'] == 'Archlinux'
+
 - name: Install podman dns
   ansible.builtin.apt:
     name: golang-github-containernetworking-plugin-dnsname
     state: present
   when: ansible_facts['distribution'] == 'Debian'
 
+- name: Install podman dns
+  community.general.pacman:
+    name: cni-plugins
+    state: present
+  when: ansible_facts['distribution'] == 'Archlinux'
+
 - name: Login to Docker Service
   ansible.builtin.template:
     src: login_to_docker.j2
     dest: "/etc/systemd/system/login_to_docker.service"
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Enable Login to Docker Service
   ansible.builtin.systemd:
     name: login_to_docker.service
     enabled: yes
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
