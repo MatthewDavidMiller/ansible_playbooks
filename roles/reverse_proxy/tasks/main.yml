@@ -44,7 +44,7 @@
   ansible.builtin.systemd:
     name: swag_container.service
     enabled: yes
-  when: ansible_facts['distribution'] == 'Debian' ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Swag script
   ansible.builtin.template:
