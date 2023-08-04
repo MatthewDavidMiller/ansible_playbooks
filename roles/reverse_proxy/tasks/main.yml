@@ -12,7 +12,7 @@
     group: 1000
     mode: "0770"
     recurse: true
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Create swag dns-config path
   ansible.builtin.file:
@@ -22,7 +22,7 @@
     group: 1000
     mode: "0770"
     recurse: true
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Create swag proxy-confs path
   ansible.builtin.file:
@@ -32,19 +32,19 @@
     group: 1000
     mode: "0770"
     recurse: true
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Swag Service
   ansible.builtin.template:
     src: swag_container.service.j2
     dest: "/etc/systemd/system/swag_container.service"
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Enable Swag
   ansible.builtin.systemd:
     name: swag_container.service
     enabled: yes
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' ansible_facts['distribution'] == 'Archlinux'
 
 - name: Swag script
   ansible.builtin.template:
@@ -53,7 +53,7 @@
     owner: 1000
     group: 1000
     mode: "0770"
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Swag porkbun DNS config
   ansible.builtin.template:
@@ -62,7 +62,7 @@
     owner: 1000
     group: 1000
     mode: "0770"
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Swag proxy config
   ansible.builtin.template:
@@ -71,4 +71,4 @@
     owner: 1000
     group: 1000
     mode: "0770"
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
