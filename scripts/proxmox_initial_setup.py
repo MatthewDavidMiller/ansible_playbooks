@@ -222,7 +222,7 @@ subprocess.call(
 )
 
 # Create VPN VM
-subprocess.call([r"qm", r"clone", r"401", r"110", r"--name", r"VPNArch"])
+subprocess.call([r"qm", r"clone", r"401", r"110", r"--name", r"VPN"])
 
 # Set efi disk
 subprocess.call(
