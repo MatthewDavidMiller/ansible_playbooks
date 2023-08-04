@@ -4,7 +4,7 @@
     cmd: |
       podman network create ap_container_net
   ignore_errors: true
-  when: ansible_facts['distribution'] == 'Debian' ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Create APController container path
   ansible.builtin.file:
