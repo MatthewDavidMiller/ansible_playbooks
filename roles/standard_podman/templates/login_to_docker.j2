@@ -8,7 +8,7 @@ After=network-online.target
 Environment=PODMAN_SYSTEMD_UNIT=%n
 Restart=on-failure
 TimeoutStopSec=70
-ExecStart=/usr/bin/podman -u {{ docker_username }} -p {{ docker_password }} docker.io
+ExecStart=/usr/bin/podman login -u {{ docker_username }} -p '{{ docker_password }}' docker.io
 Type=forking
 
 [Install]

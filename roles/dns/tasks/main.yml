@@ -7,7 +7,7 @@
     state: present
   when: ansible_facts['distribution'] == 'Debian'
 
-- name: Install rclone
+- name: Install sqlite3
   community.general.pacman:
     name: sqlite3
     state: present
