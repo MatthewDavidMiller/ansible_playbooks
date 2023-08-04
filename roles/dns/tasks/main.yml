@@ -83,7 +83,14 @@
   ansible.builtin.systemd:
     name: systemd-resolved.service
     enabled: no
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Debian'
+
+- name: Disable DNS Stub Listener
+  ansible.builtin.replace:
+    path: /etc/systemd/resolved.conf
+    regexp: "^DNSStubListener=|^\\s*DNSStubListener="
+    replace: "DNSStubListener=yes"
+  when: ansible_facts['distribution'] == 'Archlinux'
 
 - name: Create Pihole DB backups path
   ansible.builtin.file:
