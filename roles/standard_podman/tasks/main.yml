@@ -7,7 +7,11 @@
 
 - name: Install podman
   community.general.pacman:
-    name: podman
+    name:
+      - podman
+      - cni-plugins
+      - netavark
+      - aardvark-dns
     state: present
   when: ansible_facts['distribution'] == 'Archlinux'
 
@@ -16,12 +20,6 @@
     name: golang-github-containernetworking-plugin-dnsname
     state: present
   when: ansible_facts['distribution'] == 'Debian'
-
-- name: Install podman dns
-  community.general.pacman:
-    name: cni-plugins
-    state: present
-  when: ansible_facts['distribution'] == 'Archlinux'
 
 - name: Login to Docker Service
   ansible.builtin.template:
