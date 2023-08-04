@@ -194,44 +194,44 @@ subprocess.call(
 )
 
 # Create Pihole VM
-subprocess.call([r"qm", r"clone", r"400", r"103", r"--name", r"Pihole"])
+subprocess.call([r"qm", r"clone", r"401", r"111", r"--name", r"Pihole"])
 
 # Set efi disk
 subprocess.call(
     [
         r"qm",
         r"set",
-        r"103",
+        r"111",
         r"--efidisk0",
-        r"local-lvm:1,format=raw,efitype=4m,pre-enrolled-keys=1",
+        r"local-lvm:1,format=raw,efitype=4m,pre-enrolled-keys=0",
     ]
 )
 
 # Create NetworkController VM
-subprocess.call([r"qm", r"clone", r"400", r"104", r"--name", r"NetworkController"])
+subprocess.call([r"qm", r"clone", r"401", r"112", r"--name", r"NetworkController"])
 
 # Set efi disk
 subprocess.call(
     [
         r"qm",
         r"set",
-        r"104",
+        r"112",
         r"--efidisk0",
-        r"local-lvm:1,format=raw,efitype=4m,pre-enrolled-keys=1",
+        r"local-lvm:1,format=raw,efitype=4m,pre-enrolled-keys=0",
     ]
 )
 
 # Create VPN VM
-subprocess.call([r"qm", r"clone", r"400", r"105", r"--name", r"VPN"])
+subprocess.call([r"qm", r"clone", r"401", r"110", r"--name", r"VPNArch"])
 
 # Set efi disk
 subprocess.call(
     [
         r"qm",
         r"set",
-        r"105",
+        r"110",
         r"--efidisk0",
-        r"local-lvm:1,format=raw,efitype=4m,pre-enrolled-keys=1",
+        r"local-lvm:1,format=raw,efitype=4m,pre-enrolled-keys=0",
     ]
 )
 
