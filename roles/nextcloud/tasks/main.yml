@@ -24,7 +24,6 @@
     owner: "33"
     group: "33"
     mode: "0770"
-    recurse: true
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Mount Disk for backups
@@ -43,7 +42,6 @@
     owner: "33"
     group: "33"
     mode: "0770"
-    recurse: true
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Create Nextcloud data container path
@@ -53,7 +51,6 @@
     owner: "33"
     group: "33"
     mode: "0770"
-    recurse: true
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Create Nextcloud config container path
@@ -63,7 +60,6 @@
     owner: "33"
     group: "33"
     mode: "0770"
-    recurse: true
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Create Nextcloud apps container path
@@ -73,7 +69,6 @@
     owner: "33"
     group: "33"
     mode: "0770"
-    recurse: true
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: postgres Service
