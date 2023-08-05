@@ -20,7 +20,6 @@
     mode: 0770
     owner: 999
     group: 33
-    recurse: true
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Create etc-pihole path
@@ -30,7 +29,6 @@
     mode: 0770
     owner: 999
     group: 33
-    recurse: true
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Create etc-dnsmasq.d path
@@ -40,7 +38,6 @@
     mode: 0770
     owner: 999
     group: 33
-    recurse: true
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: sysctl Config increase memory
@@ -99,7 +96,6 @@
     owner: root
     group: root
     mode: "0740"
-    recurse: true
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Backup Database Script
