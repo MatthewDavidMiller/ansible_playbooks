@@ -12,8 +12,8 @@
   ansible.builtin.file:
     path: "{{ postgres_path }}"
     state: directory
-    owner: "33"
-    group: "1000"
+    owner: "{{ user_name }}"
+    group: root
     mode: "0770"
     recurse: true
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
