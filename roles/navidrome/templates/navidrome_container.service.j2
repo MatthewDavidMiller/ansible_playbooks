@@ -2,7 +2,7 @@
 Description=Podman container-navidrome.service
 Documentation=man:podman-generate-systemd(1)
 Wants=network.target
-After=network-online.target navidrome-music.mount
+After=network-online.target rclone_mount_music.service
 
 [Service]
 Environment=PODMAN_SYSTEMD_UNIT=%n
