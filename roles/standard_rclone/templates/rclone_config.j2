@@ -1,6 +1,6 @@
 [Nextcloud]
 type = webdav
-url = https://{{ nextcloud_dns_name }}/remote.php/webdav/
+url = {{ nextcloud_webdav_path }}
 vendor = nextcloud
 user = {{ nextcloud_rclone_user }}
 pass = {{ nextcloud_rclone_pass }}

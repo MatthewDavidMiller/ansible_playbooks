@@ -250,15 +250,15 @@ subprocess.call(
 )
 
 # Create Navidrome VM
-subprocess.call([r"qm", r"clone", r"400", r"108", r"--name", r"Navidrome"])
+subprocess.call([r"qm", r"clone", r"401", r"114", r"--name", r"Navidrome"])
 
 # Set efi disk
 subprocess.call(
     [
         r"qm",
         r"set",
-        r"108",
+        r"114",
         r"--efidisk0",
-        r"local-lvm:1,format=raw,efitype=4m,pre-enrolled-keys=1",
+        r"local-lvm:1,format=raw,efitype=4m,pre-enrolled-keys=0",
     ]
 )
