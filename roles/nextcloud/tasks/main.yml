@@ -12,10 +12,9 @@
   ansible.builtin.file:
     path: "{{ postgres_path }}"
     state: directory
-    owner: "{{ user_name }}"
+    owner: root
     group: root
-    mode: "0770"
-    recurse: true
+    mode: "0777"
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Create Nextcloud container path
