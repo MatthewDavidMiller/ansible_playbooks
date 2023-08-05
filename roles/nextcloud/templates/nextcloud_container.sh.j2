@@ -15,5 +15,6 @@
 -e TRUSTED_PROXIES=swag.podman.dns \
 -e OVERWRITEPROTOCOL=https \
 -e OVERWRITECLIURL={{ proxy_fqdn }} \
+-e PHP_UPLOAD_LIMIT=12288M \
 --requires=postgres \
 -d docker.io/nextcloud:latest
