@@ -12,5 +12,8 @@
 -e NEXTCLOUD_ADMIN_PASSWORD={{ nextcloud_admin_password }} \
 -e NEXTCLOUD_TRUSTED_DOMAINS={{ nextcloud_trusted_domains }} \
 -e POSTGRES_HOST=172.16.1.10 \
+-e TRUSTED_PROXIES=swag.podman.dns \
+-e OVERWRITEPROTOCOL=https \
+-e OVERWRITECLIURL={{ proxy_fqdn }} \
 --requires=postgres \
 -d docker.io/nextcloud:latest
