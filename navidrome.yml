@@ -10,4 +10,5 @@
     - standard_firewalld
     - standard_podman
     - reverse_proxy
+    - standard_rclone
     - navidrome

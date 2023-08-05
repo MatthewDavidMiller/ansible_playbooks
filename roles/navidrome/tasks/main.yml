@@ -9,25 +9,25 @@
     cmd: |
       podman network create --subnet 172.16.1.24/29 navidrome_container_net
   ignore_errors: true
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Create Navidrome container path
   ansible.builtin.file:
     path: "{{ navidrome_path }}"
     state: directory
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Create Navidrome container music path
   ansible.builtin.file:
     path: "{{ navidrome_path }}/music"
     state: directory
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Create Navidrome container data path
   ansible.builtin.file:
     path: "{{ navidrome_path }}/data"
     state: directory
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: davfs2 config
   ansible.builtin.template:
@@ -43,18 +43,19 @@
     fstype: davfs
     opts: ro,auto
     state: mounted
+  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Navidrome Service
   ansible.builtin.template:
     src: navidrome_container.service.j2
     dest: "/etc/systemd/system/navidrome_container.service"
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Enable Navidrome
   ansible.builtin.systemd:
     name: navidrome_container.service
     enabled: yes
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Navidrome script
   ansible.builtin.template:
@@ -63,4 +64,25 @@
     owner: root
     group: root
     mode: "0770"
-  when: ansible_facts['distribution'] == 'Debian'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+
+- name: rclone mount music script
+  ansible.builtin.template:
+    src: rclone_mount_music.sh.j2
+    dest: "/usr/local/bin/rclone_mount_music.sh"
+    owner: root
+    group: root
+    mode: "0770"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: rclone mount music service
+  ansible.builtin.template:
+    src: rclone_mount_music.service.j2
+    dest: "/etc/systemd/system/rclone_mount_music.service"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Enable rclone mount music service
+  ansible.builtin.systemd:
+    name: rclone_mount_music.service
+    enabled: yes
+  when: ansible_facts['distribution'] == 'Archlinux'

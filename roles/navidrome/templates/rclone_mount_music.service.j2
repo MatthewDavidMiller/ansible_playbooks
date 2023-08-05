@@ -1,0 +1,14 @@
+[Unit]
+Description=Rclone mount music folder
+Documentation=man:podman-generate-systemd(1)
+Wants=network.target
+After=network-online.target
+
+[Service]
+Restart=on-failure
+TimeoutStopSec=70
+ExecStart=/usr/bin/bash /usr/local/bin/rclone_mount_music.sh
+Type=forking
+
+[Install]
+WantedBy=multi-user.target default.target
