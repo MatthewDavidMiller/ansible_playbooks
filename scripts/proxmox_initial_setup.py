@@ -166,16 +166,16 @@ subprocess.call(
 )
 
 # Create Nextcloud VM
-subprocess.call([r"qm", r"clone", r"400", r"101", r"--name", r"Nextcloud"])
+subprocess.call([r"qm", r"clone", r"401", r"113", r"--name", r"Nextcloud"])
 
 # Set efi disk
 subprocess.call(
     [
         r"qm",
         r"set",
-        r"101",
+        r"113",
         r"--efidisk0",
-        r"local-lvm:1,format=raw,efitype=4m,pre-enrolled-keys=1",
+        r"local-lvm:1,format=raw,efitype=4m,pre-enrolled-keys=0",
     ]
 )
 
