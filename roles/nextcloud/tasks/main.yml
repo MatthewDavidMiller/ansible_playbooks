@@ -21,8 +21,8 @@
   ansible.builtin.file:
     path: "{{ nextcloud_path }}"
     state: directory
-    owner: "www-data"
-    group: "www-data"
+    owner: "33"
+    group: "33"
     mode: "0770"
     recurse: true
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
@@ -40,8 +40,8 @@
   ansible.builtin.file:
     path: "{{ nextcloud_path }}/base"
     state: directory
-    owner: "www-data"
-    group: "www-data"
+    owner: "33"
+    group: "33"
     mode: "0770"
     recurse: true
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
@@ -50,8 +50,8 @@
   ansible.builtin.file:
     path: "{{ nextcloud_path }}/data"
     state: directory
-    owner: "www-data"
-    group: "www-data"
+    owner: "33"
+    group: "33"
     mode: "0770"
     recurse: true
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
@@ -60,8 +60,8 @@
   ansible.builtin.file:
     path: "{{ nextcloud_path }}/config"
     state: directory
-    owner: "www-data"
-    group: "www-data"
+    owner: "33"
+    group: "33"
     mode: "0770"
     recurse: true
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
@@ -70,8 +70,8 @@
   ansible.builtin.file:
     path: "{{ nextcloud_path }}/apps"
     state: directory
-    owner: "www-data"
-    group: "www-data"
+    owner: "33"
+    group: "33"
     mode: "0770"
     recurse: true
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
