@@ -7,7 +7,9 @@
 
 - name: Install rclone
   community.general.pacman:
-    name: rclone
+    name:
+      - rclone
+      - fuse3
     state: present
   when: ansible_facts['distribution'] == 'Archlinux'
 
