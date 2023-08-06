@@ -1,0 +1,17 @@
+---
+- hosts: laptop
+  roles:
+    - configure_host
+    - configure_hostname
+    - configure_locales
+    - install_packages_extra
+    - get_uuids
+    - setup_fstab
+    - enable_swap
+    - configure_kernel
+    - setup_systemd_boot
+    - enable_network_manager
+    - enable_ntpd
+    - create_groups
+    - create_users
+    - lock_root

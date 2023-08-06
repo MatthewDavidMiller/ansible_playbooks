@@ -1,0 +1,11 @@
+---
+- name: Create EFI System Partition
+  community.general.parted:
+    device: "{{ disk }}"
+    number: 1
+    state: present
+    flags: [boot]
+    fs_type: fat32
+    part_end: 1GiB
+    label: gpt
+  when: ansible_facts['distribution'] == 'Archlinux'

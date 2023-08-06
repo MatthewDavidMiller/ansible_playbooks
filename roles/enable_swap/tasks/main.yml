@@ -1,0 +1,6 @@
+---
+- name: Turn on swapfile
+  ansible.builtin.shell:
+    cmd: |
+      swapon /dev/{{ lvm_name }}/swap
+  when: ansible_facts['distribution'] == 'Archlinux'

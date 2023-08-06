@@ -1,5 +1,0 @@
-title   Arch Linux Kernel
-linux   /vmlinuz-{{ kernel }}
-initrd  /{{ ucode }}.img
-initrd  /initramfs-{{ kernel }}.img
-options cryptdevice=UUID={{ luks_uuid.stdout }}:mycrypt root=UUID={{ root_uuid.stdout }} rw module.sig_enforce={{ sig_status }} {{ nvida_drm }} lsm=landlock,lockdown,yama,apparmor,bpf

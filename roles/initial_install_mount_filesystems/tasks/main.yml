@@ -1,0 +1,54 @@
+---
+- name: Mount RootFilesystem
+  ansible.builtin.shell:
+    cmd: |
+      mount "/dev/{{ lvm_name }}/root" /mnt
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Create var path
+  ansible.builtin.file:
+    path: "/mnt/var"
+    state: directory
+  when:
+    - ansible_facts['distribution'] == 'Archlinux'
+    - var_lvm_presence is defined
+    - var_lvm_presence == 'yes'
+
+- name: Mount varFilesystem
+  ansible.builtin.shell:
+    cmd: |
+      mount "/dev/{{ lvm_name }}/var" /mnt/var
+  when:
+    - ansible_facts['distribution'] == 'Archlinux'
+    - var_lvm_presence is defined
+    - var_lvm_presence == 'yes'
+
+- name: Create home path
+  ansible.builtin.file:
+    path: "/mnt/home"
+    state: directory
+  when:
+    - ansible_facts['distribution'] == 'Archlinux'
+    - home_lvm_presence is defined
+    - home_lvm_presence == 'yes'
+
+- name: Mount homeFilesystem
+  ansible.builtin.shell:
+    cmd: |
+      mount "/dev/{{ lvm_name }}/home" /mnt/home
+  when:
+    - ansible_facts['distribution'] == 'Archlinux'
+    - home_lvm_presence is defined
+    - home_lvm_presence == 'yes'
+
+- name: Create boot path
+  ansible.builtin.file:
+    path: "/mnt/boot"
+    state: directory
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Mount Boot Filesystem
+  ansible.builtin.shell:
+    cmd: |
+      mount "{{ disk }}1" '/mnt/boot'
+  when: ansible_facts['distribution'] == 'Archlinux'
