@@ -14,4 +14,5 @@
     - enable_ntpd
     - create_groups
     - create_users
+    - configure_sudo
     - lock_root
