@@ -8,8 +8,3 @@
       pacstrap /mnt --noconfirm {{ item }}
   loop: "{{ packages }}"
   when: ansible_facts['distribution'] == 'Archlinux'
-
-- name: Ansible local host
-  ansible.builtin.copy:
-    remote_src: /etc/ansible/hosts
-    dest: /mnt/etc/ansible/hosts
