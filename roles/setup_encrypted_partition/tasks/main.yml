@@ -12,7 +12,7 @@
 
 - name: Create Luks Partition
   community.crypto.luks_device:
-    device: "{{ disk }}2"
+    device: "{{ disk }}p2"
     state: "opened"
     passphrase: "{{ disk_password }}"
     hash: sha512
