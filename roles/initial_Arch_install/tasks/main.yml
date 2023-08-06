@@ -8,3 +8,9 @@
       pacstrap /mnt --noconfirm {{ item }}
   loop: "{{ packages }}"
   when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Chroot to /mnt
+  ansible.builtin.shell:
+    cmd: |
+      arch-chroot /mnt
+  when: ansible_facts['distribution'] == 'Archlinux'
