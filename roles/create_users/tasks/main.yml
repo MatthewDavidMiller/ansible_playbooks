@@ -1,0 +1,11 @@
+---
+- name: Add a user with sudo
+  ansible.builtin.user:
+    name: "{{ user_name }}"
+    groups: sudo
+    append: "yes"
+    password: "{{ user_name_password }}"
+  when:
+    - ansible_facts['distribution'] == 'Archlinux'
+    - sudo_group_presence is defined
+    - sudo_group_presence == 'yes'

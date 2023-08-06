@@ -1,0 +1,9 @@
+---
+- name: Create sudo group
+  ansible.builtin.group:
+    name: sudo
+    state: present
+  when:
+    - ansible_facts['distribution'] == 'Archlinux'
+    - sudo_group_presence is defined
+    - sudo_group_presence == 'yes'

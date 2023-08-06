@@ -1,0 +1,43 @@
+---
+- name: Create Logical Volume group
+  community.general.lvg:
+    vg: "{{ lvm_name }}"
+    pvs: "/dev/mapper/mycrypt"
+    pvresize: yes
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Create var logical volume
+  community.general.lvol:
+    vg: "{{ lvm_name }}"
+    lv: var
+    size: "{{ var_partition_size }}"
+  when:
+    - ansible_facts['distribution'] == 'Archlinux'
+    - var_partition_size
+    - var_lvm_presence is defined
+    - var_lvm_presence == 'yes'
+
+- name: Create swap logical volume
+  community.general.lvol:
+    vg: "{{ lvm_name }}"
+    lv: swap
+    size: "{{ swap_partition_size }}"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Create root logical volume
+  community.general.lvol:
+    vg: "{{ lvm_name }}"
+    lv: root
+    size: "{{ root_partition_size }}"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Create home logical volume
+  community.general.lvol:
+    vg: "{{ lvm_name }}"
+    lv: home
+    size: "{{ home_partition_size }}"
+  when:
+    - ansible_facts['distribution'] == 'Archlinux'
+    - home_lvm_presence is defined
+    - home_partition_size is defined
+    - home_lvm_presence == 'yes'

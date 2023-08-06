@@ -1,0 +1,6 @@
+---
+- name: Lock the root account
+  ansible.builtin.user:
+    name: root
+    password_lock: true
+  when: ansible_facts['distribution'] == 'Archlinux'

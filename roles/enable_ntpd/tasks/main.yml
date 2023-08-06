@@ -1,0 +1,6 @@
+---
+- name: Enable ntpd client
+  ansible.builtin.systemd:
+    name: ntpd.service
+    enabled: yes
+  when: ansible_facts['distribution'] == 'Archlinux'

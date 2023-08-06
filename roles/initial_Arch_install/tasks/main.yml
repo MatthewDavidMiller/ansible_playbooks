@@ -1,0 +1,15 @@
+#Credits
+# https://stackoverflow.com/questions/48451171/ansible-pass-output-of-shell-command-to-variable
+
+---
+- name: Install Base Packages
+  ansible.builtin.shell:
+    cmd: |
+      pacstrap /mnt --noconfirm {{ item }}
+  loop: "{{ packages }}"
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Ansible local host
+  ansible.builtin.copy:
+    src: /etc/ansible/hosts
+    dest: /mnt/etc/ansible/hosts

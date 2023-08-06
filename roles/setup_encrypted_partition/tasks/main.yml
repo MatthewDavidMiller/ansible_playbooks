@@ -1,0 +1,21 @@
+---
+- name: Create encrypted Partition
+  community.general.parted:
+    device: "{{ disk }}"
+    number: 2
+    state: present
+    flags: [lvm]
+    part_start: 1GiB
+    part_end: "100%"
+    label: gpt
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Create Luks Partition
+  community.crypto.luks_device:
+    device: "{{ disk }}2"
+    state: "opened"
+    passphrase: "{{ disk_password }}"
+    hash: sha512
+    name: mycrypt
+    type: luks2
+  when: ansible_facts['distribution'] == 'Archlinux'

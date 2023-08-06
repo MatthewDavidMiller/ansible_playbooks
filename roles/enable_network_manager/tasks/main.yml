@@ -1,0 +1,6 @@
+---
+- name: Enable network manager
+  ansible.builtin.systemd:
+    name: NetworkManager.service
+    enabled: yes
+  when: ansible_facts['distribution'] == 'Archlinux'

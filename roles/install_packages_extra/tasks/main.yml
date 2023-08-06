@@ -1,0 +1,7 @@
+---
+- name: Install extra packages
+  ansible.builtin.shell:
+    cmd: |
+      pacman -S --noconfirm --needed "{{ item }}"
+  loop: "{{ extra_packages }}"
+  when: ansible_facts['distribution'] == 'Archlinux'

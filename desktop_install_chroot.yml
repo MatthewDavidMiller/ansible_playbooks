@@ -1,4 +1,0 @@
----
-- hosts: desktop
-  roles:
-    - desktop_install_chroot
