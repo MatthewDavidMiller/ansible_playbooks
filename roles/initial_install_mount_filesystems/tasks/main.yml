@@ -50,5 +50,5 @@
 - name: Mount Boot Filesystem
   ansible.builtin.shell:
     cmd: |
-      mount "{{ disk }}1" '/mnt/boot'
+      mount "{{ disk }}p1" '/mnt/boot'
   when: ansible_facts['distribution'] == 'Archlinux'

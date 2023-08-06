@@ -2,7 +2,7 @@
 - name: Get Luks partition uuid
   ansible.builtin.shell:
     cmd: |
-      blkid -o value -s UUID "{{ disk }}2"
+      blkid -o value -s UUID "{{ disk }}p2"
   register: luks_uuid
   when: ansible_facts['distribution'] == 'Archlinux'
 
@@ -44,6 +44,6 @@
 - name: Get boot partition uuid
   ansible.builtin.shell:
     cmd: |
-      blkid -o value -s UUID "{{ disk }}1"
+      blkid -o value -s UUID "{{ disk }}p1"
   register: boot_uuid
   when: ansible_facts['distribution'] == 'Archlinux'
