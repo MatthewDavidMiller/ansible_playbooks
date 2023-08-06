@@ -11,5 +11,5 @@
 
 - name: Ansible local host
   ansible.builtin.copy:
-    src: /etc/ansible/hosts
+    remote_src: /etc/ansible/hosts
     dest: /mnt/etc/ansible/hosts
