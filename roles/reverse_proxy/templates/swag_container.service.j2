@@ -2,7 +2,7 @@
 Description=Podman container-swag.service
 Documentation=man:podman-generate-systemd(1)
 Wants=network.target
-After=network-online.target
+After=network-online.target {{ container_service_names }}.service
 
 [Service]
 Environment=PODMAN_SYSTEMD_UNIT=%n
