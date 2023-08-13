@@ -23,11 +23,12 @@
     enabled: yes
   when: ansible_facts['distribution'] == 'Archlinux'
 
-- name: Update System Weekly
+- name: Update System Schedule
   ansible.builtin.cron:
-    name: "Update System Weekly"
-    minute: 0
+    name: "Update System"
+    minute: "{{ patching_minute }}"
     hour: "{{ patching_hour }}"
     weekday: "{{ patching_weekday }}"
+    month: "{{ patching_month }}"
     job: /usr/bin/bash /usr/local/bin/update_system.sh
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
