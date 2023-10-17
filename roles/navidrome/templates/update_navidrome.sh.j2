@@ -1,0 +1,6 @@
+/usr/bin/podman stop --ignore navidrome
+/usr/bin/podman rm --ignore navidrome
+/usr/bin/podman pull docker.io/deluan/navidrome:latest
+/usr/bin/podman stop --ignore swag
+/usr/bin/podman rm --ignore -f swag
+/usr/bin/podman pull docker.io/linuxserver/swag:latest

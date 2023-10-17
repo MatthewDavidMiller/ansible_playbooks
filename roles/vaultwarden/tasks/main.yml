@@ -75,3 +75,13 @@
     src: update_vaultwarden_container.sh.j2
     dest: "/usr/local/bin/update_vaultwarden_container.sh"
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+
+- name: Update Vaultwarden Schedule
+  ansible.builtin.cron:
+    name: "Update Vaultwarden"
+    minute: "{{ container_patching_minute }}"
+    hour: "{{ container_patching_hour }}"
+    weekday: "{{ container_patching_weekday }}"
+    month: "{{ container_patching_month }}"
+    job: /usr/bin/bash /usr/local/bin/update_vaultwarden_container.sh
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
