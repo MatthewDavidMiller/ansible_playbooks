@@ -1,6 +1,6 @@
 /usr/bin/podman run \
 --name=nextcloud \
---network=nextcloud_container_net:ip=172.16.1.11 \
+--network=nextcloud_container_net \
 --volume {{ nextcloud_path }}/base:/var/www/html/:Z \
 --volume {{ nextcloud_path }}/data:/var/www/html/data/:Z \
 --volume {{ nextcloud_path }}/config:/var/www/html/config/:Z \
@@ -11,7 +11,7 @@
 -e NEXTCLOUD_ADMIN_USER={{ nextcloud_admin_user }} \
 -e NEXTCLOUD_ADMIN_PASSWORD={{ nextcloud_admin_password }} \
 -e NEXTCLOUD_TRUSTED_DOMAINS={{ nextcloud_trusted_domains }} \
--e POSTGRES_HOST=172.16.1.10 \
+-e POSTGRES_HOST=postgres.podman.dns \
 -e TRUSTED_PROXIES=swag.podman.dns \
 -e OVERWRITEPROTOCOL=https \
 -e OVERWRITECLIURL={{ proxy_fqdn }} \

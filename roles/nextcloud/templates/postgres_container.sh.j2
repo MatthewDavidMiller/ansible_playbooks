@@ -1,7 +1,6 @@
 /usr/bin/podman run \
 --name=postgres \
 --network=nextcloud_container_net \
---ip=172.16.1.10 \
 --volume {{ postgres_path }}:/var/lib/postgresql/data/:Z \
 --env POSTGRES_USER={{ nextcloud_database_user }} \
 --env POSTGRES_PASSWORD={{ nextcloud_database_user_password }} \
