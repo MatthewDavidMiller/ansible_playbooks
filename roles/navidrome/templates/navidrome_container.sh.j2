@@ -1,6 +1,6 @@
 /usr/bin/podman run \
 --name navidrome \
---network=navidrome_container_net:ip=172.16.1.26 \
+--network=navidrome_container_net \
 {% raw %}--user $(id -u):$(id -g) \
 {% endraw %}--volume {{ navidrome_path }}/music:/music:ro \
 --volume {{ navidrome_path }}/data:/data \
