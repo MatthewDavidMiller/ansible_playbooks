@@ -7,3 +7,6 @@ podman pull docker.io/postgres:latest
 podman stop --ignore swag
 podman rm --ignore -f swag
 podman pull docker.io/linuxserver/swag:latest
+/usr/bin/bash /usr/local/bin/postgres_container.sh
+/usr/bin/bash /usr/local/bin/nextcloud_container.sh
+/usr/bin/bash /usr/local/bin/swag_container.sh
