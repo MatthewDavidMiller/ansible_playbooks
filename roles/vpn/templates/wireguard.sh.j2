@@ -9,7 +9,7 @@
 -e PEERS={{ user_name }} \
 -e PEERDNS={{ wireguard_dns_server }} \
 -e INTERNAL_SUBNET={{ wireguard_server_network_prefix }} \
--e ALLOWEDIPS={{ wireguard_allowed_ips }} \
+-e ALLOWEDIPS="{{ wireguard_allowed_ips }}" \
 -p {{ listen_port }}:51820/udp \
 --sysctl="net.ipv4.conf.all.src_valid_mark=1" \
 --sysctl="net.ipv4.conf.all.forwarding=1" \
