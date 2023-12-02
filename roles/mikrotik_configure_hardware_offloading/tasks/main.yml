@@ -1,0 +1,12 @@
+---
+- name: Enable Layer 3 hardware offloading
+  community.routeros.command:
+    commands: /interface ethernet switch set 0 l3-hw-offloading=yes
+
+- name: Enable Layer 3 hardware offloading on all ports
+  community.routeros.command:
+    commands: /interface ethernet switch port set [find] l3-hw-offloading=yes
+
+- name: Enable Layer 2 hardware offloading on all ports
+  community.routeros.command:
+    commands: /interface bridge port set [find] bridge={{ bridge_interface }} hw=yes
