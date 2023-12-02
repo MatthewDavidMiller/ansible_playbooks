@@ -1,0 +1,24 @@
+---
+- name: Set admin password
+  community.routeros.command:
+    commands: '/user set admin password="{{ admin_password }}"'
+
+- name: Disable services
+  community.routeros.command:
+    commands: /ip service disable api,api-ssl,ftp,telnet,www-ssl,www,winbox
+
+- name: Mac-server don't allow
+  community.routeros.command:
+    commands: /tool mac-server set allowed-interface-list=none
+
+- name: winbox don't allow
+  community.routeros.command:
+    commands: /tool mac-server mac-winbox set allowed-interface-list=none
+
+- name: Disable bandwidth server
+  community.routeros.command:
+    commands: /tool bandwidth-server set enabled=no
+
+- name: Set strong crypto for SSH
+  community.routeros.command:
+    commands: /ip ssh set strong-crypto=yes
