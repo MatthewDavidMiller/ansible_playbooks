@@ -1,0 +1,12 @@
+---
+- name: Set NTP Servers
+  community.routeros.command:
+    commands: /system ntp client set servers={{ ntp_servers }}
+
+- name: Enable NTP
+  community.routeros.command:
+    commands: /system ntp client set enabled=yes
+
+- name: Set timezone
+  community.routeros.command:
+    commands: /system clock set time-zone-name={{ timezone }}
