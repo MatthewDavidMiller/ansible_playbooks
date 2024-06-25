@@ -1,24 +1,28 @@
 ---
 - name: Create Management Vlan interface and Set to bridge
   community.routeros.command:
-    commands: /interface vlan add vlan-id={{ management_vlan }} name=MgMT interface={{ bridge_interface }}
+    commands: '/interface vlan add vlan-id={{ management_vlan }} name=MgMT interface={{ bridge_interface }}'
 
 - name: Set Management Vlan IP Address
   community.routeros.command:
-    commands: /ip address add address={{ management_ip }} interface=MgMT
+    commands: '/ip address add address={{ management_ip }} interface=MgMT'
 
 - name: Set Management Interface PVID
   community.routeros.command:
-    commands: /interface bridge port set [find interface={{ management_interface }}] pvid={{ management_vlan }}
+    commands: '/interface bridge port set [find interface={{ management_interface }}] pvid={{ management_vlan }}'
 
 - name: Set Management Vlan as untagged on a port
   community.routeros.command:
-    commands: /interface bridge vlan add bridge={{ bridge_interface }} tagged={{ bridge_interface }} untagged={{ management_untagged_interfaces }} vlan-ids={{ management_vlan }} comment=MgMT
+    commands: '/interface bridge vlan add bridge={{ bridge_interface }} tagged={{ bridge_interface }} untagged={{ management_untagged_interfaces }} vlan-ids={{ management_vlan }} comment=MgMT'
 
 - name: Set Default route
   community.routeros.command:
-    commands: /ip route add gateway={{ default_gateway }} dst-address=0.0.0.0/0
+    commands: '/ip route add gateway={{ default_gateway }} dst-address=0.0.0.0/0'
 
 - name: Enable vlan filtering on default bridge
   community.routeros.command:
-    commands: /interface bridge set {{ bridge_interface }} vlan-filtering=yes
+    commands: '/interface bridge set {{ bridge_interface }} vlan-filtering=yes'
+
+- name: Set DNS Servers
+  community.routeros.command:
+    commands: '/ip/dns/set servers={{ dns_servers }}'
