@@ -3,15 +3,29 @@
   community.routeros.command:
     commands: '/user set admin password="{{ admin_password }}"'
 
+- name: Setup internal CA and cert for https
+  community.routeros.command:
+    commands:
+      - '/certificate add name={{ local_ca_name }} common-name={{ local_ca_name }} key-usage=key-cert-sign,crl-sign'
+      - '/certificate add name={{ https_cert_name }} common-name={{ cert_common_name }}'
+      - '/certificate sign {{ local_ca_name }}'
+      - '/certificate sign {{ https_cert_name }} ca={{ local_ca_name }}'
+      - '/ip service set www-ssl certificate={{ https_cert_name }} disabled=no tls-version=only-1.2'
+      - '/ip service set api-ssl certificate={{ https_cert_name }} disabled=no tls-version=only-1.2'
+
+- name: Enable secure services
+  community.routeros.command:
+    commands: /ip service enable api-ssl,www-ssl,ssh
+
 - name: Disable services
   community.routeros.command:
-    commands: /ip service disable api,api-ssl,ftp,telnet,www-ssl,www,winbox
+    commands: /ip service disable api,ftp,telnet,www,winbox
 
 - name: Mac-server don't allow
   community.routeros.command:
     commands: /tool mac-server set allowed-interface-list=none
 
-- name: winbox don't allow
+- name: Winbox don't allow
   community.routeros.command:
     commands: /tool mac-server mac-winbox set allowed-interface-list=none
 
