@@ -13,13 +13,13 @@
 - name: Mount file systems
   ansible.builtin.shell:
     cmd: |
-      mount "/dev/{{ lvm_name }}/{{ filesystem.name }}" {{ filesystem.initial_path | default(omit) }}
+      mount "/dev/{{ lvm_name }}/{{ filesystem.name }}" {{ filesystem.initial_path | default('none') }}
   loop: "{{ file_systems }}"
   loop_control:
     loop_var: filesystem
   when:
     - ansible_facts['distribution'] == 'Archlinux'
-    - filesystem.initial_path | default(omit) is defined
+    - filesystem.initial_path | default('none') != 'none'
 
 - name: Create boot path
   ansible.builtin.file:
