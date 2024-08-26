@@ -2,4 +2,4 @@ title   Arch Linux Kernel
 linux   /vmlinuz-{{ kernel }}
 initrd  /{{ ucode }}.img
 initrd  /initramfs-{{ kernel }}.img
-options {% if uses_disk_encryption | default(false) %}cryptdevice=UUID={{ luks_uuid.stdout }}:mycrypt {% endif %}root=UUID={{ root_uuid.stdout }} rw module.sig_enforce={{ sig_status }} lsm=landlock,lockdown,yama,apparmor,bpf
+options {% if uses_disk_encryption | default(false) %}cryptdevice=UUID={{ luks_uuid.stdout }}:mycrypt {% endif %}root=UUID={% for filesystem in file_systems %}{%if filesystem.name == 'root'%}{{ filesystem.uuid }}{% endif%}{% endfor%} rw module.sig_enforce={{ sig_status }} lsm=landlock,lockdown,yama,apparmor,bpf
