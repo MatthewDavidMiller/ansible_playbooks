@@ -1,14 +1,14 @@
 ---
 - name: Create filesystem paths
   ansible.builtin.file:
-    path: "{{ filesystem.initial_path | default(omit) }}"
+    path: "{{ filesystem.initial_path | default('none') }}"
     state: directory
   loop: "{{ file_systems }}"
   loop_control:
     loop_var: filesystem
   when:
     - ansible_facts['distribution'] == 'Archlinux'
-    - filesystem.initial_path | default(omit) is defined
+    - filesystem.initial_path | default('none') != 'none'
 
 - name: Mount file systems
   ansible.builtin.shell:
