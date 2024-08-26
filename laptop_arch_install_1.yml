@@ -3,7 +3,7 @@
   roles:
     - configure_locales
     - setup_efi_partition
-    - setup_encrypted_partition
+    - setup_lvm_encrypted_partition
     - setup_lvm
     - setup_filesystems
     - initial_install_mount_filesystems

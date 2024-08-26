@@ -1,0 +1,6 @@
+# Mount /boot
+UUID={{ boot_uuid.stdout }} /boot vfat defaults 0 0
+{% for filesystem in file_systems %}
+# Mount {{ filesystem.name }}
+UUID={{ filesystem.uuid }} {{ filesystem.path }} {{ filesystem.type }} defaults 0 0
+{% endfor %}
