@@ -1,57 +1,9 @@
 ---
-- name: Configure root mount
-  ansible.builtin.blockinfile:
-    path: /etc/fstab
-    marker: "{mark}"
-    marker_begin: "# Mount root"
-    marker_end: "#=================================================================================================================="
-    block: |
-      UUID={{ root_uuid.stdout }} / ext4 defaults 0 0
-  when: ansible_facts['distribution'] == 'Archlinux'
-
-- name: Configure var mount
-  ansible.builtin.blockinfile:
-    path: /etc/fstab
-    marker: "{mark}"
-    marker_begin: "# Mount /var"
-    marker_end: "#=================================================================================================================="
-    block: |
-      UUID={{ var_uuid.stdout }} /var ext4 defaults 0 0
-  when:
-    - ansible_facts['distribution'] == 'Archlinux'
-    - var_lvm_presence is defined
-    - var_lvm_presence == 'yes'
-
-- name: Configure swap
-  ansible.builtin.blockinfile:
-    path: /etc/fstab
-    marker: "{mark}"
-    marker_begin: "# Setup swap"
-    marker_end: "#=================================================================================================================="
-    block: |
-      UUID={{ swap_uuid.stdout }} none swap defaults 0 0
-  when: ansible_facts['distribution'] == 'Archlinux'
-
-- name: Configure home mount
-  ansible.builtin.blockinfile:
-    path: /etc/fstab
-    marker: "{mark}"
-    marker_begin: "# Mount /home"
-    marker_end: "#=================================================================================================================="
-    block: |
-      UUID={{ home_uuid.stdout }} /home ext4 defaults 0 0
-  when:
-    - ansible_facts['distribution'] == 'Archlinux'
-    - home_lvm_presence is defined
-    - home_partition_size is defined
-    - home_lvm_presence == 'yes'
-
-- name: Configure boot mount
-  ansible.builtin.blockinfile:
-    path: /etc/fstab
-    marker: "{mark}"
-    marker_begin: "# Mount /boot"
-    marker_end: "#=================================================================================================================="
-    block: |
-      UUID={{ boot_uuid.stdout }} /boot vfat defaults 0 0
+- name: Configure fstab
+  ansible.builtin.template:
+    src: fstab.j2
+    dest: /etc/fstab
+    owner: root
+    group: root
+    mode: "0644"
   when: ansible_facts['distribution'] == 'Archlinux'

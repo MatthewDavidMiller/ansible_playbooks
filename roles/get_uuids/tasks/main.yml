@@ -1,45 +1,28 @@
 ---
-- name: Get Luks partition uuid
+- name: Get Luks or LVM partition uuid
   ansible.builtin.shell:
     cmd: |
       blkid -o value -s UUID "{{ disk }}p2"
   register: luks_uuid
-  when: ansible_facts['distribution'] == 'Archlinux'
-
-- name: Get root partition uuid
-  ansible.builtin.shell:
-    cmd: |
-      blkid -o value -s UUID "/dev/{{ lvm_name }}/root"
-  register: root_uuid
-  when: ansible_facts['distribution'] == 'Archlinux'
-
-- name: Get var partition uuid
-  ansible.builtin.shell:
-    cmd: |
-      blkid -o value -s UUID "/dev/{{ lvm_name }}/var"
-  register: var_uuid
   when:
     - ansible_facts['distribution'] == 'Archlinux'
-    - var_lvm_presence is defined
-    - var_lvm_presence == 'yes'
 
-- name: Get swap partition uuid
+- name: Get file system uuids
   ansible.builtin.shell:
     cmd: |
-      blkid -o value -s UUID "/dev/{{ lvm_name }}/swap"
-  register: swap_uuid
+      blkid -o value -s UUID "/dev/{{ lvm_name }}/{{ filesystem.name }}"
+  loop: "{{ file_systems }}"
+  loop_control:
+    loop_var: filesystem
+  register: filesystem_uuids
   when: ansible_facts['distribution'] == 'Archlinux'
 
-- name: Get home partition uuid
-  ansible.builtin.shell:
-    cmd: |
-      blkid -o value -s UUID "/dev/{{ lvm_name }}/home"
-  register: home_uuid
-  when:
-    - ansible_facts['distribution'] == 'Archlinux'
-    - home_lvm_presence is defined
-    - home_partition_size is defined
-    - home_lvm_presence == 'yes'
+- name: Save file system uuids
+  ansible.builtin.set_fact:
+    "{{ filesystem[0].uuid }}": "{{ filesystem[1].stdout }}"
+  loop: "{{ file_systems | filesystem_uuids | list }}"
+  loop_control:
+    loop_var: filesystem
 
 - name: Get boot partition uuid
   ansible.builtin.shell:

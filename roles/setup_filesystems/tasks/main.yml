@@ -1,34 +1,12 @@
 ---
-- name: Create root filesystem
+- name: Create filesystems for LVM
   community.general.filesystem:
-    fstype: ext4
-    dev: "/dev/{{ lvm_name }}/root"
+    fstype: "{{ filesystem.type }}"
+    dev: "/dev/{{ lvm_name }}/{{ filesystem.name }}"
+  loop: "{{ file_systems }}"
+  loop_control:
+    loop_var: filesystem
   when: ansible_facts['distribution'] == 'Archlinux'
-
-- name: Create var filesystem
-  community.general.filesystem:
-    fstype: ext4
-    dev: "/dev/{{ lvm_name }}/var"
-  when:
-    - ansible_facts['distribution'] == 'Archlinux'
-    - var_lvm_presence is defined
-    - var_lvm_presence == 'yes'
-
-- name: Create swap filesystem
-  community.general.filesystem:
-    fstype: swap
-    dev: "/dev/{{ lvm_name }}/swap"
-  when: ansible_facts['distribution'] == 'Archlinux'
-
-- name: Create home filesystem
-  community.general.filesystem:
-    fstype: ext4
-    dev: "/dev/{{ lvm_name }}/home"
-  when:
-    - ansible_facts['distribution'] == 'Archlinux'
-    - home_lvm_presence is defined
-    - home_partition_size is defined
-    - home_lvm_presence == 'yes'
 
 - name: Create boot filesystem
   ansible.builtin.shell:
