@@ -18,9 +18,8 @@
   when: ansible_facts['distribution'] == 'Archlinux'
 
 - name: Save file system uuids
-  ansible.builtin.set_fact:
-    "{{ filesystem[0].uuid }}": "{{ filesystem[1].stdout }}"
-  loop: "{{ file_systems | filesystem_uuids | list }}"
+  ansible.builtin.include_tasks: save_uuids.yml
+  loop: "{{ file_systems }}"
   loop_control:
     loop_var: filesystem
 

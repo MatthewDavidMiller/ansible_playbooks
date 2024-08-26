@@ -1,0 +1,7 @@
+---
+- name: Save file system uuids
+  ansible.builtin.set_fact:
+    "{{ filesystem.uuid }}": "{{ uuid.stdout }}"
+  loop: "{{ filesystem_uuids.results }}"
+  loop_control:
+    loop_var: uuid
