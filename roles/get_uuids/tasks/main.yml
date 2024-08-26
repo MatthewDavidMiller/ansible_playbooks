@@ -18,10 +18,14 @@
   when: ansible_facts['distribution'] == 'Archlinux'
 
 - name: Save file system uuids
-  ansible.builtin.include_tasks: save_uuids.yml
-  loop: "{{ file_systems }}"
-  loop_control:
-    loop_var: filesystem
+  ansible.builtin.template:
+    src: uuids.j2
+    dest: ./uuids.yml
+  delegate_to: localhost
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Save file system uuids
+  ansible.builtin.include_vars: ./uuids.yml
 
 - name: Get boot partition uuid
   ansible.builtin.shell:
