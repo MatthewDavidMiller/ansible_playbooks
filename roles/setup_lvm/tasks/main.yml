@@ -2,7 +2,7 @@
 - name: Create Logical Volume group
   community.general.lvg:
     vg: "{{ lvm_name }}"
-    pvs: "/dev/mapper/mycrypt"
+    pvs: "{{ lvm_path }}"
     pvresize: true
   when: ansible_facts['distribution'] == 'Archlinux'
 
