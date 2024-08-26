@@ -21,3 +21,4 @@
   when:
     - ansible_facts['distribution'] == 'Archlinux'
     - uses_disk_encryption | default(false)
+    - disk_password is defined
