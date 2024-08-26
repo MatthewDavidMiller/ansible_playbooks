@@ -1,5 +1,7 @@
 ---
 - hosts: laptop
+  vars:
+    ansible_ssh_user: root
   roles:
     - configure_hosts
     - configure_hostname
