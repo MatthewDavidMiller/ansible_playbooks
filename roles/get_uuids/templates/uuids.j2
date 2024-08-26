@@ -1,0 +1,9 @@
+---
+file_systems:
+{% for filesystem in file_systems %}
+  - name: "{{ filesystem.name }}"
+    type: "{{ filesystem.type }}"
+    initial_path: "{{ filesystem.initial_path | default('none') }}"
+    path: "{{ filesystem.path | default('none') }}"
+    uuid: "{{ filesystem_uuids.results[loop.index0].stdout }}"
+{% endfor %}
