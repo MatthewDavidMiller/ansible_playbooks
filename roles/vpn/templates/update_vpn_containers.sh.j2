@@ -1,3 +1,5 @@
+/usr/bin/podman system prune --all --force
+/usr/bin/rm -rf /var/cache/*
 podman stop --ignore wireguard
 podman rm --ignore wireguard
 podman pull docker.io/linuxserver/wireguard:latest

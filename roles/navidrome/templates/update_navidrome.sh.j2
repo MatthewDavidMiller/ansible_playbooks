@@ -1,3 +1,5 @@
+/usr/bin/podman system prune --all --force
+/usr/bin/rm -rf /var/cache/*
 /usr/bin/podman stop --ignore navidrome
 /usr/bin/podman rm --ignore navidrome
 /usr/bin/podman pull docker.io/deluan/navidrome:latest
