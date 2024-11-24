@@ -1,3 +1,5 @@
+/usr/bin/podman system prune --all --force
+/usr/bin/rm -rf /var/cache/*
 podman stop --ignore pihole
 podman rm --ignore pihole
 podman pull docker.io/pihole/pihole:latest

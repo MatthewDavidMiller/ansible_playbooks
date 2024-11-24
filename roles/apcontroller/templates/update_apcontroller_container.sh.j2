@@ -1,3 +1,5 @@
+/usr/bin/podman system prune --all --force
+/usr/bin/rm -rf /var/cache/*
 podman stop --ignore apcontroller
 podman rm --ignore -f apcontroller
 podman pull docker.io/mbentley/omada-controller:latest
