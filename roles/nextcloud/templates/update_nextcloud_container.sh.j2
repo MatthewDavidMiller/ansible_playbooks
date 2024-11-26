@@ -9,6 +9,10 @@ podman pull docker.io/postgres:15.4-bookworm
 podman stop --ignore swag
 podman rm --ignore -f swag
 podman pull docker.io/linuxserver/swag:latest
+podman stop --ignore redis
+podman rm --ignore -f redis
+podman pull docker.io/redis:latest
+/usr/bin/bash /usr/local/bin/redis_container.sh
 /usr/bin/bash /usr/local/bin/postgres_container.sh
 /usr/bin/bash /usr/local/bin/nextcloud_container.sh
 /usr/bin/bash /usr/local/bin/swag_container.sh

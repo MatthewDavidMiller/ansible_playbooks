@@ -71,6 +71,18 @@
     mode: "0770"
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
+- name: Redis Service
+  ansible.builtin.template:
+    src: redis_container.service.j2
+    dest: "/etc/systemd/system/redis_container.service"
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+
+- name: Enable Redis
+  ansible.builtin.systemd:
+    name: redis_container.service
+    enabled: yes
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+
 - name: postgres Service
   ansible.builtin.template:
     src: postgres_container.service.j2
@@ -93,6 +105,15 @@
   ansible.builtin.systemd:
     name: nextcloud_container.service
     enabled: yes
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+
+- name: Redis script
+  ansible.builtin.template:
+    src: redis_container.sh.j2
+    dest: "/usr/local/bin/redis_container.sh"
+    owner: "{{ user_name }}"
+    group: root
+    mode: "0770"
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Nextcloud script
