@@ -72,3 +72,12 @@
     group: 1000
     mode: "0770"
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+
+- name: Swag ssl config
+  ansible.builtin.template:
+    src: "ssl.conf.j2"
+    dest: "{{ swag_path }}/nginx/ssl.conf"
+    owner: 1000
+    group: 1000
+    mode: "0770"
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
