@@ -6,10 +6,10 @@
 
     include /config/nginx/ssl.conf;
 
-    client_max_body_size 12288M;
+    client_max_body_size 20G;
     client_body_timeout 300s;
     fastcgi_buffers 64 4K;
-    client_body_buffer_size 512k;
+    client_body_buffer_size 400M;
 
     location / {
         include /config/nginx/proxy.conf;
@@ -18,7 +18,7 @@
         set $upstream_port {% endraw %}{{ proxy_upstream_port }};{% raw %}
         set $upstream_proto {% endraw %}{{ proxy_upstream_protocol }};{% raw %}
         proxy_pass $upstream_proto://$upstream_app:$upstream_port;
-        proxy_max_temp_file_size 12288m;
+        proxy_max_temp_file_size 20G;
         proxy_hide_header Referrer-Policy;
         proxy_hide_header X-Content-Type-Options;
         proxy_hide_header X-Frame-Options;
