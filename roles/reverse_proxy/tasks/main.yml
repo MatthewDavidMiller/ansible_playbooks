@@ -34,6 +34,16 @@
     recurse: true
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
+- name: Create swag site-confs path
+  ansible.builtin.file:
+    path: "{{ swag_path }}/nginx/site-confs"
+    state: directory
+    owner: 1000
+    group: 1000
+    mode: "0770"
+    recurse: true
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+
 - name: Swag Service
   ansible.builtin.template:
     src: swag_container.service.j2
@@ -77,6 +87,15 @@
   ansible.builtin.template:
     src: "ssl.conf.j2"
     dest: "{{ swag_path }}/nginx/ssl.conf"
+    owner: 1000
+    group: 1000
+    mode: "0770"
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+
+- name: Swag default config
+  ansible.builtin.template:
+    src: "default.conf.j2"
+    dest: "{{ swag_path }}/nginx/site-confs/default.conf"
     owner: 1000
     group: 1000
     mode: "0770"
