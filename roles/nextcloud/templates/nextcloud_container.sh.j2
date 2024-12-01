@@ -16,5 +16,6 @@
 -e OVERWRITEPROTOCOL=https \
 -e OVERWRITECLIURL='https://{{ proxy_fqdn }}' \
 -e PHP_UPLOAD_LIMIT=20480M \
+-e APACHE_BODY_LIMIT=21474836480 \
 -e REDIS_HOST=redis.dns.podman \
 -d docker.io/nextcloud:latest
