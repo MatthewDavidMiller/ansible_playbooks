@@ -100,3 +100,12 @@
     group: 1000
     mode: "0770"
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+
+- name: Swag proxy config
+  ansible.builtin.template:
+    src: "proxy.conf.j2"
+    dest: "{{ swag_path }}/nginx/proxy.conf"
+    owner: 1000
+    group: 1000
+    mode: "0770"
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
