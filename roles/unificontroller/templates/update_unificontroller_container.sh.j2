@@ -1,0 +1,10 @@
+/usr/bin/podman system prune --all --force
+/usr/bin/rm -rf /var/cache/*
+/usr/bin/podman stop --ignore unificontroller
+/usr/bin/podman rm --ignore -f unificontroller
+/usr/bin/podman pull docker.io/jacobalberty/unifi:latest
+/usr/bin/podman stop --ignore swag
+/usr/bin/podman rm --ignore -f swag
+/usr/bin/podman pull docker.io/linuxserver/swag:latest
+/usr/bin/bash /usr/local/bin/unificontroller.sh
+/usr/bin/bash /usr/local/bin/swag_container.sh
