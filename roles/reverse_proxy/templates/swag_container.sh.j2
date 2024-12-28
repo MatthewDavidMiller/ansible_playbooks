@@ -8,6 +8,7 @@
 -e SUBDOMAINS={{ swag_host_domain }} \
 -e VALIDATION=dns \
 -e DNSPLUGIN={{ swag_dns_plugin }} \
+-e PROPAGATION=60 \
 -e ONLY_SUBDOMAINS=true \
 -v {{ swag_path }}:/config:Z \
 -p 443:443/tcp -d docker.io/linuxserver/swag:latest
