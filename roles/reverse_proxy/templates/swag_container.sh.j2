@@ -9,7 +9,5 @@
 -e VALIDATION=dns \
 -e DNSPLUGIN={{ swag_dns_plugin }} \
 -e ONLY_SUBDOMAINS=true \
--e DOCKER_MODS=docker.io/linuxserver/mods:universal-package-install \
--e INSTALL_PIP_PACKAGES=certbot-dns-porkbun==0.9.1 \
 -v {{ swag_path }}:/config:Z \
 -p 443:443/tcp -d docker.io/linuxserver/swag:latest
