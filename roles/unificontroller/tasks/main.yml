@@ -1,0 +1,71 @@
+---
+- name: Create apcontroller container network
+  ansible.builtin.shell:
+    cmd: |
+      podman network create unifi_container_net
+  ignore_errors: true
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+
+- name: Create unifi controller container path
+  ansible.builtin.file:
+    path: "{{ unificontroller_path }}"
+    state: directory
+    mode: 0770
+    owner: 999
+    group: 999
+    recurse: true
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+
+- name: Create unifi controller data path
+  ansible.builtin.file:
+    path: "{{ unificontroller_path }}/data"
+    state: directory
+    mode: 0770
+    owner: 999
+    group: 999
+    recurse: true
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+
+- name: Create unifi controller logs path
+  ansible.builtin.file:
+    path: "{{ unificontroller_path }}/log"
+    state: directory
+    mode: 0770
+    owner: 999
+    group: 999
+    recurse: true
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+
+- name: Unificontroller service
+  ansible.builtin.template:
+    src: unificontroller.service.j2
+    dest: "/etc/systemd/system/unificontroller.service"
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+
+- name: Enable unificontroller
+  ansible.builtin.systemd:
+    name: unificontroller.service
+    enabled: yes
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+
+- name: Unificontroller script
+  ansible.builtin.template:
+    src: unificontroller.sh.j2
+    dest: "/usr/local/bin/unificontroller.sh"
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+
+- name: Update unificontroller container script
+  ansible.builtin.template:
+    src: update_unificontroller_container.sh.j2
+    dest: "/usr/local/bin/update_unificontroller_container.sh"
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+
+- name: Update unificontroller schedule
+  ansible.builtin.cron:
+    name: "Update Unificontroller"
+    minute: "{{ container_patching_minute }}"
+    hour: "{{ container_patching_hour }}"
+    weekday: "{{ container_patching_weekday }}"
+    month: "{{ container_patching_month }}"
+    job: /usr/bin/bash /usr/local/bin/update_unificontroller_container.sh
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'

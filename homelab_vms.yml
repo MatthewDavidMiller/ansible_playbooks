@@ -6,6 +6,9 @@
 - name: Run apcontroller config playbook
   import_playbook: apcontroller.yml
 
+- name: Run unificontroller config playbook
+  import_playbook: unificontroller.yml
+
 - name: Run backup config playbook
   import_playbook: backup.yml
 

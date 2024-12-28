@@ -262,3 +262,17 @@ subprocess.call(
         r"local-lvm:1,format=raw,efitype=4m,pre-enrolled-keys=0",
     ]
 )
+
+# Create UnifiController VM
+subprocess.call([r"qm", r"clone", r"401", r"116", r"--name", r"UnifiController"])
+
+# Set efi disk
+subprocess.call(
+    [
+        r"qm",
+        r"set",
+        r"116",
+        r"--efidisk0",
+        r"local-lvm:1,format=raw,efitype=4m,pre-enrolled-keys=0",
+    ]
+)

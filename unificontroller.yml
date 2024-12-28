@@ -1,6 +1,6 @@
 # Place hosts in here and roles to run
 ---
-- hosts: apcontroller
+- hosts: unificontroller
   roles:
     - standard_ssh
     - standard_qemu_guest_agent
@@ -11,4 +11,4 @@
     - standard_firewalld
     - standard_podman
     - reverse_proxy
-    - omadacontroller
+    - unificontroller

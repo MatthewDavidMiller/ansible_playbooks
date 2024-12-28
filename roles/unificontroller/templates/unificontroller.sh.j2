@@ -1,0 +1,10 @@
+/usr/bin/podman run \
+--name=unificontroller \
+--network=unifi_container_net \
+-p 8080:8080 \
+-p 8443:8443 \
+-p 3478:3478/udp \
+-e TZ=Etc/UTC \
+--volume {{ unificontroller_path }}:/unifi:Z \
+--user unifi \
+-d docker.io/jacobalberty/unifi:latest
