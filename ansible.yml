@@ -12,3 +12,5 @@
     - ansible
     - ansible_git
     - ansible_playbooks
+    - reverse_proxy
+    - semaphore
