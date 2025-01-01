@@ -6,6 +6,7 @@
     - standard_qemu_guest_agent
     - standard_update_packages
     - standard_patching
+    - standard_podman
     - configure_timezone
     - standard_cron
     - standard_firewalld
