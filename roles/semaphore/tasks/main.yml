@@ -18,27 +18,27 @@
   ansible.builtin.file:
     path: "{{ semaphore_path }}"
     state: directory
-    owner: root
-    group: root
-    mode: "0777"
+    owner: 1001
+    group: 1001
+    mode: "0770"
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Create semaphore data path
   ansible.builtin.file:
     path: "{{ semaphore_path }}/data"
     state: directory
-    owner: root
-    group: root
-    mode: "0777"
+    owner: 1001
+    group: 1001
+    mode: "0770"
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Create semaphore config path
   ansible.builtin.file:
     path: "{{ semaphore_path }}/config"
     state: directory
-    owner: root
-    group: root
-    mode: "0777"
+    owner: 1001
+    group: 1001
+    mode: "0770"
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Postgres service
