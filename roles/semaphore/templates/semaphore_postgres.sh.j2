@@ -1,0 +1,8 @@
+/usr/bin/podman run \
+--name semaphore_postgres \
+--network semaphore_container_net \
+-e POSTGRES_USER={{ semaphore_database_user }} \
+-e POSTGRES_PASSWORD={{ semaphore_database_user_password | quote }} \
+-e POSTGRES_DB={{ semaphore_database_name }} \
+--volume {{ postgres_path }}:/var/lib/postgresql/data:Z \
+-d docker.io/postgres:latest
