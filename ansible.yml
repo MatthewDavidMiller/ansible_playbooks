@@ -11,7 +11,5 @@
     - standard_cron
     - standard_firewalld
     - ansible
-    - ansible_git
-    - ansible_playbooks
     - reverse_proxy
     - semaphore
