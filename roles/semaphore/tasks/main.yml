@@ -1,0 +1,6 @@
+- name: Create semaphore container network
+  ansible.builtin.shell:
+    cmd: |
+      podman network create semaphore_container_net
+  ignore_errors: true
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'

@@ -1,0 +1,18 @@
+[Unit]
+Description=Podman container-semaphore.service
+Documentation=man:podman-generate-systemd(1)
+Wants=network.target
+After=network-online.target semaphore_postgres.service
+
+[Service]
+Environment=PODMAN_SYSTEMD_UNIT=%n
+Restart=on-failure
+TimeoutStopSec=70
+ExecStartPre=/usr/bin/podman rm --ignore semaphore
+ExecStart=/usr/bin/bash /usr/local/bin/semaphore.sh
+ExecStop=/usr/bin/podman stop --ignore semaphore
+ExecStopPost=/usr/bin/podman rm --ignore -f semaphore
+Type=forking
+
+[Install]
+WantedBy=multi-user.target default.target
