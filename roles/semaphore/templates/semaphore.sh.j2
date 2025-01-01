@@ -9,6 +9,7 @@
 -e SEMAPHORE_ADMIN_PASSWORD={{ semaphore_admin_password | quote }} \
 -e SEMAPHORE_ADMIN_NAME={{ semaphore_admin_name | quote }} \
 -e SEMAPHORE_ADMIN_EMAIL={{ semaphore_admin_email | quote }} \
+-e SEMAPHORE_ACCESS_KEY_ENCRYPTION={{ semaphore_encryption_key | quote }} \
 -e ANSIBLE_HOST_KEY_CHECKING=False \
 --network semaphore_container_net \
 -d docker.io/semaphoreui/semaphore:latest
