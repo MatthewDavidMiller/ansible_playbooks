@@ -10,7 +10,5 @@
 -e SEMAPHORE_ADMIN_NAME={{ semaphore_admin_name | quote }} \
 -e SEMAPHORE_ADMIN_EMAIL={{ semaphore_admin_email | quote }} \
 -e ANSIBLE_HOST_KEY_CHECKING=False \
--v {{ semaphore_path }}/data:/var/lib/semaphore:Z \
--v {{ semaphore_path }}/config:/etc/semaphore:Z \
 --network semaphore_container_net \
 -d docker.io/semaphoreui/semaphore:latest
