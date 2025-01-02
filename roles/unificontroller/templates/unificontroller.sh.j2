@@ -3,7 +3,7 @@
 --network=unifi_container_net \
 -p 8080:8080 \
 -p 3478:3478/udp \
--e TZ=Etc/UTC \
+-e TZ=America/New_York \
 --volume {{ unificontroller_path }}:/unifi:Z \
 --user unifi \
 -d docker.io/jacobalberty/unifi:latest

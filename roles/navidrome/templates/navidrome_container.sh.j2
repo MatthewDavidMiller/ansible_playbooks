@@ -5,4 +5,5 @@
 {% endraw %}--volume {{ navidrome_path }}/music:/music:ro \
 --volume {{ navidrome_path }}/data:/data \
 -e ND_LOGLEVEL=info \
+-e TZ=America/New_York \
 -d docker.io/deluan/navidrome:latest
