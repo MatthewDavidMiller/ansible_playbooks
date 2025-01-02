@@ -41,23 +41,6 @@
     dest: "/usr/local/bin/wireguard.sh"
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
-- name: Update VPN containers
-  ansible.builtin.template:
-    src: update_vpn_containers.sh.j2
-    dest: "/usr/local/bin/update_vpn_containers.sh"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
-
-- name: Update VPN Schedule
-  ansible.builtin.cron:
-    name: "Update VPN"
-    minute: "{{ container_patching_minute }}"
-    hour: "{{ container_patching_hour }}"
-    weekday: "{{ container_patching_weekday }}"
-    month: "{{ container_patching_month }}"
-    job: /usr/bin/bash /usr/local/bin/update_vpn_containers.sh
-    state: absent
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
-
 - name: porkbun-ddns Service
   ansible.builtin.template:
     src: porkbun-ddns.service.j2
