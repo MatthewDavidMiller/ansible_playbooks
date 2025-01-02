@@ -1,4 +1,5 @@
 /usr/bin/podman run \
 --name=redis \
 --network=nextcloud_container_net \
+-e TZ=America/New_York \
 -d docker.io/redis:latest

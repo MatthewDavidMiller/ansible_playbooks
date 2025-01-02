@@ -3,7 +3,7 @@
 --volume {{ vpn_path }}/config:/config/:Z \
 --volume /lib/modules:/lib/modules/:Z \
 --privileged=true \
--e TZ=America/Chicago \
+-e TZ=America/New_York \
 -e SERVERURL={{ homelab_subdomain }}.{{ homelab_domain }} \
 -e SERVERPORT={{ listen_port }} \
 -e PEERS={{ user_name }} \

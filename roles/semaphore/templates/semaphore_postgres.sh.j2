@@ -4,5 +4,6 @@
 -e POSTGRES_USER={{ semaphore_database_user }} \
 -e POSTGRES_PASSWORD={{ semaphore_database_user_password | quote }} \
 -e POSTGRES_DB={{ semaphore_database_name }} \
+-e TZ=America/New_York \
 --volume {{ postgres_path }}:/var/lib/postgresql/data:Z \
 -d docker.io/postgres:17

@@ -11,5 +11,6 @@
 -e SEMAPHORE_ADMIN_EMAIL={{ semaphore_admin_email | quote }} \
 -e SEMAPHORE_ACCESS_KEY_ENCRYPTION={{ semaphore_encryption_key | quote }} \
 -e ANSIBLE_HOST_KEY_CHECKING=False \
+-e TZ=America/New_York \
 --network semaphore_container_net \
 -d docker.io/semaphoreui/semaphore:latest

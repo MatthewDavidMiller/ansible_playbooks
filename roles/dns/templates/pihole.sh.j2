@@ -4,7 +4,7 @@
 --volume {{ pihole_path }}/etc-dnsmasq.d:/etc/dnsmasq.d/:Z \
 --network pihole_container_net:ip={{ pihole_container_ip_address }} \
 --dns={{ pihole_dns_server }} \
--e TZ=America/Chicago \
+-e TZ=America/New_York \
 -e WEBPASSWORD="{{ web_password }}" \
 -p 53:53/tcp \
 -p 53:53/udp \
