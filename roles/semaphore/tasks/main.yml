@@ -55,23 +55,3 @@
     group: root
     mode: "0770"
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
-
-- name: Update semaphore script
-  ansible.builtin.template:
-    src: update_semaphore.sh.j2
-    dest: "/usr/local/bin/update_semaphore.sh"
-    owner: "{{ user_name }}"
-    group: root
-    mode: "0770"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
-
-- name: Update semaphore schedule
-  ansible.builtin.cron:
-    name: "Update Semaphore"
-    minute: "{{ container_patching_minute }}"
-    hour: "{{ container_patching_hour }}"
-    weekday: "{{ container_patching_weekday }}"
-    month: "{{ container_patching_month }}"
-    job: /usr/bin/bash /usr/local/bin/update_semaphore.sh
-    state: absent
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
