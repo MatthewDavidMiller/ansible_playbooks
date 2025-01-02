@@ -1,0 +1,11 @@
+---
+- hosts: localhost
+
+- name: Run config playbooks and updates
+  import_playbook: homelab_vms.yml
+
+- name: Reboot homelab VMs
+  import_playbook: reboot_vms.yml
+
+- name: Reboot semaphore
+  import_playbook: reboot_semaphore.yml
