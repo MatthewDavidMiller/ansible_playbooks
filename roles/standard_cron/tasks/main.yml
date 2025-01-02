@@ -31,4 +31,5 @@
     weekday: "{{ patching_weekday }}"
     month: "{{ patching_month }}"
     job: /usr/bin/bash /usr/local/bin/update_system.sh
+    state: absent
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
