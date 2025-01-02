@@ -101,4 +101,5 @@
     weekday: "{{ container_patching_weekday }}"
     month: "{{ container_patching_month }}"
     job: /usr/bin/bash /usr/local/bin/update_navidrome.sh
+    state: absent
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
