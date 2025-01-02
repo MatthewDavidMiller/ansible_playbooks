@@ -2,4 +2,4 @@
 - hosts: homelab
   roles:
     - role: roles/standard_reboot
-      when: inventory_hostname != ansible
+      when: inventory_hostname != 'ansible'
