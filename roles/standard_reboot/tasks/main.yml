@@ -1,4 +1,14 @@
 ---
 - name: Reboot machine
   reboot:
-    reboot_timeout: "600"
+    reboot_timeout: 600
+  when:
+    - inventory_hostname != 'ansible'
+
+- name: Reboot machine
+  reboot:
+    pre_reboot_delay: 12
+  async: 40
+  poll: 0
+  when:
+    - inventory_hostname == 'ansible'
