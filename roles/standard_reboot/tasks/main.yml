@@ -1,13 +1,12 @@
 ---
 - name: Reboot machine
-  reboot:
+  ansible.builtin.reboot:
     reboot_timeout: 600
   when:
     - inventory_hostname != 'ansible'
 
 - name: Reboot machine
-  reboot:
-    pre_reboot_delay: 12
+  ansible.builtin.command: shutdown -r +1
   async: 40
   poll: 0
   when:
