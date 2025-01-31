@@ -6,6 +6,14 @@
     update_cache: "yes"
   when: ansible_facts['distribution'] == 'Debian'
 
+- name: Update keyring
+  community.general.pacman:
+    name: archlinux-keyring
+    update_cache: true
+    state: latest
+    update_cache_extra_args: --needed
+  when: ansible_facts['distribution'] == 'Archlinux'
+
 - name: Update all packages to their latest version
   community.general.pacman:
     update_cache: true
