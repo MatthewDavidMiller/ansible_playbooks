@@ -2,11 +2,21 @@
 /usr/bin/podman run \
 --name=pihole \
 --volume {{ pihole_path }}/etc-pihole:/etc/pihole:Z \
---volume {{ pihole_path }}/etc-dnsmasq.d:/etc/dnsmasq.d/:Z \
 --network pihole_container_net:ip={{ pihole_container_ip_address }} \
 --dns={{ pihole_dns_server }} \
 -e TZ=America/New_York \
--e WEBPASSWORD="{{ web_password }}" \
+-e FTLCONF_webserver_api_password="{{ web_password }}" \
+-e FTLCONF_dns_bogusPriv="false" \
+-e FTLCONF_webserver_interface_theme="default-dark" \
+-e FTLCONF_dns_listeningMode="all" \
+-e FTLCONF_dns_domainNeeded="false" \
+-e FTLCONF_dns_dnssec="true" \
+-e FTLCONF_dns_revServers="true,{{ pihole_network }},{{ pihole_gateway }}#53,{{ internal_dns_domain }}" \
+-e API_QUERY_LOG_SHOW="blockedonly" \
+-e API_PRIVACY_MODE="false" \
+-e FTLCONF_dns_upstreams="{{ pihole_dns_server }}" \
+-e FTLCONF_dns_queryLogging="true" \
+-e FTLCONF_dns_cache_size="10000" \
 -p 53:53/tcp \
 -p 53:53/udp \
 -d docker.io/pihole/pihole:latest
