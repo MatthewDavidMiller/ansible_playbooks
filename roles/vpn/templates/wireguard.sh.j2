@@ -1,3 +1,4 @@
+/usr/bin/podman pull docker.io/linuxserver/wireguard:latest
 /usr/bin/podman run \
 --name=wireguard \
 --volume {{ vpn_path }}/config:/config/:Z \

@@ -1,3 +1,4 @@
+/usr/bin/podman pull docker.io/pihole/pihole:latest
 /usr/bin/podman run \
 --name=pihole \
 --volume {{ pihole_path }}/etc-pihole:/etc/pihole:Z \
