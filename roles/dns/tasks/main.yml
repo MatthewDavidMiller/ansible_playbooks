@@ -31,30 +31,12 @@
     group: 33
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
-- name: Create etc-dnsmasq.d path
-  ansible.builtin.file:
-    path: "{{ pihole_path }}/etc-dnsmasq.d"
-    state: directory
-    mode: 0770
-    owner: 999
-    group: 33
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
-
 - name: sysctl Config increase memory
   ansible.builtin.lineinfile:
     path: "/etc/sysctl.d/01_sysctl.conf"
     regexp: '^net\.core\.rmem_max='
     line: net.core.rmem_max=1048576
     create: yes
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
-
-- name: Pihole Config
-  ansible.builtin.template:
-    src: setup_vars.j2
-    dest: "{{ pihole_path }}/etc-pihole/setupVars.conf"
-    mode: 0770
-    owner: 999
-    group: 33
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Create pihole container network
