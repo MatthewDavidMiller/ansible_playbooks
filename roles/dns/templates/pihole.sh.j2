@@ -16,6 +16,8 @@
 -e FTLCONF_dns_upstreams='{{ pihole_dns_server }}' \
 -e FTLCONF_dns_queryLogging='true' \
 -e FTLCONF_dns_cache_size='10000' \
+-e FTLCONF_dns_rateLimit_count='0' \
+-e FTLCONF_dns_rateLimit_interval='0' \
 -p 53:53/tcp \
 -p 53:53/udp \
 -d docker.io/pihole/pihole:latest
