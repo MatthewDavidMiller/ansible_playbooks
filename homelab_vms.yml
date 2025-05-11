@@ -15,9 +15,6 @@
 - name: Run nextcloud config playbook
   import_playbook: nextcloud.yml
 
-- name: Run pihole config playbook
-  import_playbook: pihole.yml
-
 - name: Run vaultwarden config playbook
   import_playbook: vaultwarden.yml
 
