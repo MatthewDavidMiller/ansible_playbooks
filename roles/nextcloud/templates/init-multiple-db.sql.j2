@@ -1,9 +1,25 @@
-SELECT 'CREATE DATABASE {{ paperless_database_name }}'
-WHERE NOT EXISTS (
-  SELECT FROM pg_database WHERE datname = '{{ paperless_database_name }}'
-);
+-- Create paperless database if it doesn't exist
+DO $$
+DECLARE db_exists BOOLEAN;
+BEGIN
+  SELECT EXISTS (
+    SELECT FROM pg_database WHERE datname = '{{ paperless_database_name }}'
+  ) INTO db_exists;
 
-SELECT 'CREATE DATABASE {{ nextcloud_database_name }}'
-WHERE NOT EXISTS (
-  SELECT FROM pg_database WHERE datname = '{{ nextcloud_database_name }}'
-);
+  IF NOT db_exists THEN
+    EXECUTE format('CREATE DATABASE %I', '{{ paperless_database_name }}');
+  END IF;
+END $$;
+
+-- Create nextcloud database if it doesn't exist
+DO $$
+DECLARE db_exists BOOLEAN;
+BEGIN
+  SELECT EXISTS (
+    SELECT FROM pg_database WHERE datname = '{{ nextcloud_database_name }}'
+  ) INTO db_exists;
+
+  IF NOT db_exists THEN
+    EXECUTE format('CREATE DATABASE %I', '{{ nextcloud_database_name }}');
+  END IF;
+END $$;
