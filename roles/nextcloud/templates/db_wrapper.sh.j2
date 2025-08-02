@@ -1,0 +1,37 @@
+#!/bin/bash
+
+# Export environment variables
+export POSTGRES_USER=${POSTGRES_USER:-postgres}
+export POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+export POSTGRES_DB=${POSTGRES_DB:-postgres}
+
+echo "[INFO] Starting PostgreSQL in background..."
+docker-entrypoint.sh postgres &
+
+echo "[INFO] Waiting for PostgreSQL to become available..."
+until pg_isready -U "$POSTGRES_USER"; do
+  sleep 2
+done
+
+echo "[INFO] PostgreSQL is ready. Executing custom SQL..."
+
+# Generate and execute SQL for paperless
+psql -U "$POSTGRES_USER" -d postgres -t -A -F"" -c "
+  SELECT 'CREATE DATABASE {{ paperless_database_name }}'
+  WHERE NOT EXISTS (
+    SELECT FROM pg_database WHERE datname = '{{ paperless_database_name }}'
+  );
+" | psql -U "$POSTGRES_USER" -d postgres
+
+# Generate and execute SQL for nextcloud
+psql -U "$POSTGRES_USER" -d postgres -t -A -F"" -c "
+  SELECT 'CREATE DATABASE {{ nextcloud_database_name }}'
+  WHERE NOT EXISTS (
+    SELECT FROM pg_database WHERE datname = '{{ nextcloud_database_name }}'
+  );
+" | psql -U "$POSTGRES_USER" -d postgres
+
+echo "[INFO] Custom SQL execution finished."
+
+# Wait for PostgreSQL background process to complete
+wait
