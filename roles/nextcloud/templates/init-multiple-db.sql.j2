@@ -1,15 +1,9 @@
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT FROM pg_database WHERE datname = '{{ paperless_database_name }}'
-  ) THEN
-    CREATE DATABASE {{ paperless_database_name }};
-  END IF;
+SELECT 'CREATE DATABASE {{ paperless_database_name }}'
+WHERE NOT EXISTS (
+  SELECT FROM pg_database WHERE datname = '{{ paperless_database_name }}'
+);
 
-  IF NOT EXISTS (
-    SELECT FROM pg_database WHERE datname = '{{ nextcloud_database_name }}'
-  ) THEN
-    CREATE DATABASE {{ nextcloud_database_name }};
-  END IF;
-END
-$$;
+SELECT 'CREATE DATABASE {{ nextcloud_database_name }}'
+WHERE NOT EXISTS (
+  SELECT FROM pg_database WHERE datname = '{{ nextcloud_database_name }}'
+);
