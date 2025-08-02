@@ -12,3 +12,4 @@
     - standard_podman
     - reverse_proxy
     - nextcloud
+    - paperless_ngx

@@ -1,0 +1,19 @@
+[Unit]
+Description=Podman paperless_ngx.service
+Documentation=man:podman-generate-systemd(1)
+Wants=network.target
+After=network-online.target postgres_container.service
+After=network-online.target redis_container.service
+
+[Service]
+Environment=PODMAN_SYSTEMD_UNIT=%n
+Restart=on-failure
+TimeoutStopSec=70
+ExecStartPre=/usr/bin/podman rm --ignore paperless
+ExecStart=/usr/bin/bash /usr/local/bin/paperless_ngx.sh
+ExecStop=/usr/bin/podman stop --ignore paperless
+ExecStopPost=/usr/bin/podman rm --ignore -f paperless
+Type=forking
+
+[Install]
+WantedBy=multi-user.target default.target

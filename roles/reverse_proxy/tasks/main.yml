@@ -76,11 +76,14 @@
 
 - name: Swag proxy config
   ansible.builtin.template:
-    src: "{{ proxy_config }}_proxy.conf.j2"
-    dest: "{{ swag_path }}/nginx/proxy-confs/{{ proxy_config }}.subdomain.conf"
+    src: "{{ config_name.name }}_proxy.conf.j2"
+    dest: "{{ swag_path }}/nginx/proxy-confs/{{ config_name.name }}.subdomain.conf"
     owner: 1000
     group: 1000
     mode: "0770"
+  loop: "{{ proxy_config }}"
+  loop_control:
+    loop_var: config_name
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
 - name: Swag ssl config

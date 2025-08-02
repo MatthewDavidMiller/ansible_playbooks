@@ -4,7 +4,7 @@
 
     http2 on;
 
-    server_name {% endraw %}{{ proxy_fqdn }};{% raw %}
+    server_name {% endraw %}{{ config_name.proxy_fqdn }};{% raw %}
 
     include /config/nginx/ssl.conf;
 
@@ -16,7 +16,7 @@
    location / {
         include /config/nginx/proxy.conf;
         include /config/nginx/resolver.conf;
-        set $upstream_app {% endraw %}{{ container_destination }};{% raw %}
+        set $upstream_app {% endraw %}{{ config_name.container_destination }};{% raw %}
         set $upstream_port 4533;
         set $upstream_proto http;
         proxy_max_temp_file_size 5120m;

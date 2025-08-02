@@ -4,28 +4,25 @@
 
     http2 on;
 
-    server_name {% endraw %}{{ config_name.proxy_fqdn }};{% raw %}
+    server_name paperless.{% endraw %}{{ config_name.proxy_fqdn }};{% raw %}
 
     include /config/nginx/ssl.conf;
 
-    client_max_body_size 20G;
-    client_body_timeout 300s;
-    fastcgi_buffers 64 4K;
-    client_body_buffer_size 400M;
+    client_max_body_size 500M;
+    client_body_timeout 60s;
 
     location / {
         include /config/nginx/proxy.conf;
         include /config/nginx/resolver.conf;
-        set $upstream_app {% endraw %}{{ config_name.container_destination }};{% raw %}
+        set $upstream_app {% endraw %}{{ config_name.container_name }};{% raw %}
         set $upstream_port {% endraw %}{{ config_name.proxy_upstream_port }};{% raw %}
         set $upstream_proto {% endraw %}{{ config_name.proxy_upstream_protocol }};{% raw %}
         proxy_pass $upstream_proto://$upstream_app:$upstream_port;
-        proxy_max_temp_file_size 20480m;
+
         proxy_hide_header Referrer-Policy;
         proxy_hide_header X-Content-Type-Options;
         proxy_hide_header X-Frame-Options;
         proxy_hide_header X-XSS-Protection;
-
     }
 }
 {% endraw %}
