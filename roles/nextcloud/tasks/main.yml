@@ -17,6 +17,15 @@
     mode: "0777"
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
+- name: Create postgres database custom-init path
+  ansible.builtin.file:
+    path: "{{ postgres_path }}/custom-init"
+    state: directory
+    owner: root
+    group: root
+    mode: "0777"
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+
 - name: Create Nextcloud container path
   ansible.builtin.file:
     path: "{{ nextcloud_path }}"
@@ -129,6 +138,24 @@
   ansible.builtin.template:
     src: postgres_container.sh.j2
     dest: "/usr/local/bin/postgres_container.sh"
+    owner: "{{ user_name }}"
+    group: root
+    mode: "0770"
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+
+- name: Postgres init-multiple-db script
+  ansible.builtin.template:
+    src: init-multiple-db.sql.j2
+    dest: "{{ postgres_path }}/custom-init/init-multiple-db.sql"
+    owner: "{{ user_name }}"
+    group: root
+    mode: "0770"
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+
+- name: Postgres db_wrapper script
+  ansible.builtin.copy:
+    src: db_wrapper.sh
+    dest: "{{ postgres_path }}/custom-init/db_wrapper.sh"
     owner: "{{ user_name }}"
     group: root
     mode: "0770"
