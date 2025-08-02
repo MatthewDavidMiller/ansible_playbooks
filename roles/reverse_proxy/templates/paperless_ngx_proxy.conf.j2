@@ -14,7 +14,7 @@
     location / {
         include /config/nginx/proxy.conf;
         include /config/nginx/resolver.conf;
-        set $upstream_app {% endraw %}{{ config_name.container_name }};{% raw %}
+        set $upstream_app {% endraw %}{{ config_name.container_destination }};{% raw %}
         set $upstream_port {% endraw %}{{ config_name.proxy_upstream_port }};{% raw %}
         set $upstream_proto {% endraw %}{{ config_name.proxy_upstream_protocol }};{% raw %}
         proxy_pass $upstream_proto://$upstream_app:$upstream_port;
