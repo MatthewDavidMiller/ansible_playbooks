@@ -15,21 +15,36 @@ done
 
 echo "[INFO] PostgreSQL is ready. Executing custom SQL..."
 
-# Generate and execute SQL for paperless
-psql -U "$POSTGRES_USER" -d postgres -t -A -F"" -c "
+# Create Paperless database
+create_db_cmd=$(psql -U "$POSTGRES_USER" -d postgres -t -A -F"" -c "
   SELECT 'CREATE DATABASE {{ paperless_database_name }}'
   WHERE NOT EXISTS (
     SELECT FROM pg_database WHERE datname = '{{ paperless_database_name }}'
   );
-" | psql -U "$POSTGRES_USER" -d postgres
+")
 
-# Generate and execute SQL for nextcloud
-psql -U "$POSTGRES_USER" -d postgres -t -A -F"" -c "
+if [ -n "$create_db_cmd" ]; then
+  echo "[INFO] Creating database: {{ paperless_database_name }}"
+  psql -U "$POSTGRES_USER" -d postgres -c "$create_db_cmd"
+else
+  echo "[INFO] Database {{ paperless_database_name }} already exists."
+fi
+
+#Create Nextcloud database
+create_db_cmd=$(psql -U "$POSTGRES_USER" -d postgres -t -A -F"" -c "
   SELECT 'CREATE DATABASE {{ nextcloud_database_name }}'
   WHERE NOT EXISTS (
     SELECT FROM pg_database WHERE datname = '{{ nextcloud_database_name }}'
   );
-" | psql -U "$POSTGRES_USER" -d postgres
+")
+
+if [ -n "$create_db_cmd" ]; then
+  echo "[INFO] Creating database: {{ nextcloud_database_name }}"
+  psql -U "$POSTGRES_USER" -d postgres -c "$create_db_cmd"
+else
+  echo "[INFO] Database {{ nextcloud_database_name }} already exists."
+fi
+
 
 echo "[INFO] Custom SQL execution finished."
 
