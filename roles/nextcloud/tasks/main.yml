@@ -143,18 +143,9 @@
     mode: "0770"
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
-- name: Postgres init-multiple-db script
-  ansible.builtin.template:
-    src: init-multiple-db.sql.j2
-    dest: "{{ postgres_path }}/custom-init/init-multiple-db.sql"
-    owner: "{{ user_name }}"
-    group: root
-    mode: "0770"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
-
 - name: Postgres db_wrapper script
-  ansible.builtin.copy:
-    src: db_wrapper.sh
+  ansible.builtin.template:
+    src: db_wrapper.sh.j2
     dest: "{{ postgres_path }}/custom-init/db_wrapper.sh"
     owner: "{{ user_name }}"
     group: root
