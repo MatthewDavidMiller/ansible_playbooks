@@ -8,7 +8,8 @@ After=network-online.target redis_container.service
 [Service]
 Environment=PODMAN_SYSTEMD_UNIT=%n
 Restart=on-failure
-TimeoutStopSec=70
+TimeoutStartSec=300
+TimeoutStopSec=300
 ExecStartPre=/usr/bin/podman rm --ignore paperless
 ExecStart=/usr/bin/bash /usr/local/bin/paperless_ngx.sh
 ExecStop=/usr/bin/podman stop --ignore paperless
