@@ -4,7 +4,7 @@
 
     http2 on;
 
-    server_name paperless.{% endraw %}{{ config_name.proxy_fqdn }};{% raw %}
+    server_name {% endraw %}{{ config_name.proxy_fqdn }};{% raw %}
 
     include /config/nginx/ssl.conf;
 
