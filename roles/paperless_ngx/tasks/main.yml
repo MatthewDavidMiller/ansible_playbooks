@@ -1,0 +1,39 @@
+---
+- name: Create paperless paths
+  ansible.builtin.file:
+    path: "{{ item_path }}"
+    state: directory
+    owner: "1000"
+    group: "1000"
+    mode: "0770"
+  loop:
+    - "{{ paperless_path }}"
+    - "{{ paperless_data_path }}"
+    - "{{ paperless_media_path }}"
+    - "{{ paperless_export_path }}"
+    - "{{ paperless_consume_path }}"
+
+  loop_control:
+    loop_var: item_path
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+
+- name: Paperless Service
+  ansible.builtin.template:
+    src: paperless_ngx.service.j2
+    dest: "/etc/systemd/system/paperless_ngx.service"
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+
+- name: Enable paperless
+  ansible.builtin.systemd:
+    name: paperless_ngx.service
+    enabled: yes
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+
+- name: Paperless script
+  ansible.builtin.template:
+    src: paperless_ngx.sh.j2
+    dest: "/usr/local/bin/paperless_ngx.sh"
+    owner: "{{ user_name }}"
+    group: root
+    mode: "0770"
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'

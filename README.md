@@ -8,7 +8,7 @@ Collection of various Ansible playbooks to configure various Linux servers and s
 * [unificontroller.yml](unificontroller.yml): Configures a server running the Ubiquiti Unifi controller
 * [backup.yml](backup.yml): Configures a server running borg backup that backs up a Nextcloud server
 * [navidrome.yml](navidrome.yml): Configures a server running Navidrome
-* [nextcloud.yml](nextcloud.yml): Configures a server running Nextcloud
+* [nextcloud.yml](nextcloud.yml): Configures a server running Nextcloud and paperless ngx
 * [vaultwarden.yml](vaultwarden.yml): Configures a server running Vaultwarden
 * [vpn.yml](vpn.yml): Configures a Wireguard VPN server
 * [pihole.yml](pihole.yml): Configures a server running Phole

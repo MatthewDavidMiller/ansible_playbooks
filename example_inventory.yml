@@ -49,11 +49,13 @@ all:
           semaphore_admin_name: "admin"
           semaphore_admin_password: "example_password"
           semaphore_encryption_key: "example_encryption_key"
-          proxy_fqdn: "proxy.example.com"
-          container_destination: "example.dns.podman"
           container_service_names: "service1 service2"
           swag_network: "example_network"
-          proxy_config: "example_config"
+          proxy_config:
+            - name: "example_config"
+              proxy_fqdn: "proxy.example.com"
+              container_destination: "example.dns.podman"
+
           swag_host_domain: "example.internal"
           swag_requires: "example_service"
           default_server_name: "example_server"
@@ -82,15 +84,27 @@ all:
           nextcloud_trusted_domains: "trusted.example.com"
           nextcloud_disk: "UUID=example-uuid"
           backup_host: "192.168.1.50/32"
-          swag_host_domain: "example.internal"
-          proxy_config: "example_config"
+          swag_host_domain: "example.internal,example2.internal"
+          proxy_config:
+            - name: "example_config"
+              proxy_fqdn: "proxy.example.com"
+              proxy_upstream_port: "8080"
+              proxy_upstream_protocol: "https"
+              container_destination: "example.dns.podman"
+
+            - name: "example2_config"
+              proxy_fqdn: "proxy.example2.com"
+              proxy_upstream_port: "8081"
+              proxy_upstream_protocol: "http"
+              container_destination: "example2.dns.podman"
+
           default_server_name: "example_server"
           default_app_name: "example_app"
-          proxy_upstream_port: "8080"
-          proxy_upstream_protocol: "https"
-          proxy_fqdn: "proxy.example.com"
-          container_destination: "example.dns.podman"
           container_service_names: "service1 service2"
+          paperless_dns_name: "paperless.example.com"
+          paperless_database_name: paperless_db
+          paperless_database_user: "paperless_user"
+          paperless_database_user_password: "paperless_db_password"
 
         vpn:
           ansible_host: vpn.example.com
@@ -111,11 +125,13 @@ all:
           swag_network: "example_network"
           vaultwarden_backup_location: "Backup_Location"
           swag_host_domain: "example.internal"
-          proxy_config: "example_config"
+          proxy_config:
+            - name: "example_config"
+              proxy_fqdn: "proxy.example.com"
+              container_destination: "example.dns.podman"
+
           default_server_name: "example_server"
           default_app_name: "example_app"
-          proxy_fqdn: "proxy.example.com"
-          container_destination: "example.dns.podman"
           container_service_names: "service1"
 
         unificontroller:
@@ -125,11 +141,13 @@ all:
           swag_network: "example_network"
           swag_host_domain: "example.internal"
           swag_requires: "example_service"
-          proxy_config: "example_config"
+          proxy_config:
+            - name: "example_config"
+              proxy_fqdn: "proxy.example.com"
+              container_destination: "example.dns.podman"
+
           default_server_name: "example_server"
           default_app_name: "example_app"
-          proxy_fqdn: "proxy.example.com"
-          container_destination: "example.dns.podman"
           container_service_names: "service1"
 
         navidrome:
@@ -140,9 +158,11 @@ all:
           backup_host: "192.168.1.50/32"
           swag_host_domain: "example.internal"
           swag_requires: "example_service"
-          proxy_config: "example_config"
+          proxy_config:
+            - name: "example_config"
+              proxy_fqdn: "proxy.example.com"
+              container_destination: "example.dns.podman"
+
           default_server_name: "example_server"
           default_app_name: "example_app"
-          proxy_fqdn: "proxy.example.com"
-          container_destination: "example.dns.podman"
           container_service_names: "service1"

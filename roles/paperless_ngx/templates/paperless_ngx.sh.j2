@@ -1,0 +1,19 @@
+/usr/bin/podman pull ghcr.io/paperless-ngx/paperless-ngx:latest
+/usr/bin/podman run \
+--name=paperless \
+--network=nextcloud_container_net \
+-e PAPERLESS_REDIS=redis://redis.dns.podman:6379 \
+-e PAPERLESS_DBHOST=postgres.dns.podman \
+-e PAPERLESS_DBNAME={{ paperless_database_name }} \
+-e PAPERLESS_DBUSER={{ paperless_database_user }} \
+-e PAPERLESS_DBPASS={{ paperless_database_user_password }} \
+-e USERMAP_UID=1000 \
+-e USERMAP_GID=1000 \
+-e PAPERLESS_TIME_ZONE=America/New_York \
+-e PAPERLESS_OCR_LANGUAGE=eng \
+-e PAPERLESS_URL=https://{{ paperless_dns_name }} \
+-v {{ paperless_data_path }}:/usr/src/paperless/data:Z \
+-v {{ paperless_media_path }}:/usr/src/paperless/media:Z \
+-v {{ paperless_export_path }}:/usr/src/paperless/export:Z \
+-v {{ paperless_consume_path }}:/usr/src/paperless/consume:Z \
+ghcr.io/paperless-ngx/paperless-ngx:latest
