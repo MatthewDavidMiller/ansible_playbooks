@@ -29,6 +29,12 @@
     state: directory
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
+- name: Create Navidrome container backup path
+  ansible.builtin.file:
+    path: "{{ navidrome_path }}/backup"
+    state: directory
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+
 - name: davfs2 config
   ansible.builtin.template:
     src: "davfs2_secrets.j2"
