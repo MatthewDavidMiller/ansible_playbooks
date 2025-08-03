@@ -40,7 +40,7 @@
 
 - name: Install zip package
   community.general.pacman:
-    name: zip
+    name: zip jq
     update_cache: true
     state: latest
   when: ansible_facts['distribution'] == 'Archlinux'
