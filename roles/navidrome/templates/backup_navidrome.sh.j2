@@ -14,8 +14,8 @@ CLEANUP_LOG="${LOG_DIR}/rclone-navidrome-cleanup.log"
 
 # === Trigger Navidrome Backup ===
 /usr/bin/echo "[$(date)] Starting Navidrome backup..." >> "$BACKUP_LOG"
-if ! podman exec navidrome navidrome backup create >> "$BACKUP_LOG" 2>&1; then
-    /usr/bin/echo "[$(date)] ERROR: Navidrome backup failed." >> "$BACKUP_LOG"
+if ! podman exec navidrome sh -c "/app/navidrome backup create" >> "$BACKUP_LOG" 2>&1; then
+    echo "Backup failed. Check log at $BACKUP_LOG"
     exit 1
 fi
 
