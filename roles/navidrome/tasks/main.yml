@@ -113,3 +113,31 @@
     name: check_music_rclone.timer
     enabled: yes
   when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Install zip and jq packages
+  community.general.pacman:
+    name: "{{ package }}"
+    update_cache: true
+    state: latest
+  loop:
+    - zip
+    - jq
+  loop_control:
+    loop_var: package
+  when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Backup navidrome script
+  ansible.builtin.template:
+    src: backup_navidrome.sh.j2
+    dest: "/usr/local/bin/backup_navidrome.sh"
+    owner: "{{ user_name }}"
+    group: root
+    mode: "0770"
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+
+- name: Backup navidrome daily
+  ansible.builtin.cron:
+    name: "Backup navidrome daily"
+    special_time: daily
+    job: /usr/bin/bash /usr/local/bin/backup_navidrome.sh
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'

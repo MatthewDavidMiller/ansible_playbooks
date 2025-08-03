@@ -1,0 +1,57 @@
+#!/bin/bash
+set -euo pipefail
+
+# === Configuration ===
+NAVIDROME_REMOTE="Nextcloud:{{ navidrome_backup_location }}"
+LOCAL_BACKUP_DIR="{{ navidrome_path }}/backup"
+THRESHOLD=30
+LOG_DIR="/var/log"
+BACKUP_LOG="${LOG_DIR}/navidrome_backup.log"
+CLEANUP_LOG="${LOG_DIR}/rclone-navidrome-cleanup.log"
+
+# === Ensure log directory exists ===
+/usr/bin/mkdir -p "$LOG_DIR"
+
+# === Trigger Navidrome Backup ===
+/usr/bin/echo "[$(date)] Starting Navidrome backup..." >> "$BACKUP_LOG"
+if ! podman exec navidrome navidrome backup create >> "$BACKUP_LOG" 2>&1; then
+    /usr/bin/echo "[$(date)] ERROR: Navidrome backup failed." >> "$BACKUP_LOG"
+    exit 1
+fi
+
+# === Rclone Upload ===
+/usr/bin/echo "[$(date)] Uploading backup to remote: $NAVIDROME_REMOTE" >> "$BACKUP_LOG"
+if /usr/bin/rclone copy "$LOCAL_BACKUP_DIR" "$NAVIDROME_REMOTE" \
+    --log-level INFO --log-file "$BACKUP_LOG"; then
+
+    /usr/bin/echo "[$(date)] Upload successful. Cleaning up local backups..." >> "$BACKUP_LOG"
+    /usr/bin/find "$LOCAL_BACKUP_DIR" -type f -name "*.zip" -delete
+else
+    /usr/bin/echo "[$(date)] ERROR: Upload failed. Local backups retained." >> "$BACKUP_LOG"
+fi
+
+# === Cleanup Function ===
+cleanup_backups() {
+    REMOTE_PATH="$1"
+    LABEL="$2"
+
+    /usr/bin/echo "[$(date)] Checking backup count for $LABEL..." >> "$CLEANUP_LOG"
+
+    BACKUP_COUNT=$(rclone lsjson "$REMOTE_PATH" | jq '[.[] | select(.Name | endswith(".zip"))] | length') || {
+        /usr/bin/echo "[$(date)] ERROR: Failed to read backup count for $LABEL" >> "$CLEANUP_LOG"
+        return 1
+    }
+
+    if [ "$BACKUP_COUNT" -ge "$THRESHOLD" ]; then
+        /usr/bin/echo "[$(date)] $BACKUP_COUNT backups found — pruning backups older than 30 days." >> "$CLEANUP_LOG"
+        /usr/bin/rclone delete "$REMOTE_PATH" \
+            --min-age 30d \
+            --log-file "$CLEANUP_LOG" \
+            --log-level INFO
+    else
+        /usr/bin/echo "[$(date)] Cleanup skipped — only $BACKUP_COUNT backups found." >> "$CLEANUP_LOG"
+    fi
+}
+
+# === Run Cleanup ===
+cleanup_backups "$NAVIDROME_REMOTE" "navidrome"
