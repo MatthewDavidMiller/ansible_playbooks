@@ -7,4 +7,5 @@
 --volume {{ navidrome_path }}/data:/data \
 -e ND_LOGLEVEL=info \
 -e TZ=America/New_York \
+-e ND_BACKUP_PATH={{ navidrome_path }}/backup \
 -d docker.io/deluan/navidrome:latest
