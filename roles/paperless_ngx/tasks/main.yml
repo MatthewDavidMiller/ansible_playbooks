@@ -37,3 +37,10 @@
     group: root
     mode: "0770"
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+
+- name: Install zip package
+  ansible.builtin.apt:
+    name: "zip"
+    state: latest
+    update_cache: "yes"
+  when: ansible_facts['distribution'] == 'Debian'
