@@ -160,3 +160,10 @@
     group: root
     mode: "0770"
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+
+- name: Backup databases and paperless documents daily
+  ansible.builtin.cron:
+    name: "Backup databases and paperless documents daily"
+    special_time: daily
+    job: /usr/bin/bash /usr/local/bin/backup_db_paperless.sh
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
