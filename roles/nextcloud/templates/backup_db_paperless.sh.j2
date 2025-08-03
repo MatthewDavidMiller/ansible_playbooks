@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # === Configuration ===
-PAPERLESS_REMOTE="Nextcloud:{{ paperless_backup_location }}"
+PAPERLESS_DB_REMOTE="Nextcloud:{{ paperless_db_backup_location }}"
+PAPERLESS_DOCUMENTS_REMOTE="Nextcloud:{{ paperless_documents_backup_location }}"
 NEXTCLOUD_REMOTE="Nextcloud:{{ nextcloud_backup_location }}"
 THRESHOLD=30
 timestamp=$(date +%Y_%m_%d)
@@ -15,7 +16,7 @@ timestamp=$(date +%Y_%m_%d)
   > "/nextcloud_db_${timestamp}.sql"
 
 # === Rclone Paperless DB ===
-/usr/bin/rclone copy "/paperless_db_${timestamp}.sql" ${PAPERLESS_REMOTE} \
+/usr/bin/rclone copy "/paperless_db_${timestamp}.sql" ${PAPERLESS_DB_REMOTE} \
   --log-level INFO --log-file /var/log/rclone-paperless-db.log
 
 # === Rclone Nextcloud DB ===
@@ -28,7 +29,7 @@ cd {{ paperless_export_path }} || exit 1
 
 # === Zip & Push Paperless Document Export ===
 /usr/bin/zip -r "paperless_export_${timestamp}.zip" ./ > /var/log/zip-paperless-docs.log
-/usr/bin/rclone copy "paperless_export_${timestamp}.zip" ${PAPERLESS_REMOTE} \
+/usr/bin/rclone copy "paperless_export_${timestamp}.zip" ${PAPERLESS_DOCUMENTS_REMOTE} \
   --log-level INFO --log-file /var/log/rclone-paperless-docs.log
 
 # === Cleanup ===
@@ -63,5 +64,6 @@ cleanup_backups() {
 }
 
 # === Run cleanup for each remote backup location ===
-cleanup_backups "$PAPERLESS_REMOTE" "paperless"
-cleanup_backups "$NEXTCLOUD_REMOTE" "nextcloud"
+cleanup_backups "${PAPERLESS_DB_REMOTE}" "paperless_databases"
+cleanup_backups "${PAPERLESS_DOCUMENTS_REMOTE}" "paperless_documents"
+cleanup_backups "${NEXTCLOUD_REMOTE}" "nextcloud"
