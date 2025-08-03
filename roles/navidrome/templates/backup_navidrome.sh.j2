@@ -25,7 +25,7 @@ if /usr/bin/rclone copy "$LOCAL_BACKUP_DIR" "$NAVIDROME_REMOTE" \
     --log-level INFO --log-file "$BACKUP_LOG"; then
 
     /usr/bin/echo "[$(date)] Upload successful. Cleaning up local backups..." >> "$BACKUP_LOG"
-    /usr/bin/find "$LOCAL_BACKUP_DIR" -type f -name "*.zip" -delete
+    /usr/bin/find "$LOCAL_BACKUP_DIR" -type f -name "*.db" -delete
 else
     /usr/bin/echo "[$(date)] ERROR: Upload failed. Local backups retained." >> "$BACKUP_LOG"
 fi
@@ -37,7 +37,7 @@ cleanup_backups() {
 
     /usr/bin/echo "[$(date)] Checking backup count for $LABEL..." >> "$CLEANUP_LOG"
 
-    BACKUP_COUNT=$(rclone lsjson "$REMOTE_PATH" | jq '[.[] | select(.Name | endswith(".zip"))] | length') || {
+    BACKUP_COUNT=$(/usr/bin/rclone lsjson "$REMOTE_PATH" | /usr/bin/jq '[.[] | select(.Name | endswith(".db"))] | length') || {
         /usr/bin/echo "[$(date)] ERROR: Failed to read backup count for $LABEL" >> "$CLEANUP_LOG"
         return 1
     }
@@ -55,3 +55,13 @@ cleanup_backups() {
 
 # === Run Cleanup ===
 cleanup_backups "$NAVIDROME_REMOTE" "navidrome"
+
+# === Truncate logs if they exceed 10MB ===
+MAX_LOG_SIZE=10485760  # 10 MB in bytes
+
+for LOG_FILE in "$BACKUP_LOG" "$CLEANUP_LOG"; do
+    if [ -f "$LOG_FILE" ] && [ "$(stat -c%s "$LOG_FILE")" -gt "$MAX_LOG_SIZE" ]; then
+        /usr/bin/echo "[$(date)] Truncating oversized log: $LOG_FILE" >> "$LOG_FILE"
+        > "$LOG_FILE"
+    fi
+done
