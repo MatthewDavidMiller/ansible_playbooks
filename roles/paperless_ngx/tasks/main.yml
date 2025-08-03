@@ -38,9 +38,14 @@
     mode: "0770"
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
-- name: Install zip package
+- name: Install zip and jq packages
   community.general.pacman:
-    name: zip jq
+    name: "{{ package }}"
     update_cache: true
     state: latest
+  loop:
+    - zip
+    - jq
+  loop_control:
+    loop_var: package
   when: ansible_facts['distribution'] == 'Archlinux'
