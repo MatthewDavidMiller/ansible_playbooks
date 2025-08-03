@@ -5,7 +5,8 @@
 {% raw %}--user $(id -u):$(id -g) \
 {% endraw %}--volume {{ navidrome_path }}/music:/music:ro \
 --volume {{ navidrome_path }}/data:/data \
+--volume {{ navidrome_path }}/backup:/navidrome_backup \
 -e ND_LOGLEVEL=info \
 -e TZ=America/New_York \
--e ND_BACKUP_PATH={{ navidrome_path }}/backup \
+-e ND_BACKUP_PATH=/navidrome_backup \
 -d docker.io/deluan/navidrome:latest
