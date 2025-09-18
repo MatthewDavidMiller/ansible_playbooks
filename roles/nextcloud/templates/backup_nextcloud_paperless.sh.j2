@@ -13,7 +13,7 @@ EXPORT_DIR="{{ paperless_export_path }}/${timestamp}"
 
 # === Ensure Borg is initialized ===
 if [ ! -d "$BORG_REPO" ]; then
-    /usr/bin/borg init --encryption=none "$BORG_REPO"
+    /usr/bin/borg init --encryption=none "$BORG_REPO" > /var/log/borg-backup.log 2>&1
 fi
 
 # === Dump Paperless DB ===
@@ -33,11 +33,11 @@ fi
     "/paperless_db_${timestamp}.sql" \
     "/nextcloud_db_${timestamp}.sql" \
     --compression=lz4 \
-    --log-file=/var/log/borg-backup.log
+    > /var/log/borg-backup.log 2>&1
 
 # === Prune Borg Backups (Keep 30 days) ===
 /usr/bin/borg prune --keep-daily=30 "$BORG_REPO" \
-    --log-file=/var/log/borg-prune.log
+    > /var/log/borg-prune.log 2>&1
 
 # === Rclone Borg Repo to Nextcloud ===
 /usr/bin/rclone sync "$BORG_REPO" "${NEXTCLOUD_BORG_REMOTE}" \
