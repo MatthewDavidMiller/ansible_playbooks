@@ -1,0 +1,54 @@
+#!/bin/bash
+
+# === Configuration ===
+NEXTCLOUD_BORG_REMOTE="Nextcloud:{{ nextcloud_paperless_backup_location }}"
+BORG_REPO="{{ nextcloud_borg_backup_path }}"
+timestamp=$(date +%Y_%m_%d)
+EXPORT_DIR="{{ paperless_export_path }}/${timestamp}"
+
+# === Truncate Logs ===
+/usr/bin/truncate -s 0 /var/log/borg-backup.log
+/usr/bin/truncate -s 0 /var/log/borg-prune.log
+/usr/bin/truncate -s 0 /var/log/rclone-nextcloud-borg.log
+
+# === Ensure Borg is initialized ===
+if [ ! -d "$BORG_REPO" ]; then
+    /usr/bin/borg init --encryption=none "$BORG_REPO"
+fi
+
+# === Dump Paperless DB ===
+/usr/bin/podman exec postgres pg_dump -U {{ paperless_database_user }} {{ paperless_database_name }} \
+  > "/paperless_db_${timestamp}.sql"
+
+# === Dump Nextcloud DB ===
+/usr/bin/podman exec postgres pg_dump -U {{ nextcloud_database_user }} {{ nextcloud_database_name }} \
+  > "/nextcloud_db_${timestamp}.sql"
+
+# === Export Paperless Documents ===
+/usr/bin/podman exec paperless document_exporter "$EXPORT_DIR"
+
+# === Borg Backup for Paperless and Nextcloud (Documents + DBs) ===
+/usr/bin/borg create "$BORG_REPO::backup-${timestamp}" \
+    "$EXPORT_DIR" \
+    "/paperless_db_${timestamp}.sql" \
+    "/nextcloud_db_${timestamp}.sql" \
+    --compression=lz4 \
+    --log-file=/var/log/borg-backup.log
+
+# === Prune Borg Backups (Keep 30 days) ===
+/usr/bin/borg prune --keep-daily=30 "$BORG_REPO" \
+    --log-file=/var/log/borg-prune.log
+
+# === Rclone Borg Repo to Nextcloud ===
+/usr/bin/rclone sync "$BORG_REPO" "${NEXTCLOUD_BORG_REMOTE}" \
+    --log-level INFO --log-file=/var/log/rclone-nextcloud-borg.log
+
+# === Cleanup ===
+if [ $? -eq 0 ]; then
+    /usr/bin/rm -rf "$EXPORT_DIR"
+    /usr/bin/rm "/paperless_db_${timestamp}.sql"
+    /usr/bin/rm "/nextcloud_db_${timestamp}.sql"
+else
+    echo "Backup or upload failed. Temporary files retained." >&2
+    exit 1
+fi

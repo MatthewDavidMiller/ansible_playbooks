@@ -75,6 +75,7 @@ all:
           # Device variables
           postgres_path: /path/to/postgres
           nextcloud_path: /path/to/nextcloud
+          nextcloud_borg_backup_path: /path/to/nextcloud/borg/backup
           swag_network: "example_network"
           nextcloud_database_name: "example_db"
           nextcloud_database_user: "example_user"
@@ -105,6 +106,7 @@ all:
           paperless_database_name: paperless_db
           paperless_database_user: "paperless_user"
           paperless_database_user_password: "paperless_db_password"
+          nextcloud_paperless_backup_location: /path/to/nextcloud/paperless/backup/location
 
         vpn:
           ansible_host: vpn.example.com
