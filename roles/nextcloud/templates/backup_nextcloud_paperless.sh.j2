@@ -23,7 +23,10 @@ fi
 
 # === Ensure Borg is initialized ===
 if [ ! -d "$BORG_REPO" ]; then
-    /usr/bin/borg init --encryption=none "$BORG_REPO" > /var/log/borg-backup.log 2>&1
+    /usr/bin/borg init --encryption=none "$BORG_REPO" > /var/log/borg-backup.log 2>&1 || {
+        echo "Failed to initialize Borg repository: $BORG_REPO" >&2
+        exit 1
+    }
 fi
 
 # === Dump Paperless DB ===
@@ -61,15 +64,24 @@ fi
     "/paperless_db_${timestamp}.sql" \
     "/nextcloud_db_${timestamp}.sql" \
     --compression=lz4 \
-    > /var/log/borg-backup.log 2>&1
+    > /var/log/borg-backup.log 2>&1 || {
+        echo "Borg backup failed for archive: backup-${timestamp}" >&2
+        exit 1
+    }
 
 # === Prune Borg Backups (Keep 30 days) ===
 /usr/bin/borg prune --keep-daily=30 "$BORG_REPO" \
-    > /var/log/borg-prune.log 2>&1
+    > /var/log/borg-prune.log 2>&1 || {
+        echo "Borg prune failed for repository: $BORG_REPO" >&2
+        exit 1
+    }
 
 # === Rclone Borg Repo to Nextcloud ===
 /usr/bin/rclone sync "$BORG_REPO" "${NEXTCLOUD_BORG_REMOTE}" \
-    --log-level INFO --log-file=/var/log/rclone-nextcloud-borg.log
+    --log-level INFO --log-file=/var/log/rclone-nextcloud-borg.log || {
+        echo "Rclone sync failed to $NEXTCLOUD_BORG_REMOTE" >&2
+        exit 1
+    }
 
 # === Cleanup ===
 if [ $? -eq 0 ]; then
