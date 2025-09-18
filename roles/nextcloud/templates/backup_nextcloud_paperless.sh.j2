@@ -11,6 +11,15 @@ EXPORT_DIR="{{ paperless_export_path }}/${timestamp}"
 /usr/bin/truncate -s 0 /var/log/borg-prune.log
 /usr/bin/truncate -s 0 /var/log/rclone-nextcloud-borg.log
 
+# === Create Borg Repository Directory ===
+# Check if directory exists to ensure idempotency before creating
+if [ ! -d "$BORG_REPO" ]; then
+    /usr/bin/mkdir -p "$BORG_REPO" || {
+        echo "Failed to create Borg repository directory: $BORG_REPO" >&2
+        exit 1
+    }
+fi
+
 # === Ensure Borg is initialized ===
 if [ ! -d "$BORG_REPO" ]; then
     /usr/bin/borg init --encryption=none "$BORG_REPO" > /var/log/borg-backup.log 2>&1
@@ -23,6 +32,15 @@ fi
 # === Dump Nextcloud DB ===
 /usr/bin/podman exec postgres pg_dump -U {{ nextcloud_database_user }} {{ nextcloud_database_name }} \
   > "/nextcloud_db_${timestamp}.sql"
+
+# === Create Export Directory for Paperless Documents ===
+# Check if directory exists to ensure idempotency before creating
+if [ ! -d "$EXPORT_DIR" ]; then
+    /usr/bin/mkdir -p "$EXPORT_DIR" || {
+        echo "Failed to create export directory: $EXPORT_DIR" >&2
+        exit 1
+    }
+fi
 
 # === Export Paperless Documents ===
 /usr/bin/podman exec paperless document_exporter "$EXPORT_DIR"
