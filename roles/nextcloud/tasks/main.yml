@@ -152,18 +152,25 @@
     mode: "0770"
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
-- name: Backup databases and paperless script
+- name: Backup nextcloud and paperless script
   ansible.builtin.template:
-    src: backup_db_paperless.sh.j2
-    dest: "/usr/local/bin/backup_db_paperless.sh"
+    src: backup_nextcloud_paperless.sh.j2
+    dest: "/usr/local/bin/backup_nextcloud_paperless.sh"
     owner: "{{ user_name }}"
     group: root
     mode: "0770"
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
-- name: Backup databases and paperless documents daily
+- name: Backup nextcloud and paperless daily
   ansible.builtin.cron:
-    name: "Backup databases and paperless documents daily"
+    name: "Backup databases and paperless daily"
     special_time: daily
-    job: /usr/bin/bash /usr/local/bin/backup_db_paperless.sh
+    job: /usr/bin/bash /usr/local/bin/backup_nextcloud_paperless.sh
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+
+- name: Install borg backup
+  community.general.pacman:
+    name:
+      - borg
+    state: present
+  when: ansible_facts['distribution'] == 'Archlinux'
