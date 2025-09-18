@@ -152,7 +152,7 @@
     mode: "0770"
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
-- name: Backup nextcloud and paperless script
+- name: Backup Nextcloud and Paperless NGX script
   ansible.builtin.template:
     src: backup_nextcloud_paperless.sh.j2
     dest: "/usr/local/bin/backup_nextcloud_paperless.sh"
@@ -161,9 +161,9 @@
     mode: "0770"
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
 
-- name: Backup nextcloud and paperless daily
+- name: Backup Nextcloud and Paperless NGX daily
   ansible.builtin.cron:
-    name: "Backup databases and paperless daily"
+    name: "Backup Nextcloud and Paperless NGX daily"
     special_time: daily
     job: /usr/bin/bash /usr/local/bin/backup_nextcloud_paperless.sh
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
