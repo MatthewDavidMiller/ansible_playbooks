@@ -13,7 +13,17 @@ CONTAINER_EXPORT_DIR="/usr/src/paperless/export/${timestamp}"
 /usr/bin/truncate -s 0 /var/log/rclone-nextcloud-borg.log
 
 # === Create Borg Repository Directory ===
-# Check if directory exists to ensure idempotency before creating
+# Check if parent directory exists
+# Verify permissions: ls -ld {{ nextcloud_borg_backup_path }}
+# Ensure {{ nextcloud_borg_backup_path }} is a valid, writable path (e.g., not an unmounted network filesystem)
+if [ ! -d "{{ nextcloud_borg_backup_path }}" ]; then
+    /usr/bin/mkdir -p "{{ nextcloud_borg_backup_path }}" || {
+        echo "Failed to create Borg parent directory: {{ nextcloud_borg_backup_path }}" >&2
+        exit 1
+    }
+fi
+
+# Check if repository directory exists to ensure idempotency
 if [ ! -d "$BORG_REPO" ]; then
     /usr/bin/mkdir -p "$BORG_REPO" || {
         echo "Failed to create Borg repository directory: $BORG_REPO" >&2
@@ -22,9 +32,10 @@ if [ ! -d "$BORG_REPO" ]; then
 fi
 
 # === Ensure Borg is initialized ===
-if [ ! -d "$BORG_REPO" ]; then
+if [ ! -f "$BORG_REPO/config" ]; then
     /usr/bin/borg init --encryption=none "$BORG_REPO" > /var/log/borg-backup.log 2>&1 || {
         echo "Failed to initialize Borg repository: $BORG_REPO" >&2
+        cat /var/log/borg-backup.log >&2
         exit 1
     }
 fi
@@ -80,6 +91,7 @@ fi
     --compression=lz4 \
     > /var/log/borg-backup.log 2>&1 || {
         echo "Borg backup failed for archive: backup-${timestamp}" >&2
+        cat /var/log/borg-backup.log >&2
         exit 1
     }
 
@@ -87,6 +99,7 @@ fi
 /usr/bin/borg prune --keep-daily=30 "$BORG_REPO" \
     > /var/log/borg-prune.log 2>&1 || {
         echo "Borg prune failed for repository: $BORG_REPO" >&2
+        cat /var/log/borg-prune.log >&2
         exit 1
     }
 
@@ -94,6 +107,7 @@ fi
 /usr/bin/rclone sync "$BORG_REPO" "${NEXTCLOUD_BORG_REMOTE}" \
     --log-level INFO --log-file=/var/log/rclone-nextcloud-borg.log || {
         echo "Rclone sync failed to $NEXTCLOUD_BORG_REMOTE" >&2
+        cat /var/log/rclone-nextcloud-borg.log >&2
         exit 1
     }
 
