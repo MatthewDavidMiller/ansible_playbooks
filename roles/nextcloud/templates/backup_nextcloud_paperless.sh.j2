@@ -43,11 +43,25 @@ fi
 
 # === Create Export Directory for Paperless Documents ===
 # Check if directory exists to ensure idempotency before creating
-# Ensure {{ paperless_export_path }} is mounted to /usr/src/paperless/export in the paperless container (e.g., -v {{ paperless_export_path }}:/usr/src/paperless/export)
-# Verify with: podman inspect paperless | grep -i mount
+# Ensure {{ paperless_export_path }} exists and has ownership/permissions matching the paperless container's user (e.g., paperless:paperless)
+# Verify parent directory: ls -ld {{ paperless_export_path }}
+# Verify mount: podman inspect paperless | grep -i mount (should show -v {{ paperless_export_path }}:/usr/src/paperless/export)
+if [ ! -d "{{ paperless_export_path }}" ]; then
+    echo "Parent directory does not exist: {{ paperless_export_path }}" >&2
+    exit 1
+fi
 if [ ! -d "$EXPORT_DIR" ]; then
     /usr/bin/mkdir -p "$EXPORT_DIR" || {
         echo "Failed to create export directory: $EXPORT_DIR" >&2
+        exit 1
+    }
+    # Copy ownership and permissions from parent directory
+    /usr/bin/chown --reference={{ paperless_export_path }} "$EXPORT_DIR" || {
+        echo "Failed to set ownership for $EXPORT_DIR" >&2
+        exit 1
+    }
+    /usr/bin/chmod --reference={{ paperless_export_path }} "$EXPORT_DIR" || {
+        echo "Failed to set permissions for $EXPORT_DIR" >&2
         exit 1
     }
 fi
