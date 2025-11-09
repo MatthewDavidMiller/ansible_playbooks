@@ -14,12 +14,7 @@
 
 # Safely remove old log files using Ansible's find module for better control
 - name: Remove log files older than 30 days
-  ansible.builtin.find:
-    paths: /var/log
-    patterns: "*.log"
-    age: 30d
-    file_type: file
-    state: absent
+  ansible.builtin.command: find /var/log -name "*.log" -type f -mtime +30 -delete
   become: true
   when: ansible_distribution == 'Archlinux'
 
