@@ -11,6 +11,7 @@
     - standard_firewalld
     - standard_podman
     - standard_rclone
+    - standard_cleanup
     - reverse_proxy
     - nextcloud
     - paperless_ngx

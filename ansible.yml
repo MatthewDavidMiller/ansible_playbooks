@@ -10,6 +10,7 @@
     - configure_timezone
     - standard_cron
     - standard_firewalld
+    - standard_cleanup
     - ansible
     - reverse_proxy
     - semaphore
