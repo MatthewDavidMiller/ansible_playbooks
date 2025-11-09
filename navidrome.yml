@@ -12,4 +12,5 @@
     - standard_podman
     - reverse_proxy
     - standard_rclone
+    - standard_cleanup
     - navidrome

@@ -10,4 +10,5 @@
     - standard_cron
     - standard_firewalld
     - standard_podman
+    - standard_cleanup
     - vpn

@@ -11,5 +11,6 @@
     - standard_firewalld
     - standard_podman
     - standard_rclone
+    - standard_cleanup
     - reverse_proxy
     - vaultwarden
