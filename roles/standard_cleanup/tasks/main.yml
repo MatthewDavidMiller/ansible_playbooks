@@ -8,8 +8,7 @@
 
 # Clean the pacman cache to remove uninstalled package files
 - name: Clean pacman package cache (remove uninstalled packages)
-  community.general.pacman:
-    clean: yes
+  ansible.builtin.command: pacman -Sc --noconfirm
   become: true
   when: ansible_distribution == 'Archlinux'
 
