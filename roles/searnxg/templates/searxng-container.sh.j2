@@ -1,0 +1,11 @@
+#!/bin/bash
+/usr/bin/podman pull docker.io/searxng/searxng:latest
+/usr/bin/podman run \
+  --name searxng \
+  --network searxng_network \
+  --pull=always \
+  -v {{ searxng_config_dir }}:/etc/searxng:Z \
+  --label virtualhost="{{ searxng_domain }}" \
+  --label virtualport="{{ searxng_port }}" \
+  --restart unless-stopped \
+  -d docker.io/searxng/searxng:latest

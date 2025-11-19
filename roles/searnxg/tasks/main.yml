@@ -1,0 +1,74 @@
+---
+- name: Ensure searxng is enabled
+  ansible.builtin.debug:
+    msg: "SearXNG role skipped"
+  when: not searxng_enabled
+  tags: searxng
+
+- block:
+    - name: Create config directory
+      ansible.builtin.file:
+        path: "{{ searxng_config_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Template SearXNG settings.yml
+      ansible.builtin.template:
+        src: settings.yml.j2
+        dest: "{{ searxng_config_dir }}/settings.yml"
+        mode: "0644"
+      notify:
+        - Restart searxng container
+
+    - name: Create dedicated Podman network
+      community.general.podman_network:
+        name: searxng_network
+        state: present
+
+    - name: Template searxng container startup script
+      ansible.builtin.template:
+        src: searxng-container.sh.j2
+        dest: /usr/local/bin/searxng-container.sh
+        mode: "0755"
+
+    - name: Template searxng systemd service
+      ansible.builtin.template:
+        src: searxng-container.service.j2
+        dest: /etc/systemd/system/searxng-container.service
+      notify:
+        - Reload systemd
+        - Restart searxng container
+
+    - name: Template MCP container startup script (if domain set)
+      ansible.builtin.template:
+        src: searxng-mcp-container.sh.j2
+        dest: /usr/local/bin/searxng-mcp-container.sh
+        mode: "0755"
+      when: searxng_mcp_domain | length > 0
+
+    - name: Template MCP systemd service (if domain set)
+      ansible.builtin.template:
+        src: searxng-mcp-container.service.j2
+        dest: /etc/systemd/system/searxng-mcp-container.service
+      notify:
+        - Reload systemd
+        - Restart searxng-mcp container
+      when: searxng_mcp_domain | length > 0
+
+    - name: Enable and start searxng container service
+      ansible.builtin.systemd:
+        name: searxng-container.service
+        enabled: yes
+        state: started
+        daemon_reload: yes
+
+    - name: Enable and start MCP container service (if domain set)
+      ansible.builtin.systemd:
+        name: searxng-mcp-container.service
+        enabled: yes
+        state: started
+        daemon_reload: yes
+      when: searxng_mcp_domain | length > 0
+
+  when: searxng_enabled
+  tags: searxng

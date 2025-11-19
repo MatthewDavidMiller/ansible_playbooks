@@ -1,0 +1,13 @@
+[Unit]
+Description=SearXNG Container
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/searxng-container.sh
+ExecStop=/usr/bin/podman stop searxng
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

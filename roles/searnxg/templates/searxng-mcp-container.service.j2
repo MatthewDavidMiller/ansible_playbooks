@@ -1,0 +1,13 @@
+[Unit]
+Description=SearXNG MCP Sidecar Container
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/searxng-mcp-container.sh
+ExecStop=/usr/bin/podman stop searxng-mcp
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

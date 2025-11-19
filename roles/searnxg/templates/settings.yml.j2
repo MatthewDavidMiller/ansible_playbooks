@@ -1,0 +1,22 @@
+use_default_settings: true
+
+server:
+  port: {{ searxng_port }}
+  bind_address: "0.0.0.0"
+  secret_key: "{{ lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}"
+  limiter: false
+
+{% if searxng_basic_auth %}
+  basic_auth:
+    "{{ searxng_basic_auth_user }}": "{{ searxng_basic_auth_pass }}"
+{% endif %}
+
+ui:
+  static_use_hash: true
+
+search:
+  safe_search: 0
+  autocomplete: "google"
+  formats:
+    - html
+    - json

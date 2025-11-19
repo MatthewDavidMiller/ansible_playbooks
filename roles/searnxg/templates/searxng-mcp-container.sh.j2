@@ -1,0 +1,18 @@
+#!/bin/bash
+/usr/bin/podman pull ghcr.io/ihor-sokoliuk/mcp-searxng:latest
+/usr/bin/podman run -d \
+  --name searxng-mcp \
+  --network searxng_network \
+  --pull=always \
+  -e SEARXNG_URL=http://searxng:{{ searxng_port }} \
+  {% if searxng_basic_auth %}
+  -e AUTH_USERNAME={{ searxng_basic_auth_user }} \
+  -e AUTH_PASSWORD={{ searxng_basic_auth_pass }} \
+  {% endif %}
+  {% for key, value in searxng_mcp_extra_env.items() %}
+  -e {{ key }}={{ value }} \
+  {% endfor %}
+  --label virtualhost="{{ searxng_mcp_domain }}" \
+  --label virtualport="{{ searxng_mcp_port }}" \
+  --restart unless-stopped \
+  ghcr.io/ihor-sokoliuk/mcp-searxng:latest
