@@ -1,0 +1,15 @@
+{
+    "permissions": {
+        "deny": [
+            "Read(./vars.yml)",
+            "Read(**/vars.yml)",
+            "Read(./env/**)",
+            "Read(./host_vars/**)",
+            "Read(./group_vars/**)"
+        ]
+    },
+    "env": {
+        "DISABLE_TELEMETRY": "1",
+        "DISABLE_ERROR_REPORTING": "1"
+    }
+}
