@@ -5,7 +5,6 @@
     - standard_ssh
     - standard_qemu_guest_agent
     - standard_update_packages
-    - standard_patching
     - configure_timezone
     - standard_cron
     - standard_firewalld
