@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Collection of Ansible playbooks for configuring homelab Linux servers and services. Primary targets are Arch Linux VMs (most servers) and Debian 12 (backup server). Services run as Podman containers managed via systemd.
+Collection of Ansible playbooks for configuring homelab Linux servers and services. Primary targets are Rocky Linux 10 VMs (most servers) and Debian 12 (backup server). Services run as Podman containers managed via systemd. The laptop configuration playbooks (`laptop_config.yml`, `laptop_arch_install_*.yml`) still target Arch Linux.
 
 ## Running Playbooks
 
@@ -45,6 +45,7 @@ All roles follow the pattern `roles/<role_name>/tasks/main.yml` with optional `t
 
 Tasks are conditionally applied per distribution using:
 ```yaml
+when: ansible_facts['distribution'] == 'Rocky'
 when: ansible_facts['distribution'] == 'Archlinux'
 when: ansible_facts['distribution'] == 'Debian'
 ```
@@ -54,12 +55,12 @@ when: ansible_facts['distribution'] == 'Debian'
 Every service playbook typically applies these roles first before service-specific ones:
 1. `standard_ssh` — SSH hardening
 2. `standard_qemu_guest_agent` — QEMU guest agent for Proxmox VMs
-3. `standard_update_packages` — apt/pacman full upgrade
+3. `standard_update_packages` — package upgrade (dnf on Rocky, apt on Debian); also enables EPEL on Rocky
 4. `configure_timezone`
-5. `standard_cron` — installs cronie/cron, sets up patching schedule
+5. `standard_cron` — installs cronie (`crond.service` on Rocky, `cronie.service` on Arch, `cron.service` on Debian)
 6. `standard_firewalld` — configures firewalld with a `homelab` zone (DROP default, allows SSH and ICMP from management network)
 7. `standard_podman` — installs Podman + logs into Docker registry via systemd service
-8. `standard_cleanup` — pacman cache, orphan removal, journal vacuum, Podman prune
+8. `standard_cleanup` — package cache cleanup, orphan removal, journal vacuum, Podman prune
 
 ### Container Pattern
 

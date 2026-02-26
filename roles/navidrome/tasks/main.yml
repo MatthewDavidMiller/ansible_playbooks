@@ -9,31 +9,31 @@
     cmd: |
       podman network create --subnet 172.16.1.24/29 navidrome_container_net
   ignore_errors: true
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Create Navidrome container path
   ansible.builtin.file:
     path: "{{ navidrome_path }}"
     state: directory
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Create Navidrome container music path
   ansible.builtin.file:
     path: "{{ navidrome_path }}/music"
     state: directory
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Create Navidrome container data path
   ansible.builtin.file:
     path: "{{ navidrome_path }}/data"
     state: directory
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Create Navidrome container backup path
   ansible.builtin.file:
     path: "{{ navidrome_path }}/backup"
     state: directory
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: davfs2 config
   ansible.builtin.template:
@@ -55,13 +55,13 @@
   ansible.builtin.template:
     src: navidrome_container.service.j2
     dest: "/etc/systemd/system/navidrome_container.service"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Enable Navidrome
   ansible.builtin.systemd:
     name: navidrome_container.service
     enabled: yes
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Navidrome script
   ansible.builtin.template:
@@ -70,7 +70,7 @@
     owner: root
     group: root
     mode: "0770"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: rclone mount music script
   ansible.builtin.template:
@@ -79,7 +79,7 @@
     owner: root
     group: root
     mode: "0770"
-  when: ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: check music rclone script
   ansible.builtin.template:
@@ -88,37 +88,37 @@
     owner: root
     group: root
     mode: "0770"
-  when: ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: rclone mount music service
   ansible.builtin.template:
     src: rclone_mount_music.service.j2
     dest: "/etc/systemd/system/rclone_mount_music.service"
-  when: ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Enable rclone mount music service
   ansible.builtin.systemd:
     name: rclone_mount_music.service
     enabled: yes
-  when: ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: check music rclone service
   ansible.builtin.template:
     src: check_music_rclone.service.j2
     dest: "/etc/systemd/system/check_music_rclone.service"
-  when: ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: check music rclone timer
   ansible.builtin.template:
     src: check_music_rclone.timer.j2
     dest: "/etc/systemd/system/check_music_rclone.timer"
-  when: ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Enable check music rclone timer
   ansible.builtin.systemd:
     name: check_music_rclone.timer
     enabled: yes
-  when: ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Install zip and jq packages
   community.general.pacman:
@@ -132,6 +132,14 @@
     loop_var: package
   when: ansible_facts['distribution'] == 'Archlinux'
 
+- name: Install zip and jq packages
+  ansible.builtin.dnf:
+    name:
+      - zip
+      - jq
+    state: present
+  when: ansible_facts['distribution'] == 'Rocky'
+
 - name: Backup navidrome script
   ansible.builtin.template:
     src: backup_navidrome.sh.j2
@@ -139,11 +147,11 @@
     owner: "{{ user_name }}"
     group: root
     mode: "0770"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Backup navidrome daily
   ansible.builtin.cron:
     name: "Backup navidrome daily"
     special_time: daily
     job: /usr/bin/bash /usr/local/bin/backup_navidrome.sh
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'

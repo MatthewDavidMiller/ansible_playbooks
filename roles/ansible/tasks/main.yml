@@ -16,3 +16,11 @@
     name: sshpass
     state: present
   when: ansible_facts['distribution'] == 'Archlinux'
+
+- name: Install ansible and sshpass
+  ansible.builtin.dnf:
+    name:
+      - ansible
+      - sshpass
+    state: present
+  when: ansible_facts['distribution'] == 'Rocky'

@@ -11,8 +11,14 @@
     state: present
   when: ansible_facts['distribution'] == 'Archlinux'
 
+- name: Install git
+  ansible.builtin.dnf:
+    name: git
+    state: present
+  when: ansible_facts['distribution'] == 'Rocky'
+
 - name: Create Git repo path
   ansible.builtin.file:
     path: "{{ git_data }}"
     state: directory
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'

@@ -12,7 +12,7 @@
     group: 1000
     mode: "0770"
     recurse: true
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Create swag dns-config path
   ansible.builtin.file:
@@ -22,7 +22,7 @@
     group: 1000
     mode: "0770"
     recurse: true
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Create swag proxy-confs path
   ansible.builtin.file:
@@ -32,7 +32,7 @@
     group: 1000
     mode: "0770"
     recurse: true
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Create swag site-confs path
   ansible.builtin.file:
@@ -42,19 +42,19 @@
     group: 1000
     mode: "0770"
     recurse: true
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Swag Service
   ansible.builtin.template:
     src: swag_container.service.j2
     dest: "/etc/systemd/system/swag_container.service"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Enable Swag
   ansible.builtin.systemd:
     name: swag_container.service
     enabled: yes
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Swag script
   ansible.builtin.template:
@@ -63,7 +63,7 @@
     owner: 1000
     group: 1000
     mode: "0770"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Swag porkbun DNS config
   ansible.builtin.template:
@@ -72,7 +72,7 @@
     owner: 1000
     group: 1000
     mode: "0770"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Swag proxy config
   ansible.builtin.template:
@@ -84,7 +84,7 @@
   loop: "{{ proxy_config }}"
   loop_control:
     loop_var: config_name
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Swag ssl config
   ansible.builtin.template:
@@ -93,7 +93,7 @@
     owner: 1000
     group: 1000
     mode: "0770"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Swag default config
   ansible.builtin.template:
@@ -102,7 +102,7 @@
     owner: 1000
     group: 1000
     mode: "0770"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Swag proxy config
   ansible.builtin.template:
@@ -111,4 +111,4 @@
     owner: 1000
     group: 1000
     mode: "0770"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
