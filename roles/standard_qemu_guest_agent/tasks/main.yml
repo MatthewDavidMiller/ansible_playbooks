@@ -11,8 +11,14 @@
     state: present
   when: ansible_facts['distribution'] == 'Archlinux'
 
+- name: Install qemu-guest-agent
+  ansible.builtin.dnf:
+    name: qemu-guest-agent
+    state: present
+  when: ansible_facts['distribution'] == 'Rocky'
+
 - name: Enable qemu-guest-agent
   ansible.builtin.systemd:
     name: qemu-guest-agent.service
     enabled: yes
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'

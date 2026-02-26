@@ -21,14 +21,20 @@
     state: present
   when: ansible_facts['distribution'] == 'Debian'
 
+- name: Install podman
+  ansible.builtin.dnf:
+    name: podman
+    state: present
+  when: ansible_facts['distribution'] == 'Rocky'
+
 - name: Login to Docker Service
   ansible.builtin.template:
     src: login_to_docker.j2
     dest: "/etc/systemd/system/login_to_docker.service"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Enable Login to Docker Service
   ansible.builtin.systemd:
     name: login_to_docker.service
     enabled: yes
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'

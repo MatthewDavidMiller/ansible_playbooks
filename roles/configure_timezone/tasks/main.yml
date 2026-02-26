@@ -2,4 +2,4 @@
 - name: Set the timezone
   community.general.timezone:
     name: US/Eastern
-  when: ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'

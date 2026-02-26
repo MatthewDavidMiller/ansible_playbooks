@@ -5,48 +5,54 @@
     state: present
   when: ansible_facts['distribution'] == 'Archlinux'
 
+- name: Install sqlite3
+  ansible.builtin.dnf:
+    name: sqlite
+    state: present
+  when: ansible_facts['distribution'] == 'Rocky'
+
 - name: Create vaultwarden container network
   ansible.builtin.shell:
     cmd: |
       podman network create --subnet 172.16.1.16/29 vaultwarden_container_net
   ignore_errors: true
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Create Vaultwarden container path
   ansible.builtin.file:
     path: "{{ vaultwarden_path }}"
     state: directory
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Create Vaultwarden container data path
   ansible.builtin.file:
     path: "{{ vaultwarden_path }}/vw-data"
     state: directory
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Create Vaultwarden container ssl certs path
   ansible.builtin.file:
     path: "{{ vaultwarden_path }}/ssl_certs"
     state: directory
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Create Vaultwarden backups path
   ansible.builtin.file:
     path: "{{ vaultwarden_path }}/database_backups"
     state: directory
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Vaultwarden Service
   ansible.builtin.template:
     src: vaultwarden.service.j2
     dest: "/etc/systemd/system/vaultwarden.service"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Enable Vaultwarden
   ansible.builtin.systemd:
     name: vaultwarden.service
     enabled: yes
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Backup Database Script
   ansible.builtin.template:
@@ -55,17 +61,17 @@
     owner: root
     group: root
     mode: "0644"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Backup Vaultwarden Daily
   ansible.builtin.cron:
     name: "Backup Vaultwarden"
     special_time: daily
     job: /usr/bin/bash /usr/local/bin/backup_vaultwarden_db.sh
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Vaultwarden script
   ansible.builtin.template:
     src: vaultwarden.sh.j2
     dest: "/usr/local/bin/vaultwarden.sh"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux'
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
