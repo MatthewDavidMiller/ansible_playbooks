@@ -17,10 +17,18 @@
     state: present
   when: ansible_facts['distribution'] == 'Archlinux'
 
-- name: Install ansible and sshpass
+- name: Install ansible-core and sshpass
   ansible.builtin.dnf:
     name:
-      - ansible
+      - ansible-core
       - sshpass
+    state: present
+  when: ansible_facts['distribution'] == 'Rocky'
+
+- name: Install required ansible collections
+  ansible.builtin.dnf:
+    name:
+      - ansible-collection-ansible-posix
+      - ansible-collection-community-general
     state: present
   when: ansible_facts['distribution'] == 'Rocky'
