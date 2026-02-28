@@ -1,7 +1,13 @@
 /usr/bin/podman pull docker.io/linuxserver/swag:latest
 /usr/bin/podman run \
 --name=swag \
+{% if swag_networks is defined %}
+{% for net in swag_networks %}
+--network={{ net }} \
+{% endfor %}
+{% else %}
 --network={{ swag_network }} \
+{% endif %}
 --cap-add=NET_ADMIN \
 -e URL={{ top_domain }} \
 -e PUID="1000" \

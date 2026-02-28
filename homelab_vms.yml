@@ -20,3 +20,6 @@
 
 - name: Run vpn config playbook
   import_playbook: vpn.yml
+
+- name: Run all_services config playbook
+  import_playbook: all_services.yml

@@ -1,0 +1,20 @@
+---
+- hosts: all_services
+  roles:
+    - standard_ssh
+    - standard_qemu_guest_agent
+    - standard_update_packages
+    - configure_timezone
+    - standard_cron
+    - standard_firewalld
+    - standard_podman
+    - standard_rclone
+    - standard_selinux
+    - standard_cleanup
+    - ansible
+    - reverse_proxy
+    - nextcloud
+    - paperless_ngx
+    - navidrome
+    - vaultwarden
+    - semaphore

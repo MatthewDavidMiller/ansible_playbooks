@@ -87,3 +87,7 @@ Use `example_inventory.yml` as the template for your real inventory. Key global 
 - `patching_weekday/hour/minute/month` — cron schedule variables
 
 Host-specific variables include service paths, database credentials, and `proxy_config` lists.
+
+## Git Commits
+
+Do not add a `Co-Authored-By` trailer to commit messages in this repository.

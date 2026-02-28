@@ -41,7 +41,7 @@ all:
           # Device variables
           git_data: /path/to/git
           ansible_playbooks_path: /path/to/playbooks
-          postgres_path: "/path/to/postgres"
+          semaphore_postgres_path: "/path/to/postgres"
           semaphore_database_name: "example_db"
           semaphore_database_user: "example_user"
           semaphore_database_user_password: "example_password"
@@ -168,3 +168,85 @@ all:
           default_server_name: "example_server"
           default_app_name: "example_app"
           container_service_names: "service1"
+
+        all_services:
+          ansible_host: all_services.example.com
+          # SWAG — list of all container networks to join (backward-compatible; single-service hosts use scalar swag_network instead)
+          swag_networks:
+            - nextcloud_container_net
+            - navidrome_container_net
+            - vaultwarden_container_net
+            - semaphore_container_net
+          swag_path: /path/to/swag
+          swag_dns_plugin: porkbun
+          swag_host_domain: "nextcloud,paperless,navidrome,vault,semaphore"
+          proxy_config:
+            - name: nextcloud_proxy
+              proxy_fqdn: "nextcloud.example.com"
+              proxy_upstream_port: "443"
+              proxy_upstream_protocol: "https"
+              container_destination: "nextcloud.dns.podman"
+            - name: paperless_ngx_proxy
+              proxy_fqdn: "paperless.example.com"
+              proxy_upstream_port: "8000"
+              proxy_upstream_protocol: "http"
+              container_destination: "paperless.dns.podman"
+            - name: navidrome_proxy
+              proxy_fqdn: "navidrome.example.com"
+              proxy_upstream_port: "4533"
+              proxy_upstream_protocol: "http"
+              container_destination: "navidrome.dns.podman"
+            - name: vaultwarden_proxy
+              proxy_fqdn: "vault.example.com"
+              proxy_upstream_port: "80"
+              proxy_upstream_protocol: "http"
+              container_destination: "vaultwarden.dns.podman"
+            - name: semaphore_proxy
+              proxy_fqdn: "semaphore.example.com"
+              proxy_upstream_port: "3000"
+              proxy_upstream_protocol: "http"
+              container_destination: "semaphore.dns.podman"
+
+          # Nextcloud + Paperless NGX (share PostgreSQL 15 + Redis)
+          postgres_path: /path/to/postgres_nextcloud
+          nextcloud_path: /path/to/nextcloud
+          nextcloud_disk: "UUID=example-uuid"
+          nextcloud_database_name: nextcloud
+          nextcloud_database_user: nextcloud_user
+          nextcloud_database_user_password: example_password
+          nextcloud_admin_user: admin
+          nextcloud_admin_password: example_password
+          nextcloud_trusted_domains: nextcloud.example.com
+          nextcloud_dns_name: nextcloud.example.com
+
+          paperless_data_path: /path/to/paperless/data
+          paperless_media_path: /path/to/paperless/media
+          paperless_export_path: /path/to/paperless/export
+          paperless_consume_path: /path/to/paperless/consume
+          paperless_database_name: paperless
+          paperless_database_user: paperless_user
+          paperless_database_user_password: example_password
+          paperless_dns_name: paperless.example.com
+
+          # Semaphore (PostgreSQL 17 — uses semaphore_postgres_path, NOT postgres_path)
+          semaphore_postgres_path: /path/to/postgres_semaphore
+          semaphore_database_name: semaphore
+          semaphore_database_user: semaphore_user
+          semaphore_database_user_password: example_password
+          semaphore_admin_name: admin
+          semaphore_admin_email: admin@example.com
+          semaphore_admin_password: example_password
+          semaphore_encryption_key: example_32_char_encryption_key_xx
+
+          # Navidrome
+          navidrome_path: /path/to/navidrome
+
+          # Vaultwarden
+          vaultwarden_path: /path/to/vaultwarden
+          vaultwarden_backup_location: Backup_Location
+
+          # Systemd dependency ordering for SWAG service unit After= directive
+          container_service_names: "postgres_container redis_container nextcloud_container paperless_ngx navidrome_container vaultwarden semaphore_postgres semaphore"
+
+          # Firewall — allow Borg backup traffic from backup server
+          backup_host: "192.168.1.50/32"
