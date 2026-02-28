@@ -147,12 +147,15 @@ borg extract <nextcloud_borg_backup_path>::<archive_name>
 
 **3c. Restore Nextcloud database:**
 
-> **Note:** The dump includes `ALTER TABLE ... OWNER TO` and `GRANT` statements referencing the role that owned the database at backup time (typically the value of `nextcloud_database_user` at that time, e.g. `oc_admin`). If that role does not exist in the fresh instance, create it before importing — otherwise those statements error and ownership is not set correctly.
+> **Note:** The dump includes `ALTER TABLE ... OWNER TO` and `GRANT` statements referencing the role that owned the database at backup time (e.g. `oc_admin`). If that role does not exist in the fresh instance, create it before importing — otherwise those statements error and ownership is not set correctly. The role's password must match the `dbpassword` value in Nextcloud's `config.php` (already present at `<nextcloud_path>/config/config.php` after disk restore), not the current `nextcloud_database_user_password` inventory variable.
 
 ```bash
-# Create the role referenced in the dump if it doesn't exist in the fresh instance
+# Find the original db role password
+grep dbpassword <nextcloud_path>/config/config.php
+
+# Create the role with that password
 podman exec -i postgres psql -h localhost -U <nextcloud_database_user> -d postgres \
-  -c "CREATE ROLE oc_admin WITH LOGIN PASSWORD '<nextcloud_database_user_password>';"
+  -c "CREATE ROLE oc_admin WITH LOGIN PASSWORD '<dbpassword from config.php>';"
 podman exec -i postgres psql -h localhost -U <nextcloud_database_user> -d postgres -c "DROP DATABASE IF EXISTS <nextcloud_database_name>;"
 podman exec -i postgres psql -h localhost -U <nextcloud_database_user> -d postgres -c "CREATE DATABASE <nextcloud_database_name>;"
 podman exec -i postgres psql -h localhost -U <nextcloud_database_user> <nextcloud_database_name> < /restore_staging/nextcloud_db_<DATE>.sql
@@ -266,12 +269,15 @@ borg extract <nextcloud_borg_backup_path>::<archive_name>
 
 **2d. Restore Nextcloud database:**
 
-> **Note:** The dump includes `ALTER TABLE ... OWNER TO` and `GRANT` statements referencing the role that owned the database at backup time (typically the value of `nextcloud_database_user` at that time, e.g. `oc_admin`). If that role does not exist in the fresh instance, create it before importing — otherwise those statements error and ownership is not set correctly.
+> **Note:** The dump includes `ALTER TABLE ... OWNER TO` and `GRANT` statements referencing the role that owned the database at backup time (e.g. `oc_admin`). If that role does not exist in the fresh instance, create it before importing — otherwise those statements error and ownership is not set correctly. The role's password must match the `dbpassword` value in Nextcloud's `config.php` (already present at `<nextcloud_path>/config/config.php` after disk restore), not the current `nextcloud_database_user_password` inventory variable.
 
 ```bash
-# Create the role referenced in the dump if it doesn't exist in the fresh instance
+# Find the original db role password
+grep dbpassword <nextcloud_path>/config/config.php
+
+# Create the role with that password
 podman exec -i postgres psql -h localhost -U <nextcloud_database_user> -d postgres \
-  -c "CREATE ROLE oc_admin WITH LOGIN PASSWORD '<nextcloud_database_user_password>';"
+  -c "CREATE ROLE oc_admin WITH LOGIN PASSWORD '<dbpassword from config.php>';"
 podman exec -i postgres psql -h localhost -U <nextcloud_database_user> -d postgres -c "DROP DATABASE IF EXISTS <nextcloud_database_name>;"
 podman exec -i postgres psql -h localhost -U <nextcloud_database_user> -d postgres -c "CREATE DATABASE <nextcloud_database_name>;"
 podman exec -i postgres psql -h localhost -U <nextcloud_database_user> <nextcloud_database_name> < /restore_staging/nextcloud_db_<DATE>.sql
