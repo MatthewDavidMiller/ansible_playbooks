@@ -27,6 +27,114 @@ For VM provisioning details see [proxmox-setup.md](proxmox-setup.md).
 
 ---
 
+## Alternative: Disk-Move Migration
+
+If the Nextcloud data disk and Borg backup disk are **separate virtual disks** in Proxmox (not on the OS disk), you can detach them from the old VM and reattach to VM1 directly. This is faster than the full Borg restore in Part 1 because Nextcloud user files are already on the mounted disk — no extraction required.
+
+The existing Ansible playbooks support this without changes: mounts are UUID-based and idempotent, directory creation is idempotent, and the Borg init script skips initialization if a repo already exists.
+
+### When to use this
+
+- **Initial migration (Part 1 alternative):** The Nextcloud data disk lives on VM 113 (or wherever Nextcloud was previously hosted) as a separate virtual disk.
+- **Disaster recovery (Part 2 alternative):** VM1's OS disk failed but the Nextcloud data disk and/or Borg backup disk are intact — see the [Part 2 note below](#part-2-vm1-disaster-recovery-rebuild-from-backups) before starting a full restore.
+
+### What each disk carries
+
+| Disk | Inventory variable | Contains |
+|---|---|---|
+| Nextcloud data disk | `nextcloud_disk` → `nextcloud_path` | User files, config.php, apps, local Borg archive (`nextcloud_borg_backup_path`) with PG15 SQL dumps and Paperless exports, plus Vaultwarden/Navidrome/Semaphore backup files stored inside `nextcloud_path/data/` |
+| Borg backup disk | `backup_disk` → `borg_backup_path` | Full daily Borg snapshots of the entire `nextcloud_path` directory tree |
+
+The live PostgreSQL data directories (`postgres_path`, `semaphore_postgres_path`) are on the OS disk and are **not** carried over — databases still need to be restored from dumps.
+
+### SELinux note (Arch Linux source disk → Rocky Linux 10)
+
+Arch Linux does not use SELinux, so files on the disk carry no SELinux xattrs. Rocky Linux 10 runs SELinux enforcing. Two different situations arise:
+
+**Container-mounted directories** (`base/`, `data/`, `config/`, `apps/`, all Paperless dirs)
+These are all mounted with the `:Z` Podman volume flag, which automatically relabels files to `container_file_t` on first container start. No manual action is needed, but **expect the first startup to be very slow** — Podman relabels every file recursively, which can take a long time for a large Nextcloud data directory. The container is not hung; it is relabeling. Check progress with:
+```bash
+journalctl -fu nextcloud_container
+```
+
+**Borg-accessed directories** (`nextcloud_borg_backup_path`, `borg_backup_path`)
+These are read/written by the host-level `borg` process (via cron), not by a container, so `:Z` never relabels them. SELinux may deny borg access to unlabeled files. Run `restorecon` after `vm1.yml` completes and before the first backup cron fires:
+```bash
+restorecon -Rv <nextcloud_borg_backup_path>
+restorecon -Rv <borg_backup_path>
+```
+
+**UID/GID ownership** — numeric UIDs are OS-agnostic. UID 33 (Nextcloud container user) is the same value on any distro. No ownership mapping is needed.
+
+---
+
+### Step 1: Move disks in Proxmox
+
+Detach the Nextcloud data disk from the old VM and attach it to VM1. See [proxmox-setup.md — Detaching and Moving an Existing Disk](proxmox-setup.md#detaching-and-moving-an-existing-disk) for the Proxmox UI and CLI procedure.
+
+If the Borg backup disk is also a separate virtual disk on the old backup VM (VM 106), repeat the process for that disk.
+
+The UUIDs are stored on the disks themselves and do not change through a move. No inventory updates are needed.
+
+### Step 2: Run the playbook
+
+```bash
+ansible-playbook -i inventory.yml vm1.yml
+```
+
+The playbook mounts both disks (data already present), deploys all container services, and sets up backup scripts. All Nextcloud user files and config are immediately available.
+
+### Step 3: Restore PostgreSQL databases
+
+The Borg archive at `nextcloud_borg_backup_path` (on the now-mounted Nextcloud data disk) contains the PostgreSQL dumps. No rclone download is needed.
+
+**3a. List available archives:**
+```bash
+borg list <nextcloud_borg_backup_path>
+```
+
+**3b. Extract the latest archive to a staging directory:**
+```bash
+mkdir /restore_staging
+borg extract <nextcloud_borg_backup_path>::<archive_name> --strip-components 1 --destination /restore_staging
+```
+
+**3c. Restore Nextcloud database:**
+```bash
+podman exec -i postgres psql -U <nextcloud_database_user> -d postgres -c "DROP DATABASE IF EXISTS <nextcloud_database_name>;"
+podman exec -i postgres psql -U <nextcloud_database_user> -d postgres -c "CREATE DATABASE <nextcloud_database_name>;"
+podman exec -i postgres psql -U <nextcloud_database_user> <nextcloud_database_name> < /restore_staging/nextcloud_db_<DATE>.sql
+```
+
+**3d. Restore Paperless database:**
+```bash
+podman exec -i postgres psql -U <paperless_database_user> -d postgres -c "DROP DATABASE IF EXISTS <paperless_database_name>;"
+podman exec -i postgres psql -U <paperless_database_user> -d postgres -c "CREATE DATABASE <paperless_database_name>;"
+podman exec -i postgres psql -U <paperless_database_user> <paperless_database_name> < /restore_staging/paperless_db_<DATE>.sql
+```
+
+**3e. Import Paperless documents:**
+```bash
+cp -r /restore_staging/<DATE>/ <paperless_export_path>/
+podman exec paperless document_importer /usr/src/paperless/export/<DATE>
+```
+
+### Step 4: Restore Navidrome, Vaultwarden, Semaphore
+
+These backup files are stored inside `nextcloud_path/data/<nextcloud_admin_user>/files/` and are already available on the mounted disk. Follow Steps 3–5 from Part 1 below.
+
+### Step 5: Rescan Nextcloud file index
+
+```bash
+podman exec nextcloud php occ files:scan --all
+```
+
+### Step 6: DNS cutover and verification
+
+Follow Steps 6–7 from Part 1 below.
+
+---
+
 ## Part 1: Initial Migration (Separate VMs → VM1)
 
 ### Pre-Migration Checklist
@@ -236,6 +344,8 @@ Confirm each service is functional:
 ## Part 2: VM1 Disaster Recovery (Rebuild from Backups)
 
 Use this procedure if VM1 fails and must be rebuilt from scratch. Backups are current as of the most recent daily cron run.
+
+> **If only the OS disk failed:** If the Nextcloud data disk (`nextcloud_disk`) and Borg backup disk (`backup_disk`) are intact, use the [Disk-Move Migration](#alternative-disk-move-migration) procedure instead of the full Borg restore below. Attach both disks to the new VM1, run `vm1.yml`, then restore only the PostgreSQL databases and Paperless documents from the local Borg archive. This avoids downloading the Borg archive from Nextcloud remote storage.
 
 ### Step 1: Provision a new VM1
 

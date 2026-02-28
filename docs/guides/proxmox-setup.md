@@ -77,6 +77,35 @@ VM1 requires a second disk for the Borg backup repository. Add it in Proxmox bef
    bash /usr/local/bin/init_backup_repo.sh
    ```
 
+### Detaching and Moving an Existing Disk
+
+When migrating data from an old VM to VM1 (e.g., moving the Nextcloud data disk from VM 113), use the following procedure. The disk's filesystem UUID is preserved through the move, so your inventory variables (`nextcloud_disk`, `backup_disk`) remain valid without changes.
+
+**In the Proxmox web UI:**
+1. Shut down the source VM (e.g., VM 113)
+2. VM 113 → Hardware → select the data disk → Detach
+   - The disk moves to "Unused Disks" in the storage pool
+3. VM 120 (VM1) → Hardware → Add → Hard Disk → select the same storage pool, then pick the unused disk
+
+**Via CLI (Proxmox shell):**
+```bash
+# Identify the disk device to detach
+qm config 113
+
+# Detach from source VM (replace scsi1 with the correct device label)
+qm set 113 --delete scsi1
+
+# Attach to VM1 as the next available SCSI slot (check qm config 120 first)
+qm set 120 --scsi1 <storage-pool>:<disk-image-id>
+
+# Verify before starting VM1
+qm config 120 | grep scsi
+```
+
+See [dr-restore.md — Disk-Move Migration](dr-restore.md#alternative-disk-move-migration) for the full migration procedure using this approach.
+
+---
+
 ### Cloud-Init Configuration
 
 Before first boot, configure cloud-init for each VM in the Proxmox UI:
