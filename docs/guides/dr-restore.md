@@ -139,7 +139,8 @@ borg list <nextcloud_borg_backup_path>
 **3b. Extract the latest archive to a staging directory:**
 ```bash
 mkdir /restore_staging
-borg extract <nextcloud_borg_backup_path>::<archive_name> --strip-components 1 --destination /restore_staging
+cd /restore_staging
+borg extract <nextcloud_borg_backup_path>::<archive_name> --strip-components 1
 ```
 
 **3c. Restore Nextcloud database:**
@@ -249,7 +250,8 @@ borg list <nextcloud_borg_backup_path>
 **2c. Extract the latest archive to a staging directory:**
 ```bash
 mkdir /restore_staging
-borg extract <nextcloud_borg_backup_path>::<archive_name> --strip-components 1 --destination /restore_staging
+cd /restore_staging
+borg extract <nextcloud_borg_backup_path>::<archive_name> --strip-components 1
 ```
 
 **2d. Restore Nextcloud database:**
@@ -283,7 +285,8 @@ borg list <borg_backup_path>
 
 # Extract the latest archive (contains the full nextcloud_path directory)
 mkdir /restore_staging/nextcloud_files
-borg extract <borg_backup_path>::<archive_name> --destination /restore_staging/nextcloud_files
+cd /restore_staging/nextcloud_files
+borg extract <borg_backup_path>::<archive_name>
 
 # Copy user files into place
 rsync -a /restore_staging/nextcloud_files/<nextcloud_path>/data/ <nextcloud_path>/data/
