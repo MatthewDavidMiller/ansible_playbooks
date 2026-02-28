@@ -11,7 +11,9 @@ This guide covers provisioning new VMs on Proxmox using `scripts/proxmox_initial
 1. Downloads Debian 12 and Rocky Linux 10 cloud-init images
 2. Creates cloud-init templates:
    - VMID 400 — Debian 12 (used for backup server)
-   - VMID 401 — Rocky Linux 10 (used for all service VMs)
+   - VMID 401 — Rocky Linux 10 (used for all service VMs), CPU type set to `host`
+
+> **Note:** Rocky Linux 10 requires `--cpu host` on the Proxmox VM. The default emulated CPU type (`kvm64`) is missing instructions the Rocky 10 kernel expects, causing a kernel panic at boot.
 3. Clones templates to create VMs:
 
 | VMID | Name | Template | Cores | RAM |
@@ -194,5 +196,11 @@ subprocess.call([r"qm", r"set", r"<VMID>", r"--memory", r"<MB>"])
 ```
 
 Use VMID 400 (Debian 12 template) for Debian-based VMs, VMID 401 (Rocky Linux 10 template) for Rocky-based VMs.
+
+Rocky-based VMs inherit `--cpu host` from the template. If you create a Rocky VM outside of this script, set it manually:
+
+```bash
+qm set <VMID> --cpu host
+```
 
 After adding a new VM, document it in [architecture.md — Host Topology](../architecture.md#host-topology).

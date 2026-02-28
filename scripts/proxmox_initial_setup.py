@@ -145,6 +145,9 @@ subprocess.call([r"qm", r"set", r"400", r"--agent", r"enabled=1"])
 # Enable Qemu guest agent Rocky Linux
 subprocess.call([r"qm", r"set", r"401", r"--agent", r"enabled=1"])
 
+# Set CPU type to host for Rocky Linux (required to prevent kernel panic on boot)
+subprocess.call([r"qm", r"set", r"401", r"--cpu", r"host"])
+
 # Configure VM as template
 subprocess.call([r"qm", r"template", r"400"])
 
