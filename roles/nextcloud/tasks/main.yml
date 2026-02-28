@@ -26,6 +26,15 @@
     mode: "0777"
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
+- name: Create postgres data directory
+  ansible.builtin.file:
+    path: "{{ postgres_path }}/pgdata"
+    state: directory
+    owner: root
+    group: root
+    mode: "0777"
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
+
 - name: Create Nextcloud container path
   ansible.builtin.file:
     path: "{{ nextcloud_path }}"
