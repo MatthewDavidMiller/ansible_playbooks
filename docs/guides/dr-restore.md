@@ -86,7 +86,9 @@ The existing Ansible playbooks support this without changes: mounts are UUID-bas
 | Nextcloud data disk | `nextcloud_disk` → `nextcloud_path` | User files, config.php, apps, local Borg archive (`nextcloud_borg_backup_path`) with PG15 SQL dumps and Paperless exports, plus Vaultwarden/Navidrome/Semaphore backup files stored inside `nextcloud_path/data/` |
 | Borg backup disk | `backup_disk` → `borg_backup_path` | Full daily Borg snapshots of the entire `nextcloud_path` directory tree |
 
-The live PostgreSQL data directories (`postgres_path`, `semaphore_postgres_path`) are on the OS disk and are **not** carried over — databases still need to be restored from dumps.
+The live PostgreSQL data directories (`postgres_path`, `semaphore_postgres_path`) are on the OS disk — they are separate configured paths, not under `nextcloud_path`, so they are not on the data disk and are not carried over when you move the disk to a new VM. Databases must be restored from the SQL dumps in the Borg archive.
+
+> **Backup gap:** The SQL dumps in the Borg archive are from the last backup run (daily cron). The live filesystem on the data disk may be ahead of that by up to ~24 hours. After restoring the database, run `occ files:scan --all` (Step 5) to reconcile file presence between the database and the live filesystem. Note that DB-only data modified after the last backup — shares, comments, tags, calendar/contacts, app settings — will revert to the dump state and cannot be recovered from this backup strategy.
 
 ### SELinux note (Arch Linux source disk → Rocky Linux 10)
 
@@ -165,6 +167,8 @@ podman exec paperless document_importer /usr/src/paperless/export/<DATE>
 These backup files are stored inside `nextcloud_path/data/<nextcloud_admin_user>/files/` and are already available on the mounted disk. Follow Steps 3–5 from Part 1 below.
 
 ### Step 5: Rescan Nextcloud file index
+
+The restored database reflects the last backup, but the live filesystem on the data disk may have newer files. This command rescans the filesystem and updates the database to match — adding missing entries, removing stale entries, and refreshing metadata.
 
 ```bash
 podman exec nextcloud php occ files:scan --all
