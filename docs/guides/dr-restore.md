@@ -140,8 +140,10 @@ borg list <nextcloud_borg_backup_path>
 ```bash
 mkdir /restore_staging
 cd /restore_staging
-borg extract <nextcloud_borg_backup_path>::<archive_name> --strip-components 1
+borg extract <nextcloud_borg_backup_path>::<archive_name>
 ```
+
+> The archive contains the SQL dumps at the root level (`nextcloud_db_<DATE>.sql`, `paperless_db_<DATE>.sql`) and the Paperless export directory at its full original path (`<paperless_export_path>/<DATE>/`). After extraction, the SQL files are at `/restore_staging/nextcloud_db_<DATE>.sql` and `/restore_staging/paperless_db_<DATE>.sql`; the Paperless export is at `/restore_staging<paperless_export_path>/<DATE>/`.
 
 **3c. Restore Nextcloud database:**
 ```bash
@@ -159,7 +161,7 @@ podman exec -i postgres psql -U <paperless_database_user> <paperless_database_na
 
 **3e. Import Paperless documents:**
 ```bash
-cp -r /restore_staging/<DATE>/ <paperless_export_path>/
+cp -r /restore_staging<paperless_export_path>/<DATE>/ <paperless_export_path>/
 podman exec paperless document_importer /usr/src/paperless/export/<DATE>
 ```
 
@@ -251,8 +253,10 @@ borg list <nextcloud_borg_backup_path>
 ```bash
 mkdir /restore_staging
 cd /restore_staging
-borg extract <nextcloud_borg_backup_path>::<archive_name> --strip-components 1
+borg extract <nextcloud_borg_backup_path>::<archive_name>
 ```
+
+> The archive contains the SQL dumps at the root level (`nextcloud_db_<DATE>.sql`, `paperless_db_<DATE>.sql`) and the Paperless export directory at its full original path (`<paperless_export_path>/<DATE>/`). After extraction, the SQL files are at `/restore_staging/nextcloud_db_<DATE>.sql` and `/restore_staging/paperless_db_<DATE>.sql`; the Paperless export is at `/restore_staging<paperless_export_path>/<DATE>/`.
 
 **2d. Restore Nextcloud database:**
 ```bash
@@ -270,9 +274,8 @@ podman exec -i postgres psql -U <paperless_database_user> <paperless_database_na
 
 **2f. Import Paperless documents:**
 ```bash
-# The export directory is mounted at paperless_export_path in the container
-# Copy the export directory into place
-cp -r /restore_staging/<DATE>/ <paperless_export_path>/
+# Copy the export directory into place (borg preserves the full original path under /restore_staging)
+cp -r /restore_staging<paperless_export_path>/<DATE>/ <paperless_export_path>/
 
 # Trigger the document importer
 podman exec paperless document_importer /usr/src/paperless/export/<DATE>
