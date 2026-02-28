@@ -1,5 +1,27 @@
 #!/bin/bash
-set -e
-# POSTGRES_DB ({{ nextcloud_database_name }}) is created automatically by the POSTGRES_DB env var.
-# Create the Paperless NGX database.
-psql -U "$POSTGRES_USER" -c "CREATE DATABASE {{ paperless_database_name }};"
+
+export POSTGRES_USER=${POSTGRES_USER:-postgres}
+export POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+export POSTGRES_DB=${POSTGRES_DB:-postgres}
+
+echo "[INFO] Starting PostgreSQL in background..."
+docker-entrypoint.sh postgres &
+POSTGRES_PID=$!
+
+# Wait for the final server (TCP) — the temp initdb server only listens on
+# Unix socket (listen_addresses=''), so -h localhost skips it correctly.
+echo "[INFO] Waiting for PostgreSQL to become available..."
+until pg_isready -h localhost -U "$POSTGRES_USER"; do
+    sleep 2
+done
+
+echo "[INFO] PostgreSQL is ready. Ensuring databases exist..."
+
+psql -h localhost -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+    -tc "SELECT 1 FROM pg_database WHERE datname = '{{ paperless_database_name }}'" \
+    | grep -q 1 \
+    || psql -h localhost -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+        -c "CREATE DATABASE {{ paperless_database_name }};"
+
+echo "[INFO] Database setup complete."
+wait $POSTGRES_PID
