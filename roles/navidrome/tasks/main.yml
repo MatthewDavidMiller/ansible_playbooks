@@ -79,7 +79,8 @@
     owner: root
     group: root
     mode: "0770"
-  when: ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
+  when: (ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky')
+        and navidrome_local_music_path is not defined
 
 - name: check music rclone script
   ansible.builtin.template:
@@ -88,37 +89,43 @@
     owner: root
     group: root
     mode: "0770"
-  when: ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
+  when: (ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky')
+        and navidrome_local_music_path is not defined
 
 - name: rclone mount music service
   ansible.builtin.template:
     src: rclone_mount_music.service.j2
     dest: "/etc/systemd/system/rclone_mount_music.service"
-  when: ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
+  when: (ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky')
+        and navidrome_local_music_path is not defined
 
 - name: Enable rclone mount music service
   ansible.builtin.systemd:
     name: rclone_mount_music.service
     enabled: yes
-  when: ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
+  when: (ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky')
+        and navidrome_local_music_path is not defined
 
 - name: check music rclone service
   ansible.builtin.template:
     src: check_music_rclone.service.j2
     dest: "/etc/systemd/system/check_music_rclone.service"
-  when: ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
+  when: (ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky')
+        and navidrome_local_music_path is not defined
 
 - name: check music rclone timer
   ansible.builtin.template:
     src: check_music_rclone.timer.j2
     dest: "/etc/systemd/system/check_music_rclone.timer"
-  when: ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
+  when: (ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky')
+        and navidrome_local_music_path is not defined
 
 - name: Enable check music rclone timer
   ansible.builtin.systemd:
     name: check_music_rclone.timer
     enabled: yes
-  when: ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
+  when: (ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky')
+        and navidrome_local_music_path is not defined
 
 - name: Install zip and jq packages
   community.general.pacman:

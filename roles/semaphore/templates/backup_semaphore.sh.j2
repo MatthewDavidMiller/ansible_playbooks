@@ -1,12 +1,21 @@
 #!/bin/bash
 
 timestamp=$(date +%m_%d_%Y)
-DUMP_FILE="/semaphore_db_${timestamp}.sql"
+DUMP_FILE="/tmp/semaphore_db_${timestamp}.sql"
 
 /usr/bin/podman exec semaphore_postgres pg_dump \
   -U {{ semaphore_database_user }} {{ semaphore_database_name }} \
   > "$DUMP_FILE"
 
+{% if backup_local | default(false) %}
+DEST="{{ nextcloud_path }}/data/{{ nextcloud_admin_user }}/files/{{ semaphore_backup_location | replace('Nextcloud:', '') }}"
+/usr/bin/mkdir -p "$DEST"
+/usr/bin/cp "$DUMP_FILE" "$DEST/"
+/usr/bin/podman exec nextcloud php occ files:scan \
+    --path="{{ nextcloud_admin_user }}/files/{{ semaphore_backup_location | replace('Nextcloud:', '') }}" \
+    >> /var/log/semaphore_backup.log 2>&1 || true
+{% else %}
 /usr/bin/rclone copy "$DUMP_FILE" Nextcloud:{{ semaphore_backup_location }}
+{% endif %}
 
 /usr/bin/rm "$DUMP_FILE"

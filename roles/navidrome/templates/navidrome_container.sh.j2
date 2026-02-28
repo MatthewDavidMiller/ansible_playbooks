@@ -3,7 +3,7 @@
 --name navidrome \
 --network=navidrome_container_net \
 {% raw %}--user $(id -u):$(id -g) \
-{% endraw %}--volume {{ navidrome_path }}/music:/music:ro \
+{% endraw %}--volume {{ navidrome_local_music_path | default(navidrome_path + '/music') }}:/music:ro,z \
 --volume {{ navidrome_path }}/data:/data \
 --volume {{ navidrome_path }}/backup:/navidrome_backup \
 -e ND_LOGLEVEL=info \

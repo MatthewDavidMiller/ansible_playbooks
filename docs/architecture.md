@@ -111,7 +111,7 @@ See [roles/services.md#reverse_proxy](roles/services.md#reverse_proxy) and [inve
 
 Rocky Linux 10 ships with SELinux in enforcing mode (targeted policy). The `standard_selinux` role ensures this and sets two required booleans:
 
-- `virt_use_fusefs` — required for Navidrome's rclone FUSE-mounted music directory. FUSE mounts cannot use the `:Z` volume label so the boolean is the correct mitigation.
+- `virt_use_fusefs` — required for Navidrome's rclone FUSE-mounted music directory (only when `navidrome_local_music_path` is not set). FUSE mounts cannot use the `:Z` volume label so the boolean is the correct mitigation. On VM1, where Nextcloud is colocated and `navidrome_local_music_path` is set, the rclone FUSE mount is not used and this boolean is not required — but `standard_selinux` sets it unconditionally (harmless).
 - `container_manage_cgroup` — required for Podman containers managed by systemd.
 
 All container volume mounts use `:Z` (e.g., `-v /path:/container/path:Z`) which triggers automatic SELinux file context relabeling. No manual `sefcontext` tasks are needed.

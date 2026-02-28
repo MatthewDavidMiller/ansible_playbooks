@@ -123,6 +123,10 @@ Deploys Paperless NGX. Depends on the PostgreSQL 15 and Redis containers created
 
 Deploys Semaphore CI/CD with its own PostgreSQL 17 instance. Uses `semaphore_postgres_path` (not `postgres_path`) to keep the data directory separate from the Nextcloud PostgreSQL 15 instance — critical on VM1 where both run on the same host.
 
+The daily backup script (`backup_semaphore.sh`) dumps the PostgreSQL 17 database to `/tmp/semaphore_db_<date>.sql`, then:
+- When `backup_local: true`: copies the dump directly to `{{ nextcloud_path }}/data/{{ nextcloud_admin_user }}/files/{{ semaphore_backup_location | replace('Nextcloud:', '') }}` and runs `occ files:scan`.
+- Otherwise: uploads via `rclone copy` to `Nextcloud:{{ semaphore_backup_location }}`.
+
 **Distributions:** Debian 12, Rocky Linux 10, Arch Linux
 
 **Container images:** `docker.io/postgres:17`, `docker.io/semaphoreui/semaphore:latest`
@@ -139,7 +143,7 @@ Deploys Semaphore CI/CD with its own PostgreSQL 17 instance. Uses `semaphore_pos
 | `semaphore_admin_email` | string | Admin email | `admin@example.com` |
 | `semaphore_admin_password` | string | Admin password | `secret` |
 | `semaphore_encryption_key` | string | 32-character encryption key | `abc123...` |
-| `semaphore_backup_location` | string | rclone remote path for daily DB dump | `Nextcloud:semaphore_backup` |
+| `semaphore_backup_location` | string | Backup destination label | `Nextcloud:semaphore_backup` |
 
 **Templates:**
 
@@ -149,11 +153,11 @@ Deploys Semaphore CI/CD with its own PostgreSQL 17 instance. Uses `semaphore_pos
 | `semaphore_postgres.service.j2` | `/etc/systemd/system/semaphore_postgres.service` | Systemd unit |
 | `semaphore.sh.j2` | `/usr/local/bin/semaphore.sh` | Semaphore container launch script |
 | `semaphore.service.j2` | `/etc/systemd/system/semaphore.service` | Systemd unit |
-| `backup_semaphore.sh.j2` | `/usr/local/bin/backup_semaphore.sh` | Daily PostgreSQL 17 dump + rclone sync |
+| `backup_semaphore.sh.j2` | `/usr/local/bin/backup_semaphore.sh` | Daily PG17 dump; local cp or rclone based on `backup_local` |
 
 **Systemd services installed:** `semaphore_postgres`, `semaphore`
 
-**Cron jobs installed:** `Backup Semaphore` (daily — dumps PG17 DB and rclones to `Nextcloud:{{ semaphore_backup_location }}`)
+**Cron jobs installed:** `Backup Semaphore` (daily)
 
 **Notes:**
 - `semaphore_postgres_path` is intentionally a different variable from `postgres_path`. On VM1, `postgres_path` points to PostgreSQL 15 data (Nextcloud) and `semaphore_postgres_path` points to PostgreSQL 17 data (Semaphore). Using the same variable would cause data directory collision.
@@ -165,6 +169,10 @@ Deploys Semaphore CI/CD with its own PostgreSQL 17 instance. Uses `semaphore_pos
 
 Deploys Vaultwarden password manager with SQLite. Sets up a daily backup cron job.
 
+The backup script (`backup_db.j2`) takes a SQLite hot copy, then:
+- When `backup_local: true`: copies it directly to `{{ nextcloud_path }}/data/{{ nextcloud_admin_user }}/files/{{ vaultwarden_backup_location | replace('Nextcloud:', '') }}` and runs `occ files:scan`.
+- Otherwise: uploads via `rclone copy` to `Nextcloud:{{ vaultwarden_backup_location }}`.
+
 **Distributions:** Debian 12, Rocky Linux 10, Arch Linux
 
 **Container image:** `docker.io/vaultwarden/server:latest`
@@ -174,7 +182,7 @@ Deploys Vaultwarden password manager with SQLite. Sets up a daily backup cron jo
 | Variable | Type | Description | Example |
 |---|---|---|---|
 | `vaultwarden_path` | path | Vaultwarden data directory | `/opt/vaultwarden` |
-| `vaultwarden_backup_location` | string | rclone remote backup path | `gdrive:vaultwarden_backup` |
+| `vaultwarden_backup_location` | string | Backup destination label | `Nextcloud:vaultwarden_backup` |
 
 **Templates:**
 
@@ -182,7 +190,7 @@ Deploys Vaultwarden password manager with SQLite. Sets up a daily backup cron jo
 |---|---|---|
 | `vaultwarden.sh.j2` | `/usr/local/bin/vaultwarden.sh` | Container launch script |
 | `vaultwarden.service.j2` | `/etc/systemd/system/vaultwarden.service` | Systemd unit |
-| `backup_db.j2` | `/usr/local/bin/backup_vaultwarden.sh` | Daily SQLite backup script |
+| `backup_db.j2` | `/usr/local/bin/backup_vaultwarden.sh` | Daily SQLite backup; local cp or rclone based on `backup_local` |
 
 **Systemd services installed:** `vaultwarden`
 
@@ -190,7 +198,14 @@ Deploys Vaultwarden password manager with SQLite. Sets up a daily backup cron jo
 
 ### `navidrome`
 
-Deploys Navidrome music server. Mounts music files via rclone (WebDAV) FUSE mount. Sets up a check timer to restart the mount if it becomes stale.
+Deploys Navidrome music server. Music files are mounted in one of two ways depending on whether `navidrome_local_music_path` is defined:
+
+- **Local bind-mount** (when `navidrome_local_music_path` is set): the Nextcloud on-disk Music folder is bind-mounted directly as `/music:ro,z`. No rclone FUSE mount services are deployed. Used on VM1 where Nextcloud is colocated.
+- **rclone FUSE mount** (default, when `navidrome_local_music_path` is not set): music is fetched via `rclone mount Nextcloud:Music` (WebDAV FUSE). A health-check timer restarts the mount if it becomes stale. Used on dedicated Navidrome hosts.
+
+The daily backup script (`backup_navidrome.sh`) also branches on `backup_local`:
+- When `backup_local: true`: copies `.db` files directly to `{{ nextcloud_path }}/data/{{ nextcloud_admin_user }}/files/{{ navidrome_backup_location | replace('Nextcloud:', '') }}` and runs `occ files:scan`. Prunes files older than 30 days using `find`.
+- Otherwise: uploads via `rclone copy` to `Nextcloud:{{ navidrome_backup_location }}` and prunes via `rclone delete --min-age 30d`.
 
 **Distributions:** Debian 12, Rocky Linux 10, Arch Linux
 
@@ -201,24 +216,25 @@ Deploys Navidrome music server. Mounts music files via rclone (WebDAV) FUSE moun
 | Variable | Type | Description | Example |
 |---|---|---|---|
 | `navidrome_path` | path | Navidrome data directory | `/opt/navidrome` |
+| `navidrome_local_music_path` | path | **Optional.** Local path to bind-mount as `/music:ro,z`. When set, rclone FUSE mount services are not deployed. | `/opt/nextcloud/data/admin/files/Music` |
 
 **Templates:**
 
 | Template | Destination | Description |
 |---|---|---|
-| `navidrome_container.sh.j2` | `/usr/local/bin/navidrome_container.sh` | Container launch script |
+| `navidrome_container.sh.j2` | `/usr/local/bin/navidrome_container.sh` | Container launch script; uses `navidrome_local_music_path` if defined, else `navidrome_path/music` |
 | `navidrome_container.service.j2` | `/etc/systemd/system/navidrome_container.service` | Systemd unit |
-| `rclone_mount_music.sh.j2` | `/usr/local/bin/rclone_mount_music.sh` | rclone FUSE mount script |
-| `rclone_mount_music.service.j2` | `/etc/systemd/system/rclone_mount_music.service` | Systemd unit for rclone mount |
-| `check_music_rclone.sh.j2` | `/usr/local/bin/check_music_rclone.sh` | Health check script |
-| `check_music_rclone.service.j2` | `/etc/systemd/system/check_music_rclone.service` | One-shot service for health check |
-| `check_music_rclone.timer.j2` | `/etc/systemd/system/check_music_rclone.timer` | Periodic timer for health check |
-| `backup_navidrome.sh.j2` | `/usr/local/bin/backup_navidrome.sh` | Daily backup script |
-| `davfs2_secrets.j2` | `/etc/davfs2/secrets` | WebDAV credentials |
+| `rclone_mount_music.sh.j2` | `/usr/local/bin/rclone_mount_music.sh` | rclone FUSE mount script (only when `navidrome_local_music_path` not set) |
+| `rclone_mount_music.service.j2` | `/etc/systemd/system/rclone_mount_music.service` | Systemd unit for rclone mount (only when `navidrome_local_music_path` not set) |
+| `check_music_rclone.sh.j2` | `/usr/local/bin/check_music_rclone.sh` | Health check script (only when `navidrome_local_music_path` not set) |
+| `check_music_rclone.service.j2` | `/etc/systemd/system/check_music_rclone.service` | One-shot service for health check (only when `navidrome_local_music_path` not set) |
+| `check_music_rclone.timer.j2` | `/etc/systemd/system/check_music_rclone.timer` | Periodic timer for health check (only when `navidrome_local_music_path` not set) |
+| `backup_navidrome.sh.j2` | `/usr/local/bin/backup_navidrome.sh` | Daily backup script; local cp or rclone based on `backup_local` |
+| `davfs2_secrets.j2` | `/etc/davfs2/secrets` | WebDAV credentials (Debian only) |
 
-**Systemd services installed:** `navidrome_container`, `rclone_mount_music`, `check_music_rclone.timer`
+**Systemd services installed:** `navidrome_container`; also `rclone_mount_music` and `check_music_rclone.timer` when `navidrome_local_music_path` is not set.
 
-**Notes:** On Rocky Linux 10 the `virt_use_fusefs` SELinux boolean must be set before starting the container — handled by `standard_selinux`.
+**Notes:** The `virt_use_fusefs` SELinux boolean is only strictly required when the rclone FUSE mount is in use (i.e., `navidrome_local_music_path` is not set). `standard_selinux` sets it unconditionally on Rocky Linux 10, which is harmless on VM1.
 
 ---
 

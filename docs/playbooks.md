@@ -36,7 +36,7 @@ For running playbook commands see [CLAUDE.md](../CLAUDE.md). This document descr
 
 **Usage:** Configures VM1 (ID 120) — a single Rocky Linux 10 host running all services consolidated. See [architecture.md — VM1 Consolidated VM](architecture.md#vm1-consolidated-vm).
 
-**Notes:** `nextcloud` must run before `paperless_ngx` (Paperless uses Nextcloud's postgres/redis containers). `standard_rclone` must run before `standard_selinux` (FUSE packages needed for the `virt_use_fusefs` boolean).
+**Notes:** `nextcloud` must run before `paperless_ngx` (Paperless uses Nextcloud's postgres/redis containers). `standard_rclone` must run before `standard_selinux` (fuse3 packages must exist before the boolean is set). On VM1, `navidrome_local_music_path` is set, so the navidrome role skips the rclone FUSE mount services entirely and bind-mounts the Nextcloud data directory directly. Service backup scripts (navidrome, vaultwarden, semaphore) use `backup_local: true` to copy directly to the Nextcloud data directory instead of going through WebDAV rclone.
 
 ---
 

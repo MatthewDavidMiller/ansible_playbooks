@@ -2,12 +2,14 @@
 set -euo pipefail
 
 # === Configuration ===
-NAVIDROME_REMOTE="Nextcloud:{{ navidrome_backup_location }}"
 LOCAL_BACKUP_DIR="{{ navidrome_path }}/backup"
 THRESHOLD=30
 LOG_DIR="/var/log"
 BACKUP_LOG="${LOG_DIR}/navidrome_backup.log"
+{% if not (backup_local | default(false)) %}
+NAVIDROME_REMOTE="Nextcloud:{{ navidrome_backup_location }}"
 CLEANUP_LOG="${LOG_DIR}/rclone-navidrome-cleanup.log"
+{% endif %}
 
 # === Ensure log directory exists ===
 /usr/bin/mkdir -p "$LOG_DIR"
@@ -19,6 +21,27 @@ if ! podman exec navidrome sh -c "/app/navidrome backup create" >> "$BACKUP_LOG"
     exit 1
 fi
 
+{% if backup_local | default(false) %}
+# === Local: write directly to Nextcloud data dir, then notify Nextcloud ===
+DEST="{{ nextcloud_path }}/data/{{ nextcloud_admin_user }}/files/{{ navidrome_backup_location | replace('Nextcloud:', '') }}"
+/usr/bin/echo "[$(date)] Copying backup to local Nextcloud data dir: $DEST" >> "$BACKUP_LOG"
+/usr/bin/mkdir -p "$DEST"
+/usr/bin/cp "$LOCAL_BACKUP_DIR"/*.db "$DEST/" 2>/dev/null || true
+/usr/bin/podman exec nextcloud php occ files:scan \
+    --path="{{ nextcloud_admin_user }}/files/{{ navidrome_backup_location | replace('Nextcloud:', '') }}" \
+    >> "$BACKUP_LOG" 2>&1 || true
+/usr/bin/find "$LOCAL_BACKUP_DIR" -type f -name "*.db" -delete
+
+# === Prune old backups from destination ===
+BACKUP_COUNT=$(/usr/bin/find "$DEST" -type f -name "*.db" | /usr/bin/wc -l)
+if [ "$BACKUP_COUNT" -ge "$THRESHOLD" ]; then
+    /usr/bin/echo "[$(date)] $BACKUP_COUNT backups found — pruning backups older than 30 days." >> "$BACKUP_LOG"
+    /usr/bin/find "$DEST" -type f -name "*.db" -mtime +30 -delete
+else
+    /usr/bin/echo "[$(date)] Cleanup skipped — only $BACKUP_COUNT backups found." >> "$BACKUP_LOG"
+fi
+
+{% else %}
 # === Rclone Upload ===
 /usr/bin/echo "[$(date)] Uploading backup to remote: $NAVIDROME_REMOTE" >> "$BACKUP_LOG"
 if /usr/bin/rclone copy "$LOCAL_BACKUP_DIR" "$NAVIDROME_REMOTE" \
@@ -56,10 +79,16 @@ cleanup_backups() {
 # === Run Cleanup ===
 cleanup_backups "$NAVIDROME_REMOTE" "navidrome"
 
+{% endif %}
+
 # === Truncate logs if they exceed 10MB ===
 MAX_LOG_SIZE=10485760  # 10 MB in bytes
 
+{% if backup_local | default(false) %}
+for LOG_FILE in "$BACKUP_LOG"; do
+{% else %}
 for LOG_FILE in "$BACKUP_LOG" "$CLEANUP_LOG"; do
+{% endif %}
     if [ -f "$LOG_FILE" ] && [ "$(stat -c%s "$LOG_FILE")" -gt "$MAX_LOG_SIZE" ]; then
         /usr/bin/echo "[$(date)] Truncating oversized log: $LOG_FILE" >> "$LOG_FILE"
         > "$LOG_FILE"
