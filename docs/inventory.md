@@ -78,7 +78,7 @@ Runs Semaphore + PostgreSQL 17 + SWAG. Uses `semaphore_postgres_path` (not `post
 | `ssh_mount_path` | path | SSHFS mount point for remote backups | `/mnt/nextcloud_backup` |
 | `backup_disk` | string | UUID of backup disk | `UUID=abc123...` |
 | `nextcloud_host` | string | Nextcloud server hostname | `nextcloud.example.com` |
-| `nextcloud_backup_path` | path | Path on backup server for Nextcloud Borg repo | `/opt/borg/nextcloud` |
+| `nextcloud_backup_path` | path | Path on the Nextcloud host to back up via SSHFS | `/opt/nextcloud` |
 
 ---
 
@@ -154,7 +154,7 @@ Runs Semaphore + PostgreSQL 17 + SWAG. Uses `semaphore_postgres_path` (not `post
 
 ---
 
-### `all_services` host (AllServices VM, ID 120)
+### `vm1` host (VM1, ID 120)
 
 This host runs all services consolidated. It uses `swag_networks` (list) instead of `swag_network` (scalar), and `semaphore_postgres_path` is distinct from `postgres_path` to prevent data directory collisions.
 
@@ -193,10 +193,16 @@ This host runs all services consolidated. It uses `swag_networks` (list) instead
 | `semaphore_admin_password` | string | Semaphore admin password | `secret` |
 | `semaphore_encryption_key` | string | 32-character Semaphore encryption key | `abc123...` |
 | `navidrome_path` | path | Navidrome data directory | `/opt/navidrome` |
+| `nextcloud_borg_backup_path` | path | Local path for Borg backup repository (Nextcloud + Paperless) | `/opt/borg/nextcloud` |
+| `nextcloud_paperless_backup_location` | path | rclone remote path for Borg repo sync | `Nextcloud:backup/nextcloud` |
 | `vaultwarden_path` | path | Vaultwarden data directory | `/opt/vaultwarden` |
-| `vaultwarden_backup_location` | string | rclone remote backup label | `gdrive:vaultwarden_backup` |
+| `vaultwarden_backup_location` | string | rclone remote backup label | `Nextcloud:vaultwarden_backup` |
+| `semaphore_backup_location` | string | rclone remote backup path for Semaphore DB dumps | `Nextcloud:semaphore_backup` |
 | `container_service_names` | string | Space-separated systemd unit names for SWAG `After=` | `postgres_container redis_container nextcloud_container paperless_ngx navidrome_container vaultwarden semaphore_postgres semaphore` |
 | `backup_host` | string | Backup server IP (CIDR) for firewalld | `192.168.1.50/32` |
+| `borg_backup_path` | path | Borg repository root (also the second NVMe mount point) | `/opt/borg_backup` |
+| `backup_disk` | string | UUID of the second NVMe disk for Borg | `UUID=abc123...` |
+| `backup_local` | boolean | `true` — archives local `nextcloud_path` instead of SSHFS | `true` |
 
 ---
 
@@ -232,9 +238,9 @@ The `proxy_config` variable is a list of objects. Each object generates one ngin
 ## `swag_networks` vs `swag_network`
 
 - **`swag_network`** (string) — used on single-service hosts where SWAG only needs to join one Podman network
-- **`swag_networks`** (list) — used on the AllServices VM where SWAG must join all four service networks
+- **`swag_networks`** (list) — used on VM1 where SWAG must join all four service networks
 
 The `swag_container.sh.j2` template checks for `swag_networks` first. If defined, it generates one `--network` flag per entry. If not defined, it falls back to the scalar `swag_network`. This keeps existing single-service host inventories working without changes.
 
 Hosts using `swag_network`: `ansible`, `nextcloud`, `vaultwarden`, `unificontroller`, `navidrome`, `pihole`, `apcontroller`
-Hosts using `swag_networks`: `all_services`
+Hosts using `swag_networks`: `vm1`

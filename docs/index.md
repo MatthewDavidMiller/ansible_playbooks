@@ -25,6 +25,7 @@ For running playbooks and architecture patterns (authoritative reference for Cla
 | [guides/getting-started.md](guides/getting-started.md) | Setup from scratch — prerequisites, collections, first playbook run |
 | [guides/adding-a-service.md](guides/adding-a-service.md) | How to add a new service using established patterns |
 | [guides/proxmox-setup.md](guides/proxmox-setup.md) | VM provisioning with `scripts/proxmox_initial_setup.py` |
+| [guides/dr-restore.md](guides/dr-restore.md) | Disaster recovery — initial migration to VM1 and restore from backups |
 
 ## Standards
 

@@ -1,10 +1,21 @@
-# Backup Nextcloud
+#!/bin/bash
+
+{% if backup_local | default(false) %}
+# Local backup — Nextcloud runs on this host
+/usr/bin/borg create "{{ borg_backup_path }}::nextcloud_backup-$(date +%m_%d_%Y)" \
+    "{{ nextcloud_path }}"
+{% else %}
+# Remote backup — SSHFS mount Nextcloud from {{ nextcloud_host }}
 sshfs {{ user_name }}@{{ nextcloud_host }}:{{ nextcloud_backup_path }} {{ ssh_mount_path }}
-/bin/borg create "{{ borg_backup_path }}::nextcloud_backup-$(date +%m_%d_%Y)" {{ ssh_mount_path }}
+/usr/bin/borg create "{{ borg_backup_path }}::nextcloud_backup-$(date +%m_%d_%Y)" \
+    {{ ssh_mount_path }}
 fusermount -u {{ ssh_mount_path }}
+{% endif %}
 
 # Prune Nextcloud Backups
-/bin/borg prune --keep-daily 7 --keep-weekly 4 --keep-monthly 3 --glob-archives 'nextcloud_backup-' "{{ borg_backup_path }}"
+/usr/bin/borg prune \
+    --keep-daily 7 --keep-weekly 4 --keep-monthly 3 \
+    --glob-archives 'nextcloud_backup-' "{{ borg_backup_path }}"
 
 # Free disk space
-/bin/borg compact "{{ borg_backup_path }}"
+/usr/bin/borg compact "{{ borg_backup_path }}"

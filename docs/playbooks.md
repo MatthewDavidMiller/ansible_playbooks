@@ -10,7 +10,7 @@ For running playbook commands see [CLAUDE.md](../CLAUDE.md). This document descr
 
 **Target:** `localhost` (then delegates to all service playbooks)
 
-**Imports (in order):** `ansible.yml` → `unificontroller.yml` → `backup.yml` → `navidrome.yml` → `nextcloud.yml` → `vaultwarden.yml` → `vpn.yml` → `all_services.yml`
+**Imports (in order):** `ansible.yml` → `unificontroller.yml` → `backup.yml` → `navidrome.yml` → `nextcloud.yml` → `vaultwarden.yml` → `vpn.yml` → `vm1.yml`
 
 **Usage:** Run to configure all homelab VMs in a single operation. Each imported playbook targets its own host group.
 
@@ -28,13 +28,13 @@ For running playbook commands see [CLAUDE.md](../CLAUDE.md). This document descr
 
 ## Service Playbooks
 
-### `all_services.yml`
+### `vm1.yml`
 
-**Target:** `all_services`
+**Target:** `vm1`
 
 **Roles (in order):** `standard_ssh` → `standard_qemu_guest_agent` → `standard_update_packages` → `configure_timezone` → `standard_cron` → `standard_firewalld` → `standard_podman` → `standard_rclone` → `standard_selinux` → `standard_cleanup` → `ansible` → `reverse_proxy` → `nextcloud` → `paperless_ngx` → `navidrome` → `vaultwarden` → `semaphore`
 
-**Usage:** Configures the AllServices VM (ID 120) — a single Rocky Linux 10 host running all services consolidated. See [architecture.md — AllServices Consolidated VM](architecture.md#allservices-consolidated-vm).
+**Usage:** Configures VM1 (ID 120) — a single Rocky Linux 10 host running all services consolidated. See [architecture.md — VM1 Consolidated VM](architecture.md#vm1-consolidated-vm).
 
 **Notes:** `nextcloud` must run before `paperless_ngx` (Paperless uses Nextcloud's postgres/redis containers). `standard_rclone` must run before `standard_selinux` (FUSE packages needed for the `virt_use_fusefs` boolean).
 

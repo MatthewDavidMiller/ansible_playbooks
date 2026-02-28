@@ -1,5 +1,5 @@
 ---
-- hosts: all_services
+- hosts: vm1
   roles:
     - standard_ssh
     - standard_qemu_guest_agent
@@ -11,6 +11,7 @@
     - standard_rclone
     - standard_selinux
     - standard_cleanup
+    - backup
     - ansible
     - reverse_proxy
     - nextcloud

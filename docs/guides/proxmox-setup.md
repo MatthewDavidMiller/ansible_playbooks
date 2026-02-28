@@ -25,7 +25,7 @@ This guide covers provisioning new VMs on Proxmox using `scripts/proxmox_initial
 | 114 | Navidrome | 401 | 2 | 2048 MB |
 | 115 | Vaultwarden | 401 | 2 | 2048 MB |
 | 116 | UnifiController | 401 | 2 | 2048 MB |
-| 120 | AllServices | 401 | 4 | 8192 MB |
+| 120 | VM1 | 401 | 4 | 8192 MB |
 
 Each VM gets an EFI disk (`efitype=4m, pre-enrolled-keys=0`) and UEFI BIOS.
 
@@ -45,15 +45,37 @@ The script uses `qm` commands and must run as root on the Proxmox node.
 
 ## Post-Clone Steps
 
-### AllServices VM (VMID 120)
+### VM1 (VMID 120)
 
-The AllServices VM needs a larger root disk. Run this in the Proxmox shell after cloning:
+VM1 needs a larger root disk. Run this in the Proxmox shell after cloning:
 
 ```bash
 qm resize 120 scsi0 60G
 ```
 
 All other VMs use the default template disk size.
+
+### VM1 Second Disk (Borg Backup)
+
+VM1 requires a second disk for the Borg backup repository. Add it in Proxmox before running `vm1.yml`:
+
+1. In Proxmox UI: VM 120 → Hardware → Add → Hard Disk
+2. Choose a separate NVMe-backed storage pool (not the same as the root disk)
+3. Size: at least 1.5× the size of your Nextcloud data directory
+4. After adding the disk, start the VM and format it:
+   ```bash
+   # Find the new disk (will not have a partition table)
+   lsblk
+   # Format as ext4 (e.g., if the disk is /dev/sdb)
+   mkfs.ext4 /dev/sdb
+   # Get the UUID to put in inventory
+   blkid /dev/sdb
+   ```
+5. Set `backup_disk: "UUID=<uuid-from-blkid>"` in your inventory
+6. After running the playbook, initialize the Borg repo (one-time):
+   ```bash
+   bash /usr/local/bin/init_backup_repo.sh
+   ```
 
 ### Cloud-Init Configuration
 

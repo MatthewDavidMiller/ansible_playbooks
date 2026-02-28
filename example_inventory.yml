@@ -169,8 +169,8 @@ all:
           default_app_name: "example_app"
           container_service_names: "service1"
 
-        all_services:
-          ansible_host: all_services.example.com
+        vm1:
+          ansible_host: vm1.example.com
           # SWAG — list of all container networks to join (backward-compatible; single-service hosts use scalar swag_network instead)
           swag_networks:
             - nextcloud_container_net
@@ -211,6 +211,8 @@ all:
           postgres_path: /path/to/postgres_nextcloud
           nextcloud_path: /path/to/nextcloud
           nextcloud_disk: "UUID=example-uuid"
+          nextcloud_borg_backup_path: /path/to/nextcloud/borg/backup
+          nextcloud_paperless_backup_location: Nextcloud:backup/nextcloud
           nextcloud_database_name: nextcloud
           nextcloud_database_user: nextcloud_user
           nextcloud_database_user_password: example_password
@@ -240,13 +242,22 @@ all:
 
           # Navidrome
           navidrome_path: /path/to/navidrome
+          navidrome_backup_location: Nextcloud:navidrome_backup
 
           # Vaultwarden
           vaultwarden_path: /path/to/vaultwarden
-          vaultwarden_backup_location: Backup_Location
+          vaultwarden_backup_location: Nextcloud:vaultwarden_backup
+
+          # Semaphore backup
+          semaphore_backup_location: Nextcloud:semaphore_backup
 
           # Systemd dependency ordering for SWAG service unit After= directive
           container_service_names: "postgres_container redis_container nextcloud_container paperless_ngx navidrome_container vaultwarden semaphore_postgres semaphore"
+
+          # Borg backup to second NVMe disk (local — Nextcloud runs on this host)
+          borg_backup_path: /path/to/borg_backup
+          backup_disk: "UUID=example-uuid-backup-disk"
+          backup_local: true
 
           # Firewall — allow Borg backup traffic from backup server
           backup_host: "192.168.1.50/32"

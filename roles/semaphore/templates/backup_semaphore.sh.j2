@@ -1,0 +1,12 @@
+#!/bin/bash
+
+timestamp=$(date +%m_%d_%Y)
+DUMP_FILE="/semaphore_db_${timestamp}.sql"
+
+/usr/bin/podman exec semaphore_postgres pg_dump \
+  -U {{ semaphore_database_user }} {{ semaphore_database_name }} \
+  > "$DUMP_FILE"
+
+/usr/bin/rclone copy "$DUMP_FILE" Nextcloud:{{ semaphore_backup_location }}
+
+/usr/bin/rm "$DUMP_FILE"

@@ -15,5 +15,5 @@
 - name: Run vaultwarden config playbook
   import_playbook: vaultwarden.yml
 
-#- name: Run all_services config playbook
-#  import_playbook: all_services.yml
+#- name: Run vm1 config playbook
+#  import_playbook: vm1.yml

@@ -26,7 +26,7 @@ Deploys SWAG (linuxserver.io nginx + Certbot) for TLS termination and reverse pr
 | `porkbun_api_key_secret` | string | Porkbun API secret | `sk1_...` |
 | `proxy_config` | list | Proxy config objects — see [inventory.md](../inventory.md#proxy_config-object-schema) | — |
 | `swag_network` | string | Podman network to join (single-service hosts) | `nextcloud_container_net` |
-| `swag_networks` | list | Podman networks to join (AllServices VM) — takes precedence over `swag_network` if defined | `[nextcloud_container_net, ...]` |
+| `swag_networks` | list | Podman networks to join (VM1) — takes precedence over `swag_network` if defined | `[nextcloud_container_net, ...]` |
 | `container_service_names` | string | Space-separated systemd unit names for `After=` in SWAG service | `nextcloud_container postgres_container` |
 
 **Templates:**
@@ -121,7 +121,7 @@ Deploys Paperless NGX. Depends on the PostgreSQL 15 and Redis containers created
 
 ### `semaphore`
 
-Deploys Semaphore CI/CD with its own PostgreSQL 17 instance. Uses `semaphore_postgres_path` (not `postgres_path`) to keep the data directory separate from the Nextcloud PostgreSQL 15 instance — critical on the AllServices VM where both run on the same host.
+Deploys Semaphore CI/CD with its own PostgreSQL 17 instance. Uses `semaphore_postgres_path` (not `postgres_path`) to keep the data directory separate from the Nextcloud PostgreSQL 15 instance — critical on VM1 where both run on the same host.
 
 **Distributions:** Debian 12, Rocky Linux 10, Arch Linux
 
@@ -139,6 +139,7 @@ Deploys Semaphore CI/CD with its own PostgreSQL 17 instance. Uses `semaphore_pos
 | `semaphore_admin_email` | string | Admin email | `admin@example.com` |
 | `semaphore_admin_password` | string | Admin password | `secret` |
 | `semaphore_encryption_key` | string | 32-character encryption key | `abc123...` |
+| `semaphore_backup_location` | string | rclone remote path for daily DB dump | `Nextcloud:semaphore_backup` |
 
 **Templates:**
 
@@ -148,11 +149,14 @@ Deploys Semaphore CI/CD with its own PostgreSQL 17 instance. Uses `semaphore_pos
 | `semaphore_postgres.service.j2` | `/etc/systemd/system/semaphore_postgres.service` | Systemd unit |
 | `semaphore.sh.j2` | `/usr/local/bin/semaphore.sh` | Semaphore container launch script |
 | `semaphore.service.j2` | `/etc/systemd/system/semaphore.service` | Systemd unit |
+| `backup_semaphore.sh.j2` | `/usr/local/bin/backup_semaphore.sh` | Daily PostgreSQL 17 dump + rclone sync |
 
 **Systemd services installed:** `semaphore_postgres`, `semaphore`
 
+**Cron jobs installed:** `Backup Semaphore` (daily — dumps PG17 DB and rclones to `Nextcloud:{{ semaphore_backup_location }}`)
+
 **Notes:**
-- `semaphore_postgres_path` is intentionally a different variable from `postgres_path`. On the AllServices VM, `postgres_path` points to PostgreSQL 15 data (Nextcloud) and `semaphore_postgres_path` points to PostgreSQL 17 data (Semaphore). Using the same variable would cause data directory collision.
+- `semaphore_postgres_path` is intentionally a different variable from `postgres_path`. On VM1, `postgres_path` points to PostgreSQL 15 data (Nextcloud) and `semaphore_postgres_path` points to PostgreSQL 17 data (Semaphore). Using the same variable would cause data directory collision.
 - On single-host Semaphore deployments (e.g., the `ansible` VM), define `semaphore_postgres_path` in the host's inventory entry — do not use `postgres_path` for Semaphore.
 
 ---

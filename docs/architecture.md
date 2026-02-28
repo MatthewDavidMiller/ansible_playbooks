@@ -1,6 +1,6 @@
 # Architecture
 
-For architecture patterns (container pattern, firewall pattern, role conventions, running playbooks) see [CLAUDE.md](../CLAUDE.md). This document covers the host topology, network design, SELinux policy, and the consolidated AllServices VM.
+For architecture patterns (container pattern, firewall pattern, role conventions, running playbooks) see [CLAUDE.md](../CLAUDE.md). This document covers the host topology, network design, SELinux policy, and the consolidated VM1.
 
 ---
 
@@ -17,7 +17,7 @@ For architecture patterns (container pattern, firewall pattern, role conventions
 | 114 | Navidrome | Rocky Linux 10 | Navidrome music server, SWAG reverse proxy |
 | 115 | Vaultwarden | Rocky Linux 10 | Vaultwarden password manager, SWAG reverse proxy |
 | 116 | UnifiController | Rocky Linux 10 | Ubiquiti Unifi Controller, SWAG reverse proxy |
-| 120 | AllServices | Rocky Linux 10 | Nextcloud, Paperless NGX, Navidrome, Vaultwarden, Semaphore, PostgreSQL 15, PostgreSQL 17, Redis, SWAG reverse proxy |
+| 120 | VM1 | Rocky Linux 10 | Nextcloud, Paperless NGX, Navidrome, Vaultwarden, Semaphore, PostgreSQL 15, PostgreSQL 17, Redis, SWAG reverse proxy |
 
 Templates: VMID 400 (Debian 12 cloud-init), VMID 401 (Rocky Linux 10 cloud-init)
 
@@ -29,7 +29,7 @@ All VMs are provisioned via `scripts/proxmox_initial_setup.py`. See [guides/prox
 
 | Distribution | Hosts | Package manager |
 |---|---|---|
-| Rocky Linux 10 | All service VMs, AllServices VM | `dnf` |
+| Rocky Linux 10 | All service VMs, VM1 | `dnf` |
 | Debian 12 | Backup server | `apt` |
 | Arch Linux | Laptop | `pacman` |
 
@@ -37,9 +37,9 @@ Role tasks are gated with `when: ansible_facts['distribution'] == '...'` to supp
 
 ---
 
-## AllServices Consolidated VM (ID 120)
+## VM1 Consolidated VM (ID 120)
 
-VM 120 runs all services on a single Rocky Linux 10 host to reduce resource overhead.
+VM1 (ID 120) runs all services on a single Rocky Linux 10 host to reduce resource overhead.
 
 **Resource budget:**
 
@@ -68,7 +68,7 @@ VM 120 runs all services on a single Rocky Linux 10 host to reduce resource over
 
 Each service runs in its own Podman network to prevent DNS name collisions (both Nextcloud and Semaphore have a container named `postgres`).
 
-**AllServices VM networks:**
+**VM1 networks:**
 
 | Network | Subnet | Members |
 |---|---|---|
@@ -77,7 +77,7 @@ Each service runs in its own Podman network to prevent DNS name collisions (both
 | `vaultwarden_container_net` | 172.16.1.16/29 | vaultwarden, swag |
 | `semaphore_container_net` | (auto) | semaphore_postgres, semaphore, swag |
 
-SWAG resolves backends via Podman DNS (`nextcloud.dns.podman`, etc.) and must be a member of every network it proxies. On single-service hosts SWAG uses the scalar `swag_network` variable. On the AllServices VM it uses the `swag_networks` list — the template in `roles/reverse_proxy/templates/swag_container.sh.j2` handles both cases.
+SWAG resolves backends via Podman DNS (`nextcloud.dns.podman`, etc.) and must be a member of every network it proxies. On single-service hosts SWAG uses the scalar `swag_network` variable. On VM1 it uses the `swag_networks` list — the template in `roles/reverse_proxy/templates/swag_container.sh.j2` handles both cases.
 
 See [inventory.md — swag_networks vs swag_network](inventory.md#swag_networks-vs-swag_network) and [roles/services.md#reverse_proxy](roles/services.md#reverse_proxy).
 

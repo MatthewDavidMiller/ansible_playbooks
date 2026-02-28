@@ -193,11 +193,11 @@ Add a host entry under `homelab.hosts` in your inventory with all required varia
 
 ## Consolidated VM vs. Dedicated VM
 
-If you are adding the service to the AllServices VM (ID 120) rather than a dedicated VM:
+If you are adding the service to VM1 (ID 120) rather than a dedicated VM:
 
-- Add the role to `all_services.yml` in the appropriate order
-- Add all required variables to the `all_services` host entry in inventory
-- If the service uses a Podman network, add that network to `swag_networks` in the `all_services` inventory entry
+- Add the role to `vm1.yml` in the appropriate order
+- Add all required variables to the `vm1` host entry in inventory
+- If the service uses a Podman network, add that network to `swag_networks` in the `vm1` inventory entry
 - If the service has a PostgreSQL instance, use a unique path variable (not `postgres_path`) to avoid collisions with other PostgreSQL instances
 
 ---
