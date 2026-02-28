@@ -3,9 +3,6 @@
 - name: Run ansible config playbook
   import_playbook: ansible.yml
 
-- name: Run unificontroller config playbook
-  import_playbook: unificontroller.yml
-
 - name: Run backup config playbook
   import_playbook: backup.yml
 
@@ -18,8 +15,5 @@
 - name: Run vaultwarden config playbook
   import_playbook: vaultwarden.yml
 
-- name: Run vpn config playbook
-  import_playbook: vpn.yml
-
-- name: Run all_services config playbook
-  import_playbook: all_services.yml
+#- name: Run all_services config playbook
+#  import_playbook: all_services.yml
