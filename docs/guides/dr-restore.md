@@ -352,7 +352,6 @@ ls <nextcloud_path>/data/<nextcloud_database_user>/files/<vaultwarden_backup_loc
 systemctl stop vaultwarden
 cp <nextcloud_path>/data/<nextcloud_database_user>/files/<vaultwarden_backup_location>/vaultwarden_db-<DATE>.sqlite3 \
     <vaultwarden_path>/vw-data/db.sqlite3
-chown 1000:1000 <vaultwarden_path>/vw-data/db.sqlite3
 systemctl start vaultwarden
 ```
 
