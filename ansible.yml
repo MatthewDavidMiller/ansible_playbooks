@@ -10,6 +10,7 @@
     - standard_cron
     - standard_firewalld
     - standard_cleanup
+    - standard_rclone
     - ansible
     - reverse_proxy
     - semaphore
