@@ -26,3 +26,19 @@
     state: yes
     persistent: yes
   when: ansible_facts['distribution'] == 'Rocky'
+
+- name: Check installed SELinux modules
+  ansible.builtin.command: semodule -l
+  register: semodule_list
+  changed_when: false
+  when: ansible_facts['distribution'] == 'Rocky'
+
+- name: Allow systemd to run Podman BPF programs (netavark network stack)
+  ansible.builtin.shell: |
+    printf 'module podman_bpf 1.0;\nrequire {\n    type init_t;\n    type container_runtime_t;\n    class bpf { prog_run };\n}\nallow init_t container_runtime_t:bpf { prog_run };\n' > /tmp/podman_bpf.te
+    checkmodule -M -m -o /tmp/podman_bpf.mod /tmp/podman_bpf.te
+    semodule_package -o /tmp/podman_bpf.pp -m /tmp/podman_bpf.mod
+    semodule -i /tmp/podman_bpf.pp
+  when:
+    - ansible_facts['distribution'] == 'Rocky'
+    - "'podman_bpf' not in semodule_list.stdout"
