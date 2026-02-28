@@ -1,45 +1,5 @@
 #!/bin/bash
-
-# Export environment variables
-export POSTGRES_USER=${POSTGRES_USER:-postgres}
-export POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-export POSTGRES_DB=${POSTGRES_DB:-postgres}
-
-echo "[INFO] Starting PostgreSQL in background..."
-docker-entrypoint.sh postgres &
-
-echo "[INFO] Waiting for PostgreSQL to become available..."
-until pg_isready -U "$POSTGRES_USER"; do
-  sleep 2
-done
-
-echo "[INFO] PostgreSQL is ready. Executing custom SQL..."
-
-# Create Paperless database
-db_exists=$(psql -U "$POSTGRES_USER" -d postgres -tAc "
-  SELECT 1 FROM pg_database WHERE datname = '{{ paperless_database_name }}';
-")
-
-if [ "$db_exists" != "1" ]; then
-  echo "[INFO] Creating database: {{ paperless_database_name }}"
-  psql -U "$POSTGRES_USER" -d postgres -c "CREATE DATABASE {{ paperless_database_name }}"
-else
-  echo "[INFO] Database {{ paperless_database_name }} already exists."
-fi
-
-# Create Nextcloud database
-db_exists=$(psql -U "$POSTGRES_USER" -d postgres -tAc "
-  SELECT 1 FROM pg_database WHERE datname = '{{ nextcloud_database_name }}';
-")
-
-if [ "$db_exists" != "1" ]; then
-  echo "[INFO] Creating database: {{ nextcloud_database_name }}"
-  psql -U "$POSTGRES_USER" -d postgres -c "CREATE DATABASE {{ nextcloud_database_name }}"
-else
-  echo "[INFO] Database {{ nextcloud_database_name }} already exists."
-fi
-
-echo "[INFO] Custom SQL execution finished."
-
-# Wait for PostgreSQL background process to complete
-wait
+set -e
+# POSTGRES_DB ({{ nextcloud_database_name }}) is created automatically by the POSTGRES_DB env var.
+# Create the Paperless NGX database.
+psql -U "$POSTGRES_USER" -c "CREATE DATABASE {{ paperless_database_name }};"
