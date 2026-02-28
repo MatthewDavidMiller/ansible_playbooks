@@ -22,8 +22,49 @@ For VM provisioning details see [proxmox-setup.md](proxmox-setup.md).
 | Navidrome music | Local bind-mount of Nextcloud data dir — source is Nextcloud user files (backed up by Borg above) | n/a |
 | SWAG/TLS certificates | Regeneratable via DNS-01 challenge | n/a |
 | Redis | Cache only — acceptable loss | n/a |
+| Proxmox node config | Script on Proxmox host → rclone daily | `Nextcloud:<proxmox_backup_location>` |
 
 > Variable names above refer to host variables in your `inventory.yml`. See [inventory.md](../inventory.md#vm1-host-vm1-id-120).
+
+---
+
+## Proxmox Node Configuration
+
+`/etc/pve/` holds all Proxmox node configuration: VM definitions, storage config, users, and datacenter settings. `scripts/backup_proxmox_config.sh` archives this directory and uploads it to Nextcloud daily via rclone. The script runs directly on the Proxmox host (not via Ansible).
+
+### Restore procedure
+
+**1. Download the latest archive from Nextcloud:**
+```bash
+rclone copy Nextcloud:<proxmox_backup_location>/proxmox_config_<DATE>.tar.gz /restore_staging/
+```
+
+Alternatively, download from the Nextcloud web UI.
+
+**2. Extract to a staging directory:**
+```bash
+mkdir -p /restore_staging/pve
+tar -xzf /restore_staging/proxmox_config_<DATE>.tar.gz -C /restore_staging/pve --strip-components 1
+```
+
+**3. Restore key configuration files:**
+
+> Do not bulk-overwrite `/etc/pve/` — Proxmox's clustered filesystem manages parts of this directory live. Restore individual files as needed:
+
+```bash
+# VM configurations
+cp /restore_staging/pve/qemu-server/*.conf /etc/pve/qemu-server/
+
+# Storage, users, datacenter settings
+cp /restore_staging/pve/storage.cfg /etc/pve/storage.cfg
+cp /restore_staging/pve/user.cfg    /etc/pve/user.cfg
+cp /restore_staging/pve/datacenter.cfg /etc/pve/datacenter.cfg
+```
+
+**4. Verify the node is healthy:**
+```bash
+pvesh get /nodes/<nodename>/status
+```
 
 ---
 

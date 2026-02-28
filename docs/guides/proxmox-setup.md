@@ -145,6 +145,33 @@ After bootstrapping, the VM is ready for Ansible management. See [getting-starte
 
 ---
 
+## Proxmox Config Backup
+
+`scripts/backup_proxmox_config.sh` backs up `/etc/pve/` to Nextcloud daily. Run this on the Proxmox host, not via Ansible.
+
+### Setup
+
+1. Install rclone on the Proxmox host and configure a `Nextcloud` remote:
+   ```bash
+   rclone config
+   ```
+
+2. Edit the script and set `RCLONE_DEST` to your Nextcloud backup path:
+   ```bash
+   RCLONE_DEST="Nextcloud:backups/proxmox"
+   ```
+
+3. Copy the script to the Proxmox host and add it to root's crontab:
+   ```bash
+   crontab -e
+   # Add:
+   0 2 * * * /root/backup_proxmox_config.sh
+   ```
+
+Logs are written to `/var/log/backup_proxmox_config.log` and automatically truncated at 10 MB. See [dr-restore.md — Proxmox Node Configuration](dr-restore.md#proxmox-node-configuration) for the restore procedure.
+
+---
+
 ## Adding a New VM
 
 To add a new VM to the setup script, follow the pattern in `scripts/proxmox_initial_setup.py`:
