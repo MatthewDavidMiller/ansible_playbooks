@@ -7,7 +7,7 @@
 
 - name: Create postgres database container path
   ansible.builtin.file:
-    path: "{{ postgres_path }}"
+    path: "{{ semaphore_postgres_path }}"
     state: directory
     owner: root
     group: root
