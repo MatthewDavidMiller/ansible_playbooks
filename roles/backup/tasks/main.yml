@@ -7,6 +7,12 @@
     state: present
   when: ansible_facts['distribution'] == 'Debian'
 
+- name: Install Borg Backup
+  ansible.builtin.dnf:
+    name: borgbackup
+    state: present
+  when: ansible_facts['distribution'] == 'Rocky'
+
 - name: Install sshfs
   ansible.builtin.apt:
     name: sshfs
@@ -24,6 +30,7 @@
     path: "{{ ssh_mount_path }}"
     state: directory
     mode: "0740"
+  when: not (backup_local | default(false))
 
 - name: Mount Disk for backups
   ansible.posix.mount:
@@ -37,17 +44,16 @@
   ansible.builtin.template:
     src: init_backup_repo.sh.j2
     dest: "/usr/local/bin/init_backup_repo.sh"
-  when: ansible_facts['distribution'] == 'Debian'
+    mode: "0750"
 
 - name: Backup Script
   ansible.builtin.template:
     src: backup_files.sh.j2
     dest: "/usr/local/bin/backup_files.sh"
-  when: ansible_facts['distribution'] == 'Debian'
+    mode: "0750"
 
 - name: Backup Daily
   ansible.builtin.cron:
     name: "Borg Backup"
     special_time: daily
     job: /usr/bin/bash /usr/local/bin/backup_files.sh
-  when: ansible_facts['distribution'] == 'Debian'

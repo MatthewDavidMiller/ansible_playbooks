@@ -55,3 +55,19 @@
     group: root
     mode: "0770"
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
+
+- name: Backup Semaphore DB Script
+  ansible.builtin.template:
+    src: backup_semaphore.sh.j2
+    dest: "/usr/local/bin/backup_semaphore.sh"
+    owner: root
+    group: root
+    mode: "0644"
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
+
+- name: Backup Semaphore Daily
+  ansible.builtin.cron:
+    name: "Backup Semaphore"
+    special_time: daily
+    job: /usr/bin/bash /usr/local/bin/backup_semaphore.sh
+  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
