@@ -193,6 +193,7 @@ This host runs all services consolidated. It uses `swag_networks` (list) instead
 | `semaphore_admin_password` | string | Semaphore admin password | `secret` |
 | `semaphore_encryption_key` | string | 32-character Semaphore encryption key | `abc123...` |
 | `navidrome_path` | path | Navidrome data directory | `/opt/navidrome` |
+| `navidrome_local_music_path` | path | **Optional.** When set, navidrome bind-mounts this path directly as `/music:ro,z`, bypassing the rclone FUSE mount. Use the Nextcloud on-disk path for the user's Music folder. | `/opt/nextcloud/data/admin/files/Music` |
 | `nextcloud_borg_backup_path` | path | Local path for Borg backup repository (Nextcloud + Paperless) | `/opt/borg/nextcloud` |
 | `nextcloud_paperless_backup_location` | path | rclone remote path for Borg repo sync | `Nextcloud:backup/nextcloud` |
 | `vaultwarden_path` | path | Vaultwarden data directory | `/opt/vaultwarden` |

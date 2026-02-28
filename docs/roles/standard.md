@@ -142,7 +142,7 @@ Ensures SELinux is enforcing (policy: targeted) on Rocky Linux 10 and sets two b
 **Notable tasks:**
 
 - Installs `policycoreutils-python-utils` and `setroubleshoot-server` (provides `semanage`, `audit2allow`, `sealert`)
-- Sets `virt_use_fusefs=on` (persistent) — required for Navidrome's rclone FUSE mount; FUSE mounts cannot use `:Z` volume labels
+- Sets `virt_use_fusefs=on` (persistent) — required for Navidrome's rclone FUSE mount on hosts where `navidrome_local_music_path` is not set; FUSE mounts cannot use `:Z` volume labels. On VM1, where `navidrome_local_music_path` is set and no FUSE mount is used, this boolean is still set (harmless).
 - Sets `container_manage_cgroup=on` (persistent) — required for Podman containers managed by systemd
 
 **Notes:**

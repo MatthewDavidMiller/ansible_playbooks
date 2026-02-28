@@ -243,6 +243,8 @@ all:
           # Navidrome
           navidrome_path: /path/to/navidrome
           navidrome_backup_location: Nextcloud:navidrome_backup
+          # Local music path: bind-mount Nextcloud's on-disk Music folder directly (bypasses rclone FUSE)
+          navidrome_local_music_path: /path/to/nextcloud/data/<username>/files/Music
 
           # Vaultwarden
           vaultwarden_path: /path/to/vaultwarden

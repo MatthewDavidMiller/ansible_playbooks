@@ -16,10 +16,10 @@ For VM provisioning details see [proxmox-setup.md](proxmox-setup.md).
 | Nextcloud + Paperless DBs | Borg archive → rclone daily | `Nextcloud:<nextcloud_paperless_backup_location>` |
 | Paperless document exports | Included in Borg archive above | same |
 | Nextcloud user files | Borg archive on second NVMe disk (backup role, daily) | `{{ borg_backup_path }}` on VM1 |
-| Vaultwarden SQLite DB | rclone daily | `Nextcloud:<vaultwarden_backup_location>` |
-| Navidrome DB | rclone daily | `Nextcloud:<navidrome_backup_location>` |
-| Semaphore PostgreSQL 17 DB | rclone daily | `Nextcloud:<semaphore_backup_location>` |
-| Navidrome music | External rclone FUSE mount — source unchanged | n/a |
+| Vaultwarden SQLite DB | Direct cp to Nextcloud data dir (`backup_local: true`) | `{{ nextcloud_path }}/data/{{ nextcloud_admin_user }}/files/<vaultwarden_backup_location>` |
+| Navidrome DB | Direct cp to Nextcloud data dir (`backup_local: true`) | `{{ nextcloud_path }}/data/{{ nextcloud_admin_user }}/files/<navidrome_backup_location>` |
+| Semaphore PostgreSQL 17 DB | Direct cp to Nextcloud data dir (`backup_local: true`) | `{{ nextcloud_path }}/data/{{ nextcloud_admin_user }}/files/<semaphore_backup_location>` |
+| Navidrome music | Local bind-mount of Nextcloud data dir — source is Nextcloud user files (backed up by Borg above) | n/a |
 | SWAG/TLS certificates | Regeneratable via DNS-01 challenge | n/a |
 | Redis | Cache only — acceptable loss | n/a |
 
@@ -147,37 +147,34 @@ podman exec nextcloud php occ files:scan --all
 
 ### Step 3: Restore Navidrome
 
-Navidrome's music library is mounted via rclone from Nextcloud WebDAV — it will be available automatically once the rclone mount service starts. Only the database needs to be restored.
+On VM1, Navidrome's music library is a local bind-mount of `<nextcloud_path>/data/<nextcloud_admin_user>/files/Music` — it will be available automatically once Nextcloud user files are restored (Step 2g). Only the database needs to be restored.
 
-**3a. Download backup from Nextcloud:**
+**3a. Copy backup from the Nextcloud data directory:**
 ```bash
-rclone copy Nextcloud:<navidrome_backup_location>/ /restore_staging/navidrome/
+cp <nextcloud_path>/data/<nextcloud_admin_user>/files/<navidrome_backup_location>/<latest>.db /restore_staging/
 ```
 
-**3b. Identify the latest `.db` file and copy it into place:**
+**3b. Stop Navidrome, restore the database, restart:**
 ```bash
-ls /restore_staging/navidrome/
-cp /restore_staging/navidrome/<latest>.db <navidrome_path>/data/navidrome.db
-```
-
-**3c. Restart Navidrome:**
-```bash
-systemctl restart navidrome_container
+systemctl stop navidrome_container
+cp /restore_staging/<latest>.db <navidrome_path>/data/navidrome.db
+systemctl start navidrome_container
 ```
 
 ---
 
 ### Step 4: Restore Vaultwarden
 
-**4a. Download backup from Nextcloud:**
+**4a. Locate the backup in the Nextcloud data directory:**
 ```bash
-rclone copy Nextcloud:<vaultwarden_backup_location>/ /restore_staging/vaultwarden/
+ls <nextcloud_path>/data/<nextcloud_admin_user>/files/<vaultwarden_backup_location>/
 ```
 
 **4b. Stop Vaultwarden, restore the database, restart:**
 ```bash
 systemctl stop vaultwarden
-cp /restore_staging/vaultwarden/vaultwarden_db-<DATE>.sqlite3 <vaultwarden_path>/vw-data/db.sqlite3
+cp <nextcloud_path>/data/<nextcloud_admin_user>/files/<vaultwarden_backup_location>/vaultwarden_db-<DATE>.sqlite3 \
+    <vaultwarden_path>/vw-data/db.sqlite3
 chown 1000:1000 <vaultwarden_path>/vw-data/db.sqlite3
 systemctl start vaultwarden
 ```
@@ -186,16 +183,17 @@ systemctl start vaultwarden
 
 ### Step 5: Restore Semaphore
 
-**5a. Download backup from Nextcloud:**
+**5a. Locate the SQL dump in the Nextcloud data directory:**
 ```bash
-rclone copy Nextcloud:<semaphore_backup_location>/ /restore_staging/semaphore/
+ls <nextcloud_path>/data/<nextcloud_admin_user>/files/<semaphore_backup_location>/
 ```
 
 **5b. Restore the PostgreSQL 17 database:**
 ```bash
 podman exec -i semaphore_postgres psql -U <semaphore_database_user> -d postgres -c "DROP DATABASE IF EXISTS <semaphore_database_name>;"
 podman exec -i semaphore_postgres psql -U <semaphore_database_user> -d postgres -c "CREATE DATABASE <semaphore_database_name>;"
-podman exec -i semaphore_postgres psql -U <semaphore_database_user> <semaphore_database_name> < /restore_staging/semaphore/semaphore_db_<DATE>.sql
+podman exec -i semaphore_postgres psql -U <semaphore_database_user> <semaphore_database_name> \
+    < <nextcloud_path>/data/<nextcloud_admin_user>/files/<semaphore_backup_location>/semaphore_db_<DATE>.sql
 ```
 
 **5c. Restart Semaphore:**
@@ -227,7 +225,7 @@ Confirm each service is functional:
 
 - [ ] Nextcloud loads and user files are visible
 - [ ] Paperless documents are present and searchable
-- [ ] Navidrome music library is visible (rclone mount may take a minute)
+- [ ] Navidrome music library is visible (populated from Nextcloud user files restored in Step 2g)
 - [ ] Vaultwarden vault unlocks with existing credentials
 - [ ] Semaphore projects and inventories are present
 - [ ] SWAG issued a valid TLS certificate (check browser padlock)
