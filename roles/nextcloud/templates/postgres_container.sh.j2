@@ -2,7 +2,7 @@
 /usr/bin/podman run \
 --name=postgres \
 --network=nextcloud_container_net \
---volume {{ postgres_path }}:/var/lib/postgresql/data/:Z \
+--volume {{ postgres_path }}/pgdata:/var/lib/postgresql/data/:Z \
 --volume {{ postgres_path }}/custom-init:/custom-init/:Z \
 --env POSTGRES_USER={{ nextcloud_database_user }} \
 --env POSTGRES_PASSWORD={{ nextcloud_database_user_password }} \
