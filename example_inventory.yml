@@ -184,8 +184,8 @@ all:
           proxy_config:
             - name: nextcloud_proxy
               proxy_fqdn: "nextcloud.example.com"
-              proxy_upstream_port: "443"
-              proxy_upstream_protocol: "https"
+              proxy_upstream_port: "80"
+              proxy_upstream_protocol: "http"
               container_destination: "nextcloud.dns.podman"
             - name: paperless_ngx_proxy
               proxy_fqdn: "paperless.example.com"
