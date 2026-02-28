@@ -16,9 +16,9 @@ For VM provisioning details see [proxmox-setup.md](proxmox-setup.md).
 | Nextcloud + Paperless DBs | Borg archive → rclone daily | `Nextcloud:<nextcloud_paperless_backup_location>` |
 | Paperless document exports | Included in Borg archive above | same |
 | Nextcloud user files | Borg archive on second NVMe disk (backup role, daily) | `{{ borg_backup_path }}` on VM1 |
-| Vaultwarden SQLite DB | Direct cp to Nextcloud data dir (`backup_local: true`) | `{{ nextcloud_path }}/data/{{ nextcloud_admin_user }}/files/<vaultwarden_backup_location>` |
-| Navidrome DB | Direct cp to Nextcloud data dir (`backup_local: true`) | `{{ nextcloud_path }}/data/{{ nextcloud_admin_user }}/files/<navidrome_backup_location>` |
-| Semaphore PostgreSQL 17 DB | Direct cp to Nextcloud data dir (`backup_local: true`) | `{{ nextcloud_path }}/data/{{ nextcloud_admin_user }}/files/<semaphore_backup_location>` |
+| Vaultwarden SQLite DB | Direct cp to Nextcloud data dir (`backup_local: true`) | `{{ nextcloud_path }}/data/{{ nextcloud_database_user }}/files/<vaultwarden_backup_location>` |
+| Navidrome DB | Direct cp to Nextcloud data dir (`backup_local: true`) | `{{ nextcloud_path }}/data/{{ nextcloud_database_user }}/files/<navidrome_backup_location>` |
+| Semaphore PostgreSQL 17 DB | Direct cp to Nextcloud data dir (`backup_local: true`) | `{{ nextcloud_path }}/data/{{ nextcloud_database_user }}/files/<semaphore_backup_location>` |
 | Navidrome music | Local bind-mount of Nextcloud data dir — source is Nextcloud user files (backed up by Borg above) | n/a |
 | SWAG/TLS certificates | Regeneratable via DNS-01 challenge | n/a |
 | Redis | Cache only — acceptable loss | n/a |
@@ -163,9 +163,9 @@ podman exec -i postgres psql -h localhost -U <nextcloud_database_user> <nextclou
 
 **3d. Restore Paperless database:**
 ```bash
-podman exec -i postgres psql -h localhost -U <paperless_database_user> -d postgres -c "DROP DATABASE IF EXISTS <paperless_database_name>;"
-podman exec -i postgres psql -h localhost -U <paperless_database_user> -d postgres -c "CREATE DATABASE <paperless_database_name>;"
-podman exec -i postgres psql -h localhost -U <paperless_database_user> <paperless_database_name> < /restore_staging/paperless_db_<DATE>.sql
+podman exec -i postgres psql -h localhost -U <nextcloud_database_user> -d postgres -c "DROP DATABASE IF EXISTS <paperless_database_name>;"
+podman exec -i postgres psql -h localhost -U <nextcloud_database_user> -d postgres -c "CREATE DATABASE <paperless_database_name>;"
+podman exec -i postgres psql -h localhost -U <nextcloud_database_user> <paperless_database_name> < /restore_staging/paperless_db_<DATE>.sql
 ```
 
 **3e. Import Paperless documents:**
@@ -176,7 +176,7 @@ podman exec paperless document_importer /usr/src/paperless/export/<DATE>
 
 ### Step 4: Restore Navidrome, Vaultwarden, Semaphore
 
-These backup files are stored inside `nextcloud_path/data/<nextcloud_admin_user>/files/` and are already available on the mounted disk. Follow Steps 3–5 from Part 1 below.
+These backup files are stored inside `nextcloud_path/data/<nextcloud_database_user>/files/` and are already available on the mounted disk. Follow Steps 3–5 from Part 1 below.
 
 ### Step 5: Rescan Nextcloud file index
 
@@ -285,9 +285,9 @@ podman exec -i postgres psql -h localhost -U <nextcloud_database_user> <nextclou
 
 **2e. Restore Paperless database:**
 ```bash
-podman exec -i postgres psql -h localhost -U <paperless_database_user> -d postgres -c "DROP DATABASE IF EXISTS <paperless_database_name>;"
-podman exec -i postgres psql -h localhost -U <paperless_database_user> -d postgres -c "CREATE DATABASE <paperless_database_name>;"
-podman exec -i postgres psql -h localhost -U <paperless_database_user> <paperless_database_name> < /restore_staging/paperless_db_<DATE>.sql
+podman exec -i postgres psql -h localhost -U <nextcloud_database_user> -d postgres -c "DROP DATABASE IF EXISTS <paperless_database_name>;"
+podman exec -i postgres psql -h localhost -U <nextcloud_database_user> -d postgres -c "CREATE DATABASE <paperless_database_name>;"
+podman exec -i postgres psql -h localhost -U <nextcloud_database_user> <paperless_database_name> < /restore_staging/paperless_db_<DATE>.sql
 ```
 
 **2f. Import Paperless documents:**
@@ -324,11 +324,11 @@ podman exec nextcloud php occ files:scan --all
 
 ### Step 3: Restore Navidrome
 
-On VM1, Navidrome's music library is a local bind-mount of `<nextcloud_path>/data/<nextcloud_admin_user>/files/Music` — it will be available automatically once Nextcloud user files are restored (Step 2g). Only the database needs to be restored.
+On VM1, Navidrome's music library is a local bind-mount of `<nextcloud_path>/data/<nextcloud_database_user>/files/Music` — it will be available automatically once Nextcloud user files are restored (Step 2g). Only the database needs to be restored.
 
 **3a. Copy backup from the Nextcloud data directory:**
 ```bash
-cp <nextcloud_path>/data/<nextcloud_admin_user>/files/<navidrome_backup_location>/<latest>.db /restore_staging/
+cp <nextcloud_path>/data/<nextcloud_database_user>/files/<navidrome_backup_location>/<latest>.db /restore_staging/
 ```
 
 **3b. Stop Navidrome, restore the database, restart:**
@@ -344,13 +344,13 @@ systemctl start navidrome_container
 
 **4a. Locate the backup in the Nextcloud data directory:**
 ```bash
-ls <nextcloud_path>/data/<nextcloud_admin_user>/files/<vaultwarden_backup_location>/
+ls <nextcloud_path>/data/<nextcloud_database_user>/files/<vaultwarden_backup_location>/
 ```
 
 **4b. Stop Vaultwarden, restore the database, restart:**
 ```bash
 systemctl stop vaultwarden
-cp <nextcloud_path>/data/<nextcloud_admin_user>/files/<vaultwarden_backup_location>/vaultwarden_db-<DATE>.sqlite3 \
+cp <nextcloud_path>/data/<nextcloud_database_user>/files/<vaultwarden_backup_location>/vaultwarden_db-<DATE>.sqlite3 \
     <vaultwarden_path>/vw-data/db.sqlite3
 chown 1000:1000 <vaultwarden_path>/vw-data/db.sqlite3
 systemctl start vaultwarden
@@ -362,7 +362,7 @@ systemctl start vaultwarden
 
 **5a. Locate the SQL dump in the Nextcloud data directory:**
 ```bash
-ls <nextcloud_path>/data/<nextcloud_admin_user>/files/<semaphore_backup_location>/
+ls <nextcloud_path>/data/<nextcloud_database_user>/files/<semaphore_backup_location>/
 ```
 
 **5b. Restore the PostgreSQL 17 database:**
@@ -370,7 +370,7 @@ ls <nextcloud_path>/data/<nextcloud_admin_user>/files/<semaphore_backup_location
 podman exec -i semaphore_postgres psql -h localhost -U <semaphore_database_user> -d postgres -c "DROP DATABASE IF EXISTS <semaphore_database_name>;"
 podman exec -i semaphore_postgres psql -h localhost -U <semaphore_database_user> -d postgres -c "CREATE DATABASE <semaphore_database_name>;"
 podman exec -i semaphore_postgres psql -h localhost -U <semaphore_database_user> <semaphore_database_name> \
-    < <nextcloud_path>/data/<nextcloud_admin_user>/files/<semaphore_backup_location>/semaphore_db_<DATE>.sql
+    < <nextcloud_path>/data/<nextcloud_database_user>/files/<semaphore_backup_location>/semaphore_db_<DATE>.sql
 ```
 
 **5c. Restart Semaphore:**
