@@ -81,21 +81,29 @@ VM1 requires a second disk for the Borg backup repository. Add it in Proxmox bef
 
 When migrating data from an old VM to VM1 (e.g., moving the Nextcloud data disk from VM 113), use the following procedure. The disk's filesystem UUID is preserved through the move, so your inventory variables (`nextcloud_disk`, `backup_disk`) remain valid without changes.
 
-**In the Proxmox web UI:**
+**In the Proxmox web UI (detach only):**
 1. Shut down the source VM (e.g., VM 113)
 2. VM 113 → Hardware → select the data disk → Detach
-   - The disk moves to "Unused Disks" in the storage pool
-3. VM 120 (VM1) → Hardware → Add → Hard Disk → select the same storage pool, then pick the unused disk
+   - The disk now shows as "Unused Disk 0" in VM 113's Hardware tab
+   - Note the storage pool and disk image ID shown there (e.g., `vm-storage:vm-113-disk-1`) — you'll need it for the CLI step below
+
+> **Proxmox 8.4 note:** The "Add Hard Disk" dialog only creates new disks. Attaching an existing unused disk to a different VM requires the CLI commands below.
 
 **Via CLI (Proxmox shell):**
 ```bash
-# Identify the disk device to detach
+# Identify the disk device to detach (note the scsi/virtio label and storage:disk-id value)
 qm config 113
 
 # Detach from source VM (replace scsi1 with the correct device label)
 qm set 113 --delete scsi1
 
-# Attach to VM1 as the next available SCSI slot (check qm config 120 first)
+# Confirm the disk image ID (shown as "Unused Disk 0" in VM 113's Hardware tab after detach)
+# It looks like: <storage-pool>:vm-113-disk-1
+
+# Check which SCSI slots are already used on VM1
+qm config 120 | grep scsi
+
+# Attach to VM1 as the next available SCSI slot
 qm set 120 --scsi1 <storage-pool>:<disk-image-id>
 
 # Verify before starting VM1
