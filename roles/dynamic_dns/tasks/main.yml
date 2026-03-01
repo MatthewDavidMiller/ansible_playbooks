@@ -1,0 +1,18 @@
+---
+- name: Install python3-requests
+  ansible.builtin.dnf:
+    name: python3-requests
+    state: present
+  when: ansible_facts['distribution'] == 'Rocky'
+
+- name: Dynamic DNS script
+  ansible.builtin.template:
+    src: dynamic_dns.py.j2
+    dest: /usr/local/bin/dynamic_dns.py
+    mode: '0700'
+
+- name: Dynamic DNS cron job
+  ansible.builtin.cron:
+    name: "Dynamic DNS update"
+    minute: "*/5"
+    job: /usr/bin/python3 /usr/local/bin/dynamic_dns.py
