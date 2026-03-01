@@ -1,5 +1,6 @@
 ---
 - hosts: vm1
+  connection: local
   roles:
     - standard_ssh
     - standard_qemu_guest_agent

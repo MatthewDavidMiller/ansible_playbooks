@@ -6,7 +6,6 @@
     cmd: |
       podman network create --subnet 172.16.1.8/29 nextcloud_container_net
   ignore_errors: true
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Create postgres database container path
   ansible.builtin.file:
@@ -15,7 +14,6 @@
     owner: root
     group: root
     mode: "0777"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Create postgres database custom-init path
   ansible.builtin.file:
@@ -24,7 +22,6 @@
     owner: root
     group: root
     mode: "0777"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Create postgres data directory
   ansible.builtin.file:
@@ -33,7 +30,6 @@
     owner: root
     group: root
     mode: "0777"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Create Nextcloud container path
   ansible.builtin.file:
@@ -42,7 +38,6 @@
     owner: "33"
     group: "33"
     mode: "0770"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Mount Disk for backups
   ansible.posix.mount:
@@ -51,7 +46,6 @@
     fstype: ext4
     opts: rw,auto
     state: mounted
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Create Nextcloud base container path
   ansible.builtin.file:
@@ -60,7 +54,6 @@
     owner: "33"
     group: "33"
     mode: "0770"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Create Nextcloud data container path
   ansible.builtin.file:
@@ -69,7 +62,6 @@
     owner: "33"
     group: "33"
     mode: "0770"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Create Nextcloud config container path
   ansible.builtin.file:
@@ -78,7 +70,6 @@
     owner: "33"
     group: "33"
     mode: "0770"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Create Nextcloud apps container path
   ansible.builtin.file:
@@ -87,43 +78,36 @@
     owner: "33"
     group: "33"
     mode: "0770"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Redis Service
   ansible.builtin.template:
     src: redis_container.service.j2
     dest: "/etc/systemd/system/redis_container.service"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Enable Redis
   ansible.builtin.systemd:
     name: redis_container.service
     enabled: yes
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: postgres Service
   ansible.builtin.template:
     src: postgres_container.service.j2
     dest: "/etc/systemd/system/postgres_container.service"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Enable postgres
   ansible.builtin.systemd:
     name: postgres_container.service
     enabled: yes
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Nextcloud Service
   ansible.builtin.template:
     src: nextcloud_container.service.j2
     dest: "/etc/systemd/system/nextcloud_container.service"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Enable Nextcloud
   ansible.builtin.systemd:
     name: nextcloud_container.service
     enabled: yes
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Redis script
   ansible.builtin.template:
@@ -132,7 +116,6 @@
     owner: "{{ user_name }}"
     group: root
     mode: "0770"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Nextcloud script
   ansible.builtin.template:
@@ -141,7 +124,6 @@
     owner: "{{ user_name }}"
     group: root
     mode: "0770"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Postgres script
   ansible.builtin.template:
@@ -150,7 +132,6 @@
     owner: "{{ user_name }}"
     group: root
     mode: "0770"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Postgres db_wrapper script
   ansible.builtin.template:
@@ -159,7 +140,6 @@
     owner: "{{ user_name }}"
     group: root
     mode: "0770"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Backup Nextcloud and Paperless NGX script
   ansible.builtin.template:
@@ -168,24 +148,14 @@
     owner: "{{ user_name }}"
     group: root
     mode: "0770"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Backup Nextcloud and Paperless NGX daily
   ansible.builtin.cron:
     name: "Backup Nextcloud and Paperless NGX daily"
     special_time: daily
     job: /usr/bin/bash /usr/local/bin/backup_nextcloud_paperless.sh
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
-
-- name: Install borg backup
-  community.general.pacman:
-    name:
-      - borg
-    state: present
-  when: ansible_facts['distribution'] == 'Archlinux'
 
 - name: Install borg backup
   ansible.builtin.dnf:
     name: borgbackup
     state: present
-  when: ansible_facts['distribution'] == 'Rocky'

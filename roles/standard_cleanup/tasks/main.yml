@@ -1,106 +1,37 @@
 ---
-# Refresh the pacman database to ensure up-to-date information for cleanup tasks
-- name: Refresh pacman package database
-  community.general.pacman:
-    update_cache: yes
-  become: true
-  when: ansible_distribution == 'Archlinux'
-
-# Clean the pacman cache to remove uninstalled package files
-- name: Clean pacman package cache (remove uninstalled packages)
-  ansible.builtin.command: pacman -Sc --noconfirm
-  become: true
-  when: ansible_distribution == 'Archlinux'
-
-# Safely remove old log files using Ansible's find module for better control
-- name: Remove log files older than 30 days
-  ansible.builtin.command: find /var/log -name "*.log" -type f -mtime +30 -delete
-  become: true
-  when: ansible_distribution == 'Archlinux'
-
-# Remove orphaned packages non-interactively to avoid prompts
-- name: Remove orphaned packages
-  ansible.builtin.shell: pacman -Qdtq | pacman -Rns --noconfirm -
-  become: true
-  when: ansible_distribution == 'Archlinux'
-  ignore_errors: yes  # In case there are no orphans
-
-# Vacuum systemd journal to keep only recent logs
-- name: Vacuum systemd journal logs (keep last 2 weeks)
-  ansible.builtin.command: journalctl --vacuum-time=2weeks
-  become: true
-  when: ansible_distribution == 'Archlinux'
-
-# Prune unused Podman images
-- name: Prune unused Podman images
-  ansible.builtin.command: podman image prune -f
-  become: true
-  when: ansible_distribution == 'Archlinux'
-  ignore_errors: yes  # In case Podman is not installed
-
-# Prune stopped Podman containers
-- name: Prune stopped Podman containers
-  ansible.builtin.command: podman container prune -f
-  become: true
-  when: ansible_distribution == 'Archlinux'
-  ignore_errors: yes  # In case Podman is not installed
-
-# Prune unused Podman volumes
-- name: Prune unused Podman volumes
-  ansible.builtin.command: podman volume prune -f
-  become: true
-  when: ansible_distribution == 'Archlinux'
-  ignore_errors: yes  # In case Podman is not installed
-
-# Prune unused Podman networks
-- name: Prune unused Podman networks
-  ansible.builtin.command: podman network prune -f
-  become: true
-  when: ansible_distribution == 'Archlinux'
-  ignore_errors: yes  # In case Podman is not installed
-
-# Rocky Linux cleanup tasks
 - name: Clean dnf package cache
   ansible.builtin.command: dnf clean all
   become: true
-  when: ansible_distribution == 'Rocky'
 
 - name: Remove orphaned packages
   ansible.builtin.dnf:
     autoremove: yes
   become: true
-  when: ansible_distribution == 'Rocky'
 
 - name: Remove log files older than 30 days
   ansible.builtin.command: find /var/log -name "*.log" -type f -mtime +30 -delete
   become: true
-  when: ansible_distribution == 'Rocky'
 
 - name: Vacuum systemd journal logs (keep last 2 weeks)
   ansible.builtin.command: journalctl --vacuum-time=2weeks
   become: true
-  when: ansible_distribution == 'Rocky'
 
 - name: Prune unused Podman images
   ansible.builtin.command: podman image prune -f
   become: true
-  when: ansible_distribution == 'Rocky'
   ignore_errors: yes
 
 - name: Prune stopped Podman containers
   ansible.builtin.command: podman container prune -f
   become: true
-  when: ansible_distribution == 'Rocky'
   ignore_errors: yes
 
 - name: Prune unused Podman volumes
   ansible.builtin.command: podman volume prune -f
   become: true
-  when: ansible_distribution == 'Rocky'
   ignore_errors: yes
 
 - name: Prune unused Podman networks
   ansible.builtin.command: podman network prune -f
   become: true
-  when: ansible_distribution == 'Rocky'
   ignore_errors: yes

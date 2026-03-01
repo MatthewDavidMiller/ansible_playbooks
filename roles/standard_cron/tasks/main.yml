@@ -1,39 +1,13 @@
 ---
 - name: Install cron
-  ansible.builtin.apt:
-    name: cron
-    state: present
-  when: ansible_facts['distribution'] == 'Debian'
-
-- name: Install cron
-  community.general.pacman:
-    name: cron
-    state: present
-  when: ansible_facts['distribution'] == 'Archlinux'
-
-- name: Enable cron
-  ansible.builtin.systemd:
-    name: cron.service
-    enabled: yes
-  when: ansible_facts['distribution'] == 'Debian'
-
-- name: Enable cronie
-  ansible.builtin.systemd:
-    name: cronie.service
-    enabled: yes
-  when: ansible_facts['distribution'] == 'Archlinux'
-
-- name: Install cron
   ansible.builtin.dnf:
     name: cronie
     state: present
-  when: ansible_facts['distribution'] == 'Rocky'
 
 - name: Enable crond
   ansible.builtin.systemd:
     name: crond.service
     enabled: yes
-  when: ansible_facts['distribution'] == 'Rocky'
 
 - name: Update System Schedule
   ansible.builtin.cron:
@@ -44,4 +18,3 @@
     month: "{{ patching_month }}"
     job: /usr/bin/bash /usr/local/bin/update_system.sh
     state: absent
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'

@@ -1,29 +1,10 @@
 ---
-- name: Install ansible
-  ansible.builtin.apt:
-    name: ansible
-    state: present
-  when: ansible_facts['distribution'] == 'Debian'
-
-- name: Install ansible
-  community.general.pacman:
-    name: ansible
-    state: present
-  when: ansible_facts['distribution'] == 'Archlinux'
-
-- name: Install sshpass
-  community.general.pacman:
-    name: sshpass
-    state: present
-  when: ansible_facts['distribution'] == 'Archlinux'
-
 - name: Install ansible-core and sshpass
   ansible.builtin.dnf:
     name:
       - ansible-core
       - sshpass
     state: present
-  when: ansible_facts['distribution'] == 'Rocky'
 
 - name: Install required ansible collections
   ansible.builtin.dnf:
@@ -31,4 +12,3 @@
       - ansible-collection-ansible-posix
       - ansible-collection-community-general
     state: present
-  when: ansible_facts['distribution'] == 'Rocky'

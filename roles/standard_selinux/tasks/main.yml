@@ -5,33 +5,28 @@
       - policycoreutils-python-utils
       - setroubleshoot-server
     state: present
-  when: ansible_facts['distribution'] == 'Rocky'
 
 - name: Ensure SELinux is enforcing
   ansible.posix.selinux:
     policy: targeted
     state: enforcing
-  when: ansible_facts['distribution'] == 'Rocky'
 
 - name: Allow container FUSE filesystem access (rclone music mount for Navidrome)
   ansible.posix.seboolean:
     name: virt_use_fusefs
     state: yes
     persistent: yes
-  when: ansible_facts['distribution'] == 'Rocky'
 
 - name: Allow containers to manage cgroups (Podman + systemd)
   ansible.posix.seboolean:
     name: container_manage_cgroup
     state: yes
     persistent: yes
-  when: ansible_facts['distribution'] == 'Rocky'
 
 - name: Check installed SELinux modules
   ansible.builtin.command: semodule -l
   register: semodule_list
   changed_when: false
-  when: ansible_facts['distribution'] == 'Rocky'
 
 - name: Allow systemd to run Podman BPF programs (netavark network stack)
   ansible.builtin.shell: |
@@ -40,5 +35,4 @@
     semodule_package -o /tmp/podman_bpf.pp -m /tmp/podman_bpf.mod
     semodule -i /tmp/podman_bpf.pp
   when:
-    - ansible_facts['distribution'] == 'Rocky'
     - "'podman_bpf' not in semodule_list.stdout"

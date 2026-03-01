@@ -3,7 +3,6 @@
     cmd: |
       podman network create semaphore_container_net
   ignore_errors: true
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Create postgres database container path
   ansible.builtin.file:
@@ -12,31 +11,26 @@
     owner: root
     group: root
     mode: "0777"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Postgres service
   ansible.builtin.template:
     src: semaphore_postgres.service.j2
     dest: "/etc/systemd/system/semaphore_postgres.service"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Enable postgres
   ansible.builtin.systemd:
     name: semaphore_postgres.service
     enabled: yes
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Semaphore service
   ansible.builtin.template:
     src: semaphore.service.j2
     dest: "/etc/systemd/system/semaphore.service"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Enable semaphore
   ansible.builtin.systemd:
     name: semaphore.service
     enabled: yes
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Postgres script
   ansible.builtin.template:
@@ -45,7 +39,6 @@
     owner: "{{ user_name }}"
     group: root
     mode: "0770"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Semaphore script
   ansible.builtin.template:
@@ -54,7 +47,6 @@
     owner: "{{ user_name }}"
     group: root
     mode: "0770"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Backup Semaphore DB Script
   ansible.builtin.template:
@@ -63,11 +55,9 @@
     owner: root
     group: root
     mode: "0644"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Backup Semaphore Daily
   ansible.builtin.cron:
     name: "Backup Semaphore"
     special_time: daily
     job: /usr/bin/bash /usr/local/bin/backup_semaphore.sh
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'

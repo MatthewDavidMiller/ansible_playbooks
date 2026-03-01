@@ -1,34 +1,11 @@
 ---
-- name: Update all packages to their latest version
-  ansible.builtin.apt:
-    name: "*"
-    state: latest
-    update_cache: "yes"
-  when: ansible_facts['distribution'] == 'Debian'
-
-- name: Update keyring
-  community.general.pacman:
-    name: archlinux-keyring
-    update_cache: true
-    state: latest
-    update_cache_extra_args: --needed
-  when: ansible_facts['distribution'] == 'Archlinux'
-
-- name: Update all packages to their latest version
-  community.general.pacman:
-    update_cache: true
-    upgrade: true
-  when: ansible_facts['distribution'] == 'Archlinux'
-
 - name: Install EPEL repository
   ansible.builtin.dnf:
     name: epel-release
     state: present
-  when: ansible_facts['distribution'] == 'Rocky'
 
 - name: Update all packages to their latest version
   ansible.builtin.dnf:
     name: "*"
     state: latest
     update_cache: yes
-  when: ansible_facts['distribution'] == 'Rocky'

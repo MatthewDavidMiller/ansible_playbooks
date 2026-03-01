@@ -15,19 +15,16 @@
 
   loop_control:
     loop_var: item_path
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Paperless Service
   ansible.builtin.template:
     src: paperless_ngx.service.j2
     dest: "/etc/systemd/system/paperless_ngx.service"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Enable paperless
   ansible.builtin.systemd:
     name: paperless_ngx.service
     enabled: yes
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Paperless script
   ansible.builtin.template:
@@ -36,19 +33,6 @@
     owner: "{{ user_name }}"
     group: root
     mode: "0770"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
-
-- name: Install zip and jq packages
-  community.general.pacman:
-    name: "{{ package }}"
-    update_cache: true
-    state: latest
-  loop:
-    - zip
-    - jq
-  loop_control:
-    loop_var: package
-  when: ansible_facts['distribution'] == 'Archlinux'
 
 - name: Install zip and jq packages
   ansible.builtin.dnf:
@@ -56,4 +40,3 @@
       - zip
       - jq
     state: present
-  when: ansible_facts['distribution'] == 'Rocky'
