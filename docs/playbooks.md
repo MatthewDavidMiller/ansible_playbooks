@@ -28,7 +28,7 @@ For running playbook commands see [CLAUDE.md](../CLAUDE.md). This document descr
 
 **Target:** `vm1`
 
-**Roles (in order):** `standard_ssh` → `standard_qemu_guest_agent` → `standard_update_packages` → `configure_timezone` → `standard_cron` → `standard_firewalld` → `standard_podman` → `standard_rclone` → `standard_selinux` → `standard_cleanup` → `ansible` → `reverse_proxy` → `nextcloud` → `paperless_ngx` → `navidrome` → `vaultwarden` → `semaphore`
+**Roles (in order):** `standard_ssh` → `standard_qemu_guest_agent` → `standard_update_packages` → `configure_timezone` → `standard_cron` → `dynamic_dns` → `standard_firewalld` → `standard_podman` → `standard_rclone` → `standard_selinux` → `standard_cleanup` → `backup` → `ansible` → `reverse_proxy` → `nextcloud` → `paperless_ngx` → `navidrome` → `vaultwarden` → `semaphore`
 
 **Usage:** Configures VM1 (ID 120) — a single Rocky Linux 10 host running all services consolidated. See [architecture.md — VM1 Consolidated VM](architecture.md#vm1-consolidated-vm).
 
@@ -40,7 +40,7 @@ For running playbook commands see [CLAUDE.md](../CLAUDE.md). This document descr
 
 **Target:** `vpn`
 
-**Roles (in order):** `standard_ssh` → `standard_qemu_guest_agent` → `standard_update_packages` → `configure_timezone` → `standard_cron` → `standard_firewalld` → `standard_podman` → `standard_cleanup` → `vpn`
+**Roles (in order):** `standard_ssh` → `standard_qemu_guest_agent` → `standard_update_packages` → `configure_timezone` → `standard_cron` → `dynamic_dns` → `standard_firewalld` → `standard_podman` → `standard_cleanup` → `vpn`
 
 **Usage:** Configures the WireGuard VPN server (VM 110). No SWAG — VPN is accessed directly.
 
