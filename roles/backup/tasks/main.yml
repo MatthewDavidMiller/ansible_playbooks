@@ -2,22 +2,9 @@
 # https://borgbackup.readthedocs.io/en/stable/quickstart.html
 
 - name: Install Borg Backup
-  ansible.builtin.apt:
-    name: borgbackup
-    state: present
-  when: ansible_facts['distribution'] == 'Debian'
-
-- name: Install Borg Backup
   ansible.builtin.dnf:
     name: borgbackup
     state: present
-  when: ansible_facts['distribution'] == 'Rocky'
-
-- name: Install sshfs
-  ansible.builtin.apt:
-    name: sshfs
-    state: present
-  when: ansible_facts['distribution'] == 'Debian'
 
 - name: Create Borg Backup directory
   ansible.builtin.file:

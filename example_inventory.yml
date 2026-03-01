@@ -171,7 +171,8 @@ all:
           container_service_names: "service1"
 
         vm1:
-          ansible_host: vm1.example.com
+          ansible_host: localhost
+          ansible_connection: local
           # SWAG — list of all container networks to join (backward-compatible; single-service hosts use scalar swag_network instead)
           swag_networks:
             - nextcloud_container_net

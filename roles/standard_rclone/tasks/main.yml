@@ -1,31 +1,15 @@
 ---
 - name: Install rclone
-  ansible.builtin.apt:
-    name: rclone
-    state: present
-  when: ansible_facts['distribution'] == 'Debian'
-
-- name: Install rclone
-  community.general.pacman:
-    name:
-      - rclone
-      - fuse3
-    state: present
-  when: ansible_facts['distribution'] == 'Archlinux'
-
-- name: Install rclone
   ansible.builtin.dnf:
     name:
       - rclone
       - fuse3
     state: present
-  when: ansible_facts['distribution'] == 'Rocky'
 
 - name: Rclone config path
   ansible.builtin.file:
     path: "/root/.config/rclone"
     state: directory
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Rclone config file
   ansible.builtin.template:
@@ -34,4 +18,3 @@
     owner: root
     group: root
     mode: "0644"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'

@@ -8,11 +8,11 @@ DUMP_FILE="/tmp/semaphore_db_${timestamp}.sql"
   > "$DUMP_FILE"
 
 {% if backup_local | default(false) %}
-DEST="{{ nextcloud_path }}/data/{{ nextcloud_admin_user }}/files/{{ semaphore_backup_location | replace('Nextcloud:', '') }}"
+DEST="{{ nextcloud_path }}/data/{{ nextcloud_database_user }}/files/{{ semaphore_backup_location | replace('Nextcloud:', '') }}"
 /usr/bin/mkdir -p "$DEST"
 /usr/bin/cp "$DUMP_FILE" "$DEST/"
 /usr/bin/podman exec nextcloud php occ files:scan \
-    --path="{{ nextcloud_admin_user }}/files/{{ semaphore_backup_location | replace('Nextcloud:', '') }}" \
+    --path="{{ nextcloud_database_user }}/files/{{ semaphore_backup_location | replace('Nextcloud:', '') }}" \
     >> /var/log/semaphore_backup.log 2>&1 || true
 {% else %}
 /usr/bin/rclone copy "$DUMP_FILE" Nextcloud:{{ semaphore_backup_location }}

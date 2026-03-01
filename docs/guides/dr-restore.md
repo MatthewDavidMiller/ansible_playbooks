@@ -1,9 +1,8 @@
 # Disaster Recovery and Restore Guide
 
-This guide covers two scenarios:
+Use this procedure to rebuild VM1 from scratch after a failure. Backups are current as of the most recent daily cron run.
 
-- **Part 1 — Initial Migration:** One-time migration from separate service VMs (100, 113, 114, 115) to VM1 (ID 120)
-- **Part 2 — VM1 Disaster Recovery:** Rebuilding VM1 from backups after a failure
+> **If only the OS disk failed:** If the Nextcloud data disk (`nextcloud_disk`) and Borg backup disk (`backup_disk`) are intact, use the [Disk-Move Migration](#alternative-disk-move-migration) procedure instead of the full Borg restore below. Attach both disks to the new VM1, run `vm1.yml`, then restore only the PostgreSQL databases and Paperless documents from the local Borg archive. This avoids downloading the Borg archive from Nextcloud remote storage.
 
 For VM provisioning details see [proxmox-setup.md](proxmox-setup.md).
 
@@ -70,14 +69,13 @@ pvesh get /nodes/<nodename>/status
 
 ## Alternative: Disk-Move Migration
 
-If the Nextcloud data disk and Borg backup disk are **separate virtual disks** in Proxmox (not on the OS disk), you can detach them from the old VM and reattach to VM1 directly. This is faster than the full Borg restore in Part 1 because Nextcloud user files are already on the mounted disk — no extraction required.
+If the Nextcloud data disk and Borg backup disk are **separate virtual disks** in Proxmox (not on the OS disk), you can detach them from the old VM and reattach to VM1 directly. This is faster than the full Borg restore because Nextcloud user files are already on the mounted disk — no extraction required.
 
 The existing Ansible playbooks support this without changes: mounts are UUID-based and idempotent, directory creation is idempotent, and the Borg init script skips initialization if a repo already exists.
 
 ### When to use this
 
-- **Initial migration (Part 1 alternative):** The Nextcloud data disk lives on VM 113 (or wherever Nextcloud was previously hosted) as a separate virtual disk.
-- **Disaster recovery (Part 2 alternative):** VM1's OS disk failed but the Nextcloud data disk and/or Borg backup disk are intact — see the [Part 2 note below](#part-2-vm1-disaster-recovery-rebuild-from-backups) before starting a full restore.
+- **Disaster recovery:** VM1's OS disk failed but the Nextcloud data disk and/or Borg backup disk are intact.
 
 ### What each disk carries
 
@@ -115,7 +113,7 @@ restorecon -Rv <borg_backup_path>
 
 Detach the Nextcloud data disk from the old VM and attach it to VM1. See [proxmox-setup.md — Detaching and Moving an Existing Disk](proxmox-setup.md#detaching-and-moving-an-existing-disk) for the Proxmox UI and CLI procedure.
 
-If the Borg backup disk is also a separate virtual disk on the old backup VM (VM 106), repeat the process for that disk.
+If the Borg backup disk is also a separate virtual disk, repeat the process for that disk.
 
 The UUIDs are stored on the disks themselves and do not change through a move. No inventory updates are needed.
 
@@ -176,7 +174,7 @@ podman exec paperless document_importer /usr/src/paperless/export/<DATE>
 
 ### Step 4: Restore Navidrome, Vaultwarden, Semaphore
 
-These backup files are stored inside `nextcloud_path/data/<nextcloud_database_user>/files/` and are already available on the mounted disk. Follow Steps 3–5 from Part 1 below.
+These backup files are stored inside `nextcloud_path/data/<nextcloud_database_user>/files/` and are already available on the mounted disk. Follow [Steps 3–5](#step-3-restore-navidrome) of the main DR guide below.
 
 ### Step 5: Rescan Nextcloud file index
 
@@ -188,40 +186,11 @@ podman exec nextcloud php occ files:scan --all
 
 ### Step 6: DNS cutover and verification
 
-Follow Steps 6–7 from Part 1 below.
+Follow [Steps 6–7](#step-6-re-point-dns) of the main DR guide below.
 
 ---
 
-## Part 1: Initial Migration (Separate VMs → VM1)
-
-### Pre-Migration Checklist
-
-Before decommissioning any source VM:
-
-1. Confirm rclone remotes are configured and reachable on each source VM:
-   ```bash
-   rclone ls Nextcloud:
-   ```
-2. Run backup scripts manually on each source VM and confirm success:
-   ```bash
-   # On VM 113 (Nextcloud/Paperless)
-   bash /usr/local/bin/backup_nextcloud_paperless.sh
-
-   # On VM 114 (Navidrome)
-   bash /usr/local/bin/backup_navidrome.sh
-
-   # On VM 115 (Vaultwarden)
-   bash /usr/local/bin/backup_vaultwarden_db.sh
-
-   # On VM 100 (Semaphore)
-   bash /usr/local/bin/backup_semaphore.sh
-   ```
-3. Confirm backup files appear in Nextcloud (via web UI or `rclone ls Nextcloud:<backup_location>`).
-4. Note the IP address of each source VM — you may need SSH access during restore.
-
----
-
-### Step 1: Provision VM1
+## Step 1: Provision a new VM1
 
 1. Clone the Rocky Linux 10 template:
    ```bash
@@ -243,7 +212,7 @@ Before decommissioning any source VM:
 
 ---
 
-### Step 2: Restore Nextcloud + Paperless
+## Step 2: Restore Nextcloud + Paperless
 
 The Borg archive (`nextcloud_borg_backup_path`) contains PostgreSQL dumps for both Nextcloud and Paperless, plus Paperless document exports. Nextcloud user files (photos, documents) are in a separate Borg archive on the second NVMe disk (`borg_backup_path`) managed by the `backup` role.
 
@@ -322,7 +291,7 @@ podman exec nextcloud php occ files:scan --all
 
 ---
 
-### Step 3: Restore Navidrome
+## Step 3: Restore Navidrome
 
 On VM1, Navidrome's music library is a local bind-mount of `<nextcloud_path>/data/<nextcloud_database_user>/files/Music` — it will be available automatically once Nextcloud user files are restored (Step 2g). Only the database needs to be restored.
 
@@ -340,7 +309,7 @@ systemctl start navidrome_container
 
 ---
 
-### Step 4: Restore Vaultwarden
+## Step 4: Restore Vaultwarden
 
 **4a. Locate the backup in the Nextcloud data directory:**
 ```bash
@@ -357,7 +326,7 @@ systemctl start vaultwarden
 
 ---
 
-### Step 5: Restore Semaphore
+## Step 5: Restore Semaphore
 
 **5a. Locate the SQL dump in the Nextcloud data directory:**
 ```bash
@@ -379,9 +348,9 @@ systemctl restart semaphore
 
 ---
 
-### Step 6: DNS Cutover
+## Step 6: Re-point DNS
 
-Update DNS records to point each service subdomain to VM1's IP address:
+DNS already points to VM1's IP. If you provisioned the replacement VM with a different IP, update DNS records to point each service subdomain to the new address:
 
 | Subdomain | Service |
 |---|---|
@@ -395,7 +364,7 @@ SWAG will issue a new wildcard certificate via DNS-01 challenge on first startup
 
 ---
 
-### Step 7: Verification
+## Step 7: Verification
 
 Confirm each service is functional:
 
@@ -406,27 +375,3 @@ Confirm each service is functional:
 - [ ] Semaphore projects and inventories are present
 - [ ] SWAG issued a valid TLS certificate (check browser padlock)
 - [ ] Backup scripts are running: `crontab -l`
-
----
-
-## Part 2: VM1 Disaster Recovery (Rebuild from Backups)
-
-Use this procedure if VM1 fails and must be rebuilt from scratch. Backups are current as of the most recent daily cron run.
-
-> **If only the OS disk failed:** If the Nextcloud data disk (`nextcloud_disk`) and Borg backup disk (`backup_disk`) are intact, use the [Disk-Move Migration](#alternative-disk-move-migration) procedure instead of the full Borg restore below. Attach both disks to the new VM1, run `vm1.yml`, then restore only the PostgreSQL databases and Paperless documents from the local Borg archive. This avoids downloading the Borg archive from Nextcloud remote storage.
-
-### Step 1: Provision a new VM1
-
-Follow Step 1 from Part 1 above (provision + resize + cloud-init + `ansible-playbook -i inventory.yml vm1.yml`).
-
-### Step 2: Restore all services
-
-Follow Steps 2–5 from Part 1. For Nextcloud user files (Step 2g), restore from the Borg archive on the second NVMe disk (`borg_backup_path`) — the archive contains the full `nextcloud_path` directory including all user files.
-
-### Step 3: Re-point DNS
-
-DNS already points to VM1's IP. If you used a different IP for the replacement VM, update DNS records as in Part 1, Step 6.
-
-### Step 4: Verification
-
-Run the same verification checklist as Part 1, Step 7.
