@@ -4,6 +4,41 @@ Each service role deploys one or more containers using the Podman + systemd patt
 
 ---
 
+### `dynamic_dns`
+
+Updates a Porkbun DNS A record with the host's current WAN IP, retrieved from the Unifi Cloud Gateway Max integration API.
+
+**Distributions:** Rocky Linux 10
+
+**Required variables:**
+
+| Variable | Type | Description | Example |
+|---|---|---|---|
+| `homelab_domain` | string | Root domain for the A record | `example.com` |
+| `homelab_subdomain` | string | Subdomain to update | `vpn` |
+| `unifi_host` | string | Hostname or IP of the Unifi Cloud Gateway | `192.168.1.1` |
+| `unifi_api_key` | string | Unifi local API key | `api_key_...` |
+| `porkbun_api_key` | string | Porkbun API key (global) | `pk1_...` |
+| `porkbun_api_key_secret` | string | Porkbun API secret (global) | `sk1_...` |
+| `unifi_site_id` | string | **Optional.** Unifi site ID. Defaults to `default`. | `default` |
+
+**Templates:**
+
+| Template | Destination | Description |
+|---|---|---|
+| `dynamic_dns.py.j2` | `/usr/local/bin/dynamic_dns.py` | Python script; fetches WAN IP, compares to cache, updates Porkbun A record only when changed |
+
+**Notable tasks:**
+- Installs `python3-requests` via dnf
+- Writes `/etc/logrotate.d/dynamic_dns` (weekly, 4 weeks retained, compressed)
+- Installs a cron job running every 5 minutes; output appended to `/var/log/dynamic_dns.log`
+
+**Log file:** `/var/log/dynamic_dns.log` — rotated at 1 MB, 5 backups retained. Also echoes to stderr, so manual runs show output directly.
+
+**Cache file:** `/var/cache/dynamic_dns_ip` — stores the last successfully applied IP. When the cached IP matches the current WAN IP the script exits immediately with no API calls.
+
+---
+
 ### `reverse_proxy`
 
 Deploys SWAG (linuxserver.io nginx + Certbot) for TLS termination and reverse proxying. Generates per-service nginx proxy configs from the `proxy_config` inventory variable.

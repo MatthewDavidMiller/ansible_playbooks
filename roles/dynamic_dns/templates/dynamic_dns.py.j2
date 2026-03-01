@@ -6,7 +6,7 @@ cached value and the live Porkbun A record, and updates the record only when
 the IP has actually changed.  In steady state (no IP change) the script makes
 zero external API calls beyond reading the local cache file.
 
-Logs to syslog (journald); view with: journalctl -t dynamic_dns
+Logs to /var/log/dynamic_dns.log (rotated at 1 MB, 5 backups).
 """
 
 import ipaddress
@@ -31,16 +31,37 @@ PORKBUN_BASE       = "https://api.porkbun.com/api/json/v3"
 TIMEOUT            = 10  # seconds per request
 
 # ── Logging ───────────────────────────────────────────────────────────────────
+LOG_FILE = Path("/var/log/dynamic_dns.log")
+
 log = logging.getLogger("dynamic_dns")
 log.setLevel(logging.INFO)
+
+_formatter = logging.Formatter(
+    fmt="%(asctime)s %(levelname)-8s %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+
 try:
-    _handler: logging.Handler = logging.handlers.SysLogHandler(
-        address="/dev/log", facility=logging.handlers.SysLogHandler.LOG_DAEMON
+    _file_handler = logging.handlers.RotatingFileHandler(
+        LOG_FILE, maxBytes=1 * 1024 * 1024, backupCount=5, encoding="utf-8"
     )
-    _handler.ident = "dynamic_dns"
-except OSError:
-    _handler = logging.StreamHandler()
-log.addHandler(_handler)
+    _file_handler.setFormatter(_formatter)
+    log.addHandler(_file_handler)
+except OSError as _e:
+    logging.basicConfig(stream=sys.stderr, level=logging.INFO)
+    log.warning("Could not open log file %s: %s — falling back to stderr", LOG_FILE, _e)
+
+# Always echo to stderr so manual runs and cron output are visible
+_stderr_handler = logging.StreamHandler(sys.stderr)
+_stderr_handler.setFormatter(_formatter)
+log.addHandler(_stderr_handler)
+
+
+def _log_unhandled(exc_type, exc_value, exc_tb):
+    log.error("Unhandled exception", exc_info=(exc_type, exc_value, exc_tb))
+
+
+sys.excepthook = _log_unhandled
 
 
 # ── Unifi ─────────────────────────────────────────────────────────────────────
