@@ -1,5 +1,7 @@
 ---
-- hosts: homelab
-  roles:
-    - role: roles/standard_reboot
-      when: inventory_hostname != 'ansible'
+- hosts: vm1
+  tasks:
+    - name: Reboot machine
+      ansible.builtin.command: shutdown -r +1
+      async: 40
+      poll: 0

@@ -198,16 +198,13 @@ The backup script (`backup_db.j2`) takes a SQLite hot copy, then:
 
 ### `navidrome`
 
-Deploys Navidrome music server. Music files are mounted in one of two ways depending on whether `navidrome_local_music_path` is defined:
+Deploys Navidrome music server. Music files are served from a local path bind-mounted as `/music:ro,z` inside the container. Set `navidrome_local_music_path` to use the Nextcloud on-disk Music folder directly (e.g., on VM1 where Nextcloud is colocated); otherwise the role falls back to `{{ navidrome_path }}/music`.
 
-- **Local bind-mount** (when `navidrome_local_music_path` is set): the Nextcloud on-disk Music folder is bind-mounted directly as `/music:ro,z`. No rclone FUSE mount services are deployed. Used on VM1 where Nextcloud is colocated.
-- **rclone FUSE mount** (default, when `navidrome_local_music_path` is not set): music is fetched via `rclone mount Nextcloud:Music` (WebDAV FUSE). A health-check timer restarts the mount if it becomes stale. Used on dedicated Navidrome hosts.
-
-The daily backup script (`backup_navidrome.sh`) also branches on `backup_local`:
+The daily backup script (`backup_navidrome.sh`) branches on `backup_local`:
 - When `backup_local: true`: copies `.db` files directly to `{{ nextcloud_path }}/data/{{ nextcloud_admin_user }}/files/{{ navidrome_backup_location | replace('Nextcloud:', '') }}` and runs `occ files:scan`. Prunes files older than 30 days using `find`.
 - Otherwise: uploads via `rclone copy` to `Nextcloud:{{ navidrome_backup_location }}` and prunes via `rclone delete --min-age 30d`.
 
-**Distributions:** Debian 12, Rocky Linux 10, Arch Linux
+**Distributions:** Rocky Linux 10
 
 **Container image:** `docker.io/deluan/navidrome:latest`
 
@@ -216,7 +213,7 @@ The daily backup script (`backup_navidrome.sh`) also branches on `backup_local`:
 | Variable | Type | Description | Example |
 |---|---|---|---|
 | `navidrome_path` | path | Navidrome data directory | `/opt/navidrome` |
-| `navidrome_local_music_path` | path | **Optional.** Local path to bind-mount as `/music:ro,z`. When set, rclone FUSE mount services are not deployed. | `/opt/nextcloud/data/admin/files/Music` |
+| `navidrome_local_music_path` | path | **Optional.** Local path to bind-mount as `/music:ro,z`. Defaults to `{{ navidrome_path }}/music`. | `/opt/nextcloud/data/admin/files/Music` |
 
 **Templates:**
 
@@ -224,17 +221,9 @@ The daily backup script (`backup_navidrome.sh`) also branches on `backup_local`:
 |---|---|---|
 | `navidrome_container.sh.j2` | `/usr/local/bin/navidrome_container.sh` | Container launch script; uses `navidrome_local_music_path` if defined, else `navidrome_path/music` |
 | `navidrome_container.service.j2` | `/etc/systemd/system/navidrome_container.service` | Systemd unit |
-| `rclone_mount_music.sh.j2` | `/usr/local/bin/rclone_mount_music.sh` | rclone FUSE mount script (only when `navidrome_local_music_path` not set) |
-| `rclone_mount_music.service.j2` | `/etc/systemd/system/rclone_mount_music.service` | Systemd unit for rclone mount (only when `navidrome_local_music_path` not set) |
-| `check_music_rclone.sh.j2` | `/usr/local/bin/check_music_rclone.sh` | Health check script (only when `navidrome_local_music_path` not set) |
-| `check_music_rclone.service.j2` | `/etc/systemd/system/check_music_rclone.service` | One-shot service for health check (only when `navidrome_local_music_path` not set) |
-| `check_music_rclone.timer.j2` | `/etc/systemd/system/check_music_rclone.timer` | Periodic timer for health check (only when `navidrome_local_music_path` not set) |
 | `backup_navidrome.sh.j2` | `/usr/local/bin/backup_navidrome.sh` | Daily backup script; local cp or rclone based on `backup_local` |
-| `davfs2_secrets.j2` | `/etc/davfs2/secrets` | WebDAV credentials (Debian only) |
 
-**Systemd services installed:** `navidrome_container`; also `rclone_mount_music` and `check_music_rclone.timer` when `navidrome_local_music_path` is not set.
-
-**Notes:** The `virt_use_fusefs` SELinux boolean is only strictly required when the rclone FUSE mount is in use (i.e., `navidrome_local_music_path` is not set). `standard_selinux` sets it unconditionally on Rocky Linux 10, which is harmless on VM1.
+**Systemd services installed:** `navidrome_container`
 
 ---
 

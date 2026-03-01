@@ -36,79 +36,6 @@ all:
         container_patching_month: "12"
 
       hosts:
-        ansible:
-          ansible_host: ansible.example.com
-          # Device variables
-          git_data: /path/to/git
-          ansible_playbooks_path: /path/to/playbooks
-          semaphore_postgres_path: "/path/to/postgres"
-          semaphore_database_name: "example_db"
-          semaphore_database_user: "example_user"
-          semaphore_database_user_password: "example_password"
-          semaphore_admin_email: "admin@example.com"
-          semaphore_admin_name: "admin"
-          semaphore_admin_password: "example_password"
-          semaphore_encryption_key: "example_encryption_key"
-          semaphore_backup_location: "Nextcloud:semaphore_backup"
-          container_service_names: "service1 service2"
-          swag_network: "example_network"
-          proxy_config:
-            - name: "example_config"
-              proxy_fqdn: "proxy.example.com"
-              container_destination: "example.dns.podman"
-
-          swag_host_domain: "example.internal"
-          swag_requires: "example_service"
-          default_server_name: "example_server"
-          default_app_name: "example_app"
-
-        backup:
-          ansible_host: backup.example.com
-          # Device variables
-          borg_backup_path: /path/to/borg
-          ssh_mount_path: /path/to/ssh_mount
-          backup_disk: "UUID=example-uuid"
-          nextcloud_host: "nextcloud.example.com"
-          nextcloud_backup_path: /path/to/nextcloud_backup
-
-        nextcloud:
-          ansible_host: nextcloud.example.com
-          # Device variables
-          postgres_path: /path/to/postgres
-          nextcloud_path: /path/to/nextcloud
-          nextcloud_borg_backup_path: /path/to/nextcloud/borg/backup
-          swag_network: "example_network"
-          nextcloud_database_name: "example_db"
-          nextcloud_database_user: "example_user"
-          nextcloud_database_user_password: "example_password"
-          nextcloud_admin_user: "admin"
-          nextcloud_admin_password: "example_password"
-          nextcloud_trusted_domains: "trusted.example.com"
-          nextcloud_disk: "UUID=example-uuid"
-          backup_host: "192.168.1.50/32"
-          swag_host_domain: "example.internal,example2.internal"
-          proxy_config:
-            - name: "example_config"
-              proxy_fqdn: "proxy.example.com"
-              proxy_upstream_port: "8080"
-              proxy_upstream_protocol: "https"
-              container_destination: "example.dns.podman"
-
-            - name: "example2_config"
-              proxy_fqdn: "proxy.example2.com"
-              proxy_upstream_port: "8081"
-              proxy_upstream_protocol: "http"
-              container_destination: "example2.dns.podman"
-
-          default_server_name: "example_server"
-          default_app_name: "example_app"
-          container_service_names: "service1 service2"
-          paperless_dns_name: "paperless.example.com"
-          paperless_database_name: paperless_db
-          paperless_database_user: "paperless_user"
-          paperless_database_user_password: "paperless_db_password"
-          nextcloud_paperless_backup_location: /path/to/nextcloud/paperless/backup/location
-
         vpn:
           ansible_host: vpn.example.com
           # Device variables
@@ -121,44 +48,11 @@ all:
           wireguard_server_network_prefix: "10.0.0.0/24"
           wireguard_allowed_ips: "192.168.1.0/24, 10.0.0.1/32"
 
-        vaultwarden:
-          ansible_host: vaultwarden.example.com
-          # Device variables
-          vaultwarden_path: "/path/to/vaultwarden"
-          swag_network: "example_network"
-          vaultwarden_backup_location: "Backup_Location"
-          swag_host_domain: "example.internal"
-          proxy_config:
-            - name: "example_config"
-              proxy_fqdn: "proxy.example.com"
-              container_destination: "example.dns.podman"
-
-          default_server_name: "example_server"
-          default_app_name: "example_app"
-          container_service_names: "service1"
-
         unificontroller:
           ansible_host: unificontroller.example.com
           # Device variables
           unificontroller_path: "/path/to/unifi"
           swag_network: "example_network"
-          swag_host_domain: "example.internal"
-          swag_requires: "example_service"
-          proxy_config:
-            - name: "example_config"
-              proxy_fqdn: "proxy.example.com"
-              container_destination: "example.dns.podman"
-
-          default_server_name: "example_server"
-          default_app_name: "example_app"
-          container_service_names: "service1"
-
-        navidrome:
-          ansible_host: navidrome.example.com
-          # Device variables
-          navidrome_path: /path/to/navidrome
-          swag_network: "example_network"
-          backup_host: "192.168.1.50/32"
           swag_host_domain: "example.internal"
           swag_requires: "example_service"
           proxy_config:

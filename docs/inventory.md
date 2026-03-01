@@ -43,73 +43,6 @@ Applied to all hosts in the `homelab` group.
 
 ## Per-Host Variables
 
-### `ansible` host
-
-Runs Semaphore + PostgreSQL 17 + SWAG. Uses `semaphore_postgres_path` (not `postgres_path`) to keep the database directory unambiguous.
-
-| Variable | Type | Description | Example |
-|---|---|---|---|
-| `ansible_host` | string | Hostname or IP | `ansible.example.com` |
-| `git_data` | path | Path for git repositories | `/opt/git` |
-| `ansible_playbooks_path` | path | Path for Ansible playbooks checkout | `/opt/playbooks` |
-| `semaphore_postgres_path` | path | PostgreSQL 17 data directory for Semaphore | `/opt/semaphore/postgres` |
-| `semaphore_database_name` | string | Semaphore database name | `semaphore` |
-| `semaphore_database_user` | string | Semaphore database user | `semaphore_user` |
-| `semaphore_database_user_password` | string | Semaphore database password | `secret` |
-| `semaphore_admin_email` | string | Semaphore admin email | `admin@example.com` |
-| `semaphore_admin_name` | string | Semaphore admin username | `admin` |
-| `semaphore_admin_password` | string | Semaphore admin password | `secret` |
-| `semaphore_encryption_key` | string | 32-character encryption key for Semaphore | `abc123...` |
-| `swag_network` | string | Podman network SWAG joins | `semaphore_container_net` |
-| `swag_host_domain` | string | Comma-separated SWAG subdomains | `semaphore.example.com` |
-| `container_service_names` | string | Space-separated systemd unit names for SWAG `After=` | `semaphore_postgres semaphore` |
-| `proxy_config` | list | See [proxy_config object schema](#proxy_config-object-schema) | — |
-| `default_server_name` | string | nginx default server name | `_` |
-| `default_app_name` | string | Default app label | `semaphore` |
-
----
-
-### `backup` host (Debian 12)
-
-| Variable | Type | Description | Example |
-|---|---|---|---|
-| `ansible_host` | string | Hostname or IP | `backup.example.com` |
-| `borg_backup_path` | path | Borg repository root directory | `/opt/borg` |
-| `ssh_mount_path` | path | SSHFS mount point for remote backups | `/mnt/nextcloud_backup` |
-| `backup_disk` | string | UUID of backup disk | `UUID=abc123...` |
-| `nextcloud_host` | string | Nextcloud server hostname | `nextcloud.example.com` |
-| `nextcloud_backup_path` | path | Path on the Nextcloud host to back up via SSHFS | `/opt/nextcloud` |
-
----
-
-### `nextcloud` host
-
-| Variable | Type | Description | Example |
-|---|---|---|---|
-| `ansible_host` | string | Hostname or IP | `nextcloud.example.com` |
-| `postgres_path` | path | PostgreSQL 15 data directory | `/opt/postgres` |
-| `nextcloud_path` | path | Nextcloud data directory | `/opt/nextcloud` |
-| `nextcloud_borg_backup_path` | path | Local path for Borg backup repository | `/opt/borg/nextcloud` |
-| `nextcloud_disk` | string | UUID of Nextcloud data disk | `UUID=abc123...` |
-| `nextcloud_database_name` | string | Nextcloud database name | `nextcloud` |
-| `nextcloud_database_user` | string | Nextcloud database user | `nextcloud_user` |
-| `nextcloud_database_user_password` | string | Nextcloud database password | `secret` |
-| `nextcloud_admin_user` | string | Nextcloud admin username | `admin` |
-| `nextcloud_admin_password` | string | Nextcloud admin password | `secret` |
-| `nextcloud_trusted_domains` | string | Space-separated trusted domains | `nextcloud.example.com` |
-| `backup_host` | string | Backup server IP (CIDR) for firewalld | `192.168.1.50/32` |
-| `swag_network` | string | Podman network SWAG joins | `nextcloud_container_net` |
-| `swag_host_domain` | string | Comma-separated SWAG subdomains | `nextcloud,paperless` |
-| `container_service_names` | string | Space-separated systemd unit names | `postgres_container redis_container nextcloud_container paperless_ngx` |
-| `paperless_dns_name` | string | Paperless NGX FQDN | `paperless.example.com` |
-| `paperless_database_name` | string | Paperless database name (shared PG15) | `paperless` |
-| `paperless_database_user` | string | Paperless database user | `paperless_user` |
-| `paperless_database_user_password` | string | Paperless database password | `secret` |
-| `nextcloud_paperless_backup_location` | path | Paperless backup destination | `/opt/borg/paperless` |
-| `proxy_config` | list | See [proxy_config object schema](#proxy_config-object-schema) | — |
-
----
-
 ### `vpn` host
 
 | Variable | Type | Description | Example |
@@ -123,34 +56,6 @@ Runs Semaphore + PostgreSQL 17 + SWAG. Uses `semaphore_postgres_path` (not `post
 | `wireguard_dns_server` | string | DNS server pushed to clients | `192.168.1.1` |
 | `wireguard_server_network_prefix` | string | WireGuard tunnel network | `10.0.0.0/24` |
 | `wireguard_allowed_ips` | string | Comma-separated routes pushed to clients | `192.168.1.0/24, 10.0.0.1/32` |
-
----
-
-### `vaultwarden` host
-
-| Variable | Type | Description | Example |
-|---|---|---|---|
-| `ansible_host` | string | Hostname or IP | `vaultwarden.example.com` |
-| `vaultwarden_path` | path | Vaultwarden data directory | `/opt/vaultwarden` |
-| `swag_network` | string | Podman network SWAG joins | `vaultwarden_container_net` |
-| `vaultwarden_backup_location` | string | rclone remote backup path label | `gdrive:vaultwarden_backup` |
-| `swag_host_domain` | string | SWAG subdomain | `vault.example.com` |
-| `container_service_names` | string | Space-separated systemd unit names | `vaultwarden` |
-| `proxy_config` | list | See [proxy_config object schema](#proxy_config-object-schema) | — |
-
----
-
-### `navidrome` host
-
-| Variable | Type | Description | Example |
-|---|---|---|---|
-| `ansible_host` | string | Hostname or IP | `navidrome.example.com` |
-| `navidrome_path` | path | Navidrome data directory | `/opt/navidrome` |
-| `swag_network` | string | Podman network SWAG joins | `navidrome_container_net` |
-| `backup_host` | string | Backup server IP (CIDR) for firewalld | `192.168.1.50/32` |
-| `swag_host_domain` | string | SWAG subdomain | `navidrome.example.com` |
-| `container_service_names` | string | Space-separated systemd unit names | `navidrome_container` |
-| `proxy_config` | list | See [proxy_config object schema](#proxy_config-object-schema) | — |
 
 ---
 
@@ -193,7 +98,7 @@ This host runs all services consolidated. It uses `swag_networks` (list) instead
 | `semaphore_admin_password` | string | Semaphore admin password | `secret` |
 | `semaphore_encryption_key` | string | 32-character Semaphore encryption key | `abc123...` |
 | `navidrome_path` | path | Navidrome data directory | `/opt/navidrome` |
-| `navidrome_local_music_path` | path | **Optional.** When set, navidrome bind-mounts this path directly as `/music:ro,z`, bypassing the rclone FUSE mount. Use the Nextcloud on-disk path for the user's Music folder. | `/opt/nextcloud/data/admin/files/Music` |
+| `navidrome_local_music_path` | path | **Optional.** Path bind-mounted as `/music:ro,z` inside the Navidrome container. Defaults to `{{ navidrome_path }}/music` if not set. Use the Nextcloud on-disk path for the user's Music folder. | `/opt/nextcloud/data/admin/files/Music` |
 | `nextcloud_borg_backup_path` | path | Local path for Borg backup repository (Nextcloud + Paperless) | `/opt/borg/nextcloud` |
 | `nextcloud_paperless_backup_location` | path | rclone remote path for Borg repo sync | `Nextcloud:backup/nextcloud` |
 | `vaultwarden_path` | path | Vaultwarden data directory | `/opt/vaultwarden` |
@@ -243,5 +148,5 @@ The `proxy_config` variable is a list of objects. Each object generates one ngin
 
 The `swag_container.sh.j2` template checks for `swag_networks` first. If defined, it generates one `--network` flag per entry. If not defined, it falls back to the scalar `swag_network`. This keeps existing single-service host inventories working without changes.
 
-Hosts using `swag_network`: `ansible`, `nextcloud`, `vaultwarden`, `unificontroller`, `navidrome`, `pihole`, `apcontroller`
+Hosts using `swag_network`: `unificontroller`, `pihole`, `apcontroller`
 Hosts using `swag_networks`: `vm1`
