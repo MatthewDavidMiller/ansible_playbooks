@@ -17,6 +17,9 @@ all:
         docker_password: "example_password"
         porkbun_api_key: "example_api_key"
         porkbun_api_key_secret: "example_api_key_secret"
+        unifi_host: "192.168.1.1"
+        unifi_api_key: "example_unifi_api_key"
+        unifi_site_id: "default"
         top_domain: "example.com"
         swag_path: "/example_path"
         swag_dns_plugin: "example_plugin"
@@ -66,6 +69,8 @@ all:
 
         vm1:
           ansible_host: 192.168.1.X  # Replace with vm1's actual IP
+          homelab_domain: "example.com"
+          homelab_subdomain: "example"
           # SWAG — list of all container networks to join (backward-compatible; single-service hosts use scalar swag_network instead)
           swag_networks:
             - nextcloud_container_net

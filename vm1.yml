@@ -6,6 +6,7 @@
     - standard_update_packages
     - configure_timezone
     - standard_cron
+    - dynamic_dns
     - standard_firewalld
     - standard_podman
     - standard_rclone

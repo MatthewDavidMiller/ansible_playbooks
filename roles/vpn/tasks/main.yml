@@ -40,21 +40,3 @@
     src: wireguard.sh.j2
     dest: "/usr/local/bin/wireguard.sh"
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
-
-- name: porkbun-ddns Service
-  ansible.builtin.template:
-    src: porkbun-ddns.service.j2
-    dest: "/etc/systemd/system/porkbun-ddns.service"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
-
-- name: Enable porkbun-ddns
-  ansible.builtin.systemd:
-    name: porkbun-ddns.service
-    enabled: yes
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
-
-- name: porkbun-ddns script
-  ansible.builtin.template:
-    src: porkbun-ddns.sh.j2
-    dest: "/usr/local/bin/porkbun-ddns.sh"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
