@@ -52,9 +52,6 @@ Applied to all hosts in the `homelab` group.
 | `vpn_path` | path | WireGuard config directory | `/opt/wireguard` |
 | `homelab_domain` | string | Root domain for DDNS A record | `example.com` |
 | `homelab_subdomain` | string | Subdomain to update via DDNS | `vpn` |
-| `unifi_host` | string | Hostname or IP of Unifi Cloud Gateway (for WAN IP lookup) | `192.168.1.1` |
-| `unifi_api_key` | string | Unifi local API key | `api_key_...` |
-| `unifi_site_id` | string | **Optional.** Unifi site ID. Defaults to `default`. | `default` |
 | `listen_port` | string | WireGuard listen port | `51820` |
 | `wireguard_dns_server` | string | DNS server pushed to clients | `192.168.1.1` |
 | `wireguard_server_network_prefix` | string | WireGuard tunnel network | `10.0.0.0/24` |
@@ -71,9 +68,6 @@ This host runs all services consolidated. It uses `swag_networks` (list) instead
 | `ansible_host` | string | Hostname or IP | `192.168.1.120` |
 | `homelab_domain` | string | Root domain for DDNS A record | `example.com` |
 | `homelab_subdomain` | string | Subdomain to update via DDNS | `home` |
-| `unifi_host` | string | Hostname or IP of Unifi Cloud Gateway (for WAN IP lookup) | `192.168.1.1` |
-| `unifi_api_key` | string | Unifi local API key | `api_key_...` |
-| `unifi_site_id` | string | **Optional.** Unifi site ID. Defaults to `default`. | `default` |
 | `swag_networks` | list | All Podman networks SWAG must join | `[nextcloud_container_net, navidrome_container_net, ...]` |
 | `swag_path` | path | SWAG config directory | `/opt/swag` |
 | `swag_dns_plugin` | string | Certbot DNS plugin | `porkbun` |

@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Dynamic DNS updater: Unifi Cloud Gateway Max → Porkbun.
+"""Dynamic DNS updater: Porkbun ping → Porkbun DNS.
 
-Reads WAN IP from the local Unifi Network Application, compares it against the
-cached value and the live Porkbun A record, and updates the record only when
-the IP has actually changed.  In steady state (no IP change) the script makes
-zero external API calls beyond reading the local cache file.
+Reads WAN IP from the Porkbun ping endpoint, compares it against the cached
+value and the live Porkbun A record, and updates the record only when the IP
+has actually changed.  In steady state (no IP change) the script makes zero
+external API calls beyond reading the local cache file.
 
 Logs to /var/log/dynamic_dns.log (rotated at 1 MB, 5 backups).
 """
@@ -16,18 +16,15 @@ import sys
 from pathlib import Path
 
 import requests
-import urllib3
 
 # ── Configuration (injected by Ansible at deploy time) ───────────────────────
 PORKBUN_API_KEY    = "{{ porkbun_api_key }}"
 PORKBUN_SECRET_KEY = "{{ porkbun_api_key_secret }}"
 DOMAIN             = "{{ homelab_domain }}"
 SUBDOMAIN          = "{{ homelab_subdomain }}"
-UNIFI_HOST         = "{{ unifi_host }}"
-UNIFI_API_KEY      = "{{ unifi_api_key }}"
-UNIFI_SITE         = "{{ unifi_site_id | default('default') }}"
 IP_CACHE           = Path("/var/cache/dynamic_dns_ip")
 PORKBUN_BASE       = "https://api.porkbun.com/api/json/v3"
+PORKBUN_IPV4_BASE  = "https://api-ipv4.porkbun.com/api/json/v3"
 TIMEOUT            = 10  # seconds per request
 
 # ── Logging ───────────────────────────────────────────────────────────────────
@@ -64,50 +61,22 @@ def _log_unhandled(exc_type, exc_value, exc_tb):
 sys.excepthook = _log_unhandled
 
 
-# ── Unifi ─────────────────────────────────────────────────────────────────────
+# ── WAN IP ────────────────────────────────────────────────────────────────────
 
 def get_wan_ip() -> str:
-    """Return the current WAN IP from the Unifi integration API.
+    """Return the current WAN IPv4 address via the Porkbun ping endpoint.
 
-    The UCG-Max serves its local API over HTTPS with a self-signed / Unifi-CA
-    certificate.  SSL verification is disabled only for this LAN-local session;
-    all outbound Porkbun calls use the default trusted CA bundle.
-
-    The integration API wans endpoint typically returns ipAddress in the data
-    array.  A fallback key 'ip' is checked in case the field name differs on
-    some firmware versions.  If neither field is present, run:
-
-        curl -sk -H 'X-API-KEY: <key>' \\
-          https://<ucg-ip>/proxy/network/integration/v1/sites/default/wans \\
-          | python3 -m json.tool
-
-    to inspect the live response and adjust the key names below.
+    Uses api-ipv4.porkbun.com to guarantee an IPv4 response regardless of
+    whether the host has a dual-stack connection.
     """
-    url = (
-        f"https://{UNIFI_HOST}/proxy/network/integration/v1"
-        f"/sites/{UNIFI_SITE}/wans"
-    )
-    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-    session = requests.Session()
-    session.verify = False
-    session.headers["X-API-KEY"] = UNIFI_API_KEY
-
-    resp = session.get(url, timeout=TIMEOUT)
-    resp.raise_for_status()
-
-    data = resp.json().get("data", [])
-    if not data:
-        raise ValueError("Unifi wans response contained no data entries")
-
-    wan_ip = data[0].get("ipAddress") or data[0].get("ip")
-    if not wan_ip:
-        raise ValueError(f"WAN IP field not found in Unifi response: {data[0]}")
-
-    addr = ipaddress.ip_address(wan_ip)
+    result = _porkbun_post("ping", {}, base=PORKBUN_IPV4_BASE)
+    ip_str = result.get("yourIp")
+    if not ip_str:
+        raise ValueError(f"Porkbun ping response missing 'yourIp' field: {result}")
+    addr = ipaddress.ip_address(ip_str)
     if not isinstance(addr, ipaddress.IPv4Address) or not addr.is_global:
-        raise ValueError(f"WAN IP {wan_ip!r} is not a global IPv4 address")
-
-    return wan_ip
+        raise ValueError(f"WAN IP {ip_str!r} is not a global IPv4 address")
+    return ip_str
 
 
 # ── Cache ─────────────────────────────────────────────────────────────────────
@@ -122,14 +91,14 @@ def get_cached_ip() -> str | None:
 
 # ── Porkbun ───────────────────────────────────────────────────────────────────
 
-def _porkbun_post(endpoint: str, extra: dict) -> dict:
+def _porkbun_post(endpoint: str, extra: dict, base: str = PORKBUN_BASE) -> dict:
     payload = {
         "apikey": PORKBUN_API_KEY,
         "secretapikey": PORKBUN_SECRET_KEY,
         **extra,
     }
     resp = requests.post(
-        f"{PORKBUN_BASE}/{endpoint}",
+        f"{base}/{endpoint}",
         json=payload,
         timeout=TIMEOUT,
     )
@@ -177,7 +146,7 @@ def main() -> int:
     try:
         wan_ip = get_wan_ip()
     except Exception as exc:
-        log.error("Failed to get WAN IP from Unifi: %s", exc)
+        log.error("Failed to get WAN IP from Porkbun ping: %s", exc)
         return 1
 
     # Fast path: no API calls needed when cached IP is current
