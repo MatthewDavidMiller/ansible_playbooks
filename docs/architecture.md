@@ -8,16 +8,11 @@ For architecture patterns (container pattern, firewall pattern, role conventions
 
 | VM ID | Name | OS | Services |
 |---|---|---|---|
-| 100 | Ansible | Rocky Linux 10 | Semaphore (CI/CD), PostgreSQL 17, SWAG reverse proxy |
-| 106 | Backup | Debian 12 | Borg backup server |
 | 110 | VPN | Rocky Linux 10 | WireGuard, Porkbun DDNS |
 | 111 | Pihole | Rocky Linux 10 | Pi-hole DNS, SWAG reverse proxy |
 | 112 | NetworkController | Rocky Linux 10 | TP-Link Omada Controller, SWAG reverse proxy |
-| 113 | Nextcloud | Rocky Linux 10 | Nextcloud, Paperless NGX, PostgreSQL 15, Redis, SWAG reverse proxy |
-| 114 | Navidrome | Rocky Linux 10 | Navidrome music server, SWAG reverse proxy |
-| 115 | Vaultwarden | Rocky Linux 10 | Vaultwarden password manager, SWAG reverse proxy |
 | 116 | UnifiController | Rocky Linux 10 | Ubiquiti Unifi Controller, SWAG reverse proxy |
-| 120 | VM1 | Rocky Linux 10 | Nextcloud, Paperless NGX, Navidrome, Vaultwarden, Semaphore, PostgreSQL 15, PostgreSQL 17, Redis, SWAG reverse proxy |
+| 120 | VM1 | Rocky Linux 10 | Nextcloud, Paperless NGX, Navidrome, Vaultwarden, Semaphore, PostgreSQL 15, PostgreSQL 17, Redis, SWAG reverse proxy, Borg backup |
 
 Templates: VMID 400 (Debian 12 cloud-init), VMID 401 (Rocky Linux 10 cloud-init)
 
@@ -29,11 +24,10 @@ All VMs are provisioned via `scripts/proxmox_initial_setup.py`. See [guides/prox
 
 | Distribution | Hosts | Package manager |
 |---|---|---|
-| Rocky Linux 10 | All service VMs, VM1 | `dnf` |
-| Debian 12 | Backup server | `apt` |
+| Rocky Linux 10 | All homelab VMs | `dnf` |
 | Arch Linux | Laptop | `pacman` |
 
-Role tasks are gated with `when: ansible_facts['distribution'] == '...'` to support all three. See [CLAUDE.md](../CLAUDE.md) for the convention.
+Role tasks are gated with `when: ansible_facts['distribution'] == '...'` to support all distributions. See [CLAUDE.md](../CLAUDE.md) for the convention.
 
 ---
 
@@ -111,7 +105,7 @@ See [roles/services.md#reverse_proxy](roles/services.md#reverse_proxy) and [inve
 
 Rocky Linux 10 ships with SELinux in enforcing mode (targeted policy). The `standard_selinux` role ensures this and sets two required booleans:
 
-- `virt_use_fusefs` — required for Navidrome's rclone FUSE-mounted music directory (only when `navidrome_local_music_path` is not set). FUSE mounts cannot use the `:Z` volume label so the boolean is the correct mitigation. On VM1, where Nextcloud is colocated and `navidrome_local_music_path` is set, the rclone FUSE mount is not used and this boolean is not required — but `standard_selinux` sets it unconditionally (harmless).
+- `virt_use_fusefs` — set by `standard_selinux` unconditionally (harmless; retained for potential future FUSE use).
 - `container_manage_cgroup` — required for Podman containers managed by systemd.
 
 All container volume mounts use `:Z` (e.g., `-v /path:/container/path:Z`) which triggers automatic SELinux file context relabeling. No manual `sefcontext` tasks are needed.

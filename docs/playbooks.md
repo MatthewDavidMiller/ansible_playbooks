@@ -8,21 +8,17 @@ For running playbook commands see [CLAUDE.md](../CLAUDE.md). This document descr
 
 ### `homelab_vms.yml`
 
-**Target:** `localhost` (then delegates to all service playbooks)
+**Imports:** `vm1.yml`
 
-**Imports (in order):** `ansible.yml` → `unificontroller.yml` → `backup.yml` → `navidrome.yml` → `nextcloud.yml` → `vaultwarden.yml` → `vpn.yml` → `vm1.yml`
-
-**Usage:** Run to configure all homelab VMs in a single operation. Each imported playbook targets its own host group.
+**Usage:** Run to configure all homelab VMs. Currently imports only `vm1.yml` as all services are consolidated there.
 
 ---
 
 ### `update_homelab_vms.yml`
 
-**Target:** `localhost`
+**Imports:** `homelab_vms.yml` → `reboot_vms.yml`
 
-**Imports:** `homelab_vms.yml` → `reboot_vms.yml` → `reboot_semaphore.yml`
-
-**Usage:** Full update cycle — reconfigure all VMs, then reboot all non-Ansible hosts, then reboot the Ansible host separately.
+**Usage:** Full update cycle — reconfigure all VMs, then reboot vm1.
 
 ---
 
@@ -36,37 +32,7 @@ For running playbook commands see [CLAUDE.md](../CLAUDE.md). This document descr
 
 **Usage:** Configures VM1 (ID 120) — a single Rocky Linux 10 host running all services consolidated. See [architecture.md — VM1 Consolidated VM](architecture.md#vm1-consolidated-vm).
 
-**Notes:** `nextcloud` must run before `paperless_ngx` (Paperless uses Nextcloud's postgres/redis containers). `standard_rclone` must run before `standard_selinux` (fuse3 packages must exist before the boolean is set). On VM1, `navidrome_local_music_path` is set, so the navidrome role skips the rclone FUSE mount services entirely and bind-mounts the Nextcloud data directory directly. Service backup scripts (navidrome, vaultwarden, semaphore) use `backup_local: true` to copy directly to the Nextcloud data directory instead of going through WebDAV rclone.
-
----
-
-### `ansible.yml`
-
-**Target:** `ansible`
-
-**Roles (in order):** `standard_ssh` → `standard_qemu_guest_agent` → `standard_update_packages` → `standard_podman` → `configure_timezone` → `standard_cron` → `standard_firewalld` → `standard_cleanup` → `ansible` → `reverse_proxy` → `semaphore`
-
-**Usage:** Configures the dedicated Ansible/Semaphore server (VM 100).
-
----
-
-### `nextcloud.yml`
-
-**Target:** `nextcloud`
-
-**Roles (in order):** `standard_ssh` → `standard_qemu_guest_agent` → `standard_update_packages` → `configure_timezone` → `standard_cron` → `standard_firewalld` → `standard_podman` → `standard_rclone` → `standard_cleanup` → `reverse_proxy` → `nextcloud` → `paperless_ngx`
-
-**Usage:** Configures the dedicated Nextcloud + Paperless NGX VM (ID 113).
-
----
-
-### `vaultwarden.yml`
-
-**Target:** `vaultwarden`
-
-**Roles (in order):** `standard_ssh` → `standard_qemu_guest_agent` → `standard_update_packages` → `configure_timezone` → `standard_cron` → `standard_firewalld` → `standard_podman` → `standard_rclone` → `standard_cleanup` → `reverse_proxy` → `vaultwarden`
-
-**Usage:** Configures the dedicated Vaultwarden VM (ID 115).
+**Notes:** `nextcloud` must run before `paperless_ngx` (Paperless uses Nextcloud's postgres/redis containers). `standard_rclone` must run before `standard_selinux` (fuse3 packages must exist before the boolean is set). Service backup scripts (navidrome, vaultwarden, semaphore) use `backup_local: true` to copy directly to the Nextcloud data directory.
 
 ---
 
@@ -77,26 +43,6 @@ For running playbook commands see [CLAUDE.md](../CLAUDE.md). This document descr
 **Roles (in order):** `standard_ssh` → `standard_qemu_guest_agent` → `standard_update_packages` → `configure_timezone` → `standard_cron` → `standard_firewalld` → `standard_podman` → `standard_cleanup` → `vpn`
 
 **Usage:** Configures the WireGuard VPN server (VM 110). No SWAG — VPN is accessed directly.
-
----
-
-### `backup.yml`
-
-**Target:** `backup`
-
-**Roles (in order):** `standard_ssh` → `standard_qemu_guest_agent` → `standard_update_packages` → `standard_cron` → `standard_firewalld` → `backup`
-
-**Usage:** Configures the Borg backup server (VM 106, Debian 12). No Podman — backup runs natively.
-
----
-
-### `navidrome.yml`
-
-**Target:** `navidrome`
-
-**Roles (in order):** `standard_ssh` → `standard_qemu_guest_agent` → `standard_update_packages` → `configure_timezone` → `standard_cron` → `standard_firewalld` → `standard_podman` → `reverse_proxy` → `standard_rclone` → `standard_cleanup` → `navidrome`
-
-**Usage:** Configures the dedicated Navidrome music server (VM 114).
 
 ---
 
@@ -160,17 +106,9 @@ For running playbook commands see [CLAUDE.md](../CLAUDE.md). This document descr
 
 ### `reboot_vms.yml`
 
-**Target:** `homelab`
+**Target:** `vm1`
 
-**Usage:** Reboots all homelab VMs. Skips the `ansible` host (`when: inventory_hostname != 'ansible'`) so the Ansible controller stays up during reboots.
-
----
-
-### `reboot_semaphore.yml`
-
-**Target:** `ansible`
-
-**Usage:** Reboots the Ansible/Semaphore server. Run after `reboot_vms.yml` completes.
+**Usage:** Reboots VM1 using a delayed shutdown (`shutdown -r +1`) so the running Semaphore/Ansible play has time to complete before the host goes down.
 
 ---
 

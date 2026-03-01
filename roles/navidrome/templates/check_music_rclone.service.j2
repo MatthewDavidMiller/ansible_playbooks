@@ -1,8 +1,0 @@
-[Unit]
-Description=Check status of rclone music mount and restart rclone mount and Navidrome if needed
-Wants=network-online.target
-After=network-online.target
-
-[Service]
-Type=oneshot
-ExecStart=/usr/local/bin/check_music_rclone.sh

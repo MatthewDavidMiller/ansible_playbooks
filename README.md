@@ -1,24 +1,32 @@
 # Ansible Playbooks
 
-Collection of various Ansible playbooks to configure various Linux servers and services. Used on Arch Linux servers except the backup server which runs on Debian 12. Utilizes podman containers for most of the services.
+Collection of Ansible playbooks for configuring homelab Linux servers and services. Targets Rocky Linux 10 VMs running Podman containers managed via systemd. Laptop configuration playbooks target Arch Linux.
 
-## Playbooks
+## Documentation
 
-* [ansible.yml](ansible.yml): Configures a server running Semaphore
-* [unificontroller.yml](unificontroller.yml): Configures a server running the Ubiquiti Unifi controller
-* [backup.yml](backup.yml): Configures a server running borg backup that backs up a Nextcloud server
-* [navidrome.yml](navidrome.yml): Configures a server running Navidrome
-* [nextcloud.yml](nextcloud.yml): Configures a server running Nextcloud and paperless ngx
-* [vaultwarden.yml](vaultwarden.yml): Configures a server running Vaultwarden
-* [vpn.yml](vpn.yml): Configures a Wireguard VPN server
-* [pihole.yml](pihole.yml): Configures a server running Phole
+- [docs/index.md](docs/index.md) — full documentation index
+- [docs/architecture.md](docs/architecture.md) — host topology, network design, SELinux policy
+- [docs/guides/getting-started.md](docs/guides/getting-started.md) — setup from scratch
+- [example_inventory.yml](example_inventory.yml) — inventory template with all required variables
 
-## Setup
-Run playbooks on servers using Ansible
+## Quick Start
 
-[proxmox_initial_setup.py](scripts/proxmox_initial_setup.py) Example Proxmox VM setup in this script
+```bash
+# Run VM1 (all consolidated services)
+ansible-playbook -i inventory.yml vm1.yml
 
-[example_inventory.yml](example_inventory.yml) Example inventory file with variables here
+# Run all homelab VMs
+ansible-playbook -i inventory.yml homelab_vms.yml
+
+# Run updates + reboot
+ansible-playbook -i inventory.yml update_homelab_vms.yml
+
+# Dry run
+ansible-playbook -i inventory.yml vm1.yml --check
+
+# Lint
+ansible-lint
+```
 
 ## License
 

@@ -42,54 +42,6 @@
     group: root
     mode: "0770"
 
-- name: rclone mount music script
-  ansible.builtin.template:
-    src: rclone_mount_music.sh.j2
-    dest: "/usr/local/bin/rclone_mount_music.sh"
-    owner: root
-    group: root
-    mode: "0770"
-  when: navidrome_local_music_path is not defined
-
-- name: check music rclone script
-  ansible.builtin.template:
-    src: check_music_rclone.sh.j2
-    dest: "/usr/local/bin/check_music_rclone.sh"
-    owner: root
-    group: root
-    mode: "0770"
-  when: navidrome_local_music_path is not defined
-
-- name: rclone mount music service
-  ansible.builtin.template:
-    src: rclone_mount_music.service.j2
-    dest: "/etc/systemd/system/rclone_mount_music.service"
-  when: navidrome_local_music_path is not defined
-
-- name: Enable rclone mount music service
-  ansible.builtin.systemd:
-    name: rclone_mount_music.service
-    enabled: yes
-  when: navidrome_local_music_path is not defined
-
-- name: check music rclone service
-  ansible.builtin.template:
-    src: check_music_rclone.service.j2
-    dest: "/etc/systemd/system/check_music_rclone.service"
-  when: navidrome_local_music_path is not defined
-
-- name: check music rclone timer
-  ansible.builtin.template:
-    src: check_music_rclone.timer.j2
-    dest: "/etc/systemd/system/check_music_rclone.timer"
-  when: navidrome_local_music_path is not defined
-
-- name: Enable check music rclone timer
-  ansible.builtin.systemd:
-    name: check_music_rclone.timer
-    enabled: yes
-  when: navidrome_local_music_path is not defined
-
 - name: Install zip and jq packages
   ansible.builtin.dnf:
     name:
