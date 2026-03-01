@@ -6,7 +6,7 @@ Each service role deploys one or more containers using the Podman + systemd patt
 
 ### `dynamic_dns`
 
-Updates a Porkbun DNS A record with the host's current WAN IP, retrieved from the Unifi Cloud Gateway Max integration API.
+Updates a Porkbun DNS A record with the host's current WAN IP, retrieved from the Porkbun ping endpoint.
 
 **Distributions:** Rocky Linux 10
 
@@ -16,17 +16,14 @@ Updates a Porkbun DNS A record with the host's current WAN IP, retrieved from th
 |---|---|---|---|
 | `homelab_domain` | string | Root domain for the A record | `example.com` |
 | `homelab_subdomain` | string | Subdomain to update | `vpn` |
-| `unifi_host` | string | Hostname or IP of the Unifi Cloud Gateway | `192.168.1.1` |
-| `unifi_api_key` | string | Unifi local API key | `api_key_...` |
 | `porkbun_api_key` | string | Porkbun API key (global) | `pk1_...` |
 | `porkbun_api_key_secret` | string | Porkbun API secret (global) | `sk1_...` |
-| `unifi_site_id` | string | **Optional.** Unifi site ID. Defaults to `default`. | `default` |
 
 **Templates:**
 
 | Template | Destination | Description |
 |---|---|---|
-| `dynamic_dns.py.j2` | `/usr/local/bin/dynamic_dns.py` | Python script; fetches WAN IP, compares to cache, updates Porkbun A record only when changed |
+| `dynamic_dns.py.j2` | `/usr/local/bin/dynamic_dns.py` | Python script; fetches WAN IP via Porkbun ping, compares to cache, updates Porkbun A record only when changed |
 
 **Notable tasks:**
 - Installs `python3-requests` via dnf
