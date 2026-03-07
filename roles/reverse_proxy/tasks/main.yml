@@ -17,7 +17,7 @@
 
 - name: Initialize acme.json
   ansible.builtin.copy:
-    content: "{}"
+    content: ""
     dest: "{{ traefik_path }}/acme.json"
     owner: root
     group: root
