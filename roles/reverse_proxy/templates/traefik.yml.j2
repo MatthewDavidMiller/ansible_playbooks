@@ -9,8 +9,9 @@ api:
 entryPoints:
   web:
     address: ":80"
-    allowEncodedSlashes: nosafe
     http:
+      encodedCharacters:
+        allowEncodedSlash: true
       redirections:
         entryPoint:
           to: websecure
@@ -18,8 +19,9 @@ entryPoints:
           permanent: true
   websecure:
     address: ":443"
-    allowEncodedSlashes: nosafe
     http:
+      encodedCharacters:
+        allowEncodedSlash: true
       tls:
         certResolver: porkbun
 
