@@ -9,6 +9,7 @@ api:
 entryPoints:
   web:
     address: ":80"
+    allowEncodedSlashes: nosafe
     http:
       redirections:
         entryPoint:
@@ -17,6 +18,7 @@ entryPoints:
           permanent: true
   websecure:
     address: ":443"
+    allowEncodedSlashes: nosafe
     http:
       tls:
         certResolver: porkbun
@@ -28,7 +30,8 @@ certificatesResolvers:
       storage: /acme.json
       dnsChallenge:
         provider: porkbun
-        delayBeforeCheck: 60
+        propagation:
+          delayBeforeChecks: 60
 
 providers:
   file:
