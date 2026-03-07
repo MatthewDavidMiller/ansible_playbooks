@@ -129,15 +129,13 @@ If the service needs a port open beyond what `standard_firewalld` provides, add 
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 ```
 
-Port 443 does not need to be added — the `reverse_proxy` role opens it.
+Ports 80 and 443 do not need to be added — Traefik exposes both via Podman `-p` flags, and Podman's DNAT rules preempt zone filtering for both ports.
 
 ---
 
-## 6. Add a SWAG Proxy Config Template (if HTTPS access is needed)
+## 6. Add a Traefik Proxy Config (if HTTPS access is needed)
 
-Create `roles/reverse_proxy/templates/<service>_proxy.conf.j2` with the nginx subdomain proxy configuration for your service. Use an existing template (e.g., `vaultwarden_proxy.conf.j2`) as a reference.
-
-Then add an entry to `proxy_config` in the host's inventory:
+No new template is needed. The generic `service_proxy.yml.j2` template handles all services. Just add an entry to `proxy_config` in the host's inventory:
 
 ```yaml
 proxy_config:
@@ -147,6 +145,8 @@ proxy_config:
     proxy_upstream_protocol: "http"
     container_destination: "<service>.dns.podman"
 ```
+
+Traefik will automatically request a Let's Encrypt certificate for `<service>.example.com` via Porkbun DNS challenge on first connection.
 
 See [inventory.md — proxy_config object schema](../inventory.md#proxy_config-object-schema).
 
@@ -197,7 +197,7 @@ If you are adding the service to VM1 (ID 120) rather than a dedicated VM:
 
 - Add the role to `vm1.yml` in the appropriate order
 - Add all required variables to the `vm1` host entry in inventory
-- If the service uses a Podman network, add that network to `swag_networks` in the `vm1` inventory entry
+- If the service uses a Podman network, add that network to `traefik_networks` in the `vm1` inventory entry
 - If the service has a PostgreSQL instance, use a unique path variable (not `postgres_path`) to avoid collisions with other PostgreSQL instances
 
 ---

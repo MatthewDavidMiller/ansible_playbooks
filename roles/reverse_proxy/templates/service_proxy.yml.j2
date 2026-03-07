@@ -1,0 +1,17 @@
+http:
+  routers:
+    {{ config_name.name }}:
+      rule: "Host(`{{ config_name.proxy_fqdn }}`)"
+      entryPoints:
+        - websecure
+      service: "{{ config_name.name }}"
+      tls: {}
+      middlewares:
+        - security-headers@file
+
+  services:
+    {{ config_name.name }}:
+      loadBalancer:
+        servers:
+          - url: "{{ config_name.proxy_upstream_protocol }}://{{ config_name.container_destination }}:{{ config_name.proxy_upstream_port }}"
+        passHostHeader: true

@@ -12,7 +12,7 @@ For architecture patterns (container pattern, firewall pattern, role conventions
 | 111 | Pihole | Rocky Linux 10 | Pi-hole DNS, SWAG reverse proxy |
 | 112 | NetworkController | Rocky Linux 10 | TP-Link Omada Controller, SWAG reverse proxy |
 | 116 | UnifiController | Rocky Linux 10 | Ubiquiti Unifi Controller, SWAG reverse proxy |
-| 120 | VM1 | Rocky Linux 10 | Nextcloud, Paperless NGX, Navidrome, Vaultwarden, Semaphore, PostgreSQL 15, PostgreSQL 17, Redis, SWAG reverse proxy, Borg backup |
+| 120 | VM1 | Rocky Linux 10 | Nextcloud, Paperless NGX, Navidrome, Vaultwarden, Semaphore, PostgreSQL 15, PostgreSQL 17, Redis, Traefik reverse proxy, Borg backup |
 
 Templates: VMID 400 (Debian 12 cloud-init), VMID 401 (Rocky Linux 10 cloud-init)
 
@@ -46,14 +46,14 @@ VM1 (ID 120) runs all services on a single Rocky Linux 10 host to reduce resourc
 | Navidrome | 256 MB |
 | Vaultwarden | 128 MB |
 | Semaphore + PostgreSQL 17 | 512 MB |
-| SWAG (nginx) | 256 MB |
+| Traefik | 128 MB |
 | OS + overhead | 1.5 GB |
-| **Total** | **~5.25 GB → 8 GB with headroom** |
+| **Total** | **~5.1 GB → 8 GB with headroom** |
 
 **Key design decisions:**
 
 - Semaphore uses `semaphore_postgres_path` (not `postgres_path`) to keep its PostgreSQL 17 data directory separate from the Nextcloud/Paperless PostgreSQL 15 data directory. See [roles/services.md#semaphore](roles/services.md#semaphore).
-- SWAG joins all four container networks simultaneously via `swag_networks`. See [Container Network Isolation](#container-network-isolation) below.
+- Traefik joins all four container networks simultaneously via `traefik_networks`. See [Container Network Isolation](#container-network-isolation) below.
 - SELinux stays enforcing. The `standard_selinux` role handles the required booleans. See [SELinux](#selinux) below.
 
 ---
@@ -66,14 +66,14 @@ Each service runs in its own Podman network to prevent DNS name collisions (both
 
 | Network | Subnet | Members |
 |---|---|---|
-| `nextcloud_container_net` | 172.16.1.8/29 | postgres, redis, nextcloud, paperless, swag |
-| `navidrome_container_net` | 172.16.1.24/29 | navidrome, swag |
-| `vaultwarden_container_net` | 172.16.1.16/29 | vaultwarden, swag |
-| `semaphore_container_net` | (auto) | semaphore_postgres, semaphore, swag |
+| `nextcloud_container_net` | 172.16.1.8/29 | postgres, redis, nextcloud, paperless, traefik |
+| `navidrome_container_net` | 172.16.1.24/29 | navidrome, traefik |
+| `vaultwarden_container_net` | 172.16.1.16/29 | vaultwarden, traefik |
+| `semaphore_container_net` | (auto) | semaphore_postgres, semaphore, traefik |
 
-SWAG resolves backends via Podman DNS (`nextcloud.dns.podman`, etc.) and must be a member of every network it proxies. On single-service hosts SWAG uses the scalar `swag_network` variable. On VM1 it uses the `swag_networks` list — the template in `roles/reverse_proxy/templates/swag_container.sh.j2` handles both cases.
+Traefik resolves backends via Podman DNS (`nextcloud.dns.podman`, etc.) and must be a member of every network it proxies. On VM1 it uses the `traefik_networks` list in inventory.
 
-See [inventory.md — swag_networks vs swag_network](inventory.md#swag_networks-vs-swag_network) and [roles/services.md#reverse_proxy](roles/services.md#reverse_proxy).
+See [inventory.md — traefik_networks](inventory.md#traefik_networks) and [roles/services.md#reverse_proxy](roles/services.md#reverse_proxy).
 
 ---
 
@@ -85,7 +85,7 @@ Allowed traffic in `homelab` zone:
 - SSH from `management_network` and `ip_ansible`
 - ICMP echo-request (ping)
 
-Port 443 does not require an explicit firewalld rule. Rootful Podman's `-p 443:443/tcp` flag adds DNAT rules in the nftables PREROUTING chain, which runs before firewalld zone filtering. External traffic to port 443 is DNAT'd to the container before the zone policy applies.
+Ports 80 and 443 do not require explicit firewalld rules. Rootful Podman's `-p 80:80/tcp -p 443:443/tcp` flags add DNAT rules in the nftables PREROUTING chain, which runs before firewalld zone filtering. External traffic to those ports is DNAT'd to the container before the zone policy applies.
 
 See [roles/standard.md#standard_firewalld](roles/standard.md#standard_firewalld) and [roles/services.md#reverse_proxy](roles/services.md#reverse_proxy).
 
@@ -93,9 +93,9 @@ See [roles/standard.md#standard_firewalld](roles/standard.md#standard_firewalld)
 
 ## Certificate Management
 
-SWAG (linuxserver.io's nginx + Certbot) handles TLS termination. It uses the Porkbun DNS-01 challenge to issue wildcard Let's Encrypt certificates for `*.example.com` subdomains.
+Traefik v3 handles TLS termination using its built-in ACME engine. It uses the Porkbun DNS-01 challenge to issue individual Let's Encrypt certificates — one per service FQDN. Certificates are stored in `{{ traefik_path }}/acme.json` and renewed automatically by Traefik.
 
-Configuration is in `roles/reverse_proxy/templates/porkbun.ini.j2`. Per-service nginx proxy configs are generated from the `proxy_config` inventory variable.
+Setting `certResolver: porkbun` on the `websecure` entrypoint without specifying wildcard `domains` causes Traefik to request a certificate for each router's exact `Host()` FQDN. Dynamic routing config is generated from the `proxy_config` inventory variable using a single generic template (`service_proxy.yml.j2`).
 
 See [roles/services.md#reverse_proxy](roles/services.md#reverse_proxy) and [inventory.md#proxy_config](inventory.md#proxy_config-object-schema).
 
