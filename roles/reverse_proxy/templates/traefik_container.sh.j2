@@ -1,0 +1,14 @@
+/usr/bin/podman pull docker.io/traefik:v3
+/usr/bin/podman run \
+  --name=traefik \
+{% for net in traefik_networks %}
+  --network={{ net }} \
+{% endfor %}
+  -e PORKBUN_API_KEY={{ porkbun_api_key }} \
+  -e PORKBUN_SECRET_API_KEY={{ porkbun_api_key_secret }} \
+  -v {{ traefik_path }}/traefik.yml:/etc/traefik/traefik.yml:Z,ro \
+  -v {{ traefik_path }}/config:/etc/traefik/config:Z,ro \
+  -v {{ traefik_path }}/acme.json:/acme.json:Z \
+  -p 80:80/tcp \
+  -p 443:443/tcp \
+  -d docker.io/traefik:v3

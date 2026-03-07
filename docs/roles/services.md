@@ -38,44 +38,45 @@ Updates a Porkbun DNS A record with the host's current WAN IP, retrieved from th
 
 ### `reverse_proxy`
 
-Deploys SWAG (linuxserver.io nginx + Certbot) for TLS termination and reverse proxying. Generates per-service nginx proxy configs from the `proxy_config` inventory variable.
+Deploys Traefik v3 for TLS termination and reverse proxying. Uses Traefik's built-in ACME engine with Porkbun DNS-01 challenge for per-FQDN certificates, and the file provider for dynamic routing config.
 
-**Distributions:** Debian 12, Rocky Linux 10, Arch Linux
+**Distributions:** Rocky Linux 10
 
-**Container image:** `docker.io/linuxserver/swag:latest`
+**Container image:** `docker.io/traefik:v3`
 
-**Ports:** 443/tcp (via Podman `-p 443:443/tcp`; no explicit firewalld rule needed — Podman's DNAT rules in PREROUTING preempt zone filtering)
+**Ports:** 80/tcp (HTTP→HTTPS redirect) + 443/tcp (HTTPS). Both exposed via Podman `-p`; no explicit firewalld rules needed — Podman's DNAT rules in PREROUTING preempt zone filtering.
 
 **Required variables:**
 
 | Variable | Type | Description | Example |
 |---|---|---|---|
-| `swag_path` | path | SWAG config directory | `/opt/swag` |
-| `top_domain` | string | Root domain for wildcard cert | `example.com` |
-| `swag_host_domain` | string | Comma-separated subdomains | `nextcloud,paperless` |
-| `swag_dns_plugin` | string | Certbot DNS plugin name | `porkbun` |
+| `traefik_path` | path | Traefik data directory | `/opt/traefik` |
+| `traefik_networks` | list | All Podman networks Traefik must join | `[nextcloud_container_net, ...]` |
+| `traefik_dashboard_fqdn` | string | FQDN for Traefik dashboard (gets its own cert) | `traefik.example.com` |
+| `traefik_acme_email` | string | Email for Let's Encrypt ACME account registration | `admin@example.com` |
 | `porkbun_api_key` | string | Porkbun API key | `pk1_...` |
 | `porkbun_api_key_secret` | string | Porkbun API secret | `sk1_...` |
+| `management_network` | string | Management network CIDR — for dashboard `ipAllowList` | `192.168.1.0/24` |
+| `ip_ansible` | string | Ansible controller IP (CIDR) — for dashboard `ipAllowList` | `192.168.1.1/32` |
 | `proxy_config` | list | Proxy config objects — see [inventory.md](../inventory.md#proxy_config-object-schema) | — |
-| `swag_network` | string | Podman network to join (single-service hosts) | `nextcloud_container_net` |
-| `swag_networks` | list | Podman networks to join (VM1) — takes precedence over `swag_network` if defined | `[nextcloud_container_net, ...]` |
-| `container_service_names` | string | Space-separated systemd unit names for `After=` in SWAG service | `nextcloud_container postgres_container` |
+| `container_service_names` | string | Space-separated systemd unit names for `After=` in Traefik service | `nextcloud_container postgres_container` |
 
 **Templates:**
 
 | Template | Destination | Description |
 |---|---|---|
-| `swag_container.sh.j2` | `/usr/local/bin/swag_container.sh` | `podman run` command; supports both `swag_network` and `swag_networks` |
-| `swag_container.service.j2` | `/etc/systemd/system/swag_container.service` | Systemd unit for SWAG |
-| `porkbun.ini.j2` | `{{ swag_path }}/dns-conf/porkbun.ini` | Porkbun DNS challenge credentials |
-| `{name}_proxy.conf.j2` | `{{ swag_path }}/nginx/proxy-confs/{name}.subdomain.conf` | Per-service nginx subdomain proxy config (one per `proxy_config` entry) |
-| `ssl.conf.j2` | `{{ swag_path }}/nginx/ssl.conf` | TLS settings |
-| `default.conf.j2` | `{{ swag_path }}/nginx/site-confs/default.conf` | Default nginx site config |
-| `proxy.conf.j2` | `{{ swag_path }}/nginx/proxy.conf` | Shared proxy settings |
+| `traefik_container.sh.j2` | `/usr/local/bin/traefik_container.sh` | `podman run` command; iterates `traefik_networks` for `--network` flags |
+| `traefik_container.service.j2` | `/etc/systemd/system/traefik_container.service` | Systemd unit for Traefik |
+| `traefik.yml.j2` | `{{ traefik_path }}/traefik.yml` | Traefik static config (entrypoints, ACME resolver, file provider) |
+| `tls.yml.j2` | `{{ traefik_path }}/config/tls.yml` | TLS options: min TLS 1.2, cipher suites, SNI strict |
+| `security.yml.j2` | `{{ traefik_path }}/config/security.yml` | Middlewares: `security-headers` (HSTS, X-Frame-Options, etc.) and `ip-allowlist-mgmt` |
+| `dashboard.yml.j2` | `{{ traefik_path }}/config/dashboard.yml` | Dashboard router — HTTPS only, restricted to management network |
+| `service_proxy.yml.j2` | `{{ traefik_path }}/config/{{ name }}.yml` | Generic service router + backend (one file per `proxy_config` entry) |
 
 **Notes:**
-- The `swag_container.sh.j2` template checks `swag_networks is defined` — if true, generates one `--network` flag per list entry; otherwise uses the scalar `swag_network`
-- Per-service proxy config templates are named `{proxy_config[].name}_proxy.conf.j2` and must exist in `roles/reverse_proxy/templates/`
+- `acme.json` is initialised with `force: false` — an existing file (with live certs) is never overwritten by Ansible
+- Setting `certResolver: porkbun` on the `websecure` entrypoint without specifying wildcard `domains` causes Traefik to request individual certs for each router's exact `Host()` FQDN
+- The generic `service_proxy.yml.j2` template is used for all `proxy_config` entries — no per-service template is needed
 
 ---
 

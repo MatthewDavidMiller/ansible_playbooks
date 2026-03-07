@@ -68,15 +68,15 @@ all:
           ansible_host: 192.168.1.X  # Replace with vm1's actual IP
           homelab_domain: "example.com"
           homelab_subdomain: "example"
-          # SWAG — list of all container networks to join (backward-compatible; single-service hosts use scalar swag_network instead)
-          swag_networks:
+          # Traefik — list of all container networks to join
+          traefik_path: /path/to/traefik
+          traefik_networks:
             - nextcloud_container_net
             - navidrome_container_net
             - vaultwarden_container_net
             - semaphore_container_net
-          swag_path: /path/to/swag
-          swag_dns_plugin: porkbun
-          swag_host_domain: "nextcloud,paperless,navidrome,vault,semaphore"
+          traefik_dashboard_fqdn: "traefik.example.com"
+          traefik_acme_email: "admin@example.com"
           proxy_config:
             - name: nextcloud_proxy
               proxy_fqdn: "nextcloud.example.com"
@@ -150,7 +150,7 @@ all:
           # Semaphore backup
           semaphore_backup_location: Nextcloud:semaphore_backup
 
-          # Systemd dependency ordering for SWAG service unit After= directive
+          # Systemd dependency ordering for Traefik service unit After= directive
           container_service_names: "postgres_container redis_container nextcloud_container paperless_ngx navidrome_container vaultwarden semaphore_postgres semaphore"
 
           # Borg backup to second NVMe disk (local — Nextcloud runs on this host)

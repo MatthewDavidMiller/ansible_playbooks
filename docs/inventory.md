@@ -20,9 +20,9 @@ Applied to all hosts in the `homelab` group.
 | `user_name` | string | Non-root user on managed hosts | `ansible` |
 | `porkbun_api_key` | string | Porkbun API key for DNS-01 certificate challenge | `pk1_...` |
 | `porkbun_api_key_secret` | string | Porkbun API secret | `sk1_...` |
-| `top_domain` | string | Root domain for wildcard certificate | `example.com` |
-| `swag_path` | path | Default SWAG config directory (can be overridden per host) | `/opt/swag` |
-| `swag_dns_plugin` | string | Certbot DNS plugin name | `porkbun` |
+| `top_domain` | string | Root domain | `example.com` |
+| `swag_path` | path | SWAG config directory — used by `unificontroller`, `pihole`, `apcontroller` hosts (not yet migrated to Traefik) | `/opt/swag` |
+| `swag_dns_plugin` | string | Certbot DNS plugin — used by unmigrated SWAG hosts | `porkbun` |
 | `nextcloud_dns_name` | string | Nextcloud FQDN | `nextcloud.example.com` |
 | `nextcloud_rclone_user` | string | Nextcloud WebDAV username for rclone | `admin` |
 | `nextcloud_rclone_pass` | string | Nextcloud WebDAV password for rclone | `secret` |
@@ -61,17 +61,17 @@ Applied to all hosts in the `homelab` group.
 
 ### `vm1` host (VM1, ID 120)
 
-This host runs all services consolidated. It uses `swag_networks` (list) instead of `swag_network` (scalar), and `semaphore_postgres_path` is distinct from `postgres_path` to prevent data directory collisions.
+This host runs all services consolidated. It uses Traefik v3 as the reverse proxy, and `semaphore_postgres_path` is distinct from `postgres_path` to prevent data directory collisions.
 
 | Variable | Type | Description | Example |
 |---|---|---|---|
 | `ansible_host` | string | Hostname or IP | `192.168.1.120` |
 | `homelab_domain` | string | Root domain for DDNS A record | `example.com` |
 | `homelab_subdomain` | string | Subdomain to update via DDNS | `home` |
-| `swag_networks` | list | All Podman networks SWAG must join | `[nextcloud_container_net, navidrome_container_net, ...]` |
-| `swag_path` | path | SWAG config directory | `/opt/swag` |
-| `swag_dns_plugin` | string | Certbot DNS plugin | `porkbun` |
-| `swag_host_domain` | string | Comma-separated subdomains | `nextcloud,paperless,navidrome,vault,semaphore` |
+| `traefik_path` | path | Traefik data directory | `/opt/traefik` |
+| `traefik_networks` | list | All Podman networks Traefik must join | `[nextcloud_container_net, navidrome_container_net, ...]` |
+| `traefik_dashboard_fqdn` | string | FQDN for the Traefik dashboard | `traefik.example.com` |
+| `traefik_acme_email` | string | Email for Let's Encrypt ACME account | `admin@example.com` |
 | `proxy_config` | list | One entry per proxied service | — |
 | `postgres_path` | path | PostgreSQL 15 data dir (Nextcloud + Paperless) | `/opt/postgres_nextcloud` |
 | `nextcloud_path` | path | Nextcloud data directory | `/opt/nextcloud` |
@@ -106,7 +106,7 @@ This host runs all services consolidated. It uses `swag_networks` (list) instead
 | `vaultwarden_path` | path | Vaultwarden data directory | `/opt/vaultwarden` |
 | `vaultwarden_backup_location` | string | rclone remote backup label | `Nextcloud:vaultwarden_backup` |
 | `semaphore_backup_location` | string | rclone remote backup path for Semaphore DB dumps | `Nextcloud:semaphore_backup` |
-| `container_service_names` | string | Space-separated systemd unit names for SWAG `After=` | `postgres_container redis_container nextcloud_container paperless_ngx navidrome_container vaultwarden semaphore_postgres semaphore` |
+| `container_service_names` | string | Space-separated systemd unit names for Traefik `After=` | `postgres_container redis_container nextcloud_container paperless_ngx navidrome_container vaultwarden semaphore_postgres semaphore` |
 | `backup_host` | string | Backup server IP (CIDR) for firewalld | `192.168.1.50/32` |
 | `borg_backup_path` | path | Borg repository root (also the second NVMe mount point) | `/opt/borg_backup` |
 | `backup_disk` | string | UUID of the second NVMe disk for Borg | `UUID=abc123...` |
@@ -131,24 +131,22 @@ This host runs all services consolidated. It uses `swag_networks` (list) instead
 
 ## `proxy_config` Object Schema
 
-The `proxy_config` variable is a list of objects. Each object generates one nginx proxy-conf file in SWAG.
+The `proxy_config` variable is a list of objects. Each object generates one Traefik dynamic config file in `{{ traefik_path }}/config/`.
 
 | Field | Type | Required | Description | Example |
 |---|---|---|---|---|
-| `name` | string | Yes | Template and conf filename stem (must match a template in `roles/reverse_proxy/templates/`) | `nextcloud_proxy` |
-| `proxy_fqdn` | string | No | Fully-qualified domain name for the subdomain | `nextcloud.example.com` |
-| `proxy_upstream_port` | string | No | Upstream container port | `443` |
-| `proxy_upstream_protocol` | string | No | Upstream protocol (`http` or `https`) | `https` |
-| `container_destination` | string | No | Podman DNS name of the backend container | `nextcloud.dns.podman` |
+| `name` | string | Yes | Config filename stem and Traefik router/service name | `nextcloud_proxy` |
+| `proxy_fqdn` | string | Yes | Fully-qualified domain name for the router `Host()` rule | `nextcloud.example.com` |
+| `proxy_upstream_port` | string | Yes | Upstream container port | `80` |
+| `proxy_upstream_protocol` | string | Yes | Upstream protocol (`http` or `https`) | `http` |
+| `container_destination` | string | Yes | Podman DNS name of the backend container | `nextcloud.dns.podman` |
+
+All entries use the generic `service_proxy.yml.j2` template — no per-service template is needed.
 
 ---
 
-## `swag_networks` vs `swag_network`
+## `traefik_networks`
 
-- **`swag_network`** (string) — used on single-service hosts where SWAG only needs to join one Podman network
-- **`swag_networks`** (list) — used on VM1 where SWAG must join all four service networks
+`traefik_networks` is a list of Podman network names that Traefik must join. Traefik resolves backend containers by Podman DNS name (`<container>.dns.podman`) and must be a member of every network it proxies into.
 
-The `swag_container.sh.j2` template checks for `swag_networks` first. If defined, it generates one `--network` flag per entry. If not defined, it falls back to the scalar `swag_network`. This keeps existing single-service host inventories working without changes.
-
-Hosts using `swag_network`: `unificontroller`, `pihole`, `apcontroller`
-Hosts using `swag_networks`: `vm1`
+On VM1, each service runs in its own isolated network, so `traefik_networks` lists all four service networks. Hosts not yet migrated to Traefik (`unificontroller`, `pihole`, `apcontroller`) continue to use the SWAG `swag_network` scalar variable.

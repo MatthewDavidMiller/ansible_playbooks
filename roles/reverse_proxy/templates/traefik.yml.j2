@@ -1,0 +1,41 @@
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+api:
+  dashboard: true
+  insecure: false
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+  websecure:
+    address: ":443"
+    http:
+      tls:
+        certResolver: porkbun
+
+certificatesResolvers:
+  porkbun:
+    acme:
+      email: "{{ traefik_acme_email }}"
+      storage: /acme.json
+      dnsChallenge:
+        provider: porkbun
+        delayBeforeCheck: 60
+
+providers:
+  file:
+    directory: /etc/traefik/config
+    watch: true
+
+log:
+  level: WARN
+
+accessLog: {}
