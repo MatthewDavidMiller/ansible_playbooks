@@ -5,7 +5,8 @@ http:
       entryPoints:
         - websecure
       service: api@internal
-      tls: {}
+      tls:
+        certResolver: porkbun
       middlewares:
         - ip-allowlist-mgmt@file
         - security-headers@file
