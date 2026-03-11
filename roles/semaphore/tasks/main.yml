@@ -4,24 +4,6 @@
       podman network create semaphore_container_net
   ignore_errors: true
 
-- name: Create postgres database container path
-  ansible.builtin.file:
-    path: "{{ semaphore_postgres_path }}"
-    state: directory
-    owner: root
-    group: root
-    mode: "0777"
-
-- name: Postgres service
-  ansible.builtin.template:
-    src: semaphore_postgres.service.j2
-    dest: "/etc/systemd/system/semaphore_postgres.service"
-
-- name: Enable postgres
-  ansible.builtin.systemd:
-    name: semaphore_postgres.service
-    enabled: yes
-
 - name: Semaphore service
   ansible.builtin.template:
     src: semaphore.service.j2
@@ -31,14 +13,6 @@
   ansible.builtin.systemd:
     name: semaphore.service
     enabled: yes
-
-- name: Postgres script
-  ansible.builtin.template:
-    src: semaphore_postgres.sh.j2
-    dest: "/usr/local/bin/semaphore_postgres.sh"
-    owner: "{{ user_name }}"
-    group: root
-    mode: "0770"
 
 - name: Semaphore script
   ansible.builtin.template:
