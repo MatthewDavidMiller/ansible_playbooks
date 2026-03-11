@@ -26,6 +26,7 @@ For running playbooks and architecture patterns (authoritative reference for Cla
 | [guides/adding-a-service.md](guides/adding-a-service.md) | How to add a new service using established patterns |
 | [guides/proxmox-setup.md](guides/proxmox-setup.md) | VM provisioning with `scripts/proxmox_initial_setup.py` |
 | [guides/dr-restore.md](guides/dr-restore.md) | Disaster recovery — initial migration to VM1 and restore from backups |
+| [guides/postgres-upgrade.md](guides/postgres-upgrade.md) | PostgreSQL major version upgrade procedure for the shared postgres container |
 
 ## Standards
 

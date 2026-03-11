@@ -3,7 +3,7 @@
 timestamp=$(date +%m_%d_%Y)
 DUMP_FILE="/tmp/semaphore_db_${timestamp}.sql"
 
-/usr/bin/podman exec semaphore_postgres pg_dump \
+/usr/bin/podman exec postgres pg_dump \
   -U {{ semaphore_database_user }} {{ semaphore_database_name }} \
   > "$DUMP_FILE"
 

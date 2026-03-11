@@ -104,7 +104,7 @@ all:
               proxy_upstream_protocol: "http"
               container_destination: "semaphore.dns.podman"
 
-          # Nextcloud + Paperless NGX (share PostgreSQL 15 + Redis)
+          # Nextcloud + Paperless NGX + Semaphore (share PostgreSQL 17 + Redis)
           postgres_path: /path/to/postgres_nextcloud
           nextcloud_path: /path/to/nextcloud
           nextcloud_disk: "UUID=example-uuid"
@@ -127,8 +127,7 @@ all:
           paperless_database_user_password: example_password
           paperless_dns_name: paperless.example.com
 
-          # Semaphore (PostgreSQL 17 — uses semaphore_postgres_path, NOT postgres_path)
-          semaphore_postgres_path: /path/to/postgres_semaphore
+          # Semaphore (database hosted on shared postgres_container)
           semaphore_database_name: semaphore
           semaphore_database_user: semaphore_user
           semaphore_database_user_password: example_password
@@ -151,7 +150,7 @@ all:
           semaphore_backup_location: Nextcloud:semaphore_backup
 
           # Systemd dependency ordering for Traefik service unit After= directive
-          container_service_names: "postgres_container redis_container nextcloud_container paperless_ngx navidrome_container vaultwarden semaphore_postgres semaphore"
+          container_service_names: "postgres_container redis_container nextcloud_container paperless_ngx navidrome_container vaultwarden semaphore"
 
           # Borg backup to second NVMe disk (local — Nextcloud runs on this host)
           borg_backup_path: /path/to/borg_backup

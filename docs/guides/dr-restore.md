@@ -17,7 +17,7 @@ For VM provisioning details see [proxmox-setup.md](proxmox-setup.md).
 | Nextcloud user files | Borg archive on second NVMe disk (backup role, daily) | `{{ borg_backup_path }}` on VM1 |
 | Vaultwarden SQLite DB | Direct cp to Nextcloud data dir (`backup_local: true`) | `{{ nextcloud_path }}/data/{{ nextcloud_database_user }}/files/<vaultwarden_backup_location>` |
 | Navidrome DB | Direct cp to Nextcloud data dir (`backup_local: true`) | `{{ nextcloud_path }}/data/{{ nextcloud_database_user }}/files/<navidrome_backup_location>` |
-| Semaphore PostgreSQL 17 DB | Direct cp to Nextcloud data dir (`backup_local: true`) | `{{ nextcloud_path }}/data/{{ nextcloud_database_user }}/files/<semaphore_backup_location>` |
+| Semaphore DB | pg_dump into Nextcloud data dir (`backup_local: true`) | `{{ nextcloud_path }}/data/{{ nextcloud_database_user }}/files/<semaphore_backup_location>` |
 | Navidrome music | Local bind-mount of Nextcloud data dir — source is Nextcloud user files (backed up by Borg above) | n/a |
 | SWAG/TLS certificates | Regeneratable via DNS-01 challenge | n/a |
 | Redis | Cache only — acceptable loss | n/a |
@@ -81,10 +81,10 @@ The existing Ansible playbooks support this without changes: mounts are UUID-bas
 
 | Disk | Inventory variable | Contains |
 |---|---|---|
-| Nextcloud data disk | `nextcloud_disk` → `nextcloud_path` | User files, config.php, apps, local Borg archive (`nextcloud_borg_backup_path`) with PG15 SQL dumps and Paperless exports, plus Vaultwarden/Navidrome/Semaphore backup files stored inside `nextcloud_path/data/` |
+| Nextcloud data disk | `nextcloud_disk` → `nextcloud_path` | User files, config.php, apps, local Borg archive (`nextcloud_borg_backup_path`) with SQL dumps and Paperless exports, plus Vaultwarden/Navidrome/Semaphore backup files stored inside `nextcloud_path/data/` |
 | Borg backup disk | `backup_disk` → `borg_backup_path` | Full daily Borg snapshots of the entire `nextcloud_path` directory tree |
 
-The live PostgreSQL data directories (`postgres_path`, `semaphore_postgres_path`) are on the OS disk — they are separate configured paths, not under `nextcloud_path`, so they are not on the data disk and are not carried over when you move the disk to a new VM. Databases must be restored from the SQL dumps in the Borg archive.
+The live PostgreSQL data directory (`postgres_path`) is on the OS disk — it is a separate configured path, not under `nextcloud_path`, so it is not on the data disk and is not carried over when you move the disk to a new VM. Databases must be restored from the SQL dumps in the Borg archive.
 
 > **Backup gap:** The SQL dumps in the Borg archive are from the last backup run (daily cron). The live filesystem on the data disk may be ahead of that by up to ~24 hours. After restoring the database, run `occ files:scan --all` (Step 5) to reconcile file presence between the database and the live filesystem. Note that DB-only data modified after the last backup — shares, comments, tags, calendar/contacts, app settings — will revert to the dump state and cannot be recovered from this backup strategy.
 
@@ -333,11 +333,11 @@ systemctl start vaultwarden
 ls <nextcloud_path>/data/<nextcloud_database_user>/files/<semaphore_backup_location>/
 ```
 
-**5b. Restore the PostgreSQL 17 database:**
+**5b. Restore the Semaphore database:**
 ```bash
-podman exec -i semaphore_postgres psql -h localhost -U <semaphore_database_user> -d postgres -c "DROP DATABASE IF EXISTS <semaphore_database_name>;"
-podman exec -i semaphore_postgres psql -h localhost -U <semaphore_database_user> -d postgres -c "CREATE DATABASE <semaphore_database_name>;"
-podman exec -i semaphore_postgres psql -h localhost -U <semaphore_database_user> <semaphore_database_name> \
+podman exec postgres psql -h localhost -U <nextcloud_database_user> -d postgres -c "DROP DATABASE IF EXISTS <semaphore_database_name>;"
+podman exec postgres psql -h localhost -U <nextcloud_database_user> -d postgres -c "CREATE DATABASE <semaphore_database_name> OWNER <semaphore_database_user>;"
+podman exec -i postgres psql -h localhost -U <semaphore_database_user> <semaphore_database_name> \
     < <nextcloud_path>/data/<nextcloud_database_user>/files/<semaphore_backup_location>/semaphore_db_<DATE>.sql
 ```
 
