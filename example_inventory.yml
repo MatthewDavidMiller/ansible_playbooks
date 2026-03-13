@@ -111,8 +111,9 @@ all:
           nextcloud_borg_backup_path: /path/to/nextcloud/borg/backup
           nextcloud_paperless_backup_location: Nextcloud:backup/nextcloud
           nextcloud_database_name: nextcloud
-          nextcloud_database_user: nextcloud_user
-          nextcloud_database_user_password: example_password
+          nextcloud_homelab_user: nextcloud_user
+          postgres_database_user: nextcloud_user
+          postgres_database_user_password: example_password
           nextcloud_admin_user: admin
           nextcloud_admin_password: example_password
           nextcloud_trusted_domains: nextcloud.example.com
@@ -123,14 +124,10 @@ all:
           paperless_export_path: /path/to/paperless/export
           paperless_consume_path: /path/to/paperless/consume
           paperless_database_name: paperless
-          paperless_database_user: paperless_user
-          paperless_database_user_password: example_password
           paperless_dns_name: paperless.example.com
 
           # Semaphore (database hosted on shared postgres_container)
           semaphore_database_name: semaphore
-          semaphore_database_user: semaphore_user
-          semaphore_database_user_password: example_password
           semaphore_admin_name: admin
           semaphore_admin_email: admin@example.com
           semaphore_admin_password: example_password

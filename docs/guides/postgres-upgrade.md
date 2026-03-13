@@ -34,7 +34,7 @@ Run while all services are still up. This is the safety net if anything goes wro
 
 ```bash
 # Full pg_dumpall — captures roles and all three databases
-podman exec postgres pg_dumpall -U <nextcloud_database_user> > /root/pg_dumpall_$(date +%Y%m%d).sql
+podman exec postgres pg_dumpall -U <postgres_database_user> > /root/pg_dumpall_$(date +%Y%m%d).sql
 
 # Verify it is non-empty
 wc -l /root/pg_dumpall_$(date +%Y%m%d).sql
@@ -53,7 +53,7 @@ systemctl stop semaphore nextcloud_container paperless_ngx navidrome_container v
 
 ```bash
 # Final dump with no app connections — guarantees a consistent snapshot
-podman exec postgres pg_dumpall -U <nextcloud_database_user> > /root/pg_final_$(date +%Y%m%d_%H%M).sql
+podman exec postgres pg_dumpall -U <postgres_database_user> > /root/pg_final_$(date +%Y%m%d_%H%M).sql
 
 systemctl stop postgres_container
 
@@ -79,12 +79,12 @@ ansible-playbook -i inventory.yml vm1.yml
 systemctl start postgres_container
 
 # Wait for postgres to be ready
-until podman exec postgres pg_isready -h localhost -U <nextcloud_database_user>; do sleep 3; done
+until podman exec postgres pg_isready -h localhost -U <postgres_database_user>; do sleep 3; done
 
 # Restore all databases from the final dump
 # Warnings like "role already exists" and "database already exists" are expected — db_wrapper.sh
 # pre-creates them, and pg_dumpall's CREATE statements fail harmlessly on existing objects
-podman exec -i postgres psql -U <nextcloud_database_user> -d postgres < /root/pg_final_$(date +%Y%m%d_*).sql
+podman exec -i postgres psql -U <postgres_database_user> -d postgres < /root/pg_final_$(date +%Y%m%d_*).sql
 ```
 
 ### Phase 5 — Post-restore hygiene
@@ -92,15 +92,15 @@ podman exec -i postgres psql -U <nextcloud_database_user> -d postgres < /root/pg
 ```bash
 # Fix collation version mismatch warnings (informational, not fatal)
 # PostgreSQL tracks the glibc collation version in each database and warns when it changes
-podman exec postgres psql -U <nextcloud_database_user> -d postgres \
+podman exec postgres psql -U <postgres_database_user> -d postgres \
     -c "ALTER DATABASE <nextcloud_database_name> REFRESH COLLATION VERSION;"
-podman exec postgres psql -U <nextcloud_database_user> -d postgres \
+podman exec postgres psql -U <postgres_database_user> -d postgres \
     -c "ALTER DATABASE <paperless_database_name> REFRESH COLLATION VERSION;"
-podman exec postgres psql -U <nextcloud_database_user> -d postgres \
+podman exec postgres psql -U <postgres_database_user> -d postgres \
     -c "ALTER DATABASE <semaphore_database_name> REFRESH COLLATION VERSION;"
 
 # Refresh query planner statistics — recommended by PostgreSQL after dump/restore
-podman exec postgres vacuumdb --all --analyze-in-stages -U <nextcloud_database_user>
+podman exec postgres vacuumdb --all --analyze-in-stages -U <postgres_database_user>
 ```
 
 ### Phase 6 — Start all services and verify
@@ -110,7 +110,7 @@ systemctl start redis_container nextcloud_container paperless_ngx \
     navidrome_container vaultwarden semaphore traefik_container
 
 # Confirm all three databases are present
-podman exec postgres psql -U <nextcloud_database_user> -c "\l"
+podman exec postgres psql -U <postgres_database_user> -d postgres -c "\l"
 # Expect: nextcloud, paperless, semaphore, postgres, template0, template1
 
 # Take Nextcloud out of maintenance mode
@@ -138,8 +138,3 @@ podman rmi docker.io/postgres:<old_version>
 
 **Collation version mismatch:** If the host OS upgrades glibc between PostgreSQL versions, the stored collation version in each database will differ from what PostgreSQL 17 reports. `REFRESH COLLATION VERSION` updates the stored version to match. This is informational — queries continue to work — but silencing the warning is good practice.
 
-**Semaphore role password:** The `semaphore_database_user` role is created by `db_wrapper.sh` using the password rendered from `semaphore_database_user_password` at Ansible deploy time. The `CREATE ROLE ... PASSWORD` statement only runs at initial creation. If this password changes in inventory, update it manually:
-```bash
-podman exec postgres psql -U <nextcloud_database_user> \
-    -c "ALTER ROLE <semaphore_database_user> PASSWORD 'newpassword';"
-```

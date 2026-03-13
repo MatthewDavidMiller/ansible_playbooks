@@ -77,8 +77,9 @@ This host runs all services consolidated. It uses Traefik v3 as the reverse prox
 | `nextcloud_path` | path | Nextcloud data directory | `/opt/nextcloud` |
 | `nextcloud_disk` | string | UUID of Nextcloud data disk | `UUID=abc123...` |
 | `nextcloud_database_name` | string | Nextcloud database | `nextcloud` |
-| `nextcloud_database_user` | string | Nextcloud DB user | `nextcloud_user` |
-| `nextcloud_database_user_password` | string | Nextcloud DB password | `secret` |
+| `nextcloud_homelab_user` | string | Nextcloud account name used for backup file paths (e.g. `nextcloud_path/data/<user>/files/`) | `nextcloud_user` |
+| `postgres_database_user` | string | PostgreSQL superuser role — shared by Nextcloud, Paperless, and Semaphore | `nextcloud_user` |
+| `postgres_database_user_password` | string | PostgreSQL superuser password | `secret` |
 | `nextcloud_admin_user` | string | Nextcloud admin | `admin` |
 | `nextcloud_admin_password` | string | Nextcloud admin password | `secret` |
 | `nextcloud_trusted_domains` | string | Nextcloud trusted domains | `nextcloud.example.com` |
@@ -88,13 +89,8 @@ This host runs all services consolidated. It uses Traefik v3 as the reverse prox
 | `paperless_export_path` | path | Paperless export directory | `/opt/paperless/export` |
 | `paperless_consume_path` | path | Paperless consume directory | `/opt/paperless/consume` |
 | `paperless_database_name` | string | Paperless database | `paperless` |
-| `paperless_database_user` | string | Paperless DB user | `paperless_user` |
-| `paperless_database_user_password` | string | Paperless DB password | `secret` |
 | `paperless_dns_name` | string | Paperless FQDN | `paperless.example.com` |
-| `semaphore_postgres_path` | path | PostgreSQL 17 data dir (Semaphore only) | `/opt/postgres_semaphore` |
 | `semaphore_database_name` | string | Semaphore database | `semaphore` |
-| `semaphore_database_user` | string | Semaphore DB user | `semaphore_user` |
-| `semaphore_database_user_password` | string | Semaphore DB password | `secret` |
 | `semaphore_admin_name` | string | Semaphore admin username | `admin` |
 | `semaphore_admin_email` | string | Semaphore admin email | `admin@example.com` |
 | `semaphore_admin_password` | string | Semaphore admin password | `secret` |
@@ -120,8 +116,8 @@ This host runs all services consolidated. It uses Traefik v3 as the reverse prox
 |---|---|---|
 | `{service}_path` | Root data directory for a service | `nextcloud_path`, `vaultwarden_path` |
 | `{service}_database_name` | Database name | `nextcloud_database_name` |
-| `{service}_database_user` | Database user | `nextcloud_database_user` |
-| `{service}_database_user_password` | Database password | `nextcloud_database_user_password` |
+| `postgres_database_user` | Shared PostgreSQL superuser role | `postgres_database_user` |
+| `postgres_database_user_password` | Shared PostgreSQL superuser password | `postgres_database_user_password` |
 | `{service}_admin_user` | Admin username | `nextcloud_admin_user` |
 | `{service}_admin_password` | Admin password | `nextcloud_admin_password` |
 | `{service}_dns_name` | Service FQDN | `nextcloud_dns_name` |

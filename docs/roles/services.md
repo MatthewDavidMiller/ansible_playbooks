@@ -98,8 +98,8 @@ Deploys Nextcloud with PostgreSQL 15 and Redis. Also sets up Borg backup and cre
 | `nextcloud_path` | path | Nextcloud data directory | `/opt/nextcloud` |
 | `nextcloud_disk` | string | UUID of Nextcloud data disk | `UUID=abc123...` |
 | `nextcloud_database_name` | string | Database name | `nextcloud` |
-| `nextcloud_database_user` | string | Database user | `nextcloud_user` |
-| `nextcloud_database_user_password` | string | Database password | `secret` |
+| `postgres_database_user` | string | PostgreSQL superuser role (shared with Paperless and Semaphore) | `nextcloud_user` |
+| `postgres_database_user_password` | string | PostgreSQL superuser password | `secret` |
 | `nextcloud_admin_user` | string | Admin username | `admin` |
 | `nextcloud_admin_password` | string | Admin password | `secret` |
 | `nextcloud_trusted_domains` | string | Trusted domains | `nextcloud.example.com` |
@@ -137,9 +137,9 @@ Deploys Paperless NGX. Depends on the PostgreSQL 15 and Redis containers created
 | `paperless_media_path` | path | Paperless media directory | `/opt/paperless/media` |
 | `paperless_export_path` | path | Paperless export directory | `/opt/paperless/export` |
 | `paperless_consume_path` | path | Paperless consume directory | `/opt/paperless/consume` |
-| `paperless_database_name` | string | Database name (in PG15) | `paperless` |
-| `paperless_database_user` | string | Database user | `paperless_user` |
-| `paperless_database_user_password` | string | Database password | `secret` |
+| `paperless_database_name` | string | Database name | `paperless` |
+| `postgres_database_user` | string | PostgreSQL superuser role (shared — defined in `nextcloud` role) | `nextcloud_user` |
+| `postgres_database_user_password` | string | PostgreSQL superuser password | `secret` |
 
 **Templates:**
 
@@ -170,8 +170,8 @@ The daily backup script (`backup_semaphore.sh`) dumps the PostgreSQL 17 database
 |---|---|---|---|
 | `semaphore_postgres_path` | path | PostgreSQL 17 data directory | `/opt/postgres_semaphore` |
 | `semaphore_database_name` | string | Database name | `semaphore` |
-| `semaphore_database_user` | string | Database user | `semaphore_user` |
-| `semaphore_database_user_password` | string | Database password | `secret` |
+| `postgres_database_user` | string | PostgreSQL superuser role (shared — defined in `nextcloud` role) | `nextcloud_user` |
+| `postgres_database_user_password` | string | PostgreSQL superuser password | `secret` |
 | `semaphore_admin_name` | string | Admin username | `admin` |
 | `semaphore_admin_email` | string | Admin email | `admin@example.com` |
 | `semaphore_admin_password` | string | Admin password | `secret` |

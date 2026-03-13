@@ -24,16 +24,10 @@ psql -h localhost -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
         -c "CREATE DATABASE {{ paperless_database_name }};"
 
 psql -h localhost -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
-    -tc "SELECT 1 FROM pg_roles WHERE rolname = '{{ semaphore_database_user }}'" \
-    | grep -q 1 \
-    || psql -h localhost -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
-        -c "CREATE ROLE {{ semaphore_database_user }} WITH LOGIN PASSWORD '{{ semaphore_database_user_password }}';"
-
-psql -h localhost -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
     -tc "SELECT 1 FROM pg_database WHERE datname = '{{ semaphore_database_name }}'" \
     | grep -q 1 \
     || psql -h localhost -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
-        -c "CREATE DATABASE {{ semaphore_database_name }} OWNER {{ semaphore_database_user }};"
+        -c "CREATE DATABASE {{ semaphore_database_name }} OWNER \"$POSTGRES_USER\";"
 
 echo "[INFO] Database setup complete."
 wait $POSTGRES_PID
