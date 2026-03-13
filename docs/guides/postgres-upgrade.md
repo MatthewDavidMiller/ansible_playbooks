@@ -46,7 +46,7 @@ wc -l /root/pg_dumpall_$(date +%Y%m%d).sql
 # Put Nextcloud in maintenance mode before stopping postgres
 podman exec nextcloud php occ maintenance:mode --on
 
-systemctl stop semaphore nextcloud_container paperless_ngx navidrome_container vaultwarden traefik
+systemctl stop semaphore nextcloud_container paperless_ngx navidrome_container vaultwarden traefik_container
 ```
 
 ### Phase 2 — Final consistent dump and stop postgres
@@ -84,7 +84,7 @@ until podman exec postgres pg_isready -h localhost -U <nextcloud_database_user>;
 # Restore all databases from the final dump
 # Warnings like "role already exists" and "database already exists" are expected — db_wrapper.sh
 # pre-creates them, and pg_dumpall's CREATE statements fail harmlessly on existing objects
-podman exec -i postgres psql -U <nextcloud_database_user> < /root/pg_final_$(date +%Y%m%d_*).sql
+podman exec -i postgres psql -U <nextcloud_database_user> -d postgres < /root/pg_final_$(date +%Y%m%d_*).sql
 ```
 
 ### Phase 5 — Post-restore hygiene
@@ -92,11 +92,11 @@ podman exec -i postgres psql -U <nextcloud_database_user> < /root/pg_final_$(dat
 ```bash
 # Fix collation version mismatch warnings (informational, not fatal)
 # PostgreSQL tracks the glibc collation version in each database and warns when it changes
-podman exec postgres psql -U <nextcloud_database_user> \
+podman exec postgres psql -U <nextcloud_database_user> -d postgres \
     -c "ALTER DATABASE <nextcloud_database_name> REFRESH COLLATION VERSION;"
-podman exec postgres psql -U <nextcloud_database_user> \
+podman exec postgres psql -U <nextcloud_database_user> -d postgres \
     -c "ALTER DATABASE <paperless_database_name> REFRESH COLLATION VERSION;"
-podman exec postgres psql -U <nextcloud_database_user> \
+podman exec postgres psql -U <nextcloud_database_user> -d postgres \
     -c "ALTER DATABASE <semaphore_database_name> REFRESH COLLATION VERSION;"
 
 # Refresh query planner statistics — recommended by PostgreSQL after dump/restore
@@ -107,7 +107,7 @@ podman exec postgres vacuumdb --all --analyze-in-stages -U <nextcloud_database_u
 
 ```bash
 systemctl start redis_container nextcloud_container paperless_ngx \
-    navidrome_container vaultwarden semaphore traefik
+    navidrome_container vaultwarden semaphore traefik_container
 
 # Confirm all three databases are present
 podman exec postgres psql -U <nextcloud_database_user> -c "\l"
