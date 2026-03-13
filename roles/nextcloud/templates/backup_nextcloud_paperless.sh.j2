@@ -42,14 +42,14 @@ fi
 
 # === Dump Paperless DB ===
 # Note: May produce collation mismatch warning due to host OS having newer glibc than container.
-# To verify collation: podman exec postgres psql -U {{ paperless_database_user }} {{ paperless_database_name }} -c "SHOW LC_COLLATE;"
-/usr/bin/podman exec postgres pg_dump -U {{ paperless_database_user }} {{ paperless_database_name }} \
+# To verify collation: podman exec postgres psql -U {{ postgres_database_user }} {{ paperless_database_name }} -c "SHOW LC_COLLATE;"
+/usr/bin/podman exec postgres pg_dump -U {{ postgres_database_user }} {{ paperless_database_name }} \
   > "/paperless_db_${timestamp}.sql"
 
 # === Dump Nextcloud DB ===
 # Note: May produce collation mismatch warning due to host OS having newer glibc than container.
-# To verify collation: podman exec postgres psql -U {{ nextcloud_database_user }} {{ nextcloud_database_name }} -c "SHOW LC_COLLATE;"
-/usr/bin/podman exec postgres pg_dump -U {{ nextcloud_database_user }} {{ nextcloud_database_name }} \
+# To verify collation: podman exec postgres psql -U {{ postgres_database_user }} {{ nextcloud_database_name }} -c "SHOW LC_COLLATE;"
+/usr/bin/podman exec postgres pg_dump -U {{ postgres_database_user }} {{ nextcloud_database_name }} \
   > "/nextcloud_db_${timestamp}.sql"
 
 # === Create Export Directory for Paperless Documents ===

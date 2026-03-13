@@ -5,8 +5,8 @@
 -e PAPERLESS_REDIS=redis://redis.dns.podman:6379 \
 -e PAPERLESS_DBHOST=postgres.dns.podman \
 -e PAPERLESS_DBNAME={{ paperless_database_name }} \
--e PAPERLESS_DBUSER={{ paperless_database_user }} \
--e PAPERLESS_DBPASS={{ paperless_database_user_password }} \
+-e PAPERLESS_DBUSER={{ postgres_database_user }} \
+-e PAPERLESS_DBPASS={{ postgres_database_user_password }} \
 -e USERMAP_UID=1000 \
 -e USERMAP_GID=1000 \
 -e PAPERLESS_TIME_ZONE=America/New_York \
