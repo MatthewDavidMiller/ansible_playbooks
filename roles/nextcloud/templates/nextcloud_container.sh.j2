@@ -13,7 +13,7 @@
 -e NEXTCLOUD_ADMIN_PASSWORD='{{ nextcloud_admin_password }}' \
 -e NEXTCLOUD_TRUSTED_DOMAINS={{ nextcloud_trusted_domains }} \
 -e POSTGRES_HOST=postgres.dns.podman \
--e TRUSTED_PROXIES=172.16.1.8/29 \
+-e TRUSTED_PROXIES=172.16.1.0/28 \
 -e OVERWRITEPROTOCOL=https \
 -e OVERWRITECLIURL='https://{{ nextcloud_dns_name }}' \
 -e PHP_UPLOAD_LIMIT=20480M \

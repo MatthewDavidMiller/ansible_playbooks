@@ -4,7 +4,7 @@
 - name: Create nextcloud and postgres container network
   ansible.builtin.shell:
     cmd: |
-      podman network create --subnet 172.16.1.8/29 nextcloud_container_net
+      podman network create --subnet 172.16.1.0/28 nextcloud_container_net
   ignore_errors: true
 
 - name: Create postgres database container path
