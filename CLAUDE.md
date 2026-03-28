@@ -88,6 +88,10 @@ Use `example_inventory.yml` as the template for your real inventory. Key global 
 
 Host-specific variables include service paths, database credentials, and `proxy_config` lists.
 
+## Planning Mode
+
+When in planning mode, only use subagents (via the Agent tool) for tasks — do not perform reads, searches, or other operations directly. This keeps the planning context token-efficient.
+
 ## Git Commits
 
 Do not add a `Co-Authored-By` trailer to commit messages in this repository.
