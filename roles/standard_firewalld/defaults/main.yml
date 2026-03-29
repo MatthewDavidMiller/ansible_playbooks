@@ -1,0 +1,12 @@
+---
+# standard_firewalld role defaults
+
+# Network interface name assigned to the public firewalld zone (e.g. "eth0", "ens3")
+default_interface: ""
+
+# Management network CIDR added as a trusted source to the homelab zone
+management_network: ""
+
+# Ansible controller IP/CIDR added as a trusted source to the homelab zone.
+# Optional — if not defined the task that sets this source is skipped.
+ip_ansible: ""

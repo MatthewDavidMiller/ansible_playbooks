@@ -1,6 +1,7 @@
 # Place hosts in here and roles to run
 ---
-- hosts: pihole
+- name: Configure pihole
+  hosts: pihole
   roles:
     - standard_ssh
     - standard_qemu_guest_agent

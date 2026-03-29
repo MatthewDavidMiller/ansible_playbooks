@@ -1,0 +1,40 @@
+---
+# Required — no defaults provided; calling role must define these:
+#   podman_service_name:   string  — container name and script/unit filename stem
+#   podman_service_image:  string  — fully-qualified image reference
+
+# Directories to create before deploying the container.
+# Each entry: { path: str, owner: str, group: str, mode: str }
+podman_service_dirs: []
+# Networks to attach the container to (list of network name strings).
+podman_service_networks: []
+# Port mappings — list of "host_port:container_port[/proto]" strings.
+podman_service_ports: []
+# Volume mounts — list of "src:dest[:opts]" strings.
+# Opts should include :Z for SELinux relabeling on Rocky Linux 10.
+podman_service_volumes: []
+# Environment variables — dict of { KEY: value } pairs.
+podman_service_env: {}
+# Extra podman run flags — list of strings, e.g. ["--memory=256m", "--cap-drop=ALL"].
+podman_service_extra_args: []
+# Traefik labels — list of "--label key=value" strings.
+# Rendered verbatim into the podman run command.
+podman_service_labels: []
+# Systemd unit ordering — list of unit names this service should start After.
+# "network-online.target" is always included; add service dependencies here.
+# Example: ["postgres_container.service"]
+podman_service_after: []
+# Systemd service type. Use "forking" for detached (-d) containers,
+# "simple" for foreground containers.
+podman_service_type: forking
+
+# How long systemd waits for the container to become ready on start.
+podman_service_timeout_start: 300
+
+# How long systemd waits for the container to stop before SIGKILL.
+podman_service_timeout_stop: 70
+
+# Owner of the run script at /usr/local/bin/<name>.sh.
+# Defaults to the global user_name variable — override if the script
+# must be owned by a different account.
+podman_service_script_owner: "{{ user_name }}"

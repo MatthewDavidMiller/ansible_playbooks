@@ -2,7 +2,7 @@
 - name: Create filesystems for LVM
   community.general.filesystem:
     fstype: "{{ filesystem.type }}"
-    dev: "/dev/{{ lvm_name }}/{{ filesystem.name }}"
+    dev: /dev/{{ lvm_name }}/{{ filesystem.name }}
   loop: "{{ file_systems }}"
   loop_control:
     loop_var: filesystem

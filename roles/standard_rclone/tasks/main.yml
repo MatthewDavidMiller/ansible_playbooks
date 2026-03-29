@@ -8,13 +8,13 @@
 
 - name: Rclone config path
   ansible.builtin.file:
-    path: "/root/.config/rclone"
+    path: /root/.config/rclone
     state: directory
 
 - name: Rclone config file
   ansible.builtin.template:
     src: rclone_config.j2
-    dest: "/root/.config/rclone/rclone.conf"
+    dest: /root/.config/rclone/rclone.conf
     owner: root
     group: root
-    mode: "0644"
+    mode: "0600"

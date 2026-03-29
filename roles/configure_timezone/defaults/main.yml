@@ -1,0 +1,5 @@
+---
+# configure_timezone role defaults
+# This role sets the system timezone to US/Eastern (hardcoded).
+# It uses no role-level variables.
+# This file is present so ansible-lint can confirm there are no undefined variables.

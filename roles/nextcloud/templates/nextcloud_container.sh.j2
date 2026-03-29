@@ -20,4 +20,8 @@
 -e APACHE_BODY_LIMIT=21474836480 \
 -e REDIS_HOST=redis.dns.podman \
 -e TZ=America/New_York \
+--memory=4g \
+--memory-swap=4g \
+--pids-limit=500 \
+--security-opt=no-new-privileges:true \
 -d docker.io/nextcloud:latest

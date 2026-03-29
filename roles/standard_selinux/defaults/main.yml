@@ -1,0 +1,5 @@
+---
+# standard_selinux role defaults
+# This role enforces SELinux policy, sets required booleans, and installs the
+# custom podman_bpf module for Rocky Linux 10.  It uses no role-level variables.
+# This file is present so ansible-lint can confirm there are no undefined variables.

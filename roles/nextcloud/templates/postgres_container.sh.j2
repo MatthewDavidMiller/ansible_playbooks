@@ -9,4 +9,9 @@
 --env POSTGRES_DB={{ nextcloud_database_name }} \
 -e TZ=America/New_York \
 --entrypoint /custom-init/db_wrapper.sh \
+--memory=4g \
+--memory-swap=4g \
+--shm-size=256m \
+--cap-drop=ALL \
+--security-opt=no-new-privileges:true \
 -d docker.io/postgres:17

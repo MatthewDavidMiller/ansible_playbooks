@@ -1,0 +1,53 @@
+---
+# nextcloud role defaults
+
+# Path to the shared PostgreSQL 17 data directory (also used by paperless_ngx and semaphore)
+postgres_path: ""
+
+# Path to the Nextcloud container data directory (on the dedicated disk)
+nextcloud_path: ""
+
+# Block device identifier for the Nextcloud disk mount (e.g. "UUID=xxxx-xxxx")
+nextcloud_disk: ""
+
+# PostgreSQL database name for Nextcloud
+nextcloud_database_name: ""
+
+# Shared PostgreSQL superuser/application username (used by nextcloud, paperless_ngx, semaphore)
+postgres_database_user: ""
+
+# Password for the shared PostgreSQL user
+postgres_database_user_password: ""
+
+# Nextcloud admin account username
+nextcloud_admin_user: ""
+
+# Nextcloud admin account password
+nextcloud_admin_password: ""
+
+# Space-separated list of trusted domains for Nextcloud
+nextcloud_trusted_domains: ""
+
+# Fully-qualified domain name used to build OVERWRITECLIURL
+nextcloud_dns_name: ""
+
+# Nextcloud username whose files directory is used for local backup destinations
+nextcloud_homelab_user: ""
+
+# Borg repository path for the Nextcloud + Paperless backup (on the local disk)
+nextcloud_borg_backup_path: ""
+
+# Rclone remote path for syncing the Borg repo (e.g. "Nextcloud:backup/nextcloud")
+nextcloud_paperless_backup_location: ""
+
+# Path to the Paperless NGX export directory (referenced in backup script)
+paperless_export_path: ""
+
+# PostgreSQL database name for Paperless NGX (used in db_wrapper.sh bootstrap)
+paperless_database_name: ""
+
+# PostgreSQL database name for Semaphore (used in db_wrapper.sh bootstrap)
+semaphore_database_name: ""
+
+# OS user that owns the shell scripts (must exist on the target host)
+user_name: ""

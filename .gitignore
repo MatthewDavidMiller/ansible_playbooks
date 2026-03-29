@@ -2,3 +2,4 @@ env/
 .vscode
 homelab_inventory.yml
 .devcontainer
+.claude/agent-memory/

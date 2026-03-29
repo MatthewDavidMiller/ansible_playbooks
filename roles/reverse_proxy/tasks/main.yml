@@ -70,18 +70,18 @@
 - name: Traefik service unit
   ansible.builtin.template:
     src: traefik_container.service.j2
-    dest: "/etc/systemd/system/traefik_container.service"
+    dest: /etc/systemd/system/traefik_container.service
 
 - name: Enable Traefik
   ansible.builtin.systemd:
     name: traefik_container.service
-    enabled: yes
-    daemon_reload: yes
+    enabled: true
+    daemon_reload: true
 
 - name: Traefik launch script
   ansible.builtin.template:
     src: traefik_container.sh.j2
-    dest: "/usr/local/bin/traefik_container.sh"
+    dest: /usr/local/bin/traefik_container.sh
     owner: root
     group: root
-    mode: "0750"
+    mode: "0700"

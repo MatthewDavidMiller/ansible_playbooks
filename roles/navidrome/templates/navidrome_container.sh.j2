@@ -9,4 +9,8 @@
 -e ND_LOGLEVEL=info \
 -e TZ=America/New_York \
 -e ND_BACKUP_PATH=/navidrome_backup \
+--memory=512m \
+--memory-swap=512m \
+--cap-drop=ALL \
+--security-opt=no-new-privileges:true \
 -d docker.io/deluan/navidrome:latest

@@ -3,4 +3,8 @@
 --name=redis \
 --network=nextcloud_container_net \
 -e TZ=America/New_York \
+--memory=512m \
+--memory-swap=512m \
+--cap-drop=ALL \
+--security-opt=no-new-privileges:true \
 -d docker.io/redis:latest

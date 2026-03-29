@@ -1,7 +1,8 @@
 ---
 - name: Create LAN Vlan
   community.routeros.command:
-    commands: /interface bridge vlan add bridge={{ bridge_interface }} tagged={{ lan_tagged_interfaces }} untagged={{ lan_untagged_interfaces }} vlan-ids={{ lan_vlan }} comment=LAN
+    commands: /interface bridge vlan add bridge={{ bridge_interface }} tagged={{ lan_tagged_interfaces }} untagged={{ lan_untagged_interfaces }} vlan-ids={{ lan_vlan
+      }} comment=LAN
 
 - name: Create IOT Vlan
   community.routeros.command:
@@ -9,7 +10,8 @@
 
 - name: Create {{ user_vlan_name }} Vlan
   community.routeros.command:
-    commands: /interface bridge vlan add bridge={{ bridge_interface }} tagged={{ user_vlan_tagged_interfaces }} vlan-ids={{ user_vlan }} comment={{ user_vlan_name }}
+    commands: /interface bridge vlan add bridge={{ bridge_interface }} tagged={{ user_vlan_tagged_interfaces }} vlan-ids={{ user_vlan }} comment={{ user_vlan_name
+      }}
 
 - name: Create Guest Vlan
   community.routeros.command:
@@ -21,11 +23,13 @@
 
 - name: Create IOS Vlan
   community.routeros.command:
-    commands: /interface bridge vlan add bridge={{ bridge_interface }} tagged={{ ios_tagged_interfaces }} untagged={{ ios_untagged_interfaces }} vlan-ids={{ ios_vlan }} comment=IOS
+    commands: /interface bridge vlan add bridge={{ bridge_interface }} tagged={{ ios_tagged_interfaces }} untagged={{ ios_untagged_interfaces }} vlan-ids={{ ios_vlan
+      }} comment=IOS
 
 - name: Create Proxmox vlan
   community.routeros.command:
-    commands: /interface bridge vlan add bridge={{ bridge_interface }} tagged={{ proxmox_tagged_interfaces }} untagged={{ proxmox_untagged_interfaces }} vlan-ids={{ proxmox_vlan }} comment=Proxmox
+    commands: /interface bridge vlan add bridge={{ bridge_interface }} tagged={{ proxmox_tagged_interfaces }} untagged={{ proxmox_untagged_interfaces }} vlan-ids={{
+      proxmox_vlan }} comment=Proxmox
 
 - name: Create Server vlans
   community.routeros.command:

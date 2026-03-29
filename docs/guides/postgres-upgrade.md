@@ -1,6 +1,6 @@
 # PostgreSQL Major Version Upgrade Guide
 
-Use this procedure when upgrading the PostgreSQL major version on VM1. The `postgres` container hosts three databases: Nextcloud, Paperless NGX, and Semaphore.
+Use this procedure when upgrading the PostgreSQL major version on VM1. The shared `postgres` container hosts databases for three services: Nextcloud, Paperless NGX, and Semaphore.
 
 ---
 

@@ -1,8 +1,10 @@
+---
 - name: Create navidrome container network
   ansible.builtin.shell:
     cmd: |
       podman network create --subnet 172.16.1.24/29 navidrome_container_net
   ignore_errors: true
+  changed_when: false
 
 - name: Create Navidrome container path
   ansible.builtin.file:
@@ -27,20 +29,20 @@
 - name: Navidrome Service
   ansible.builtin.template:
     src: navidrome_container.service.j2
-    dest: "/etc/systemd/system/navidrome_container.service"
+    dest: /etc/systemd/system/navidrome_container.service
 
 - name: Enable Navidrome
   ansible.builtin.systemd:
     name: navidrome_container.service
-    enabled: yes
+    enabled: true
 
 - name: Navidrome script
   ansible.builtin.template:
     src: navidrome_container.sh.j2
-    dest: "/usr/local/bin/navidrome_container.sh"
+    dest: /usr/local/bin/navidrome_container.sh
     owner: root
     group: root
-    mode: "0770"
+    mode: "0700"
 
 - name: Install zip and jq packages
   ansible.builtin.dnf:
@@ -52,13 +54,13 @@
 - name: Backup navidrome script
   ansible.builtin.template:
     src: backup_navidrome.sh.j2
-    dest: "/usr/local/bin/backup_navidrome.sh"
+    dest: /usr/local/bin/backup_navidrome.sh
     owner: "{{ user_name }}"
     group: root
-    mode: "0770"
+    mode: "0700"
 
 - name: Backup navidrome daily
   ansible.builtin.cron:
-    name: "Backup navidrome daily"
+    name: Backup navidrome daily
     special_time: daily
     job: /usr/bin/bash /usr/local/bin/backup_navidrome.sh

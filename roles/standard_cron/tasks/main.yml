@@ -7,11 +7,11 @@
 - name: Enable crond
   ansible.builtin.systemd:
     name: crond.service
-    enabled: yes
+    enabled: true
 
 - name: Update System Schedule
   ansible.builtin.cron:
-    name: "Update System"
+    name: Update System
     minute: "{{ patching_minute }}"
     hour: "{{ patching_hour }}"
     weekday: "{{ patching_weekday }}"

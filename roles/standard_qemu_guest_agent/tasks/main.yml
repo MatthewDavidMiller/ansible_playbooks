@@ -7,4 +7,4 @@
 - name: Enable qemu-guest-agent
   ansible.builtin.systemd:
     name: qemu-guest-agent.service
-    enabled: yes
+    enabled: true

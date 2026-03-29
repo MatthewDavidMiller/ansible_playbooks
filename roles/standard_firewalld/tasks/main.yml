@@ -8,101 +8,101 @@
   ansible.posix.firewalld:
     zone: public
     target: DROP
-    permanent: yes
+    permanent: true
     state: present
 
 - name: Create new zone and set it to drop
   ansible.posix.firewalld:
     zone: homelab
-    permanent: yes
+    permanent: true
     state: present
 
 - name: Set zone to drop
   ansible.posix.firewalld:
     zone: homelab
     target: DROP
-    permanent: yes
+    permanent: true
     state: present
 
 - name: Set management source for zone
   ansible.posix.firewalld:
     zone: homelab
     source: "{{ management_network }}"
-    permanent: yes
+    permanent: true
     state: enabled
 
 - name: Set ansible source for zone
   ansible.posix.firewalld:
     zone: homelab
     source: "{{ ip_ansible }}"
-    permanent: yes
+    permanent: true
     state: enabled
   when: ip_ansible is defined
 
 - name: Enable icmp block inversion
   ansible.posix.firewalld:
     zone: homelab
-    icmp_block_inversion: yes
-    permanent: yes
+    icmp_block_inversion: true
+    permanent: true
     state: enabled
 
 - name: Allow SSH
   ansible.posix.firewalld:
     zone: homelab
     service: ssh
-    permanent: yes
+    permanent: true
     state: enabled
 
 - name: Allow icmp
   ansible.posix.firewalld:
     zone: homelab
     icmp_block: echo-request
-    permanent: yes
+    permanent: true
     state: enabled
 
 - name: Disable SSH in default zone
   ansible.posix.firewalld:
     zone: public
     service: ssh
-    permanent: yes
+    permanent: true
     state: disabled
 
 - name: Disable SSH in default zone 2
   ansible.posix.firewalld:
     zone: public
     port: 22/tcp
-    permanent: yes
+    permanent: true
     state: disabled
 
 - name: Disable cockpit in default zone
   ansible.posix.firewalld:
     zone: public
     service: cockpit
-    permanent: yes
+    permanent: true
     state: disabled
 
 - name: Disable dhcpv6-client in default zone
   ansible.posix.firewalld:
     zone: public
     service: dhcpv6-client
-    permanent: yes
+    permanent: true
     state: disabled
 
 - name: Disable mdns in default zone
   ansible.posix.firewalld:
     zone: public
     service: mdns
-    permanent: yes
+    permanent: true
     state: disabled
 
 - name: Set interface for public zone
   ansible.posix.firewalld:
     zone: public
     interface: "{{ default_interface }}"
-    permanent: yes
+    permanent: true
     state: enabled
 
 - name: Enable firewalld
   ansible.builtin.systemd:
     name: firewalld.service
-    enabled: yes
+    enabled: true

@@ -1,6 +1,7 @@
 # Place hosts in here and roles to run
 ---
-- hosts: apcontroller
+- name: Configure apcontroller
+  hosts: apcontroller
   roles:
     - standard_ssh
     - standard_qemu_guest_agent

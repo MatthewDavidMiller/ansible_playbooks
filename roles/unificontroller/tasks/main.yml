@@ -4,13 +4,14 @@
     cmd: |
       podman network create unifi_container_net
   ignore_errors: true
+  changed_when: false
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Create unifi controller container path
   ansible.builtin.file:
     path: "{{ unificontroller_path }}"
     state: directory
-    mode: 0770
+    mode: "0770"
     owner: 999
     group: 999
     recurse: true
@@ -20,7 +21,7 @@
   ansible.builtin.file:
     path: "{{ unificontroller_path }}/data"
     state: directory
-    mode: 0770
+    mode: "0770"
     owner: 999
     group: 999
     recurse: true
@@ -30,7 +31,7 @@
   ansible.builtin.file:
     path: "{{ unificontroller_path }}/log"
     state: directory
-    mode: 0770
+    mode: "0770"
     owner: 999
     group: 999
     recurse: true
@@ -39,17 +40,18 @@
 - name: Unificontroller service
   ansible.builtin.template:
     src: unificontroller.service.j2
-    dest: "/etc/systemd/system/unificontroller.service"
+    dest: /etc/systemd/system/unificontroller.service
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Enable unificontroller
   ansible.builtin.systemd:
     name: unificontroller.service
-    enabled: yes
+    enabled: true
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Unificontroller script
   ansible.builtin.template:
     src: unificontroller.sh.j2
-    dest: "/usr/local/bin/unificontroller.sh"
+    dest: /usr/local/bin/unificontroller.sh
+    mode: "0700"
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'

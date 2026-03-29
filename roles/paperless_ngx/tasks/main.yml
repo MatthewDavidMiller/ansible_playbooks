@@ -19,20 +19,20 @@
 - name: Paperless Service
   ansible.builtin.template:
     src: paperless_ngx.service.j2
-    dest: "/etc/systemd/system/paperless_ngx.service"
+    dest: /etc/systemd/system/paperless_ngx.service
 
 - name: Enable paperless
   ansible.builtin.systemd:
     name: paperless_ngx.service
-    enabled: yes
+    enabled: true
 
 - name: Paperless script
   ansible.builtin.template:
     src: paperless_ngx.sh.j2
-    dest: "/usr/local/bin/paperless_ngx.sh"
+    dest: /usr/local/bin/paperless_ngx.sh
     owner: "{{ user_name }}"
     group: root
-    mode: "0770"
+    mode: "0700"
 
 - name: Install zip and jq packages
   ansible.builtin.dnf:

@@ -1,0 +1,29 @@
+---
+# dns role defaults (Pi-hole container)
+
+# Path to the Pi-hole container data directory
+pihole_path: ""
+
+# Subnet for the Pi-hole Podman network (e.g. "192.168.100.0/24")
+pihole_container_network: ""
+
+# Static IP address assigned to the Pi-hole container within pihole_container_network
+pihole_container_ip_address: ""
+
+# Upstream DNS server IP used by Pi-hole for resolution and as --dns for the container
+pihole_dns_server: ""
+
+# Pi-hole web UI admin password (FTLCONF_webserver_api_password)
+web_password: ""
+
+# LAN network CIDR passed to FTLCONF_dns_revServers for reverse DNS
+pihole_network: ""
+
+# LAN gateway IP passed to FTLCONF_dns_revServers
+pihole_gateway: ""
+
+# Internal DNS domain passed to FTLCONF_dns_revServers (e.g. "home.arpa")
+internal_dns_domain: ""
+
+# Rclone remote path for Pi-hole gravity DB backup uploads (e.g. "Nextcloud:pihole_backup")
+pihole_backup_location: ""

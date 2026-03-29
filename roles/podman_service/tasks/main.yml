@@ -1,0 +1,45 @@
+---
+# podman_service — reusable container deployment role
+#
+# Required caller variables:
+#   podman_service_name:  string  — container/script/unit name stem
+#   podman_service_image: string  — fully-qualified image reference
+#
+# See roles/podman_service/defaults/main.yml for the full variable list.
+
+- name: "{{ podman_service_name }} | Create data directories"
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner | default('1000') }}"
+    group: "{{ item.group | default('1000') }}"
+    mode: "{{ item.mode | default('0750') }}"
+  loop: "{{ podman_service_dirs }}"
+  when: podman_service_dirs | length > 0
+
+- name: "{{ podman_service_name }} | Write podman run script"
+  ansible.builtin.template:
+    src: podman_run.sh.j2
+    dest: /usr/local/bin/{{ podman_service_name }}.sh
+    owner: "{{ podman_service_script_owner }}"
+    group: root
+    mode: "0700"
+  notify: Restart {{ podman_service_name }}
+
+- name: "{{ podman_service_name }} | Write systemd unit"
+  ansible.builtin.template:
+    src: podman_service.service.j2
+    dest: /etc/systemd/system/{{ podman_service_name }}.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart {{ podman_service_name }}
+
+- name: "{{ podman_service_name }} | Enable and start systemd service"
+  ansible.builtin.systemd:
+    name: "{{ podman_service_name }}.service"
+    enabled: true
+    state: started
+    daemon_reload: true

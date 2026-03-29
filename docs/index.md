@@ -12,6 +12,7 @@ For running playbooks and architecture patterns (authoritative reference for Cla
 | Document | Description |
 |---|---|
 | [architecture.md](architecture.md) | Host topology, distribution targets, container/network/SELinux design |
+| [architecture-decisions.md](architecture-decisions.md) | Rejected approaches and their rationale (Vault, host_vars/, dedicated patching playbook, etc.) |
 | [playbooks.md](playbooks.md) | All playbooks — target hosts, role order, usage notes |
 | [inventory.md](inventory.md) | Full inventory variable reference |
 | [roles/standard.md](roles/standard.md) | Standard infrastructure roles (`standard_ssh`, `standard_firewalld`, `standard_selinux`, etc.) |
@@ -27,6 +28,12 @@ For running playbooks and architecture patterns (authoritative reference for Cla
 | [guides/proxmox-setup.md](guides/proxmox-setup.md) | VM provisioning with `scripts/proxmox_initial_setup.py` |
 | [guides/dr-restore.md](guides/dr-restore.md) | Disaster recovery — initial migration to VM1 and restore from backups |
 | [guides/postgres-upgrade.md](guides/postgres-upgrade.md) | PostgreSQL major version upgrade procedure for the shared postgres container |
+
+## Testing & CI/CD
+
+| Document | Description |
+|---|---|
+| [testing.md](testing.md) | Container security tests + CI/CD pipeline (pre-commit hook runs on every commit) |
 
 ## Standards
 

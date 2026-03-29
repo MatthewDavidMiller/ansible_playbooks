@@ -1,0 +1,5 @@
+---
+# standard_cleanup role defaults
+# This role runs dnf cleanup, orphan removal, journal vacuum, and Podman prune.
+# It uses no role-level variables.
+# This file is present so ansible-lint can confirm there are no undefined variables.

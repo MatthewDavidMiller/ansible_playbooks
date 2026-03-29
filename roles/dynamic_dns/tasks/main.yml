@@ -9,7 +9,7 @@
   ansible.builtin.template:
     src: dynamic_dns.py.j2
     dest: /usr/local/bin/dynamic_dns.py
-    mode: '0700'
+    mode: "0700"
 
 - name: Dynamic DNS logrotate config
   ansible.builtin.copy:
@@ -22,10 +22,10 @@
           missingok
           notifempty
       }
-    mode: '0644'
+    mode: "0644"
 
 - name: Dynamic DNS cron job
   ansible.builtin.cron:
-    name: "Dynamic DNS update"
+    name: Dynamic DNS update
     minute: "*/5"
     job: /usr/bin/python3 /usr/local/bin/dynamic_dns.py >> /var/log/dynamic_dns.log 2>&1

@@ -1,0 +1,8 @@
+---
+# standard_podman role defaults
+
+# Docker Hub username for registry login (used in login_to_docker.service)
+docker_username: ""
+
+# Docker Hub password for registry login
+docker_password: ""

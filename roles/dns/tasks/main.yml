@@ -23,7 +23,7 @@
   ansible.builtin.file:
     path: "{{ pihole_path }}"
     state: directory
-    mode: 0770
+    mode: "0770"
     owner: 999
     group: 33
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
@@ -32,17 +32,17 @@
   ansible.builtin.file:
     path: "{{ pihole_path }}/etc-pihole"
     state: directory
-    mode: 0770
+    mode: "0770"
     owner: 999
     group: 33
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
-- name: sysctl Config increase memory
+- name: Sysctl Config increase memory
   ansible.builtin.lineinfile:
-    path: "/etc/sysctl.d/01_sysctl.conf"
-    regexp: '^net\.core\.rmem_max='
+    path: /etc/sysctl.d/01_sysctl.conf
+    regexp: ^net\.core\.rmem_max=
     line: net.core.rmem_max=1048576
-    create: yes
+    create: true
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Create pihole container network
@@ -50,31 +50,32 @@
     cmd: |
       podman network create --subnet {{ pihole_container_network }}  --disable-dns pihole_container_net
   ignore_errors: true
+  changed_when: false
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Pihole Service
   ansible.builtin.template:
     src: pihole.service.j2
-    dest: "/etc/systemd/system/pihole.service"
+    dest: /etc/systemd/system/pihole.service
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Enable Pihole
   ansible.builtin.systemd:
     name: pihole.service
-    enabled: yes
+    enabled: true
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Disable systemd-resolved
   ansible.builtin.systemd:
     name: systemd-resolved.service
-    enabled: no
+    enabled: false
   when: ansible_facts['distribution'] == 'Debian'
 
 - name: Disable DNS Stub Listener
   ansible.builtin.lineinfile:
-    path: "/etc/systemd/resolved.conf"
-    regexp: "^DNSStubListener=|^\\s*DNSStubListener="
-    line: "DNSStubListener=no"
+    path: /etc/systemd/resolved.conf
+    regexp: ^DNSStubListener=|^\s*DNSStubListener=
+    line: DNSStubListener=no
   when: ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Create Pihole DB backups path
@@ -89,15 +90,15 @@
 - name: Backup Database Script
   ansible.builtin.template:
     src: backup_db.j2
-    dest: "/usr/local/bin/backup_pihole_db.sh"
+    dest: /usr/local/bin/backup_pihole_db.sh
     owner: root
     group: root
-    mode: "0640"
+    mode: "0700"
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Backup Pihole Daily
   ansible.builtin.cron:
-    name: "Backup Pihole DB"
+    name: Backup Pihole DB
     special_time: daily
     job: /bin/bash /usr/local/bin/backup_pihole_db.sh
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
@@ -105,15 +106,16 @@
 - name: Pihole script
   ansible.builtin.template:
     src: pihole.sh.j2
-    dest: "/usr/local/bin/pihole.sh"
+    dest: /usr/local/bin/pihole.sh
+    mode: "0700"
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
 
 - name: Add dns server to proxy
   ansible.builtin.lineinfile:
-    path: "/usr/local/bin/swag_container.sh"
-    insertafter: "--name=swag"
-    line: "--dns={{ pihole_container_ip_address }} \\"
+    path: /usr/local/bin/swag_container.sh
+    insertafter: --name=swag
+    line: --dns={{ pihole_container_ip_address }} \
     owner: 1000
     group: 1000
-    mode: "0770"
+    mode: "0700"
   when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'

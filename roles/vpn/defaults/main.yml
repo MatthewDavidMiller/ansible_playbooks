@@ -1,0 +1,26 @@
+---
+# vpn role defaults (WireGuard via linuxserver/wireguard container)
+
+# Path to the WireGuard container configuration directory
+vpn_path: ""
+
+# Public domain for the VPN server (used to build SERVERURL: subdomain.domain)
+homelab_domain: ""
+
+# Subdomain for the VPN server (used to build SERVERURL)
+homelab_subdomain: ""
+
+# WireGuard listen port on the host (also forwarded into the container as SERVERPORT)
+listen_port: ""
+
+# Comma-separated list of peer names / usernames (WireGuard PEERS env var)
+user_name: ""
+
+# DNS server IP pushed to WireGuard peers (PEERDNS)
+wireguard_dns_server: ""
+
+# VPN server internal subnet (INTERNAL_SUBNET, e.g. "10.0.0.0/24")
+wireguard_server_network_prefix: ""
+
+# Allowed IPs pushed to WireGuard clients (ALLOWEDIPS, e.g. "192.168.1.0/24, 10.0.0.1/32")
+wireguard_allowed_ips: ""

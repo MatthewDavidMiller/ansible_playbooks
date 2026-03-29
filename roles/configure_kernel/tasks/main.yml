@@ -2,7 +2,7 @@
 - name: Configure kernel
   ansible.builtin.lineinfile:
     path: /etc/mkinitcpio.conf
-    regexp: "^#?HOOKS="
+    regexp: ^#?HOOKS=
     line: HOOKS=(base udev autodetect keyboard keymap consolefont modconf block encrypt lvm2 filesystems fsck)
   when: ansible_facts['distribution'] == 'Archlinux'
 

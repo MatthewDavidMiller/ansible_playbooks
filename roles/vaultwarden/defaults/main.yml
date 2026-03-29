@@ -1,0 +1,18 @@
+---
+# vaultwarden role defaults
+
+# Path to the Vaultwarden container data directory
+vaultwarden_path: ""
+
+# Rclone remote path for Vaultwarden database backup uploads (e.g. "Nextcloud:vaultwarden_backup")
+vaultwarden_backup_location: ""
+
+# When true, backups are written directly to the local Nextcloud data directory
+# instead of being uploaded via rclone.
+backup_local: false
+
+# Path to Nextcloud data root (required when backup_local is true)
+nextcloud_path: ""
+
+# Nextcloud username whose files directory is used as the backup destination
+nextcloud_homelab_user: ""

@@ -2,59 +2,77 @@
 - name: Set sftp ssh
   ansible.builtin.lineinfile:
     path: /etc/ssh/sshd_config
-    regexp: "^Subsystem\\s*sftp"
+    regexp: ^Subsystem\s*sftp
     line: Subsystem sftp /usr/lib/openssh/sftp-server
 
 - name: Set ssh authorized keys
   ansible.builtin.lineinfile:
     path: /etc/ssh/sshd_config
-    regexp: "^AuthorizedKeysFile"
-    line: "AuthorizedKeysFile .ssh/authorized_keys"
+    regexp: ^AuthorizedKeysFile
+    line: AuthorizedKeysFile .ssh/authorized_keys
 
 - name: Set Challenge Response Auth
   ansible.builtin.lineinfile:
     path: /etc/ssh/sshd_config
-    regexp: "^ChallengeResponseAuthentication"
-    line: "ChallengeResponseAuthentication no"
+    regexp: ^ChallengeResponseAuthentication
+    line: ChallengeResponseAuthentication no
 
 - name: Set password auth
   ansible.builtin.lineinfile:
     path: /etc/ssh/sshd_config
-    regexp: "^PasswordAuthentication"
-    line: "PasswordAuthentication no"
+    regexp: ^PasswordAuthentication
+    line: PasswordAuthentication no
 
 - name: Set empty password
   ansible.builtin.lineinfile:
     path: /etc/ssh/sshd_config
-    regexp: "^PermitEmptyPasswords"
-    line: "PermitEmptyPasswords no"
+    regexp: ^PermitEmptyPasswords
+    line: PermitEmptyPasswords no
 
 - name: Set GSSAP Auth
   ansible.builtin.lineinfile:
     path: /etc/ssh/sshd_config
-    regexp: "^GSSAPIAuthentication"
-    line: "GSSAPIAuthentication no"
+    regexp: ^GSSAPIAuthentication
+    line: GSSAPIAuthentication no
 
 - name: Set root login
   ansible.builtin.lineinfile:
     path: /etc/ssh/sshd_config
-    regexp: "^PermitRootLogin"
-    line: "PermitRootLogin no"
+    regexp: ^PermitRootLogin
+    line: PermitRootLogin no
 
 - name: Set max auth tries
   ansible.builtin.lineinfile:
     path: /etc/ssh/sshd_config
-    regexp: "^MaxAuthTries"
-    line: "MaxAuthTries 6"
+    regexp: ^MaxAuthTries
+    line: MaxAuthTries 3
+
+- name: Set login grace time
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: ^LoginGraceTime
+    line: LoginGraceTime 30
+
+- name: Set client alive interval
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: ^ClientAliveInterval
+    line: ClientAliveInterval 300
+
+- name: Set client alive count max
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: ^ClientAliveCountMax
+    line: ClientAliveCountMax 2
 
 - name: Set pubkey auth
   ansible.builtin.lineinfile:
     path: /etc/ssh/sshd_config
-    regexp: "^PubkeyAuthentication"
-    line: "PubkeyAuthentication yes"
+    regexp: ^PubkeyAuthentication
+    line: PubkeyAuthentication yes
 
 - name: Set PAM
   ansible.builtin.lineinfile:
     path: /etc/ssh/sshd_config
-    regexp: "^UsePAM"
-    line: "UsePAM no"
+    regexp: ^UsePAM
+    line: UsePAM no

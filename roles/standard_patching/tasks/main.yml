@@ -6,7 +6,7 @@
 - name: Update System Script
   ansible.builtin.template:
     src: update_system.j2
-    dest: "/usr/local/bin/update_system.sh"
+    dest: /usr/local/bin/update_system.sh
     owner: root
     group: root
     mode: "0644"
@@ -15,7 +15,7 @@
 - name: Update System Script
   ansible.builtin.template:
     src: update_system_arch.j2
-    dest: "/usr/local/bin/update_system.sh"
+    dest: /usr/local/bin/update_system.sh
     owner: root
     group: root
     mode: "0644"

@@ -1,6 +1,7 @@
 # Place hosts in here and roles to run
 ---
-- hosts: vpn
+- name: Configure vpn
+  hosts: vpn
   roles:
     - standard_ssh
     - standard_qemu_guest_agent

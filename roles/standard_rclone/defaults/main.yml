@@ -1,0 +1,11 @@
+---
+# standard_rclone role defaults
+
+# WebDAV URL for the Nextcloud rclone remote (e.g. "https://nextcloud.example.com/remote.php/dav/files/user")
+nextcloud_webdav_path: ""
+
+# WebDAV username for the Nextcloud rclone remote
+nextcloud_rclone_user: ""
+
+# WebDAV password for the Nextcloud rclone remote (use an app password, not the account password)
+nextcloud_rclone_pass: ""
