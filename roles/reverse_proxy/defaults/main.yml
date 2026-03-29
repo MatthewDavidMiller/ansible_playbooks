@@ -1,0 +1,32 @@
+---
+# reverse_proxy role defaults
+# This role deploys Traefik v3 on VM1.  All variables below are required.
+
+# Path to the Traefik container configuration directory
+traefik_path: ""
+
+# List of Podman network names Traefik joins to reach backend containers
+# e.g. [nextcloud_container_net, navidrome_container_net, ...]
+traefik_networks: []
+# Fully-qualified domain name for the Traefik dashboard
+traefik_dashboard_fqdn: ""
+
+# Email address registered with the ACME provider (Porkbun) for certificate issuance
+traefik_acme_email: ""
+
+# Porkbun API key used for DNS-01 ACME challenge
+porkbun_api_key: ""
+
+# Porkbun secret API key used for DNS-01 ACME challenge
+porkbun_api_key_secret: ""
+
+# Management network CIDR allowed to reach the Traefik dashboard (used in ip-allowlist middleware)
+management_network: ""
+
+# Ansible controller IP/CIDR also allowed to reach the Traefik dashboard
+ip_ansible: ""
+
+# List of proxy config objects; each entry generates one Traefik dynamic config file.
+# Required keys per entry: name, proxy_fqdn, proxy_upstream_protocol,
+#                          container_destination, proxy_upstream_port
+proxy_config: []

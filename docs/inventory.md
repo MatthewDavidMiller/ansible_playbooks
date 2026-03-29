@@ -61,7 +61,7 @@ Applied to all hosts in the `homelab` group.
 
 ### `vm1` host (VM1, ID 120)
 
-This host runs all services consolidated. It uses Traefik v3 as the reverse proxy, and `semaphore_postgres_path` is distinct from `postgres_path` to prevent data directory collisions.
+This host runs all services consolidated. It uses Traefik v3 as the reverse proxy. PostgreSQL 17 is shared by Nextcloud, Paperless NGX, and Semaphore.
 
 | Variable | Type | Description | Example |
 |---|---|---|---|
@@ -73,7 +73,7 @@ This host runs all services consolidated. It uses Traefik v3 as the reverse prox
 | `traefik_dashboard_fqdn` | string | FQDN for the Traefik dashboard | `traefik.example.com` |
 | `traefik_acme_email` | string | Email for Let's Encrypt ACME account | `admin@example.com` |
 | `proxy_config` | list | One entry per proxied service | — |
-| `postgres_path` | path | PostgreSQL 15 data dir (Nextcloud + Paperless) | `/opt/postgres_nextcloud` |
+| `postgres_path` | path | PostgreSQL 17 data dir (Nextcloud, Paperless, Semaphore) | `/opt/postgres` |
 | `nextcloud_path` | path | Nextcloud data directory | `/opt/nextcloud` |
 | `nextcloud_disk` | string | UUID of Nextcloud data disk | `UUID=abc123...` |
 | `nextcloud_database_name` | string | Nextcloud database | `nextcloud` |
@@ -102,7 +102,7 @@ This host runs all services consolidated. It uses Traefik v3 as the reverse prox
 | `vaultwarden_path` | path | Vaultwarden data directory | `/opt/vaultwarden` |
 | `vaultwarden_backup_location` | string | rclone remote backup label | `Nextcloud:vaultwarden_backup` |
 | `semaphore_backup_location` | string | rclone remote backup path for Semaphore DB dumps | `Nextcloud:semaphore_backup` |
-| `container_service_names` | string | Space-separated systemd unit names for Traefik `After=` | `postgres_container redis_container nextcloud_container paperless_ngx navidrome_container vaultwarden semaphore_postgres semaphore` |
+| `container_service_names` | string | Space-separated systemd unit names for Traefik `After=` | `postgres_container redis_container nextcloud_container paperless_ngx navidrome_container vaultwarden semaphore` |
 | `backup_host` | string | Backup server IP (CIDR) for firewalld | `192.168.1.50/32` |
 | `borg_backup_path` | path | Borg repository root (also the second NVMe mount point) | `/opt/borg_backup` |
 | `backup_disk` | string | UUID of the second NVMe disk for Borg | `UUID=abc123...` |

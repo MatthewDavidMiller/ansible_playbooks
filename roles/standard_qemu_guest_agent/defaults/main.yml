@@ -1,0 +1,5 @@
+---
+# standard_qemu_guest_agent role defaults
+# This role installs and enables qemu-guest-agent for Proxmox VM communication.
+# It uses no role-level variables.
+# This file is present so ansible-lint can confirm there are no undefined variables.

@@ -1,0 +1,14 @@
+---
+# dynamic_dns role defaults
+
+# Top-level domain managed by Porkbun (e.g. "example.com")
+homelab_domain: ""
+
+# Subdomain to update with the current WAN IP (e.g. "vpn")
+homelab_subdomain: ""
+
+# Porkbun API key for DNS record management and WAN IP detection
+porkbun_api_key: ""
+
+# Porkbun secret API key
+porkbun_api_key_secret: ""

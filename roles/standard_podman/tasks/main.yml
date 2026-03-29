@@ -7,9 +7,9 @@
 - name: Login to Docker Service
   ansible.builtin.template:
     src: login_to_docker.j2
-    dest: "/etc/systemd/system/login_to_docker.service"
+    dest: /etc/systemd/system/login_to_docker.service
 
 - name: Enable Login to Docker Service
   ansible.builtin.systemd:
     name: login_to_docker.service
-    enabled: yes
+    enabled: true

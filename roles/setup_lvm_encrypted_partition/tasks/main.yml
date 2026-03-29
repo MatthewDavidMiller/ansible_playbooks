@@ -6,14 +6,14 @@
     state: present
     flags: [lvm]
     part_start: 1GiB
-    part_end: "100%"
+    part_end: 100%
     label: gpt
   when: ansible_facts['distribution'] == 'Archlinux'
 
 - name: Create Luks Partition
   community.crypto.luks_device:
     device: "{{ disk }}p2"
-    state: "opened"
+    state: opened
     passphrase: "{{ disk_password }}"
     hash: sha512
     name: mycrypt

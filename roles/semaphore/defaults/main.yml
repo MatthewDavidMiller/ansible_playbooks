@@ -1,0 +1,39 @@
+---
+# semaphore role defaults
+
+# PostgreSQL database name for Semaphore
+semaphore_database_name: ""
+
+# Shared PostgreSQL username (shared with nextcloud and paperless_ngx)
+postgres_database_user: ""
+
+# Password for the shared PostgreSQL user
+postgres_database_user_password: ""
+
+# Semaphore admin account username
+semaphore_admin_name: ""
+
+# Semaphore admin account email address
+semaphore_admin_email: ""
+
+# Semaphore admin account password
+semaphore_admin_password: ""
+
+# 32-character encryption key used by Semaphore for access key storage
+semaphore_encryption_key: ""
+
+# Rclone remote path for Semaphore DB backup uploads (e.g. "Nextcloud:semaphore_backup")
+semaphore_backup_location: ""
+
+# When true, backups are written directly to the local Nextcloud data directory
+# instead of being uploaded via rclone.
+backup_local: false
+
+# Path to Nextcloud data root (required when backup_local is true)
+nextcloud_path: ""
+
+# Nextcloud username whose files directory is used as the backup destination
+nextcloud_homelab_user: ""
+
+# OS user that owns the Semaphore shell script
+user_name: ""

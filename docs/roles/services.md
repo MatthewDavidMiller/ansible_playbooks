@@ -82,11 +82,11 @@ Deploys Traefik v3 for TLS termination and reverse proxying. Uses Traefik's buil
 
 ### `nextcloud`
 
-Deploys Nextcloud with PostgreSQL 15 and Redis. Also sets up Borg backup and creates the container network used by Paperless NGX.
+Deploys Nextcloud with PostgreSQL 17 and Redis. Also sets up Borg backup and creates the container network used by Paperless NGX. PostgreSQL 17 is shared with Paperless NGX and Semaphore.
 
 **Distributions:** Debian 12, Rocky Linux 10, Arch Linux
 
-**Container images:** `docker.io/postgres:15`, `docker.io/redis:latest`, `docker.io/nextcloud:latest`
+**Container images:** `docker.io/postgres:17`, `docker.io/redis:latest`, `docker.io/nextcloud:latest`
 
 **Data directories:** `{{ postgres_path }}`, `{{ nextcloud_path }}`
 
@@ -94,7 +94,7 @@ Deploys Nextcloud with PostgreSQL 15 and Redis. Also sets up Borg backup and cre
 
 | Variable | Type | Description | Example |
 |---|---|---|---|
-| `postgres_path` | path | PostgreSQL 15 data directory | `/opt/postgres` |
+| `postgres_path` | path | PostgreSQL 17 data directory (shared with Paperless and Semaphore) | `/opt/postgres` |
 | `nextcloud_path` | path | Nextcloud data directory | `/opt/nextcloud` |
 | `nextcloud_disk` | string | UUID of Nextcloud data disk | `UUID=abc123...` |
 | `nextcloud_database_name` | string | Database name | `nextcloud` |
@@ -108,7 +108,7 @@ Deploys Nextcloud with PostgreSQL 15 and Redis. Also sets up Borg backup and cre
 
 | Template | Destination | Description |
 |---|---|---|
-| `postgres_container.sh.j2` | `/usr/local/bin/postgres_container.sh` | PostgreSQL 15 container launch script |
+| `postgres_container.sh.j2` | `/usr/local/bin/postgres_container.sh` | PostgreSQL 17 container launch script |
 | `postgres_container.service.j2` | `/etc/systemd/system/postgres_container.service` | Systemd unit |
 | `redis_container.sh.j2` | `/usr/local/bin/redis_container.sh` | Redis container launch script |
 | `redis_container.service.j2` | `/etc/systemd/system/redis_container.service` | Systemd unit |
@@ -123,7 +123,7 @@ Deploys Nextcloud with PostgreSQL 15 and Redis. Also sets up Borg backup and cre
 
 ### `paperless_ngx`
 
-Deploys Paperless NGX. Depends on the PostgreSQL 15 and Redis containers created by the `nextcloud` role — run `nextcloud` before `paperless_ngx`.
+Deploys Paperless NGX. Depends on the PostgreSQL 17 and Redis containers created by the `nextcloud` role — run `nextcloud` before `paperless_ngx`.
 
 **Distributions:** Debian 12, Rocky Linux 10, Arch Linux
 
@@ -154,22 +154,19 @@ Deploys Paperless NGX. Depends on the PostgreSQL 15 and Redis containers created
 
 ### `semaphore`
 
-Deploys Semaphore CI/CD with its own PostgreSQL 17 instance. Uses `semaphore_postgres_path` (not `postgres_path`) to keep the data directory separate from the Nextcloud PostgreSQL 15 instance — critical on VM1 where both run on the same host.
-
-The daily backup script (`backup_semaphore.sh`) dumps the PostgreSQL 17 database to `/tmp/semaphore_db_<date>.sql`, then:
+Deploys Semaphore CI/CD. Uses the shared PostgreSQL 17 database created by the `nextcloud` role. The daily backup script (`backup_semaphore.sh`) dumps the Semaphore database to `/tmp/semaphore_db_<date>.sql`, then:
 - When `backup_local: true`: copies the dump directly to `{{ nextcloud_path }}/data/{{ nextcloud_admin_user }}/files/{{ semaphore_backup_location | replace('Nextcloud:', '') }}` and runs `occ files:scan`.
 - Otherwise: uploads via `rclone copy` to `Nextcloud:{{ semaphore_backup_location }}`.
 
 **Distributions:** Debian 12, Rocky Linux 10, Arch Linux
 
-**Container images:** `docker.io/postgres:17`, `docker.io/semaphoreui/semaphore:latest`
+**Container image:** `docker.io/semaphoreui/semaphore:latest`
 
 **Required variables:**
 
 | Variable | Type | Description | Example |
 |---|---|---|---|
-| `semaphore_postgres_path` | path | PostgreSQL 17 data directory | `/opt/postgres_semaphore` |
-| `semaphore_database_name` | string | Database name | `semaphore` |
+| `semaphore_database_name` | string | Database name (in shared PostgreSQL 17) | `semaphore` |
 | `postgres_database_user` | string | PostgreSQL superuser role (shared — defined in `nextcloud` role) | `nextcloud_user` |
 | `postgres_database_user_password` | string | PostgreSQL superuser password | `secret` |
 | `semaphore_admin_name` | string | Admin username | `admin` |
@@ -182,19 +179,16 @@ The daily backup script (`backup_semaphore.sh`) dumps the PostgreSQL 17 database
 
 | Template | Destination | Description |
 |---|---|---|
-| `semaphore_postgres.sh.j2` | `/usr/local/bin/semaphore_postgres.sh` | PostgreSQL 17 container launch script |
-| `semaphore_postgres.service.j2` | `/etc/systemd/system/semaphore_postgres.service` | Systemd unit |
 | `semaphore.sh.j2` | `/usr/local/bin/semaphore.sh` | Semaphore container launch script |
 | `semaphore.service.j2` | `/etc/systemd/system/semaphore.service` | Systemd unit |
-| `backup_semaphore.sh.j2` | `/usr/local/bin/backup_semaphore.sh` | Daily PG17 dump; local cp or rclone based on `backup_local` |
+| `backup_semaphore.sh.j2` | `/usr/local/bin/backup_semaphore.sh` | Daily database dump; local cp or rclone based on `backup_local` |
 
-**Systemd services installed:** `semaphore_postgres`, `semaphore`
+**Systemd services installed:** `semaphore`
 
 **Cron jobs installed:** `Backup Semaphore` (daily)
 
 **Notes:**
-- `semaphore_postgres_path` is intentionally a different variable from `postgres_path`. On VM1, `postgres_path` points to PostgreSQL 15 data (Nextcloud) and `semaphore_postgres_path` points to PostgreSQL 17 data (Semaphore). Using the same variable would cause data directory collision.
-- On single-host Semaphore deployments (e.g., the `ansible` VM), define `semaphore_postgres_path` in the host's inventory entry — do not use `postgres_path` for Semaphore.
+- Semaphore connects to the shared PostgreSQL 17 instance via Podman DNS (`postgres.dns.podman`) on the `semaphore_container_net` network.
 
 ---
 
@@ -407,3 +401,34 @@ Installs Ansible and sshpass so the host can run playbooks.
 **Required variables:** None
 
 **Templates:** None
+
+---
+
+### `podman_service` (reusable library role)
+
+A generic scaffolding role that encapsulates the standard four-step container deployment pattern. It is a reusable building block for future service roles — current service roles use their own custom templates rather than this role.
+
+**Purpose:** Centralises the repetitive work of creating data directories, writing a `podman run` shell script, writing a systemd unit, and enabling the service. Service roles that adopt it pass configuration via variables rather than maintaining per-role templates.
+
+**Variables:**
+
+| Variable | Type | Description | Example |
+|---|---|---|---|
+| `podman_service_name` | string | Service name (used for script and unit filenames) | `vaultwarden` |
+| `podman_service_image` | string | Container image | `docker.io/vaultwarden/server:latest` |
+| `podman_service_dirs` | list | Directories to create with owner/mode | `[{path: /opt/vw, owner: "1000", mode: "0770"}]` |
+| `podman_service_ports` | list | Port mappings | `["8080:80"]` |
+| `podman_service_volumes` | list | Volume mounts | `["/opt/vw:/data:Z"]` |
+| `podman_service_env` | dict | Environment variables | `{TZ: America/New_York}` |
+| `podman_service_memory` | string | Memory limit | `256m` |
+| `podman_service_caps_add` | list | Capabilities to add (after cap-drop=ALL) | `[NET_BIND_SERVICE]` |
+| `podman_service_extra_args` | string | Additional `podman run` flags verbatim | `--pids-limit=200` |
+
+**Templates:**
+
+| Template | Description |
+|---|---|
+| `podman_run.sh.j2` | Generic `podman run` command builder |
+| `podman_service.service.j2` | Generic systemd unit |
+
+**See also:** `roles/podman_service/README.md` for full usage examples.

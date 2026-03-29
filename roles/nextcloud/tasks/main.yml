@@ -6,30 +6,31 @@
     cmd: |
       podman network create --subnet 172.16.1.0/28 nextcloud_container_net
   ignore_errors: true
+  changed_when: false
 
 - name: Create postgres database container path
   ansible.builtin.file:
     path: "{{ postgres_path }}"
     state: directory
-    owner: root
-    group: root
-    mode: "0777"
+    owner: "999"
+    group: "999"
+    mode: "0750"
 
 - name: Create postgres database custom-init path
   ansible.builtin.file:
     path: "{{ postgres_path }}/custom-init"
     state: directory
-    owner: root
-    group: root
-    mode: "0777"
+    owner: "999"
+    group: "999"
+    mode: "0750"
 
 - name: Create postgres data directory
   ansible.builtin.file:
     path: "{{ postgres_path }}/pgdata"
     state: directory
-    owner: root
-    group: root
-    mode: "0777"
+    owner: "999"
+    group: "999"
+    mode: "0750"
 
 - name: Create Nextcloud container path
   ansible.builtin.file:
@@ -82,56 +83,56 @@
 - name: Redis Service
   ansible.builtin.template:
     src: redis_container.service.j2
-    dest: "/etc/systemd/system/redis_container.service"
+    dest: /etc/systemd/system/redis_container.service
 
 - name: Enable Redis
   ansible.builtin.systemd:
     name: redis_container.service
-    enabled: yes
+    enabled: true
 
-- name: postgres Service
+- name: Postgres Service
   ansible.builtin.template:
     src: postgres_container.service.j2
-    dest: "/etc/systemd/system/postgres_container.service"
+    dest: /etc/systemd/system/postgres_container.service
 
 - name: Enable postgres
   ansible.builtin.systemd:
     name: postgres_container.service
-    enabled: yes
+    enabled: true
 
 - name: Nextcloud Service
   ansible.builtin.template:
     src: nextcloud_container.service.j2
-    dest: "/etc/systemd/system/nextcloud_container.service"
+    dest: /etc/systemd/system/nextcloud_container.service
 
 - name: Enable Nextcloud
   ansible.builtin.systemd:
     name: nextcloud_container.service
-    enabled: yes
+    enabled: true
 
 - name: Redis script
   ansible.builtin.template:
     src: redis_container.sh.j2
-    dest: "/usr/local/bin/redis_container.sh"
+    dest: /usr/local/bin/redis_container.sh
     owner: "{{ user_name }}"
     group: root
-    mode: "0770"
+    mode: "0700"
 
 - name: Nextcloud script
   ansible.builtin.template:
     src: nextcloud_container.sh.j2
-    dest: "/usr/local/bin/nextcloud_container.sh"
+    dest: /usr/local/bin/nextcloud_container.sh
     owner: "{{ user_name }}"
     group: root
-    mode: "0770"
+    mode: "0700"
 
 - name: Postgres script
   ansible.builtin.template:
     src: postgres_container.sh.j2
-    dest: "/usr/local/bin/postgres_container.sh"
+    dest: /usr/local/bin/postgres_container.sh
     owner: "{{ user_name }}"
     group: root
-    mode: "0770"
+    mode: "0700"
 
 - name: Postgres db_wrapper script
   ansible.builtin.template:
@@ -139,19 +140,19 @@
     dest: "{{ postgres_path }}/custom-init/db_wrapper.sh"
     owner: "{{ user_name }}"
     group: root
-    mode: "0770"
+    mode: "0700"
 
 - name: Backup Nextcloud and Paperless NGX script
   ansible.builtin.template:
     src: backup_nextcloud_paperless.sh.j2
-    dest: "/usr/local/bin/backup_nextcloud_paperless.sh"
+    dest: /usr/local/bin/backup_nextcloud_paperless.sh
     owner: "{{ user_name }}"
     group: root
-    mode: "0770"
+    mode: "0700"
 
 - name: Backup Nextcloud and Paperless NGX daily
   ansible.builtin.cron:
-    name: "Backup Nextcloud and Paperless NGX daily"
+    name: Backup Nextcloud and Paperless NGX daily
     special_time: daily
     job: /usr/bin/bash /usr/local/bin/backup_nextcloud_paperless.sh
 

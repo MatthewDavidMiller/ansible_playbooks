@@ -20,4 +20,8 @@
 -e FTLCONF_dns_rateLimit_interval='0' \
 -p 53:53/tcp \
 -p 53:53/udp \
+--memory=256m \
+--memory-swap=256m \
+--cap-drop=ALL \
+--security-opt=no-new-privileges:true \
 -d docker.io/pihole/pihole:latest

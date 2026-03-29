@@ -1,7 +1,7 @@
 ---
 - name: Create user profile path
   ansible.builtin.file:
-    path: "/home/{{ user_name }}/.profile"
+    path: /home/{{ user_name }}/.profile
     state: touch
     owner: "{{ user_name }}"
   when:

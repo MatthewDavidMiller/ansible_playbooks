@@ -1,6 +1,7 @@
 # Place hosts in here and roles to run
 ---
-- hosts: unificontroller
+- name: Configure unificontroller
+  hosts: unificontroller
   roles:
     - standard_ssh
     - standard_qemu_guest_agent

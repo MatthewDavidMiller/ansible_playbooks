@@ -1,7 +1,7 @@
 ---
 - name: Enable multilib repo
   ansible.builtin.blockinfile:
-    path: "/etc/pacman.conf"
+    path: /etc/pacman.conf
     block: |
       [multilib]
       Include = /etc/pacman.d/mirrorlist

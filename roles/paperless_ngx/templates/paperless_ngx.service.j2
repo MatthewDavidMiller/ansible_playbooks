@@ -12,6 +12,7 @@ TimeoutStartSec=300
 TimeoutStopSec=300
 ExecStartPre=/usr/bin/podman rm --ignore paperless
 ExecStart=/usr/bin/bash /usr/local/bin/paperless_ngx.sh
+RestartSec=10
 ExecStop=/usr/bin/podman stop --ignore paperless
 ExecStopPost=/usr/bin/podman rm --ignore -f paperless
 Type=simple

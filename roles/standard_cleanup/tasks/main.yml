@@ -2,36 +2,48 @@
 - name: Clean dnf package cache
   ansible.builtin.command: dnf clean all
   become: true
+  changed_when: true
 
 - name: Remove orphaned packages
   ansible.builtin.dnf:
-    autoremove: yes
+    autoremove: true
   become: true
 
 - name: Remove log files older than 30 days
   ansible.builtin.command: find /var/log -name "*.log" -type f -mtime +30 -delete
   become: true
+  changed_when: false
 
 - name: Vacuum systemd journal logs (keep last 2 weeks)
   ansible.builtin.command: journalctl --vacuum-time=2weeks
   become: true
+  register: journal_vacuum
+  changed_when: "'freed 0B' not in journal_vacuum.stderr"
 
 - name: Prune unused Podman images
   ansible.builtin.command: podman image prune -f
   become: true
-  ignore_errors: yes
+  ignore_errors: true
+  register: podman_image_prune
+  changed_when: podman_image_prune.stdout | length > 0
 
 - name: Prune stopped Podman containers
   ansible.builtin.command: podman container prune -f
   become: true
-  ignore_errors: yes
+  ignore_errors: true
+  register: podman_container_prune
+  changed_when: podman_container_prune.stdout | length > 0
 
 - name: Prune unused Podman volumes
   ansible.builtin.command: podman volume prune -f
   become: true
-  ignore_errors: yes
+  ignore_errors: true
+  register: podman_volume_prune
+  changed_when: podman_volume_prune.stdout | length > 0
 
 - name: Prune unused Podman networks
   ansible.builtin.command: podman network prune -f
   become: true
-  ignore_errors: yes
+  ignore_errors: true
+  register: podman_network_prune
+  changed_when: podman_network_prune.stdout | length > 0

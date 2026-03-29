@@ -3,7 +3,7 @@
 ---
 - name: Disable wifi and bluetooth for pi
   ansible.builtin.blockinfile:
-    path: "/boot/config.txt"
+    path: /boot/config.txt
     create: "yes"
     block: |
       dtoverlay=disable-wifi
@@ -15,7 +15,7 @@
 
 - name: Adjust POE hat speeds for pi
   ansible.builtin.blockinfile:
-    path: "/boot/config.txt"
+    path: /boot/config.txt
     create: "yes"
     block: |
       dtparam=poe_fan_temp0=50000

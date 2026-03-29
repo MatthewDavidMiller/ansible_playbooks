@@ -12,7 +12,7 @@ For architecture patterns (container pattern, firewall pattern, role conventions
 | 111 | Pihole | Rocky Linux 10 | Pi-hole DNS, SWAG reverse proxy |
 | 112 | NetworkController | Rocky Linux 10 | TP-Link Omada Controller, SWAG reverse proxy |
 | 116 | UnifiController | Rocky Linux 10 | Ubiquiti Unifi Controller, SWAG reverse proxy |
-| 120 | VM1 | Rocky Linux 10 | Nextcloud, Paperless NGX, Navidrome, Vaultwarden, Semaphore, PostgreSQL 15, PostgreSQL 17, Redis, Traefik reverse proxy, Borg backup |
+| 120 | VM1 | Rocky Linux 10 | Nextcloud, Paperless NGX, Navidrome, Vaultwarden, Semaphore, PostgreSQL 17, Redis, Traefik reverse proxy, Borg backup |
 
 Templates: VMID 400 (Debian 12 cloud-init), VMID 401 (Rocky Linux 10 cloud-init)
 
@@ -40,19 +40,17 @@ VM1 (ID 120) runs all services on a single Rocky Linux 10 host to reduce resourc
 | Service | Est. RAM |
 |---|---|
 | Nextcloud (PHP-FPM) | 1.0 GB |
-| PostgreSQL 15 (Nextcloud + Paperless, shared) | 512 MB |
+| PostgreSQL 17 (Nextcloud, Paperless, Semaphore — shared) | 768 MB |
 | Redis | 128 MB |
 | Paperless NGX (OCR) | 1.0 GB |
 | Navidrome | 256 MB |
 | Vaultwarden | 128 MB |
-| Semaphore + PostgreSQL 17 | 512 MB |
+| Semaphore | 256 MB |
 | Traefik | 128 MB |
 | OS + overhead | 1.5 GB |
-| **Total** | **~5.1 GB → 8 GB with headroom** |
+| **Total** | **~5.2 GB → 8 GB with headroom** |
 
 **Key design decisions:**
-
-- Semaphore uses `semaphore_postgres_path` (not `postgres_path`) to keep its PostgreSQL 17 data directory separate from the Nextcloud/Paperless PostgreSQL 15 data directory. See [roles/services.md#semaphore](roles/services.md#semaphore).
 - Traefik joins all four container networks simultaneously via `traefik_networks`. See [Container Network Isolation](#container-network-isolation) below.
 - SELinux stays enforcing. The `standard_selinux` role handles the required booleans. See [SELinux](#selinux) below.
 
@@ -60,7 +58,7 @@ VM1 (ID 120) runs all services on a single Rocky Linux 10 host to reduce resourc
 
 ## Container Network Isolation
 
-Each service runs in its own Podman network to prevent DNS name collisions (both Nextcloud and Semaphore have a container named `postgres`).
+Each service runs in its own Podman network. The shared PostgreSQL 17 container is accessed by Nextcloud, Paperless, and Semaphore across their respective networks via Podman DNS resolution.
 
 **VM1 networks:**
 
@@ -135,4 +133,4 @@ Standard roles run first, in this order, before any service roles:
 9. `standard_selinux` ← Rocky Linux only
 10. `standard_cleanup`
 
-Service roles follow. `nextcloud` must run before `paperless_ngx` because Paperless uses the PostgreSQL 15 and Redis containers started by the Nextcloud role.
+Service roles follow. `nextcloud` must run before `paperless_ngx` because Paperless uses the PostgreSQL 17 and Redis containers started by the Nextcloud role.

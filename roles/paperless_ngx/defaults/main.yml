@@ -1,0 +1,32 @@
+---
+# paperless_ngx role defaults
+
+# Base directory for all Paperless NGX container paths
+paperless_path: ""
+
+# Path for Paperless NGX application data
+paperless_data_path: ""
+
+# Path for Paperless NGX media files
+paperless_media_path: ""
+
+# Path for Paperless NGX document exports
+paperless_export_path: ""
+
+# Path for Paperless NGX document consumption (inbox)
+paperless_consume_path: ""
+
+# PostgreSQL database name for Paperless NGX
+paperless_database_name: ""
+
+# Shared PostgreSQL username (shared with nextcloud and semaphore)
+postgres_database_user: ""
+
+# Password for the shared PostgreSQL user
+postgres_database_user_password: ""
+
+# Fully-qualified domain name for Paperless NGX (used in PAPERLESS_URL)
+paperless_dns_name: ""
+
+# OS user that owns the shell scripts
+user_name: ""

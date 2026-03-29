@@ -5,4 +5,8 @@
 --volume {{ vaultwarden_path }}/vw-data:/data/:Z \
 --volume {{ vaultwarden_path }}/ssl_certs:/ssl_certs/:Z \
 -e TZ=America/New_York \
+--memory=256m \
+--memory-swap=256m \
+--cap-drop=ALL \
+--security-opt=no-new-privileges:true \
 -d docker.io/vaultwarden/server:latest

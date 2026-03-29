@@ -1,0 +1,14 @@
+---
+# standard_cron role defaults
+
+# Cron schedule for the system patching job — minute field
+patching_minute: "30"
+
+# Cron schedule for the system patching job — hour field (24h)
+patching_hour: "12"
+
+# Cron schedule for the system patching job — day-of-week field (0=Sunday)
+patching_weekday: "1"
+
+# Cron schedule for the system patching job — month field ("*" for every month)
+patching_month: "*"

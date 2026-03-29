@@ -1,0 +1,5 @@
+---
+# omadacontroller role defaults (TP-Link Omada / EAP AP controller)
+
+# Path to the Omada Controller container data directory
+apcontroller_path: ""

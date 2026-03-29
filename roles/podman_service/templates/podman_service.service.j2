@@ -1,0 +1,24 @@
+# Managed by Ansible — do not edit manually.
+# Role: podman_service  Service: {{ podman_service_name }}
+
+[Unit]
+Description=Podman container-{{ podman_service_name }}.service
+Documentation=man:podman-generate-systemd(1)
+Wants=network.target
+After=network-online.target{% for dep in podman_service_after %} {{ dep }}{% endfor %}
+
+
+[Service]
+Environment=PODMAN_SYSTEMD_UNIT=%n
+Restart=on-failure
+RestartSec=10
+TimeoutStartSec={{ podman_service_timeout_start | default(300) }}
+TimeoutStopSec={{ podman_service_timeout_stop | default(70) }}
+ExecStartPre=/usr/bin/podman rm --ignore {{ podman_service_name }}
+ExecStart=/usr/bin/bash /usr/local/bin/{{ podman_service_name }}.sh
+ExecStop=/usr/bin/podman stop --ignore {{ podman_service_name }}
+ExecStopPost=/usr/bin/podman rm --ignore -f {{ podman_service_name }}
+Type={{ podman_service_type }}
+
+[Install]
+WantedBy=multi-user.target default.target

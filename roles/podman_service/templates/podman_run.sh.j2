@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Managed by Ansible — do not edit manually.
+# Role: podman_service  Service: {{ podman_service_name }}
+
+/usr/bin/podman pull {{ podman_service_image }}
+/usr/bin/podman run \
+  --name={{ podman_service_name }} \
+{% for net in podman_service_networks %}
+  --network={{ net }} \
+{% endfor %}
+{% for port in podman_service_ports %}
+  -p {{ port }} \
+{% endfor %}
+{% for vol in podman_service_volumes %}
+  -v {{ vol }} \
+{% endfor %}
+{% for key, value in podman_service_env.items() %}
+  -e {{ key }}={{ value | quote }} \
+{% endfor %}
+{% for label in podman_service_labels %}
+  {{ label }} \
+{% endfor %}
+{% for arg in podman_service_extra_args %}
+  {{ arg }} \
+{% endfor %}
+{% if podman_service_type == 'forking' %}
+  -d {{ podman_service_image }}
+{% else %}
+  {{ podman_service_image }}
+{% endif %}
