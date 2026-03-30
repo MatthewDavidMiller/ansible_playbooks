@@ -6,5 +6,8 @@
 --memory=512m \
 --memory-swap=512m \
 --cap-drop=ALL \
+--cap-add=CHOWN \
+--cap-add=FOWNER \
+--cap-add=DAC_OVERRIDE \
 --security-opt=no-new-privileges:true \
 -d docker.io/redis:latest
