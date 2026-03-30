@@ -1,6 +1,6 @@
 # Service Roles Reference
 
-Each service role deploys one or more containers using the Podman + systemd pattern. See [CLAUDE.md](../../CLAUDE.md) for the pattern description and [architecture.md](../architecture.md) for network design.
+Each service role deploys one or more containers using the Podman + systemd pattern. See [architecture.md](../architecture.md) for network design and [playbooks.md](../playbooks.md) for playbook composition.
 
 ---
 

@@ -1,6 +1,6 @@
 # Getting Started
 
-This guide walks you through setting up the Ansible playbooks on a new machine from scratch. For playbook commands, see [CLAUDE.md](../../CLAUDE.md).
+This guide walks you through setting up the Ansible playbooks on a new machine from scratch. For the project overview and common commands, see [README.md](../../README.md).
 
 ---
 

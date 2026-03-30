@@ -8,11 +8,15 @@ Standards for authoring and maintaining documentation in the `docs/` directory.
 
 Never copy content from another file — link to it. If the same fact appears in two places, one of them must be a reference to the other.
 
-Authoritative sources that docs must reference rather than repeat:
-- `CLAUDE.md` — running playbooks, architecture patterns, role conventions
-- `README.md` — top-level project overview
-- `example_inventory.yml` — inventory structure and example values
-- Role task files — what a role actually does
+Primary document ownership:
+- `README.md` — top-level project overview and common commands
+- `docs/index.md` — documentation navigation hub
+- `docs/architecture.md` — system design and execution-order rationale
+- `docs/playbooks.md` — playbook purpose, targets, and role composition
+- `docs/inventory.md` — inventory structure, variables, and naming conventions
+- `example_inventory.yml` — inventory shape and example values
+- `AGENT.md` and `CLAUDE.md` — agent workflow instructions only, not project reference docs
+- Role task files — implementation truth for what a role actually does
 
 ---
 
@@ -22,6 +26,7 @@ Authoritative sources that docs must reference rather than repeat:
 - Role reference docs go under `docs/roles/`
 - How-to guides go under `docs/guides/`
 - `docs/index.md` is the navigation hub — update it when adding new docs files
+- `README.md` links into docs; docs should not depend on agent instruction files for core project facts
 
 ---
 
