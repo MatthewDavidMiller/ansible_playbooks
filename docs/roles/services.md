@@ -257,13 +257,14 @@ The daily backup script (`backup_navidrome.sh`) branches on `backup_local`:
 | Template | Destination | Description |
 |---|---|---|
 | `navidrome_container.sh.j2` | `/usr/local/bin/navidrome_container.sh` | Container launch script; uses `navidrome_local_music_path` if defined, else `navidrome_path/music` |
-| `navidrome_container.service.j2` | `/etc/systemd/system/navidrome_container.service` | Systemd unit |
+| `navidrome_container.service.j2` | `/etc/systemd/system/navidrome_container.service` | Systemd unit; waits for the configured music path and orders after Nextcloud when using the local Nextcloud data tree |
 | `backup_navidrome.sh.j2` | `/usr/local/bin/backup_navidrome.sh` | Daily backup script; local cp or rclone based on `backup_local` |
 
 **Systemd services installed:** `navidrome_container`
 
 **Notes:**
 - Navidrome uses `--cap-drop=ALL` with `DAC_READ_SEARCH` added back so the non-root process can traverse the mounted music library.
+- When `navidrome_local_music_path` points into `{{ nextcloud_path }}/data/...`, the systemd unit waits for that path and starts after `nextcloud_container.service` so the library is present after boot.
 
 ---
 
