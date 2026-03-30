@@ -1,6 +1,6 @@
 # Playbooks Reference
 
-For running playbook commands see [CLAUDE.md](../CLAUDE.md). This document describes every playbook's purpose, target, and role composition.
+This document describes every playbook's purpose, target, and role composition. For common commands see [README.md](../README.md); for setup and first-run workflow see [guides/getting-started.md](guides/getting-started.md).
 
 ---
 

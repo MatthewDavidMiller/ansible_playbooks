@@ -2,10 +2,23 @@
 
 Ansible playbooks for configuring homelab Linux VMs and services. Services run as Podman containers managed by systemd.
 
-For the top-level project overview see [README.md](../README.md).
-For running playbooks and architecture patterns (authoritative reference for Claude AI) see [CLAUDE.md](../CLAUDE.md).
+Start with [README.md](../README.md) for the project overview and quick start.
 
 ---
+
+## Start Here
+
+| Document | Description |
+|---|---|
+| [README.md](../README.md) | Project overview and common commands |
+| [guides/getting-started.md](guides/getting-started.md) | Setup from scratch and first playbook run |
+
+## Agent Instructions
+
+| Document | Description |
+|---|---|
+| [AGENT.md](../AGENT.md) | Repo-specific instructions for coding agents |
+| [CLAUDE.md](../CLAUDE.md) | Repo-specific instructions for Claude Code |
 
 ## Architecture & Reference
 

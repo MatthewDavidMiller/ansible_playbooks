@@ -1,6 +1,6 @@
 # Architecture
 
-For architecture patterns (container pattern, firewall pattern, role conventions, running playbooks) see [CLAUDE.md](../CLAUDE.md). This document covers the host topology, network design, SELinux policy, and the consolidated VM1.
+This document covers host topology, distribution targets, container and firewall patterns, SELinux policy, and the consolidated VM1. For common commands see [README.md](../README.md); for playbook composition see [playbooks.md](playbooks.md).
 
 ---
 
@@ -27,7 +27,7 @@ All VMs are provisioned via `scripts/proxmox_initial_setup.py`. See [guides/prox
 | Rocky Linux 10 | All homelab VMs | `dnf` |
 | Arch Linux | Laptop | `pacman` |
 
-Role tasks are gated with `when: ansible_facts['distribution'] == '...'` to support all distributions. See [CLAUDE.md](../CLAUDE.md) for the convention.
+Role tasks are gated with `when: ansible_facts['distribution'] == '...'` to support all distributions.
 
 ---
 
