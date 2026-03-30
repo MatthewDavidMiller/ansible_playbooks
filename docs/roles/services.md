@@ -119,6 +119,10 @@ Deploys Nextcloud with PostgreSQL 17 and Redis. Also sets up Borg backup and cre
 
 **Systemd services installed:** `postgres_container`, `redis_container`, `nextcloud_container`
 
+**Notes:**
+- PostgreSQL runs as UID/GID `999:999`; the `custom-init/db_wrapper.sh` wrapper must be owned by `999:999` so the image entrypoint can execute it after `--user=999:999` is applied.
+- Redis uses `--cap-drop=ALL` with `CHOWN`, `FOWNER`, and `DAC_OVERRIDE` added back for startup-time filesystem handling inside the image.
+
 ---
 
 ### `paperless_ngx`
@@ -149,6 +153,9 @@ Deploys Paperless NGX. Depends on the PostgreSQL 17 and Redis containers created
 | `paperless_ngx.service.j2` | `/etc/systemd/system/paperless_ngx.service` | Systemd unit |
 
 **Systemd services installed:** `paperless_ngx`
+
+**Notes:**
+- Paperless NGX uses `--cap-drop=ALL` with `CHOWN`, `SETUID`, `SETGID`, `FOWNER`, and `DAC_OVERRIDE` added back to support `USERMAP_UID/GID` and entrypoint privilege transitions.
 
 ---
 
@@ -221,6 +228,9 @@ The backup script (`backup_db.j2`) takes a SQLite hot copy, then:
 
 **Systemd services installed:** `vaultwarden`
 
+**Notes:**
+- Vaultwarden uses `--cap-drop=ALL` with `NET_BIND_SERVICE` added back.
+
 ---
 
 ### `navidrome`
@@ -251,6 +261,9 @@ The daily backup script (`backup_navidrome.sh`) branches on `backup_local`:
 | `backup_navidrome.sh.j2` | `/usr/local/bin/backup_navidrome.sh` | Daily backup script; local cp or rclone based on `backup_local` |
 
 **Systemd services installed:** `navidrome_container`
+
+**Notes:**
+- Navidrome uses `--cap-drop=ALL` with `DAC_READ_SEARCH` added back so the non-root process can traverse the mounted music library.
 
 ---
 
@@ -339,6 +352,9 @@ Deploys Pi-hole in a container with a custom network subnet. Disables `systemd-r
 | `backup_db.j2` | `/usr/local/bin/backup_pihole.sh` | Daily DB backup script |
 
 **Systemd services installed:** `pihole`
+
+**Notes:**
+- Pi-hole uses `--cap-drop=ALL` with `NET_BIND_SERVICE` added back because it binds port `53/tcp` and `53/udp`.
 
 ---
 

@@ -81,13 +81,18 @@ This document records explicit design decisions — approaches considered but ul
 
 **Exceptions and required caps:**
 - **Traefik:** adds `--cap-add=NET_BIND_SERVICE` (binds ports 80/443 as a non-root process)
+- **Pi-hole:** adds `--cap-add=NET_BIND_SERVICE` (binds port 53/tcp and 53/udp)
+- **Vaultwarden:** adds `--cap-add=NET_BIND_SERVICE` (required by the image's privileged-port listener)
+- **Redis:** adds `CHOWN`, `FOWNER`, and `DAC_OVERRIDE` for startup-time filesystem ownership handling
+- **Paperless NGX:** adds `CHOWN`, `SETUID`, `SETGID`, `FOWNER`, and `DAC_OVERRIDE` to support `USERMAP_UID/GID` and entrypoint privilege dropping
+- **Navidrome:** adds `DAC_READ_SEARCH` so the non-root process can traverse the mounted music library
 - **WireGuard:** uses `--privileged=true` instead (see dedicated decision below)
 - **Nextcloud:** omits `--cap-drop=ALL` entirely — the entrypoint runs `rsync --chown` to copy the webroot on every start, which requires `CHOWN` capability; dropping all capabilities breaks startup
 
 **Rationale:**
 - Capability dropping limits the blast radius of a container escape. A compromised container without `NET_RAW`, `SYS_ADMIN`, `DAC_OVERRIDE`, etc. cannot pivot to the host as effectively.
 - `no-new-privileges` prevents setuid binaries inside the container from acquiring capabilities after startup.
-- These flags are validated by the container security test suite (`scripts/test_container_security.sh`) before each commit.
+- These flags are validated by the manual container security test suite (`scripts/test_container_security.sh`) before deployment or after hardening changes.
 
 **How to apply:**
 - New service containers default to `--cap-drop=ALL --security-opt=no-new-privileges:true`.
