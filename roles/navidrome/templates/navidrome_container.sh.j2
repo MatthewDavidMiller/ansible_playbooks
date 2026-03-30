@@ -12,5 +12,6 @@
 --memory=512m \
 --memory-swap=512m \
 --cap-drop=ALL \
+--cap-add=DAC_READ_SEARCH \
 --security-opt=no-new-privileges:true \
 -d docker.io/deluan/navidrome:latest
