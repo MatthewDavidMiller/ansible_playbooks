@@ -31,7 +31,7 @@ git commit --no-verify
 
 ## Container Security Testing
 
-Tests for verifying that proposed security flags (`--cap-drop=ALL`, `--security-opt=no-new-privileges`, `--memory`, `--shm-size`) do not break container startup or functionality.
+Tests for verifying that the production capability, privilege, and memory flags do not break container startup or core functionality.
 
 Run these from the development machine (Ubuntu WSL). Docker 29.2.1+ required; `podman` can be substituted.
 
@@ -111,20 +111,23 @@ rm -rf "$TEST_PG_DIR"
 
 ---
 
-## TEST-02: Redis — cap-drop + memory limit
+## TEST-02: Redis — cap-drop + required filesystem caps
 
-**What it tests:** Redis starts with `--cap-drop=ALL`, `--security-opt=no-new-privileges`, `--memory=512m`. Verifies `redis-cli ping` returns PONG.
+**What it tests:** Redis starts with `--cap-drop=ALL`, `--cap-add=CHOWN`, `--cap-add=FOWNER`, `--cap-add=DAC_OVERRIDE`, `--security-opt=no-new-privileges:true`, and `--memory=512m`. Verifies `redis-cli ping` returns `PONG`.
 
-**Why it matters:** Redis has no persistent volumes in this deployment; OOM kill is acceptable (Nextcloud reconnects). Memory limit prevents cache runaway.
+**Why it matters:** The image performs startup-time filesystem operations that fail under a pure `--cap-drop=ALL` profile. The memory limit still prevents cache runaway.
 
 ```bash
 docker run -d --name test_redis \
   --cap-drop=ALL \
+  --cap-add=CHOWN \
+  --cap-add=FOWNER \
+  --cap-add=DAC_OVERRIDE \
   --security-opt=no-new-privileges:true \
   --memory=512m --memory-swap=512m \
   docker.io/redis:latest
 
-check_running test_redis "Redis: starts with cap-drop=ALL + 512m limit"
+check_running test_redis "Redis: starts with cap-drop=ALL + CHOWN/FOWNER/DAC_OVERRIDE + 512m limit"
 
 sleep 3
 docker exec test_redis redis-cli ping \
@@ -224,14 +227,11 @@ rm -rf "$TEST_TRAEFIK_DIR"
 
 ---
 
-## TEST-05: Paperless NGX — USERMAP compatibility with security flags
+## TEST-05: Paperless NGX — USERMAP compatibility with required caps
 
-**What it tests:** Two sub-tests to determine whether `--security-opt=no-new-privileges:true` breaks Paperless NGX's `USERMAP_UID/GID` mechanism (which uses `gosu` to drop privileges on startup).
+**What it tests:** Paperless NGX starts with `--cap-drop=ALL` plus `CHOWN`, `SETUID`, `SETGID`, `FOWNER`, and `DAC_OVERRIDE` added back, using the same `USERMAP_UID/GID` shape as production. The test inspects logs for privilege-related failures while tolerating expected missing-backend connection errors.
 
-- **Test A:** `--cap-drop=ALL` only (no `no-new-privileges`). Should work cleanly.
-- **Test B:** `--cap-drop=ALL` + `--security-opt=no-new-privileges:true`. May show permission errors if `gosu` is blocked.
-
-**Why it matters:** If Test B fails, omit `--security-opt=no-new-privileges:true` from the Paperless container only.
+**Why it matters:** Paperless uses entrypoint privilege transitions and file ownership adjustments. A plain `--cap-drop=ALL` profile is too restrictive for the production image.
 
 > Redis and Postgres connections will fail (intentionally — no real backends in this test). Look for `gosu` or privilege-related errors, not connection errors.
 
@@ -247,9 +247,13 @@ docker run --rm \
   -v "$TEST_PL_EXPORT":/d3 -v "$TEST_PL_CONSUME":/d4 \
   alpine chown 1000:1000 /d1 /d2 /d3 /d4
 
-# Test A: cap-drop=ALL only
-docker run -d --name test_paperless_caps \
+docker run -d --name test_paperless \
   --cap-drop=ALL \
+  --cap-add=CHOWN \
+  --cap-add=SETUID \
+  --cap-add=SETGID \
+  --cap-add=FOWNER \
+  --cap-add=DAC_OVERRIDE \
   --memory=2g --memory-swap=2g \
   -e USERMAP_UID=1000 \
   -e USERMAP_GID=1000 \
@@ -261,32 +265,11 @@ docker run -d --name test_paperless_caps \
   --volume "$TEST_PL_CONSUME":/usr/src/paperless/consume \
   ghcr.io/paperless-ngx/paperless-ngx:latest
 sleep 10
-echo "Test A status: $(docker inspect --format='{{.State.Status}}' test_paperless_caps 2>/dev/null)"
-docker logs test_paperless_caps 2>&1 | grep -qi "gosu\|permission denied\|operation not permitted" \
-  && echo "WARN A: Paperless cap-drop=ALL shows privilege errors" \
-  || echo "INFO A: Paperless cap-drop=ALL looks clean"
-cleanup test_paperless_caps
-
-# Test B: cap-drop=ALL + no-new-privileges
-docker run -d --name test_paperless_nnp \
-  --cap-drop=ALL \
-  --security-opt=no-new-privileges:true \
-  --memory=2g --memory-swap=2g \
-  -e USERMAP_UID=1000 \
-  -e USERMAP_GID=1000 \
-  -e PAPERLESS_REDIS=redis://nonexistent:6379 \
-  -e PAPERLESS_DBHOST=nonexistent \
-  --volume "$TEST_PL_DATA":/usr/src/paperless/data \
-  --volume "$TEST_PL_MEDIA":/usr/src/paperless/media \
-  --volume "$TEST_PL_EXPORT":/usr/src/paperless/export \
-  --volume "$TEST_PL_CONSUME":/usr/src/paperless/consume \
-  ghcr.io/paperless-ngx/paperless-ngx:latest
-sleep 10
-echo "Test B status: $(docker inspect --format='{{.State.Status}}' test_paperless_nnp 2>/dev/null)"
-docker logs test_paperless_nnp 2>&1 | grep -qi "gosu\|permission denied\|operation not permitted" \
-  && echo "WARN B: Paperless + no-new-privileges shows privilege errors — OMIT this flag from production" \
-  || echo "INFO B: Paperless + no-new-privileges appears clean — safe to add"
-cleanup test_paperless_nnp
+echo "Paperless status: $(docker inspect --format='{{.State.Status}}' test_paperless 2>/dev/null)"
+docker logs test_paperless 2>&1 | grep -qi "gosu\|permission denied\|operation not permitted" \
+  && fail "Paperless: startup shows privilege errors with required caps" \
+  || pass "Paperless: starts without privilege errors using CHOWN/SETUID/SETGID/FOWNER/DAC_OVERRIDE"
+cleanup test_paperless
 
 # Restore ownership before rm (avoids sudo)
 for d in "$TEST_PL_DATA" "$TEST_PL_MEDIA" "$TEST_PL_EXPORT" "$TEST_PL_CONSUME"; do
@@ -296,13 +279,13 @@ for d in "$TEST_PL_DATA" "$TEST_PL_MEDIA" "$TEST_PL_EXPORT" "$TEST_PL_CONSUME"; 
 done
 ```
 
-**Expected result:** `INFO A` (clean). For Test B: `INFO B` means both flags are safe; `WARN B` means omit `--security-opt=no-new-privileges:true` from Paperless in production.
+**Expected result:** `PASS`. Missing database or Redis backends are acceptable in this test as long as there are no privilege-related startup failures.
 
 ---
 
 ## TEST-06: Vaultwarden — cap-drop + no-new-privileges
 
-**What it tests:** Vaultwarden (Rust binary) starts with `--cap-drop=ALL`, `--security-opt=no-new-privileges`, `--memory=256m`.
+**What it tests:** Vaultwarden (Rust binary) starts with `--cap-drop=ALL`, `--cap-add=NET_BIND_SERVICE`, `--security-opt=no-new-privileges:true`, and `--memory=256m`.
 
 ```bash
 TEST_VW_DIR=$(mktemp -d)
@@ -310,12 +293,13 @@ chmod 0700 "$TEST_VW_DIR"
 
 docker run -d --name test_vaultwarden \
   --cap-drop=ALL \
+  --cap-add=NET_BIND_SERVICE \
   --security-opt=no-new-privileges:true \
   --memory=256m --memory-swap=256m \
   --volume "$TEST_VW_DIR":/data \
   docker.io/vaultwarden/server:latest
 
-check_running test_vaultwarden "Vaultwarden: starts with cap-drop=ALL + no-new-privileges"
+check_running test_vaultwarden "Vaultwarden: starts with cap-drop=ALL + NET_BIND_SERVICE + no-new-privileges"
 
 cleanup test_vaultwarden
 rm -rf "$TEST_VW_DIR"
@@ -376,7 +360,7 @@ cleanup test_semaphore_caps
 
 ## TEST-08: Navidrome — existing --user flag + cap-drop
 
-**What it tests:** Navidrome starts with its existing `--user $(id -u):33` flag plus the new `--cap-drop=ALL` and `--security-opt=no-new-privileges`. Data volume owned by `$(id-u):33`.
+**What it tests:** Navidrome starts with its existing `--user $(id -u):33` flag plus `--cap-drop=ALL`, `--cap-add=DAC_READ_SEARCH`, and `--security-opt=no-new-privileges:true`. Data volume owned by `$(id -u):33`.
 
 **Why it matters:** Navidrome already has the correct `--user` flag. This confirms cap hardening doesn't break it.
 
@@ -389,6 +373,7 @@ docker run --rm -v "$TEST_ND_DATA":/target alpine chown "$(id -u):33" /target
 docker run -d --name test_navidrome \
   --user "$(id -u):33" \
   --cap-drop=ALL \
+  --cap-add=DAC_READ_SEARCH \
   --security-opt=no-new-privileges:true \
   --memory=512m --memory-swap=512m \
   --volume "$TEST_ND_MUSIC":/music:ro \
@@ -396,7 +381,7 @@ docker run -d --name test_navidrome \
   -e ND_LOGLEVEL=info \
   docker.io/deluan/navidrome:latest
 
-check_running test_navidrome "Navidrome: starts with --user $(id -u):33 + cap-drop=ALL"
+check_running test_navidrome "Navidrome: starts with --user $(id -u):33 + cap-drop=ALL + DAC_READ_SEARCH"
 
 cleanup test_navidrome
 docker run --rm -v "$(dirname "$TEST_ND_DATA")":/mnt \
@@ -408,7 +393,47 @@ rm -rf "$TEST_ND_DATA" "$TEST_ND_MUSIC"
 
 ---
 
-## TEST-09: WireGuard — privileged mode baseline
+## TEST-09: Pi-hole — privileged port bind with cap-drop
+
+**What it tests:** Pi-hole starts with `--cap-drop=ALL`, `--cap-add=NET_BIND_SERVICE`, `--security-opt=no-new-privileges:true`, and `--memory=256m` while binding container port `53`.
+
+**Why it matters:** Pi-hole binds privileged DNS ports (`53/tcp` and `53/udp`). With `--cap-drop=ALL`, it must add `NET_BIND_SERVICE` back.
+
+```bash
+TEST_PIHOLE_DIR=$(mktemp -d)
+chmod 0770 "$TEST_PIHOLE_DIR"
+docker run --rm -v "$TEST_PIHOLE_DIR":/target alpine chown 999:33 /target
+
+docker run -d --name test_pihole \
+  --cap-drop=ALL \
+  --cap-add=NET_BIND_SERVICE \
+  --security-opt=no-new-privileges:true \
+  --volume "$TEST_PIHOLE_DIR":/etc/pihole \
+  --memory=256m --memory-swap=256m \
+  -e TZ=America/New_York \
+  -e FTLCONF_webserver_api_password=testpass \
+  -e FTLCONF_dns_bogusPriv=false \
+  -e FTLCONF_dns_domainNeeded=false \
+  -e FTLCONF_dns_dnssec=true \
+  -e FTLCONF_dns_listeningMode=all \
+  -e FTLCONF_dns_upstreams=1.1.1.1 \
+  -p 5353:53/tcp \
+  -p 5353:53/udp \
+  docker.io/pihole/pihole:latest
+
+check_running test_pihole "Pi-hole: starts with cap-drop=ALL + NET_BIND_SERVICE"
+
+cleanup test_pihole
+docker run --rm -v "$(dirname "$TEST_PIHOLE_DIR")":/mnt \
+  alpine chown -R "$(id -u):$(id -g)" "/mnt/$(basename "$TEST_PIHOLE_DIR")"
+rm -rf "$TEST_PIHOLE_DIR"
+```
+
+**Expected result:** `PASS`.
+
+---
+
+## TEST-10: WireGuard — privileged mode baseline
 
 **What it tests:** The linuxserver WireGuard container starts with `--privileged=true` and `--memory=128m`. WireGuard requires privileged mode for kernel module loading and sysctl configuration; the standard `--cap-drop=ALL` pattern does not apply here.
 

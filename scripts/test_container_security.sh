@@ -1,6 +1,6 @@
 #!/bin/bash
 # Container security flag test script
-# Tests proposed --cap-drop=ALL, --security-opt=no-new-privileges, --memory flags
+# Tests container capability, privilege, and memory flags
 # for all services before deploying to production via Ansible.
 #
 # Usage: bash scripts/test_container_security.sh 2>&1 | tee /tmp/container_test_results.txt
@@ -65,11 +65,14 @@ echo ""
 echo "--- TEST-02: Redis ---"
 $DOCKER run -d --name test_redis \
   --cap-drop=ALL \
+  --cap-add=CHOWN \
+  --cap-add=FOWNER \
+  --cap-add=DAC_OVERRIDE \
   --security-opt=no-new-privileges:true \
   --memory=512m --memory-swap=512m \
   docker.io/redis:latest
 
-check_running test_redis "Redis: starts with cap-drop=ALL + 512m limit"
+check_running test_redis "Redis: starts with cap-drop=ALL + CHOWN/FOWNER/DAC_OVERRIDE + 512m limit"
 sleep 3
 $DOCKER exec test_redis redis-cli ping \
   | grep -q PONG && pass "Redis: ping succeeds" || fail "Redis: ping failed"
@@ -153,9 +156,13 @@ $DOCKER run --rm \
   -v "$TEST_PL_EXPORT":/d3 -v "$TEST_PL_CONSUME":/d4 \
   alpine chown 1000:1000 /d1 /d2 /d3 /d4
 
-# Test A: cap-drop=ALL only
-$DOCKER run -d --name test_paperless_caps \
+$DOCKER run -d --name test_paperless \
   --cap-drop=ALL \
+  --cap-add=CHOWN \
+  --cap-add=SETUID \
+  --cap-add=SETGID \
+  --cap-add=FOWNER \
+  --cap-add=DAC_OVERRIDE \
   --memory=2g --memory-swap=2g \
   -e USERMAP_UID=1000 \
   -e USERMAP_GID=1000 \
@@ -167,32 +174,11 @@ $DOCKER run -d --name test_paperless_caps \
   --volume "$TEST_PL_CONSUME":/usr/src/paperless/consume \
   ghcr.io/paperless-ngx/paperless-ngx:latest
 sleep 10
-echo "Test A status: $($DOCKER inspect --format='{{.State.Status}}' test_paperless_caps 2>/dev/null)"
-$DOCKER logs test_paperless_caps 2>&1 | grep -qi "gosu\|permission denied\|operation not permitted" \
-  && echo "WARN A: Paperless cap-drop=ALL shows privilege errors" \
-  || echo "INFO A: Paperless cap-drop=ALL looks clean"
-cleanup test_paperless_caps
-
-# Test B: cap-drop=ALL + no-new-privileges
-$DOCKER run -d --name test_paperless_nnp \
-  --cap-drop=ALL \
-  --security-opt=no-new-privileges:true \
-  --memory=2g --memory-swap=2g \
-  -e USERMAP_UID=1000 \
-  -e USERMAP_GID=1000 \
-  -e PAPERLESS_REDIS=redis://nonexistent:6379 \
-  -e PAPERLESS_DBHOST=nonexistent \
-  --volume "$TEST_PL_DATA":/usr/src/paperless/data \
-  --volume "$TEST_PL_MEDIA":/usr/src/paperless/media \
-  --volume "$TEST_PL_EXPORT":/usr/src/paperless/export \
-  --volume "$TEST_PL_CONSUME":/usr/src/paperless/consume \
-  ghcr.io/paperless-ngx/paperless-ngx:latest
-sleep 10
-echo "Test B status: $($DOCKER inspect --format='{{.State.Status}}' test_paperless_nnp 2>/dev/null)"
-$DOCKER logs test_paperless_nnp 2>&1 | grep -qi "gosu\|permission denied\|operation not permitted" \
-  && echo "WARN B: Paperless + no-new-privileges shows privilege errors — OMIT this flag from production" \
-  || echo "INFO B: Paperless + no-new-privileges appears clean — safe to add"
-cleanup test_paperless_nnp
+echo "Paperless status: $($DOCKER inspect --format='{{.State.Status}}' test_paperless 2>/dev/null)"
+$DOCKER logs test_paperless 2>&1 | grep -qi "gosu\|permission denied\|operation not permitted" \
+  && fail "Paperless: startup shows privilege errors with required caps" \
+  || pass "Paperless: starts without privilege errors using CHOWN/SETUID/SETGID/FOWNER/DAC_OVERRIDE"
+cleanup test_paperless
 
 cleanup_dir "$TEST_PL_DATA"
 cleanup_dir "$TEST_PL_MEDIA"
@@ -207,12 +193,13 @@ chmod 0777 "$TEST_VW_DIR"
 
 $DOCKER run -d --name test_vaultwarden \
   --cap-drop=ALL \
+  --cap-add=NET_BIND_SERVICE \
   --security-opt=no-new-privileges:true \
   --memory=256m --memory-swap=256m \
   --volume "$TEST_VW_DIR":/data \
   docker.io/vaultwarden/server:latest
 
-check_running test_vaultwarden "Vaultwarden: starts with cap-drop=ALL + no-new-privileges"
+check_running test_vaultwarden "Vaultwarden: starts with cap-drop=ALL + NET_BIND_SERVICE + no-new-privileges"
 
 cleanup test_vaultwarden
 rm -rf "$TEST_VW_DIR"
@@ -266,6 +253,7 @@ $DOCKER run --rm -v "$TEST_ND_DATA":/target alpine chown "$(id -u):33" /target
 $DOCKER run -d --name test_navidrome \
   --user "$(id -u):33" \
   --cap-drop=ALL \
+  --cap-add=DAC_READ_SEARCH \
   --security-opt=no-new-privileges:true \
   --memory=512m --memory-swap=512m \
   --volume "$TEST_ND_MUSIC":/music:ro \
@@ -273,7 +261,7 @@ $DOCKER run -d --name test_navidrome \
   -e ND_LOGLEVEL=info \
   docker.io/deluan/navidrome:latest
 
-check_running test_navidrome "Navidrome: starts with --user $(id -u):33 + cap-drop=ALL"
+check_running test_navidrome "Navidrome: starts with --user $(id -u):33 + cap-drop=ALL + DAC_READ_SEARCH"
 
 cleanup test_navidrome
 cleanup_dir "$TEST_ND_DATA"
@@ -281,7 +269,36 @@ rm -rf "$TEST_ND_MUSIC"
 echo ""
 
 # ---------------------------------------------------------------------------
-echo "--- TEST-09: WireGuard ---"
+echo "--- TEST-09: Pi-hole ---"
+TEST_PIHOLE_DIR=$(mktemp -d)
+chmod 0770 "$TEST_PIHOLE_DIR"
+$DOCKER run --rm -v "$TEST_PIHOLE_DIR":/target alpine chown 999:33 /target
+
+$DOCKER run -d --name test_pihole \
+  --cap-drop=ALL \
+  --cap-add=NET_BIND_SERVICE \
+  --security-opt=no-new-privileges:true \
+  --volume "$TEST_PIHOLE_DIR":/etc/pihole \
+  --memory=256m --memory-swap=256m \
+  -e TZ=America/New_York \
+  -e FTLCONF_webserver_api_password=testpass \
+  -e FTLCONF_dns_bogusPriv=false \
+  -e FTLCONF_dns_domainNeeded=false \
+  -e FTLCONF_dns_dnssec=true \
+  -e FTLCONF_dns_listeningMode=all \
+  -e FTLCONF_dns_upstreams=1.1.1.1 \
+  -p 5353:53/tcp \
+  -p 5353:53/udp \
+  docker.io/pihole/pihole:latest
+
+check_running test_pihole "Pi-hole: starts with cap-drop=ALL + NET_BIND_SERVICE"
+
+cleanup test_pihole
+cleanup_dir "$TEST_PIHOLE_DIR"
+echo ""
+
+# ---------------------------------------------------------------------------
+echo "--- TEST-10: WireGuard ---"
 # WireGuard uses --privileged=true (required for kernel module access and sysctl).
 # In environments without the wireguard kernel module (e.g. WSL without the module)
 # the container will exit after failing modprobe — this is reported as INFO, not FAIL.
