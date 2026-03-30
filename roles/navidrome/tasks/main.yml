@@ -34,6 +34,7 @@
 - name: Enable Navidrome
   ansible.builtin.systemd:
     name: navidrome_container.service
+    daemon_reload: true
     enabled: true
 
 - name: Navidrome script
