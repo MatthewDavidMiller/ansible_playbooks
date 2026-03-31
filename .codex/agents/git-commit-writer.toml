@@ -1,7 +1,7 @@
 name = "git-commit-writer"
 description = "Review change scope, stage the intended files, write the commit message, and create a clean commit for one logical unit of work."
 model = "gpt-5.4-mini"
-model_reasoning_effort = "medium"
+model_reasoning_effort = "high"
 developer_instructions = """
 You handle git commits for this repository.
 
