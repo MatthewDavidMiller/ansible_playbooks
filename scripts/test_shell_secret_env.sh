@@ -263,6 +263,7 @@ assert_sourced_var "$render_dir/semaphore.env" "ANSIBLE_SSH_ARGS" "$semaphore_ss
 
 assert_not_contains "$render_dir/login_to_docker.service" "EnvironmentFile=" "login_to_docker.service no longer uses EnvironmentFile"
 assert_contains "$render_dir/login_to_docker.service" '. "/etc/homelab/secrets/docker_login.env"' "login_to_docker.service sources docker_login.env"
+assert_contains "$render_dir/login_to_docker.service" 'printf "%%s\n" "$DOCKER_PASSWORD"' "login_to_docker.service escapes systemd percent specifiers for printf"
 
 assert_not_contains "$render_dir/traefik_container.sh" "--env-file" "traefik_container.sh no longer uses --env-file"
 assert_contains "$render_dir/traefik_container.sh" '. "/etc/homelab/secrets/traefik.env"' "traefik_container.sh sources traefik.env"
