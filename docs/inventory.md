@@ -159,7 +159,7 @@ The `proxy_config` variable is a list of objects. Each object generates one Trae
 | `proxy_upstream_port` | string | Yes | Upstream container port | `80` |
 | `proxy_upstream_protocol` | string | Yes | Upstream protocol (`http` or `https`) | `http` |
 | `container_destination` | string | Yes | Podman DNS name of the backend container | `nextcloud.dns.podman` |
-| `proxy_allow_encoded_slash` | boolean | No | Attach Traefik's encoded-characters middleware so `%2F` is forwarded for this route | `true` |
+| `proxy_allow_encoded_slash` | boolean | No | Request `%2F` forwarding; on current Traefik v3 stable this enables entrypoint-level support for the Traefik instance when any route sets it | `true` |
 | `proxy_management_only` | boolean | No | Restrict the router to `management_network` + `ip_ansible` | `true` |
 
 All entries use the generic `service_proxy.yml.j2` template — no per-service template is needed.

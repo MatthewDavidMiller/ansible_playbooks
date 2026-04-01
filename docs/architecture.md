@@ -95,7 +95,7 @@ See [roles/standard.md#standard_firewalld](roles/standard.md#standard_firewalld)
 
 Traefik v3 handles TLS termination using its built-in ACME engine. It uses the Porkbun DNS-01 challenge to issue individual Let's Encrypt certificates — one per service FQDN. Certificates are stored in `{{ traefik_path }}/acme.json` and renewed automatically by Traefik. The dashboard and any `proxy_config` entry marked `proxy_management_only: true` are restricted to `management_network` and `ip_ansible`.
 
-Setting `certResolver: porkbun` on the `websecure` entrypoint without specifying wildcard `domains` causes Traefik to request a certificate for each router's exact `Host()` FQDN. Dynamic routing config is generated from the `proxy_config` inventory variable using a single generic template (`service_proxy.yml.j2`). Nextcloud can opt into encoded-slash handling with `proxy_allow_encoded_slash: true` without enabling that behavior for every router.
+Setting `certResolver: porkbun` on the `websecure` entrypoint without specifying wildcard `domains` causes Traefik to request a certificate for each router's exact `Host()` FQDN. Dynamic routing config is generated from the `proxy_config` inventory variable using a single generic template (`service_proxy.yml.j2`). If any route sets `proxy_allow_encoded_slash: true`, the role enables Traefik's entrypoint-level encoded-slash support for the instance so apps like Nextcloud WebDAV can receive `%2F`.
 
 See [roles/services.md#reverse_proxy](roles/services.md#reverse_proxy) and [inventory.md#proxy_config](inventory.md#proxy_config-object-schema).
 

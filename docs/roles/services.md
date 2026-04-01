@@ -73,7 +73,7 @@ Deploys Traefik v3 for TLS termination and reverse proxying. Uses Traefik's buil
 | `traefik_container.service.j2` | `/etc/systemd/system/traefik_container.service` | Systemd unit for Traefik |
 | `traefik.yml.j2` | `{{ traefik_path }}/traefik.yml` | Traefik static config (entrypoints, ACME resolver, file provider) |
 | `tls.yml.j2` | `{{ traefik_path }}/config/tls.yml` | TLS options: min TLS 1.2, cipher suites, SNI strict |
-| `security.yml.j2` | `{{ traefik_path }}/config/security.yml` | Middlewares: `security-headers`, `ip-allowlist-mgmt`, `rate-limit-default`, and `allow-encoded-slash` |
+| `security.yml.j2` | `{{ traefik_path }}/config/security.yml` | Middlewares: `security-headers`, `ip-allowlist-mgmt`, and `rate-limit-default` |
 | `dashboard.yml.j2` | `{{ traefik_path }}/config/dashboard.yml` | Dashboard router — HTTPS only, restricted to management network |
 | `service_proxy.yml.j2` | `{{ traefik_path }}/config/{{ name }}.yml` | Generic service router + backend (one file per `proxy_config` entry) |
 | `traefik.env.j2` | `{{ secret_env_dir }}/traefik.env` | Root-only Porkbun credential/env file |
@@ -82,7 +82,7 @@ Deploys Traefik v3 for TLS termination and reverse proxying. Uses Traefik's buil
 - `acme.json` is initialised with `force: false` — an existing file (with live certs) is never overwritten by Ansible
 - Setting `certResolver: porkbun` on the `websecure` entrypoint without specifying wildcard `domains` causes Traefik to request individual certs for each router's exact `Host()` FQDN
 - The generic `service_proxy.yml.j2` template is used for all `proxy_config` entries — no per-service template is needed
-- Any proxy entry can add `proxy_allow_encoded_slash: true` to forward `%2F` in the request path; VM1 uses this for Nextcloud
+- Any proxy entry can add `proxy_allow_encoded_slash: true` to forward `%2F` in the request path; on current Traefik v3 stable this enables entrypoint-level support for the Traefik instance when any route requests it
 - Any proxy entry can add `proxy_management_only: true` to apply the management-network allowlist
 
 ---

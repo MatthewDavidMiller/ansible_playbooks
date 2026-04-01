@@ -1,3 +1,9 @@
+{% set ns = namespace(encoded_slash_enabled=false) %}
+{% for config_name in proxy_config %}
+{% if config_name.proxy_allow_encoded_slash | default(false) %}
+{% set ns.encoded_slash_enabled = true %}
+{% endif %}
+{% endfor %}
 global:
   checkNewVersion: false
   sendAnonymousUsage: false
@@ -10,6 +16,10 @@ entryPoints:
   web:
     address: ":80"
     http:
+{% if ns.encoded_slash_enabled %}
+      encodedCharacters:
+        allowEncodedSlash: true
+{% endif %}
       redirections:
         entryPoint:
           to: websecure
@@ -18,6 +28,10 @@ entryPoints:
   websecure:
     address: ":443"
     http:
+{% if ns.encoded_slash_enabled %}
+      encodedCharacters:
+        allowEncodedSlash: true
+{% endif %}
       tls:
         certResolver: porkbun
 

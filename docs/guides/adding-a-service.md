@@ -145,7 +145,7 @@ proxy_config:
     proxy_upstream_protocol: "http"
     container_destination: "<service>.dns.podman"
     # Optional for apps like Nextcloud WebDAV that need %2F preserved:
-    # proxy_allow_encoded_slash: true
+    # proxy_allow_encoded_slash: true  # Enables Traefik encoded-slash support instance-wide on current v3 stable
 ```
 
 Traefik will automatically request a Let's Encrypt certificate for `<service>.example.com` via Porkbun DNS challenge on first connection.
