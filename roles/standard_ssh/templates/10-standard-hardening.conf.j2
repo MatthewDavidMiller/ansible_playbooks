@@ -1,0 +1,13 @@
+Subsystem sftp /usr/lib/openssh/sftp-server
+AuthorizedKeysFile .ssh/authorized_keys
+ChallengeResponseAuthentication no
+PasswordAuthentication no
+PermitEmptyPasswords no
+GSSAPIAuthentication no
+PermitRootLogin no
+MaxAuthTries 3
+LoginGraceTime 30
+ClientAliveInterval 300
+ClientAliveCountMax 2
+PubkeyAuthentication yes
+UsePAM no

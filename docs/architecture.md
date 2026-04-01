@@ -39,26 +39,28 @@ VM1 (ID 120) runs all services on a single Rocky Linux 10 host to reduce resourc
 
 | Service | Est. RAM |
 |---|---|
-| Nextcloud (PHP-FPM) | 1.0 GB |
-| PostgreSQL 17 (Nextcloud, Paperless, Semaphore — shared) | 768 MB |
-| Redis | 128 MB |
-| Paperless NGX (OCR) | 1.0 GB |
+| Nextcloud (Apache/PHP) | 2.0 GB |
+| PostgreSQL 17 (shared engine, per-service roles) | 2.0 GB |
+| Redis | 256 MB |
+| Paperless NGX (OCR) | 1.5 GB |
 | Navidrome | 256 MB |
-| Vaultwarden | 128 MB |
-| Semaphore | 256 MB |
-| Traefik | 128 MB |
+| Vaultwarden | 256 MB |
+| Semaphore | 384 MB |
+| Traefik | 256 MB |
 | OS + overhead | 1.5 GB |
-| **Total** | **~5.2 GB → 8 GB with headroom** |
+| **Total hard cap** | **~8.4 GB (fits comfortably within VM1's 16 GB allocation)** |
 
 **Key design decisions:**
 - Traefik joins all four container networks simultaneously via `traefik_networks`. See [Container Network Isolation](#container-network-isolation) below.
 - SELinux stays enforcing. The `standard_selinux` role handles the required booleans. See [SELinux](#selinux) below.
+- PostgreSQL remains shared to avoid another stateful VM/service, but each application now gets its own database role and password.
+- Runtime secrets are rendered to root-only env files in `secret_env_dir` instead of being embedded directly in container launch commands.
 
 ---
 
 ## Container Network Isolation
 
-Each service runs in its own Podman network. The shared PostgreSQL 17 container is accessed by Nextcloud, Paperless, and Semaphore across their respective networks via Podman DNS resolution.
+Each service runs in its own Podman network. The shared PostgreSQL 17 container is accessed by Nextcloud, Paperless, and Semaphore across their respective networks via Podman DNS resolution, but the applications no longer share one database credential.
 
 **VM1 networks:**
 
@@ -77,13 +79,13 @@ See [inventory.md — traefik_networks](inventory.md#traefik_networks) and [role
 
 ## Firewall Design
 
-`standard_firewalld` creates a `homelab` zone with DROP-by-default policy. The `public` zone interface binding ensures all traffic hits the `homelab` zone rules.
+`standard_firewalld` creates a `homelab` zone with DROP-by-default policy and keeps firewalld running during the play. The `public` zone interface binding ensures all traffic hits the `homelab` zone rules.
 
 Allowed traffic in `homelab` zone:
 - SSH from `management_network` and `ip_ansible`
 - ICMP echo-request (ping)
 
-Ports 80 and 443 do not require explicit firewalld rules. Rootful Podman's `-p 80:80/tcp -p 443:443/tcp` flags add DNAT rules in the nftables PREROUTING chain, which runs before firewalld zone filtering. External traffic to those ports is DNAT'd to the container before the zone policy applies.
+Ports 80 and 443 remain intentionally public on VM1. Rootful Podman's `-p 80:80/tcp -p 443:443/tcp` flags add DNAT rules in the nftables PREROUTING chain before firewalld zone filtering, so these ports should be treated as explicit public ingress to Traefik, not as traffic meaningfully filtered by the `homelab` zone.
 
 See [roles/standard.md#standard_firewalld](roles/standard.md#standard_firewalld) and [roles/services.md#reverse_proxy](roles/services.md#reverse_proxy).
 
@@ -91,9 +93,9 @@ See [roles/standard.md#standard_firewalld](roles/standard.md#standard_firewalld)
 
 ## Certificate Management
 
-Traefik v3 handles TLS termination using its built-in ACME engine. It uses the Porkbun DNS-01 challenge to issue individual Let's Encrypt certificates — one per service FQDN. Certificates are stored in `{{ traefik_path }}/acme.json` and renewed automatically by Traefik.
+Traefik v3 handles TLS termination using its built-in ACME engine. It uses the Porkbun DNS-01 challenge to issue individual Let's Encrypt certificates — one per service FQDN. Certificates are stored in `{{ traefik_path }}/acme.json` and renewed automatically by Traefik. The dashboard and any `proxy_config` entry marked `proxy_management_only: true` are restricted to `management_network` and `ip_ansible`.
 
-Setting `certResolver: porkbun` on the `websecure` entrypoint without specifying wildcard `domains` causes Traefik to request a certificate for each router's exact `Host()` FQDN. Dynamic routing config is generated from the `proxy_config` inventory variable using a single generic template (`service_proxy.yml.j2`).
+Setting `certResolver: porkbun` on the `websecure` entrypoint without specifying wildcard `domains` causes Traefik to request a certificate for each router's exact `Host()` FQDN. Dynamic routing config is generated from the `proxy_config` inventory variable using a single generic template (`service_proxy.yml.j2`). Nextcloud can opt into encoded-slash handling with `proxy_allow_encoded_slash: true` without enabling that behavior for every router.
 
 See [roles/services.md#reverse_proxy](roles/services.md#reverse_proxy) and [inventory.md#proxy_config](inventory.md#proxy_config-object-schema).
 

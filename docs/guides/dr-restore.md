@@ -147,25 +147,25 @@ borg extract <nextcloud_borg_backup_path>::<archive_name>
 
 **3c. Restore Nextcloud database:**
 
-> **Note:** The dump includes `ALTER TABLE ... OWNER TO` and `GRANT` statements referencing the role that owned the database at backup time (e.g. `oc_admin`). If that role does not exist in the fresh instance, create it before importing — otherwise those statements error and ownership is not set correctly. The role's password must match the `dbpassword` value in Nextcloud's `config.php` (already present at `<nextcloud_path>/config/config.php` after disk restore), not the current `postgres_database_user_password` inventory variable.
+> **Note:** The dump includes `ALTER TABLE ... OWNER TO` and `GRANT` statements referencing the role that owned the database at backup time (for example, the role configured in `nextcloud_db_user`). If that role does not exist in the fresh instance, create it before importing — otherwise those statements error and ownership is not set correctly. The role's password must match the `dbpassword` value in Nextcloud's `config.php` (already present at `<nextcloud_path>/config/config.php` after disk restore), not the current `postgres_admin_password` inventory variable.
 
 ```bash
 # Find the original db role password
 grep dbpassword <nextcloud_path>/config/config.php
 
 # Create the role with that password
-podman exec -i postgres psql -h localhost -U <postgres_database_user> -d postgres \
-  -c "CREATE ROLE oc_admin WITH LOGIN PASSWORD '<dbpassword from config.php>';"
-podman exec -i postgres psql -h localhost -U <postgres_database_user> -d postgres -c "DROP DATABASE IF EXISTS <nextcloud_database_name>;"
-podman exec -i postgres psql -h localhost -U <postgres_database_user> -d postgres -c "CREATE DATABASE <nextcloud_database_name>;"
-podman exec -i postgres psql -h localhost -U <postgres_database_user> <nextcloud_database_name> < /restore_staging/nextcloud_db_<DATE>.sql
+podman exec -i postgres psql -h localhost -U <postgres_admin_user> -d postgres \
+  -c "CREATE ROLE <nextcloud_db_user> WITH LOGIN PASSWORD '<dbpassword from config.php>';"
+podman exec -i postgres psql -h localhost -U <postgres_admin_user> -d postgres -c "DROP DATABASE IF EXISTS <nextcloud_database_name>;"
+podman exec -i postgres psql -h localhost -U <postgres_admin_user> -d postgres -c "CREATE DATABASE <nextcloud_database_name> OWNER <nextcloud_db_user>;"
+podman exec -i postgres psql -h localhost -U <postgres_admin_user> <nextcloud_database_name> < /restore_staging/nextcloud_db_<DATE>.sql
 ```
 
 **3d. Restore Paperless database:**
 ```bash
-podman exec -i postgres psql -h localhost -U <postgres_database_user> -d postgres -c "DROP DATABASE IF EXISTS <paperless_database_name>;"
-podman exec -i postgres psql -h localhost -U <postgres_database_user> -d postgres -c "CREATE DATABASE <paperless_database_name>;"
-podman exec -i postgres psql -h localhost -U <postgres_database_user> <paperless_database_name> < /restore_staging/paperless_db_<DATE>.sql
+podman exec -i postgres psql -h localhost -U <postgres_admin_user> -d postgres -c "DROP DATABASE IF EXISTS <paperless_database_name>;"
+podman exec -i postgres psql -h localhost -U <postgres_admin_user> -d postgres -c "CREATE DATABASE <paperless_database_name> OWNER <paperless_db_user>;"
+podman exec -i postgres psql -h localhost -U <postgres_admin_user> <paperless_database_name> < /restore_staging/paperless_db_<DATE>.sql
 ```
 
 **3e. Import Paperless documents:**
@@ -240,25 +240,25 @@ borg extract <nextcloud_borg_backup_path>::<archive_name>
 
 **2d. Restore Nextcloud database:**
 
-> **Note:** The dump includes `ALTER TABLE ... OWNER TO` and `GRANT` statements referencing the role that owned the database at backup time (e.g. `oc_admin`). If that role does not exist in the fresh instance, create it before importing — otherwise those statements error and ownership is not set correctly. The role's password must match the `dbpassword` value in Nextcloud's `config.php` (already present at `<nextcloud_path>/config/config.php` after disk restore), not the current `postgres_database_user_password` inventory variable.
+> **Note:** The dump includes `ALTER TABLE ... OWNER TO` and `GRANT` statements referencing the role that owned the database at backup time (for example, `nextcloud_db_user`). If that role does not exist in the fresh instance, create it before importing — otherwise those statements error and ownership is not set correctly. The role's password must match the `dbpassword` value in Nextcloud's `config.php` (already present at `<nextcloud_path>/config/config.php` after disk restore), not the current `postgres_admin_password` inventory variable.
 
 ```bash
 # Find the original db role password
 grep dbpassword <nextcloud_path>/config/config.php
 
 # Create the role with that password
-podman exec -i postgres psql -h localhost -U <postgres_database_user> -d postgres \
-  -c "CREATE ROLE oc_admin WITH LOGIN PASSWORD '<dbpassword from config.php>';"
-podman exec -i postgres psql -h localhost -U <postgres_database_user> -d postgres -c "DROP DATABASE IF EXISTS <nextcloud_database_name>;"
-podman exec -i postgres psql -h localhost -U <postgres_database_user> -d postgres -c "CREATE DATABASE <nextcloud_database_name>;"
-podman exec -i postgres psql -h localhost -U <postgres_database_user> <nextcloud_database_name> < /restore_staging/nextcloud_db_<DATE>.sql
+podman exec -i postgres psql -h localhost -U <postgres_admin_user> -d postgres \
+  -c "CREATE ROLE <nextcloud_db_user> WITH LOGIN PASSWORD '<dbpassword from config.php>';"
+podman exec -i postgres psql -h localhost -U <postgres_admin_user> -d postgres -c "DROP DATABASE IF EXISTS <nextcloud_database_name>;"
+podman exec -i postgres psql -h localhost -U <postgres_admin_user> -d postgres -c "CREATE DATABASE <nextcloud_database_name> OWNER <nextcloud_db_user>;"
+podman exec -i postgres psql -h localhost -U <postgres_admin_user> <nextcloud_database_name> < /restore_staging/nextcloud_db_<DATE>.sql
 ```
 
 **2e. Restore Paperless database:**
 ```bash
-podman exec -i postgres psql -h localhost -U <postgres_database_user> -d postgres -c "DROP DATABASE IF EXISTS <paperless_database_name>;"
-podman exec -i postgres psql -h localhost -U <postgres_database_user> -d postgres -c "CREATE DATABASE <paperless_database_name>;"
-podman exec -i postgres psql -h localhost -U <postgres_database_user> <paperless_database_name> < /restore_staging/paperless_db_<DATE>.sql
+podman exec -i postgres psql -h localhost -U <postgres_admin_user> -d postgres -c "DROP DATABASE IF EXISTS <paperless_database_name>;"
+podman exec -i postgres psql -h localhost -U <postgres_admin_user> -d postgres -c "CREATE DATABASE <paperless_database_name> OWNER <paperless_db_user>;"
+podman exec -i postgres psql -h localhost -U <postgres_admin_user> <paperless_database_name> < /restore_staging/paperless_db_<DATE>.sql
 ```
 
 **2f. Import Paperless documents:**
@@ -337,9 +337,9 @@ ls <nextcloud_path>/data/<nextcloud_homelab_user>/files/<semaphore_backup_locati
 
 **5b. Restore the Semaphore database:**
 ```bash
-podman exec postgres psql -h localhost -U <postgres_database_user> -d postgres -c "DROP DATABASE IF EXISTS <semaphore_database_name>;"
-podman exec postgres psql -h localhost -U <postgres_database_user> -d postgres -c "CREATE DATABASE <semaphore_database_name>;"
-podman exec -i postgres psql -h localhost -U <postgres_database_user> -d <semaphore_database_name> \
+podman exec postgres psql -h localhost -U <postgres_admin_user> -d postgres -c "DROP DATABASE IF EXISTS <semaphore_database_name>;"
+podman exec postgres psql -h localhost -U <postgres_admin_user> -d postgres -c "CREATE DATABASE <semaphore_database_name> OWNER <semaphore_db_user>;"
+podman exec -i postgres psql -h localhost -U <postgres_admin_user> -d <semaphore_database_name> \
     < <nextcloud_path>/data/<nextcloud_homelab_user>/files/<semaphore_backup_location>/semaphore_db_<DATE>.sql
 ```
 

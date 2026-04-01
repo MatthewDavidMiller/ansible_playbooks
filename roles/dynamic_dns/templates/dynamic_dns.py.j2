@@ -12,16 +12,17 @@ Logs to /var/log/dynamic_dns.log (rotated at 1 MB, 5 backups).
 import ipaddress
 import logging
 import logging.handlers
+import os
 import sys
 from pathlib import Path
 
 import requests
 
 # ── Configuration (injected by Ansible at deploy time) ───────────────────────
-PORKBUN_API_KEY    = "{{ porkbun_api_key }}"
-PORKBUN_SECRET_KEY = "{{ porkbun_api_key_secret }}"
-DOMAIN             = "{{ homelab_domain }}"
-SUBDOMAIN          = "{{ homelab_subdomain }}"
+PORKBUN_API_KEY = os.environ["PORKBUN_API_KEY"]
+PORKBUN_SECRET_KEY = os.environ["PORKBUN_SECRET_KEY"]
+DOMAIN = os.environ["DOMAIN"]
+SUBDOMAIN = os.environ["SUBDOMAIN"]
 IP_CACHE           = Path("/var/cache/dynamic_dns_ip")
 PORKBUN_BASE       = "https://api.porkbun.com/api/json/v3"
 PORKBUN_IPV4_BASE  = "https://api-ipv4.porkbun.com/api/json/v3"

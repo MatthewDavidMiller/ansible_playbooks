@@ -1,12 +1,60 @@
 ---
 # https://docs.linuxserver.io/general/swag
 
-- name: Create nextcloud and postgres container network
-  ansible.builtin.shell:
-    cmd: |
-      podman network create --subnet 172.16.1.0/28 nextcloud_container_net
-  ignore_errors: true
+- name: Inspect nextcloud container network
+  ansible.builtin.command:
+    argv:
+      - podman
+      - network
+      - inspect
+      - nextcloud_container_net
+  register: nextcloud_network
   changed_when: false
+  failed_when: false
+
+- name: Create nextcloud and postgres container network
+  ansible.builtin.command:
+    argv:
+      - podman
+      - network
+      - create
+      - --subnet
+      - 172.16.1.0/28
+      - nextcloud_container_net
+  when: nextcloud_network.rc != 0
+
+- name: Create nextcloud secret directory
+  ansible.builtin.file:
+    path: "{{ secret_env_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: PostgreSQL env file
+  ansible.builtin.template:
+    src: postgres.env.j2
+    dest: "{{ secret_env_dir }}/postgres.env"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Nextcloud env file
+  ansible.builtin.template:
+    src: nextcloud.env.j2
+    dest: "{{ secret_env_dir }}/nextcloud.env"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Redis env file
+  ansible.builtin.copy:
+    dest: "{{ secret_env_dir }}/redis.env"
+    content: |
+      TZ=America/New_York
+    owner: root
+    group: root
+    mode: "0600"
 
 - name: Create postgres database container path
   ansible.builtin.file:
@@ -89,6 +137,7 @@
   ansible.builtin.systemd:
     name: redis_container.service
     enabled: true
+    daemon_reload: true
 
 - name: Postgres Service
   ansible.builtin.template:
@@ -99,6 +148,7 @@
   ansible.builtin.systemd:
     name: postgres_container.service
     enabled: true
+    daemon_reload: true
 
 - name: Nextcloud Service
   ansible.builtin.template:
@@ -109,6 +159,7 @@
   ansible.builtin.systemd:
     name: nextcloud_container.service
     enabled: true
+    daemon_reload: true
 
 - name: Redis script
   ansible.builtin.template:
@@ -160,3 +211,18 @@
   ansible.builtin.dnf:
     name: borgbackup
     state: present
+
+- name: Start Redis
+  ansible.builtin.systemd:
+    name: redis_container.service
+    state: started
+
+- name: Start postgres
+  ansible.builtin.systemd:
+    name: postgres_container.service
+    state: started
+
+- name: Start Nextcloud
+  ansible.builtin.systemd:
+    name: nextcloud_container.service
+    state: started

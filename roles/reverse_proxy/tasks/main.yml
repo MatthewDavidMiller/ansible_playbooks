@@ -15,6 +15,22 @@
     group: root
     mode: "0750"
 
+- name: Create reverse proxy secret directory
+  ansible.builtin.file:
+    path: "{{ secret_env_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Traefik env file
+  ansible.builtin.template:
+    src: traefik.env.j2
+    dest: "{{ secret_env_dir }}/traefik.env"
+    owner: root
+    group: root
+    mode: "0600"
+
 - name: Initialize acme.json
   ansible.builtin.copy:
     content: ""
@@ -85,3 +101,8 @@
     owner: root
     group: root
     mode: "0700"
+
+- name: Start Traefik
+  ansible.builtin.systemd:
+    name: traefik_container.service
+    state: started

@@ -15,7 +15,7 @@ This document records explicit design decisions — approaches considered but ul
 - Contributors copy `example_inventory.yml` to their real inventory, fill in actual credentials, and manage that file securely outside git.
 
 **How to apply:**
-- When documenting variables that will contain secrets (passwords, API keys), note them as such in the variable table (e.g., `postgres_database_user_password: string | required | Secret: PostgreSQL superuser password`).
+- When documenting variables that will contain secrets (passwords, API keys), note them as such in the variable table (for example, `postgres_admin_password: string | required | Secret: PostgreSQL admin password`).
 - Do not commit real values for these variables to git. The `example_inventory.yml` file uses placeholder values like `secret`, `mypassword`, `pk1_...`.
 - Treat the real inventory file (wherever contributors keep it) as a .gitignored local configuration, not a tracked artifact.
 
@@ -118,7 +118,7 @@ This document records explicit design decisions — approaches considered but ul
 
 ## Decision: SSH Hardening Values
 
-**Decision:** The `standard_ssh` role applies specific hardening values: `MaxAuthTries 3`, `LoginGraceTime 30`, `ClientAliveInterval 300`, `ClientAliveCountMax 2`, and `UsePAM no`.
+**Decision:** The `standard_ssh` role applies specific hardening values via a validated drop-in under `/etc/ssh/sshd_config.d/`: `MaxAuthTries 3`, `LoginGraceTime 30`, `ClientAliveInterval 300`, `ClientAliveCountMax 2`, and `UsePAM no`.
 
 **Rationale:**
 - **MaxAuthTries 3:** Reduces the window for brute-force attempts while still allowing for minor key-agent mistakes. All hosts require key-based auth (PasswordAuthentication is disabled), so 3 attempts is sufficient.
@@ -131,28 +131,44 @@ This document records explicit design decisions — approaches considered but ul
 
 ---
 
-## Decision: Container Launch Scripts Set `mode: "0700"`
+## Decision: Root-Only Runtime Env Files
 
-**Decision:** All container launch scripts (e.g., `/usr/local/bin/postgres_container.sh`) are deployed with `mode: "0700"` (owner-only read/write/execute).
+**Decision:** Sensitive runtime values are rendered to root-only env files under `secret_env_dir` and loaded by systemd or Podman with `EnvironmentFile=` / `--env-file`.
 
 **Rationale:**
-- Scripts contain plaintext credentials passed as environment variables (e.g., `--env POSTGRES_PASSWORD=...`). Restricting read access to root/owner prevents other users on the host from reading credentials via the script file.
-- Scripts are only ever executed by systemd (running as root) or the Ansible controller (connecting as root). Group or world execute permission is not required.
-- This aligns with the principle of least privilege: files containing or exposing secrets should be accessible only to the process that needs them.
+- Avoids embedding secrets directly in unit `ExecStart` lines or shell scripts that are otherwise readable for troubleshooting.
+- Keeps the host-side exposure model simple for a homelab: secrets exist on disk, but only in root-readable files.
+- Works cleanly with Podman/systemd and does not require an external secret manager.
 
 **How to apply:**
-- All new container launch scripts should use `mode: "0700"`.
-- Templates that do not contain credentials (e.g., pure configuration files) may use `mode: "0644"`.
+- Store service credentials in `{{ secret_env_dir }}/<service>.env` with mode `0600`.
+- Launch scripts may remain `0700`, but should contain paths to env files rather than plaintext secret values whenever practical.
+
+---
+
+## Decision: Unencrypted Backups Are Acceptable For This Homelab
+
+**Decision:** Keep VM1 backups unencrypted.
+
+**Rationale:**
+- The user explicitly accepted this risk for the homelab environment.
+- The main backup goals here are operational recovery and low-friction restores, not defense against physical disk seizure.
+- The practical hardening win is reducing accidental plaintext exposure during backup creation, so temp files now use root-only staging and cleanup.
+
+**How to apply:**
+- Keep Borg repositories and local service backups unencrypted.
+- Use `umask 077`, root-only temp directories, and `trap` cleanup in backup scripts.
+- Document the risk acceptance clearly in architecture and DR docs.
 
 ---
 
 ## Decision: Single Shared PostgreSQL 17 Container
 
-**Decision:** Consolidate all databases (Nextcloud, Paperless, Semaphore) into one PostgreSQL 17 container, accessed across multiple isolated Podman networks.
+**Decision:** Consolidate all databases (Nextcloud, Paperless, Semaphore) into one PostgreSQL 17 container, accessed across multiple isolated Podman networks, while giving each application its own database role and password.
 
 **Rationale:**
-- **Resource efficiency:** One container instance saves ~256 MB RAM compared to separate postgres instances. On a resource-constrained VM1 (8 GB total), this matters.
-- **Simplified administration:** One `postgres_container` to manage, monitor, and upgrade instead of multiple. The `db_wrapper.sh` script creates all three databases and the shared superuser role; no per-service setup needed.
+- **Resource efficiency:** One container instance saves ~256 MB RAM compared to separate postgres instances. Even with VM1 at 16 GB total, consolidating stateful services still reduces waste and keeps headroom available for spikes.
+- **Simplified administration:** One `postgres_container` to manage, monitor, and upgrade instead of multiple. The `db_wrapper.sh` script creates all three databases and per-service application roles automatically.
 - **Network isolation without container isolation:** Services remain on isolated Podman networks (preventing DNS collisions), but backend databases are consolidated. This balances isolation and resource usage.
 - **Backup simplicity:** One `pg_dumpall` captures all three databases atomically. Restore is straightforward: start postgres, restore one dump, done.
 
@@ -164,6 +180,7 @@ This document records explicit design decisions — approaches considered but ul
 - All services connect to the shared PostgreSQL 17 instance via Podman DNS (`postgres.dns.podman`).
 - The `nextcloud` role creates and configures `postgres_container` as the shared instance; Semaphore does not manage a separate postgres container.
 - Variable naming: `postgres_path` points to the one PostgreSQL 17 data directory. `semaphore_postgres_path` no longer exists.
-- All three services use the same `postgres_database_user` and `postgres_database_user_password` for superuser access; databases are isolated by name (`nextcloud`, `paperless`, `semaphore`).
+- The container still uses one PostgreSQL admin account for bootstrap and maintenance.
+- Applications use dedicated credentials: `nextcloud_db_user/password`, `paperless_db_user/password`, and `semaphore_db_user/password`.
 
 ---

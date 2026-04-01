@@ -1,4 +1,7 @@
 #!/bin/bash
+set -euo pipefail
+
+umask 077
 
 # === Configuration ===
 NEXTCLOUD_BORG_REMOTE="Nextcloud:{{ nextcloud_paperless_backup_location }}"
@@ -6,6 +9,10 @@ BORG_REPO="{{ nextcloud_borg_backup_path }}"
 timestamp=$(date +%Y_%m_%d)
 EXPORT_DIR="{{ paperless_export_path }}/${timestamp}"
 CONTAINER_EXPORT_DIR="/usr/src/paperless/export/${timestamp}"
+TMP_DIR=$(mktemp -d /tmp/nextcloud-paperless-backup.XXXXXX)
+trap 'rm -rf "$TMP_DIR"' EXIT
+PAPERLESS_DUMP="$TMP_DIR/paperless_db_${timestamp}.sql"
+NEXTCLOUD_DUMP="$TMP_DIR/nextcloud_db_${timestamp}.sql"
 
 # === Truncate Logs ===
 /usr/bin/truncate -s 0 /var/log/borg-backup.log
@@ -42,15 +49,15 @@ fi
 
 # === Dump Paperless DB ===
 # Note: May produce collation mismatch warning due to host OS having newer glibc than container.
-# To verify collation: podman exec postgres psql -U {{ postgres_database_user }} {{ paperless_database_name }} -c "SHOW LC_COLLATE;"
-/usr/bin/podman exec postgres pg_dump -U {{ postgres_database_user }} {{ paperless_database_name }} \
-  > "/paperless_db_${timestamp}.sql"
+# To verify collation: podman exec postgres psql -U {{ postgres_admin_user }} {{ paperless_database_name }} -c "SHOW LC_COLLATE;"
+/usr/bin/podman exec postgres pg_dump -U {{ postgres_admin_user }} {{ paperless_database_name }} \
+  > "$PAPERLESS_DUMP"
 
 # === Dump Nextcloud DB ===
 # Note: May produce collation mismatch warning due to host OS having newer glibc than container.
-# To verify collation: podman exec postgres psql -U {{ postgres_database_user }} {{ nextcloud_database_name }} -c "SHOW LC_COLLATE;"
-/usr/bin/podman exec postgres pg_dump -U {{ postgres_database_user }} {{ nextcloud_database_name }} \
-  > "/nextcloud_db_${timestamp}.sql"
+# To verify collation: podman exec postgres psql -U {{ postgres_admin_user }} {{ nextcloud_database_name }} -c "SHOW LC_COLLATE;"
+/usr/bin/podman exec postgres pg_dump -U {{ postgres_admin_user }} {{ nextcloud_database_name }} \
+  > "$NEXTCLOUD_DUMP"
 
 # === Create Export Directory for Paperless Documents ===
 # Check if directory exists to ensure idempotency before creating
@@ -86,8 +93,8 @@ fi
 # === Borg Backup for Paperless and Nextcloud (Documents + DBs) ===
 /usr/bin/borg create "$BORG_REPO::backup-${timestamp}" \
     "$EXPORT_DIR" \
-    "/paperless_db_${timestamp}.sql" \
-    "/nextcloud_db_${timestamp}.sql" \
+    "$PAPERLESS_DUMP" \
+    "$NEXTCLOUD_DUMP" \
     --compression=lz4 \
     > /var/log/borg-backup.log 2>&1 || {
         echo "Borg backup failed for archive: backup-${timestamp}" >&2
@@ -114,8 +121,6 @@ fi
 # === Cleanup ===
 if [ $? -eq 0 ]; then
     /usr/bin/rm -rf "$EXPORT_DIR"
-    /usr/bin/rm "/paperless_db_${timestamp}.sql"
-    /usr/bin/rm "/nextcloud_db_${timestamp}.sql"
 else
     echo "Backup or upload failed. Temporary files retained." >&2
     exit 1

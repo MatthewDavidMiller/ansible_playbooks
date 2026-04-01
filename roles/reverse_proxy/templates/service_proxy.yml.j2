@@ -9,6 +9,13 @@ http:
         certResolver: porkbun
       middlewares:
         - security-headers@file
+        - rate-limit-default@file
+{% if config_name.proxy_allow_encoded_slash | default(false) %}
+        - allow-encoded-slash@file
+{% endif %}
+{% if config_name.proxy_management_only | default(false) %}
+        - ip-allowlist-mgmt@file
+{% endif %}
 
   services:
     {{ config_name.name }}:

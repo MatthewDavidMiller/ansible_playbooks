@@ -1,4 +1,20 @@
 ---
+- name: Create paperless secret directory
+  ansible.builtin.file:
+    path: "{{ secret_env_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Paperless env file
+  ansible.builtin.template:
+    src: paperless.env.j2
+    dest: "{{ secret_env_dir }}/paperless.env"
+    owner: root
+    group: root
+    mode: "0600"
+
 - name: Create paperless paths
   ansible.builtin.file:
     path: "{{ item_path }}"
@@ -25,6 +41,7 @@
   ansible.builtin.systemd:
     name: paperless_ngx.service
     enabled: true
+    daemon_reload: true
 
 - name: Paperless script
   ansible.builtin.template:
@@ -40,3 +57,8 @@
       - zip
       - jq
     state: present
+
+- name: Start paperless
+  ansible.builtin.systemd:
+    name: paperless_ngx.service
+    state: started

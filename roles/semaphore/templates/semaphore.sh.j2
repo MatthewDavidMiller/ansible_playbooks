@@ -1,22 +1,12 @@
-/usr/bin/podman pull docker.io/semaphoreui/semaphore:latest
+/usr/bin/podman pull {{ semaphore_image }}
 /usr/bin/podman run \
 --name semaphore \
--e SEMAPHORE_DB_DIALECT=postgres \
--e SEMAPHORE_DB_HOST='postgres.dns.podman' \
--e SEMAPHORE_DB_NAME={{ semaphore_database_name }} \
--e SEMAPHORE_DB_USER={{ postgres_database_user }} \
--e SEMAPHORE_DB_PASS={{ postgres_database_user_password | quote }} \
--e SEMAPHORE_ADMIN={{ semaphore_admin_name | quote }} \
--e SEMAPHORE_ADMIN_PASSWORD={{ semaphore_admin_password | quote }} \
--e SEMAPHORE_ADMIN_NAME={{ semaphore_admin_name | quote }} \
--e SEMAPHORE_ADMIN_EMAIL={{ semaphore_admin_email | quote }} \
--e SEMAPHORE_ACCESS_KEY_ENCRYPTION={{ semaphore_encryption_key | quote }} \
--e ANSIBLE_HOST_KEY_CHECKING=False \
--e TZ=America/New_York \
+--env-file {{ secret_env_dir }}/semaphore.env \
 --network semaphore_container_net \
 --network nextcloud_container_net \
---memory=512m \
---memory-swap=512m \
+--volume /etc/semaphore/ssh_known_hosts:/etc/semaphore/ssh_known_hosts:Z,ro \
+--memory=384m \
+--memory-swap=384m \
 --cap-drop=ALL \
 --security-opt=no-new-privileges:true \
--d docker.io/semaphoreui/semaphore:latest
+-d {{ semaphore_image }}

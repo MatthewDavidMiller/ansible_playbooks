@@ -1,10 +1,25 @@
 ---
-- name: Create navidrome container network
-  ansible.builtin.shell:
-    cmd: |
-      podman network create --subnet 172.16.1.24/29 navidrome_container_net
-  ignore_errors: true
+- name: Inspect navidrome container network
+  ansible.builtin.command:
+    argv:
+      - podman
+      - network
+      - inspect
+      - navidrome_container_net
+  register: navidrome_network
   changed_when: false
+  failed_when: false
+
+- name: Create navidrome container network
+  ansible.builtin.command:
+    argv:
+      - podman
+      - network
+      - create
+      - --subnet
+      - 172.16.1.24/29
+      - navidrome_container_net
+  when: navidrome_network.rc != 0
 
 - name: Create Navidrome container path
   ansible.builtin.file:
@@ -65,3 +80,8 @@
     name: Backup navidrome daily
     special_time: daily
     job: /usr/bin/bash /usr/local/bin/backup_navidrome.sh
+
+- name: Start Navidrome
+  ansible.builtin.systemd:
+    name: navidrome_container.service
+    state: started

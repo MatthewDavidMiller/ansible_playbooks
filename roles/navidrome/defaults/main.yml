@@ -32,3 +32,10 @@ nextcloud_webdav_pass: ""
 
 # OS user that owns the backup shell script
 user_name: ""
+
+# Explicit container UID/GID to avoid inheriting root from the systemd context
+navidrome_uid: "33"
+navidrome_gid: "33"
+
+# Container image pinned in inventory
+navidrome_image: docker.io/deluan/navidrome:0.54.5

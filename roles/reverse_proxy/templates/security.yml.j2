@@ -17,3 +17,12 @@ http:
         sourceRange:
           - "{{ management_network }}"
           - "{{ ip_ansible }}"
+
+    rate-limit-default:
+      rateLimit:
+        average: 100
+        burst: 50
+
+    allow-encoded-slash:
+      encodedCharacters:
+        allowEncodedSlash: true

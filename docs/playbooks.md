@@ -32,7 +32,7 @@ This document describes every playbook's purpose, target, and role composition. 
 
 **Usage:** Configures VM1 (ID 120) — a single Rocky Linux 10 host running all services consolidated. See [architecture.md — VM1 Consolidated VM](architecture.md#vm1-consolidated-vm).
 
-**Notes:** `nextcloud` must run before `paperless_ngx` (Paperless uses Nextcloud's postgres/redis containers). `standard_rclone` must run before `standard_selinux` (fuse3 packages must exist before the boolean is set). Service backup scripts (navidrome, vaultwarden, semaphore) use `backup_local: true` to copy directly to the Nextcloud data directory.
+**Notes:** `nextcloud` must run before `paperless_ngx` because it creates the shared PostgreSQL 17 and Redis containers. `standard_rclone` must run before `standard_selinux` so the FUSE packages exist before the SELinux boolean is set. VM1 now uses per-service PostgreSQL credentials, root-only runtime env files under `secret_env_dir`, explicit image variables for the container tags, management-only Traefik exposure for the dashboard and Semaphore, and local unencrypted backups as an accepted homelab tradeoff.
 
 ---
 

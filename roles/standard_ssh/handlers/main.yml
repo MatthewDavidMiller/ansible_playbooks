@@ -1,0 +1,5 @@
+---
+- name: Reload sshd
+  ansible.builtin.systemd:
+    name: "{{ 'ssh.service' if ansible_facts['distribution'] == 'Debian' else 'sshd.service' }}"
+    state: reloaded

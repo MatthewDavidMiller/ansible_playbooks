@@ -1,18 +1,15 @@
-/usr/bin/podman pull docker.io/postgres:17
+/usr/bin/podman pull {{ postgres_image }}
 /usr/bin/podman run \
 --name=postgres \
 --user=999:999 \
 --network=nextcloud_container_net \
 --volume {{ postgres_path }}/pgdata:/var/lib/postgresql/data/:Z \
 --volume {{ postgres_path }}/custom-init:/custom-init/:Z \
---env POSTGRES_USER={{ postgres_database_user }} \
---env POSTGRES_PASSWORD={{ postgres_database_user_password }} \
---env POSTGRES_DB={{ nextcloud_database_name }} \
--e TZ=America/New_York \
+--env-file {{ secret_env_dir }}/postgres.env \
 --entrypoint /custom-init/db_wrapper.sh \
---memory=4g \
---memory-swap=4g \
+--memory=2g \
+--memory-swap=2g \
 --shm-size=256m \
 --cap-drop=ALL \
 --security-opt=no-new-privileges:true \
--d docker.io/postgres:17
+-d {{ postgres_image }}

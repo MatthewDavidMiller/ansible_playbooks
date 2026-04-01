@@ -15,6 +15,7 @@ all:
         management_network: "192.168.1.0/24"
         user_name: "example_user"
         docker_password: "example_password"
+        secret_env_dir: "/etc/homelab/secrets"
         porkbun_api_key: "example_api_key"
         porkbun_api_key_secret: "example_api_key_secret"
         top_domain: "example.com"
@@ -70,6 +71,7 @@ all:
           homelab_subdomain: "example"
           # Traefik — list of all container networks to join
           traefik_path: /path/to/traefik
+          traefik_image: docker.io/traefik:v3
           traefik_networks:
             - nextcloud_container_net
             - navidrome_container_net
@@ -83,6 +85,7 @@ all:
               proxy_upstream_port: "80"
               proxy_upstream_protocol: "http"
               container_destination: "nextcloud.dns.podman"
+              proxy_allow_encoded_slash: true
             - name: paperless_ngx_proxy
               proxy_fqdn: "paperless.example.com"
               proxy_upstream_port: "8000"
@@ -103,45 +106,65 @@ all:
               proxy_upstream_port: "3000"
               proxy_upstream_protocol: "http"
               container_destination: "semaphore.dns.podman"
+              proxy_management_only: true
 
           # Nextcloud + Paperless NGX + Semaphore (share PostgreSQL 17 + Redis)
+          postgres_image: docker.io/postgres:17
+          redis_image: docker.io/redis:7
+          nextcloud_image: docker.io/nextcloud:31-apache
+          paperless_image: ghcr.io/paperless-ngx/paperless-ngx:2.14.7
+          navidrome_image: docker.io/deluan/navidrome:0.54.5
+          vaultwarden_image: docker.io/vaultwarden/server:1.33.2
+          semaphore_image: docker.io/semaphoreui/semaphore:v2.13.6
           postgres_path: /path/to/postgres_nextcloud
           nextcloud_path: /path/to/nextcloud
           nextcloud_disk: "UUID=example-uuid"
           nextcloud_borg_backup_path: /path/to/nextcloud/borg/backup
           nextcloud_paperless_backup_location: Nextcloud:backup/nextcloud
+          postgres_admin_user: postgres_admin
+          postgres_admin_password: example_admin_password
           nextcloud_database_name: nextcloud
           nextcloud_homelab_user: nextcloud_user
-          postgres_database_user: nextcloud_user
-          postgres_database_user_password: example_password
+          nextcloud_db_user: nextcloud_user
+          nextcloud_db_password: example_nextcloud_password
           nextcloud_admin_user: admin
           nextcloud_admin_password: example_password
           nextcloud_trusted_domains: nextcloud.example.com
           nextcloud_dns_name: nextcloud.example.com
 
+          paperless_path: /path/to/paperless
           paperless_data_path: /path/to/paperless/data
           paperless_media_path: /path/to/paperless/media
           paperless_export_path: /path/to/paperless/export
           paperless_consume_path: /path/to/paperless/consume
           paperless_database_name: paperless
+          paperless_db_user: paperless_user
+          paperless_db_password: example_paperless_password
           paperless_dns_name: paperless.example.com
 
           # Semaphore (database hosted on shared postgres_container)
           semaphore_database_name: semaphore
+          semaphore_db_user: semaphore_user
+          semaphore_db_password: example_semaphore_password
           semaphore_admin_name: admin
           semaphore_admin_email: admin@example.com
           semaphore_admin_password: example_password
           semaphore_encryption_key: example_32_char_encryption_key_xx
+          semaphore_known_hosts: |
+            192.168.1.10 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAexampleknownhost
 
           # Navidrome
           navidrome_path: /path/to/navidrome
           navidrome_backup_location: Nextcloud:navidrome_backup
           # Local music path: bind-mount Nextcloud's on-disk Music folder directly (bypasses rclone FUSE)
           navidrome_local_music_path: /path/to/nextcloud/data/<username>/files/Music
+          navidrome_uid: "33"
+          navidrome_gid: "33"
 
           # Vaultwarden
           vaultwarden_path: /path/to/vaultwarden
           vaultwarden_backup_location: Nextcloud:vaultwarden_backup
+          vaultwarden_signups_allowed: false
 
           # Semaphore backup
           semaphore_backup_location: Nextcloud:semaphore_backup

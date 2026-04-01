@@ -1,10 +1,15 @@
 #!/bin/bash
+set -euo pipefail
+
+umask 077
 
 timestamp=$(date +%m_%d_%Y)
-DUMP_FILE="/tmp/semaphore_db_${timestamp}.sql"
+TMP_DIR=$(mktemp -d /tmp/semaphore-backup.XXXXXX)
+trap 'rm -rf "$TMP_DIR"' EXIT
+DUMP_FILE="${TMP_DIR}/semaphore_db_${timestamp}.sql"
 
 /usr/bin/podman exec postgres pg_dump \
-  -U {{ postgres_database_user }} {{ semaphore_database_name }} \
+  -U {{ postgres_admin_user }} {{ semaphore_database_name }} \
   > "$DUMP_FILE"
 
 {% if backup_local | default(false) %}

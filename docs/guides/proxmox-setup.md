@@ -27,7 +27,7 @@ This guide covers provisioning new VMs on Proxmox using `scripts/proxmox_initial
 | 114 | Navidrome | 401 | 2 | 2048 MB |
 | 115 | Vaultwarden | 401 | 2 | 2048 MB |
 | 116 | UnifiController | 401 | 2 | 2048 MB |
-| 120 | VM1 | 401 | 4 | 8192 MB |
+| 120 | VM1 | 401 | 4 | 16384 MB |
 
 Each VM gets an EFI disk (`efitype=4m, pre-enrolled-keys=0`) and UEFI BIOS.
 

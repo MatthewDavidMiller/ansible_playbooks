@@ -9,6 +9,14 @@
 set -euo pipefail
 
 DOCKER=${DOCKER:-docker}
+POSTGRES_IMAGE=${POSTGRES_IMAGE:-docker.io/postgres:17}
+REDIS_IMAGE=${REDIS_IMAGE:-docker.io/redis:7}
+NEXTCLOUD_IMAGE=${NEXTCLOUD_IMAGE:-docker.io/nextcloud:31-apache}
+TRAEFIK_IMAGE=${TRAEFIK_IMAGE:-docker.io/traefik:v3}
+PAPERLESS_IMAGE=${PAPERLESS_IMAGE:-ghcr.io/paperless-ngx/paperless-ngx:2.14.7}
+VAULTWARDEN_IMAGE=${VAULTWARDEN_IMAGE:-docker.io/vaultwarden/server:1.33.2}
+SEMAPHORE_IMAGE=${SEMAPHORE_IMAGE:-docker.io/semaphoreui/semaphore:v2.13.6}
+NAVIDROME_IMAGE=${NAVIDROME_IMAGE:-docker.io/deluan/navidrome:0.54.5}
 
 cleanup()     { $DOCKER rm -f "$1" 2>/dev/null || true; }
 cleanup_dir() {
@@ -48,7 +56,7 @@ $DOCKER run -d --name test_postgres \
   --env POSTGRES_DB=testdb \
   --env PGDATA=/var/lib/postgresql/data/pgdata \
   --volume "$TEST_PG_DIR":/var/lib/postgresql/data \
-  docker.io/postgres:17
+  "$POSTGRES_IMAGE"
 
 sleep 15
 $DOCKER inspect --format='{{.State.Status}}' test_postgres 2>/dev/null \
@@ -62,7 +70,33 @@ cleanup_dir "$TEST_PG_DIR"
 echo ""
 
 # ---------------------------------------------------------------------------
-echo "--- TEST-02: Redis ---"
+echo "--- TEST-02: PostgreSQL Role Isolation ---"
+$DOCKER run -d --name test_postgres_roles \
+  --user 999:999 \
+  --cap-drop=ALL \
+  --security-opt=no-new-privileges:true \
+  --memory=2g --memory-swap=2g \
+  --shm-size=256m \
+  --env POSTGRES_USER=postgres_admin \
+  --env POSTGRES_PASSWORD=adminpass \
+  --env POSTGRES_DB=postgres \
+  "$POSTGRES_IMAGE"
+sleep 15
+$DOCKER exec test_postgres_roles psql -U postgres_admin -d postgres -c "CREATE ROLE nextcloud_user LOGIN PASSWORD 'ncpass';"
+$DOCKER exec test_postgres_roles psql -U postgres_admin -d postgres -c "CREATE ROLE paperless_user LOGIN PASSWORD 'plpass';"
+$DOCKER exec test_postgres_roles psql -U postgres_admin -d postgres -c "CREATE DATABASE nextcloud OWNER nextcloud_user;"
+$DOCKER exec test_postgres_roles psql -U postgres_admin -d postgres -c "CREATE DATABASE paperless OWNER paperless_user;"
+$DOCKER exec test_postgres_roles env PGPASSWORD=ncpass psql -h localhost -U nextcloud_user -d nextcloud -c "SELECT current_user;" \
+  | grep -q nextcloud_user && pass "Postgres: nextcloud role can access its own database" \
+  || fail "Postgres: nextcloud role access failed"
+$DOCKER exec test_postgres_roles env PGPASSWORD=ncpass psql -h localhost -U nextcloud_user -d paperless -c "SELECT current_user;" >/tmp/test_postgres_roles.out 2>/tmp/test_postgres_roles.err \
+  && fail "Postgres: nextcloud role unexpectedly accessed paperless database" \
+  || pass "Postgres: per-service ownership blocks cross-database access by default"
+cleanup test_postgres_roles
+echo ""
+
+# ---------------------------------------------------------------------------
+echo "--- TEST-03: Redis ---"
 $DOCKER run -d --name test_redis \
   --cap-drop=ALL \
   --cap-add=CHOWN \
@@ -70,7 +104,7 @@ $DOCKER run -d --name test_redis \
   --cap-add=DAC_OVERRIDE \
   --security-opt=no-new-privileges:true \
   --memory=512m --memory-swap=512m \
-  docker.io/redis:latest
+  "$REDIS_IMAGE"
 
 check_running test_redis "Redis: starts with cap-drop=ALL + CHOWN/FOWNER/DAC_OVERRIDE + 512m limit"
 sleep 3
@@ -81,7 +115,7 @@ cleanup test_redis
 echo ""
 
 # ---------------------------------------------------------------------------
-echo "--- TEST-03: Nextcloud ---"
+echo "--- TEST-04: Nextcloud ---"
 # NOTE: Nextcloud's entrypoint uses rsync --chown to copy its webroot on every start,
 # requiring the CHOWN capability. --cap-drop=ALL breaks this. Production config uses
 # --security-opt=no-new-privileges:true only (no --cap-drop=ALL).
@@ -94,7 +128,7 @@ $DOCKER run -d --name test_nextcloud \
   --memory=4g --memory-swap=4g \
   --volume "$TEST_NC_DIR":/var/www/html \
   -e SQLITE_DATABASE=testdb \
-  docker.io/nextcloud:latest
+  "$NEXTCLOUD_IMAGE"
 
 sleep 20
 $DOCKER inspect --format='{{.State.Status}}' test_nextcloud \
@@ -107,7 +141,7 @@ cleanup_dir "$TEST_NC_DIR"
 echo ""
 
 # ---------------------------------------------------------------------------
-echo "--- TEST-04: Traefik ---"
+echo "--- TEST-05: Traefik ---"
 TEST_TRAEFIK_DIR=$(mktemp -d)
 cat > "$TEST_TRAEFIK_DIR/traefik.yml" <<'EOF'
 api:
@@ -122,7 +156,7 @@ $DOCKER run -d --name test_traefik_nocap \
   --cap-drop=ALL \
   --volume "$TEST_TRAEFIK_DIR/traefik.yml":/etc/traefik/traefik.yml:ro \
   -p 18080:80 \
-  docker.io/traefik:v3
+  "$TRAEFIK_IMAGE"
 sleep 5
 $DOCKER inspect --format='{{.State.Status}}' test_traefik_nocap 2>/dev/null \
   | grep -q running \
@@ -138,7 +172,7 @@ $DOCKER run -d --name test_traefik_cap \
   --memory=256m --memory-swap=256m \
   --volume "$TEST_TRAEFIK_DIR/traefik.yml":/etc/traefik/traefik.yml:ro \
   -p 18080:80 \
-  docker.io/traefik:v3
+  "$TRAEFIK_IMAGE"
 check_running test_traefik_cap "Traefik: starts with cap-drop=ALL + NET_BIND_SERVICE"
 
 cleanup test_traefik_cap
@@ -146,7 +180,7 @@ rm -rf "$TEST_TRAEFIK_DIR"
 echo ""
 
 # ---------------------------------------------------------------------------
-echo "--- TEST-05: Paperless NGX ---"
+echo "--- TEST-06: Paperless NGX ---"
 TEST_PL_DATA=$(mktemp -d)
 TEST_PL_MEDIA=$(mktemp -d)
 TEST_PL_EXPORT=$(mktemp -d)
@@ -172,7 +206,7 @@ $DOCKER run -d --name test_paperless \
   --volume "$TEST_PL_MEDIA":/usr/src/paperless/media \
   --volume "$TEST_PL_EXPORT":/usr/src/paperless/export \
   --volume "$TEST_PL_CONSUME":/usr/src/paperless/consume \
-  ghcr.io/paperless-ngx/paperless-ngx:latest
+  "$PAPERLESS_IMAGE"
 sleep 10
 echo "Paperless status: $($DOCKER inspect --format='{{.State.Status}}' test_paperless 2>/dev/null)"
 $DOCKER logs test_paperless 2>&1 | grep -qi "gosu\|permission denied\|operation not permitted" \
@@ -187,7 +221,7 @@ cleanup_dir "$TEST_PL_CONSUME"
 echo ""
 
 # ---------------------------------------------------------------------------
-echo "--- TEST-06: Vaultwarden ---"
+echo "--- TEST-07: Vaultwarden ---"
 TEST_VW_DIR=$(mktemp -d)
 chmod 0777 "$TEST_VW_DIR"
 
@@ -197,7 +231,8 @@ $DOCKER run -d --name test_vaultwarden \
   --security-opt=no-new-privileges:true \
   --memory=256m --memory-swap=256m \
   --volume "$TEST_VW_DIR":/data \
-  docker.io/vaultwarden/server:latest
+  -e SIGNUPS_ALLOWED=false \
+  "$VAULTWARDEN_IMAGE"
 
 check_running test_vaultwarden "Vaultwarden: starts with cap-drop=ALL + NET_BIND_SERVICE + no-new-privileges"
 
@@ -206,7 +241,7 @@ rm -rf "$TEST_VW_DIR"
 echo ""
 
 # ---------------------------------------------------------------------------
-echo "--- TEST-07: Semaphore ---"
+echo "--- TEST-08: Semaphore ---"
 # Test A: baseline
 $DOCKER run -d --name test_semaphore_base \
   -e SEMAPHORE_DB_DIALECT=bolt \
@@ -215,7 +250,7 @@ $DOCKER run -d --name test_semaphore_base \
   -e SEMAPHORE_ADMIN_NAME=Admin \
   -e SEMAPHORE_ADMIN_EMAIL=admin@test.local \
   -e SEMAPHORE_ACCESS_KEY_ENCRYPTION=aabbccddaabbccddaabbccddaabbccdd \
-  docker.io/semaphoreui/semaphore:latest
+  "$SEMAPHORE_IMAGE"
 sleep 8
 $DOCKER inspect --format='{{.State.Status}}' test_semaphore_base \
   | grep -q running && pass "Semaphore: baseline starts" || fail "Semaphore: baseline failed"
@@ -232,7 +267,8 @@ $DOCKER run -d --name test_semaphore_caps \
   -e SEMAPHORE_ADMIN_NAME=Admin \
   -e SEMAPHORE_ADMIN_EMAIL=admin@test.local \
   -e SEMAPHORE_ACCESS_KEY_ENCRYPTION=aabbccddaabbccddaabbccddaabbccdd \
-  docker.io/semaphoreui/semaphore:latest
+  -e ANSIBLE_SSH_ARGS="-o UserKnownHostsFile=/etc/ssh/ssh_known_hosts -o StrictHostKeyChecking=yes" \
+  "$SEMAPHORE_IMAGE"
 sleep 8
 $DOCKER inspect --format='{{.State.Status}}' test_semaphore_caps 2>/dev/null \
   | grep -q running \
@@ -244,24 +280,23 @@ cleanup test_semaphore_caps
 echo ""
 
 # ---------------------------------------------------------------------------
-echo "--- TEST-08: Navidrome ---"
+echo "--- TEST-09: Navidrome ---"
 TEST_ND_DATA=$(mktemp -d)
 TEST_ND_MUSIC=$(mktemp -d)
 chmod 0770 "$TEST_ND_DATA"
-$DOCKER run --rm -v "$TEST_ND_DATA":/target alpine chown "$(id -u):33" /target
+$DOCKER run --rm -v "$TEST_ND_DATA":/target alpine chown 33:33 /target
 
 $DOCKER run -d --name test_navidrome \
-  --user "$(id -u):33" \
+  --user "33:33" \
   --cap-drop=ALL \
-  --cap-add=DAC_READ_SEARCH \
   --security-opt=no-new-privileges:true \
-  --memory=512m --memory-swap=512m \
+  --memory=256m --memory-swap=256m \
   --volume "$TEST_ND_MUSIC":/music:ro \
   --volume "$TEST_ND_DATA":/data \
   -e ND_LOGLEVEL=info \
-  docker.io/deluan/navidrome:latest
+  "$NAVIDROME_IMAGE"
 
-check_running test_navidrome "Navidrome: starts with --user $(id -u):33 + cap-drop=ALL + DAC_READ_SEARCH"
+check_running test_navidrome "Navidrome: starts with explicit non-root 33:33 + cap-drop=ALL"
 
 cleanup test_navidrome
 cleanup_dir "$TEST_ND_DATA"
@@ -269,7 +304,7 @@ rm -rf "$TEST_ND_MUSIC"
 echo ""
 
 # ---------------------------------------------------------------------------
-echo "--- TEST-09: Pi-hole ---"
+echo "--- TEST-10: Pi-hole ---"
 TEST_PIHOLE_DIR=$(mktemp -d)
 chmod 0770 "$TEST_PIHOLE_DIR"
 $DOCKER run --rm -v "$TEST_PIHOLE_DIR":/target alpine chown 999:33 /target
@@ -298,7 +333,7 @@ cleanup_dir "$TEST_PIHOLE_DIR"
 echo ""
 
 # ---------------------------------------------------------------------------
-echo "--- TEST-10: WireGuard ---"
+echo "--- TEST-11: WireGuard ---"
 # WireGuard uses --privileged=true (required for kernel module access and sysctl).
 # In environments without the wireguard kernel module (e.g. WSL without the module)
 # the container will exit after failing modprobe — this is reported as INFO, not FAIL.

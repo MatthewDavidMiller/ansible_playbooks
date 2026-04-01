@@ -1,4 +1,4 @@
-/usr/bin/podman pull docker.io/nextcloud:latest
+/usr/bin/podman pull {{ nextcloud_image }}
 /usr/bin/podman run \
 --name=nextcloud \
 --network=nextcloud_container_net \
@@ -6,22 +6,9 @@
 --volume {{ nextcloud_path }}/data:/var/www/html/data/:Z \
 --volume {{ nextcloud_path }}/config:/var/www/html/config/:Z \
 --volume {{ nextcloud_path }}/apps:/var/www/html/custom_apps/:Z \
--e POSTGRES_DB={{ nextcloud_database_name }} \
--e POSTGRES_USER={{ postgres_database_user }} \
--e POSTGRES_PASSWORD='{{ postgres_database_user_password }}' \
--e NEXTCLOUD_ADMIN_USER={{ nextcloud_admin_user }} \
--e NEXTCLOUD_ADMIN_PASSWORD='{{ nextcloud_admin_password }}' \
--e NEXTCLOUD_TRUSTED_DOMAINS={{ nextcloud_trusted_domains }} \
--e POSTGRES_HOST=postgres.dns.podman \
--e TRUSTED_PROXIES=172.16.1.0/28 \
--e OVERWRITEPROTOCOL=https \
--e OVERWRITECLIURL='https://{{ nextcloud_dns_name }}' \
--e PHP_UPLOAD_LIMIT=20480M \
--e APACHE_BODY_LIMIT=21474836480 \
--e REDIS_HOST=redis.dns.podman \
--e TZ=America/New_York \
---memory=4g \
---memory-swap=4g \
+--env-file {{ secret_env_dir }}/nextcloud.env \
+--memory=2g \
+--memory-swap=2g \
 --pids-limit=500 \
 --security-opt=no-new-privileges:true \
--d docker.io/nextcloud:latest
+-d {{ nextcloud_image }}
