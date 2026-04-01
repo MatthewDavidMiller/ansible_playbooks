@@ -10,8 +10,6 @@ entryPoints:
   web:
     address: ":80"
     http:
-      encodedCharacters:
-        allowEncodedSlash: true
       redirections:
         entryPoint:
           to: websecure
@@ -20,8 +18,6 @@ entryPoints:
   websecure:
     address: ":443"
     http:
-      encodedCharacters:
-        allowEncodedSlash: true
       tls:
         certResolver: porkbun
 

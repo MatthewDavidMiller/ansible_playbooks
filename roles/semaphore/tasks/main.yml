@@ -1,10 +1,55 @@
 ---
-- name: Create semaphore container network
-  ansible.builtin.shell:
-    cmd: |
-      podman network create semaphore_container_net
-  ignore_errors: true
+- name: Inspect semaphore container network
+  ansible.builtin.command:
+    argv:
+      - podman
+      - network
+      - inspect
+      - semaphore_container_net
+  register: semaphore_network
   changed_when: false
+  failed_when: false
+
+- name: Create semaphore container network
+  ansible.builtin.command:
+    argv:
+      - podman
+      - network
+      - create
+      - semaphore_container_net
+  when: semaphore_network.rc != 0
+
+- name: Create semaphore secret directory
+  ansible.builtin.file:
+    path: "{{ secret_env_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Create semaphore config directory
+  ansible.builtin.file:
+    path: /etc/semaphore
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Semaphore env file
+  ansible.builtin.template:
+    src: semaphore.env.j2
+    dest: "{{ secret_env_dir }}/semaphore.env"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Semaphore known hosts file
+  ansible.builtin.template:
+    src: ssh_known_hosts.j2
+    dest: /etc/semaphore/ssh_known_hosts
+    owner: root
+    group: root
+    mode: "0600"
 
 - name: Semaphore service
   ansible.builtin.template:
@@ -15,6 +60,7 @@
   ansible.builtin.systemd:
     name: semaphore.service
     enabled: true
+    daemon_reload: true
 
 - name: Semaphore script
   ansible.builtin.template:
@@ -37,3 +83,8 @@
     name: Backup Semaphore
     special_time: daily
     job: /usr/bin/bash /usr/local/bin/backup_semaphore.sh
+
+- name: Start semaphore
+  ansible.builtin.systemd:
+    name: semaphore.service
+    state: started

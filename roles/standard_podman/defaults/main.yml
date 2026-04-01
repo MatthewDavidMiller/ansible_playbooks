@@ -6,3 +6,6 @@ docker_username: ""
 
 # Docker Hub password for registry login
 docker_password: ""
+
+# Root-only directory for runtime environment files
+secret_env_dir: /etc/homelab/secrets

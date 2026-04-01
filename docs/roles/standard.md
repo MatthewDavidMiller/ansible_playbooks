@@ -6,13 +6,17 @@ These roles are applied to most hosts before any service-specific roles. See [ar
 
 ### `standard_ssh`
 
-Hardens the SSH daemon by disabling password authentication, root login, empty passwords, challenge-response auth, GSSAPI auth, and PAM; enables public key authentication.
+Hardens the SSH daemon by deploying a validated drop-in under `/etc/ssh/sshd_config.d/`. Disables password authentication, root login, empty passwords, challenge-response auth, and GSSAPI auth; enables public key authentication and keeps the project SSH hardening defaults in one managed file.
 
 **Distributions:** Debian 12, Rocky Linux 10, Arch Linux
 
 **Required variables:** None
 
-**Templates:** None
+**Templates:**
+
+| Template | Destination | Description |
+|---|---|---|
+| `10-standard-hardening.conf.j2` | `/etc/ssh/sshd_config.d/10-standard-hardening.conf` | Validated SSH hardening drop-in |
 
 ---
 
@@ -74,9 +78,9 @@ Installs firewalld and configures a restrictive `homelab` zone:
 - SSH and ICMP echo-request enabled in `homelab` zone
 - SSH, cockpit, dhcpv6-client, mdns disabled in `public` zone
 - Network interface bound to `public` zone (traffic enters homelab zone via source matching)
-- firewalld enabled and started
+- firewalld enabled, started, and reloaded during the role run
 
-Port 443 is **not** opened here — the `reverse_proxy` role opens it on hosts running SWAG.
+Ports 80 and 443 are not opened here. On VM1, Traefik is exposed through rootful Podman port publishing and should be treated as intentional public ingress rather than a firewalld-guarded exception.
 
 **Distributions:** Debian 12, Rocky Linux 10, Arch Linux
 
@@ -94,7 +98,7 @@ Port 443 is **not** opened here — the `reverse_proxy` role opens it on hosts r
 
 ### `standard_podman`
 
-Installs Podman and its DNS dependencies. On Arch Linux also installs `cni-plugins`, `netavark`, and `aardvark-dns`. Creates and enables a `login_to_docker.service` systemd unit that logs Podman into Docker Hub on boot (avoids pull rate limits).
+Installs Podman and its DNS dependencies. On Arch Linux also installs `cni-plugins`, `netavark`, and `aardvark-dns`. Creates a root-only env file in `secret_env_dir` plus a `login_to_docker.service` unit that logs Podman into Docker Hub on boot (avoids pull rate limits without embedding credentials in the unit file).
 
 **Distributions:** Debian 12, Rocky Linux 10, Arch Linux
 
@@ -104,12 +108,14 @@ Installs Podman and its DNS dependencies. On Arch Linux also installs `cni-plugi
 |---|---|---|---|
 | `docker_username` | string | Docker Hub username | `myuser` |
 | `docker_password` | string | Docker Hub password | `secret` |
+| `secret_env_dir` | path | Root-only directory for runtime env files | `/etc/homelab/secrets` |
 
 **Templates:**
 
 | Template | Destination | Description |
 |---|---|---|
 | `login_to_docker.j2` | `/etc/systemd/system/login_to_docker.service` | Systemd unit for Docker Hub login on boot |
+| `docker_login.env.j2` | `{{ secret_env_dir }}/docker_login.env` | Root-only Docker Hub credentials file |
 
 ---
 

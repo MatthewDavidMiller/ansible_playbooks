@@ -89,4 +89,4 @@ subprocess.call([r"qm", r"clone", r"401", r"120", r"--name", r"VM1"])
 subprocess.call([r"qm", r"set", r"120", r"--efidisk0",
     r"local-lvm:1,format=raw,efitype=4m,pre-enrolled-keys=0"])
 subprocess.call([r"qm", r"set", r"120", r"--cores", r"4"])
-subprocess.call([r"qm", r"set", r"120", r"--memory", r"8192"])
+subprocess.call([r"qm", r"set", r"120", r"--memory", r"16384"])

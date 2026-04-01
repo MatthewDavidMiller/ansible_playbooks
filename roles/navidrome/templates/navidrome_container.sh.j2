@@ -1,17 +1,16 @@
-/usr/bin/podman pull docker.io/deluan/navidrome:latest
+/usr/bin/podman pull {{ navidrome_image }}
 /usr/bin/podman run \
 --name navidrome \
 --network=navidrome_container_net \
-{% raw %}--user $(id -u):33 \
-{% endraw %}--volume {{ navidrome_local_music_path | default(navidrome_path + '/music', true) }}:/music:ro,z \
+--user {{ navidrome_uid }}:{{ navidrome_gid }} \
+--volume {{ navidrome_local_music_path | default(navidrome_path + '/music', true) }}:/music:ro,z \
 --volume {{ navidrome_path }}/data:/data:Z \
 --volume {{ navidrome_path }}/backup:/navidrome_backup:Z \
 -e ND_LOGLEVEL=info \
 -e TZ=America/New_York \
 -e ND_BACKUP_PATH=/navidrome_backup \
---memory=512m \
---memory-swap=512m \
+--memory=256m \
+--memory-swap=256m \
 --cap-drop=ALL \
---cap-add=DAC_READ_SEARCH \
 --security-opt=no-new-privileges:true \
--d docker.io/deluan/navidrome:latest
+-d {{ navidrome_image }}

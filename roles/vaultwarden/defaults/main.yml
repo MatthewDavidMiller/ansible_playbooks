@@ -16,3 +16,9 @@ nextcloud_path: ""
 
 # Nextcloud username whose files directory is used as the backup destination
 nextcloud_homelab_user: ""
+
+# Disable public self-signup by default
+vaultwarden_signups_allowed: false
+
+# Container image pinned in inventory
+vaultwarden_image: docker.io/vaultwarden/server:1.33.2

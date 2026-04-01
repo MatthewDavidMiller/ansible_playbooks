@@ -19,14 +19,20 @@ paperless_consume_path: ""
 # PostgreSQL database name for Paperless NGX
 paperless_database_name: ""
 
-# Shared PostgreSQL username (shared with nextcloud and semaphore)
-postgres_database_user: ""
+# Paperless NGX database username
+paperless_db_user: ""
 
-# Password for the shared PostgreSQL user
-postgres_database_user_password: ""
+# Password for the Paperless NGX database user
+paperless_db_password: ""
 
 # Fully-qualified domain name for Paperless NGX (used in PAPERLESS_URL)
 paperless_dns_name: ""
 
 # OS user that owns the shell scripts
 user_name: ""
+
+# Root-only directory for runtime environment files
+secret_env_dir: /etc/homelab/secrets
+
+# Container image pinned in inventory
+paperless_image: ghcr.io/paperless-ngx/paperless-ngx:2.14.7

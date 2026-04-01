@@ -5,6 +5,22 @@
     state: present
   when: ansible_facts['distribution'] == 'Rocky'
 
+- name: Create dynamic DNS secret directory
+  ansible.builtin.file:
+    path: "{{ secret_env_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Dynamic DNS env file
+  ansible.builtin.template:
+    src: dynamic_dns.env.j2
+    dest: "{{ secret_env_dir }}/dynamic_dns.env"
+    owner: root
+    group: root
+    mode: "0600"
+
 - name: Dynamic DNS script
   ansible.builtin.template:
     src: dynamic_dns.py.j2
@@ -28,4 +44,4 @@
   ansible.builtin.cron:
     name: Dynamic DNS update
     minute: "*/5"
-    job: /usr/bin/python3 /usr/local/bin/dynamic_dns.py >> /var/log/dynamic_dns.log 2>&1
+    job: /usr/bin/bash -lc 'set -a && . {{ secret_env_dir }}/dynamic_dns.env && exec /usr/bin/python3 /usr/local/bin/dynamic_dns.py >> /var/log/dynamic_dns.log 2>&1'

@@ -74,20 +74,20 @@ Use UID/GID 1000 unless the container image requires a different user. Check the
 Create `roles/<service_name>/templates/<service>.sh.j2`:
 
 ```bash
-/usr/bin/podman pull docker.io/example/image:latest
+/usr/bin/podman pull docker.io/example/image:1.2.3
 /usr/bin/podman run \
 --name <service> \
 --network <service>_container_net \
 -e SOME_ENV={{ some_variable }} \
 -e TZ=America/New_York \
 --volume {{ service_path }}:/data:Z \
--d docker.io/example/image:latest
+-d docker.io/example/image:1.2.3
 ```
 
 Key conventions:
 - Always use `:Z` on volume mounts — this triggers SELinux file context relabeling on Rocky Linux 10
 - Use Podman DNS names (`<container>.dns.podman`) when containers need to talk to each other
-- Pull the image before running to get the latest version
+- Pull the pinned image reference before running so deploys stay repeatable
 
 ---
 
@@ -144,6 +144,8 @@ proxy_config:
     proxy_upstream_port: "8080"
     proxy_upstream_protocol: "http"
     container_destination: "<service>.dns.podman"
+    # Optional for apps like Nextcloud WebDAV that need %2F preserved:
+    # proxy_allow_encoded_slash: true
 ```
 
 Traefik will automatically request a Let's Encrypt certificate for `<service>.example.com` via Porkbun DNS challenge on first connection.

@@ -4,6 +4,22 @@
     name: podman
     state: present
 
+- name: Create podman secret directory
+  ansible.builtin.file:
+    path: "{{ secret_env_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Docker login secret env file
+  ansible.builtin.template:
+    src: docker_login.env.j2
+    dest: "{{ secret_env_dir }}/docker_login.env"
+    owner: root
+    group: root
+    mode: "0600"
+
 - name: Login to Docker Service
   ansible.builtin.template:
     src: login_to_docker.j2
@@ -13,3 +29,5 @@
   ansible.builtin.systemd:
     name: login_to_docker.service
     enabled: true
+    state: started
+    daemon_reload: true

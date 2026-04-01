@@ -1,13 +1,13 @@
-/usr/bin/podman pull docker.io/redis:latest
+/usr/bin/podman pull {{ redis_image }}
 /usr/bin/podman run \
 --name=redis \
 --network=nextcloud_container_net \
--e TZ=America/New_York \
---memory=512m \
---memory-swap=512m \
+--env-file {{ secret_env_dir }}/redis.env \
+--memory=256m \
+--memory-swap=256m \
 --cap-drop=ALL \
 --cap-add=CHOWN \
 --cap-add=FOWNER \
 --cap-add=DAC_OVERRIDE \
 --security-opt=no-new-privileges:true \
--d docker.io/redis:latest
+-d {{ redis_image }}

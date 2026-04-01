@@ -4,12 +4,27 @@
     name: sqlite
     state: present
 
-- name: Create vaultwarden container network
-  ansible.builtin.shell:
-    cmd: |
-      podman network create --subnet 172.16.1.16/29 vaultwarden_container_net
-  ignore_errors: true
+- name: Inspect vaultwarden container network
+  ansible.builtin.command:
+    argv:
+      - podman
+      - network
+      - inspect
+      - vaultwarden_container_net
+  register: vaultwarden_network
   changed_when: false
+  failed_when: false
+
+- name: Create vaultwarden container network
+  ansible.builtin.command:
+    argv:
+      - podman
+      - network
+      - create
+      - --subnet
+      - 172.16.1.16/29
+      - vaultwarden_container_net
+  when: vaultwarden_network.rc != 0
 
 - name: Create Vaultwarden container path
   ansible.builtin.file:
@@ -40,6 +55,7 @@
   ansible.builtin.systemd:
     name: vaultwarden.service
     enabled: true
+    daemon_reload: true
 
 - name: Backup Database Script
   ansible.builtin.template:
@@ -59,4 +75,11 @@
   ansible.builtin.template:
     src: vaultwarden.sh.j2
     dest: /usr/local/bin/vaultwarden.sh
+    owner: root
+    group: root
     mode: "0700"
+
+- name: Start Vaultwarden
+  ansible.builtin.systemd:
+    name: vaultwarden.service
+    state: started

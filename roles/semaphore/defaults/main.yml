@@ -4,11 +4,11 @@
 # PostgreSQL database name for Semaphore
 semaphore_database_name: ""
 
-# Shared PostgreSQL username (shared with nextcloud and paperless_ngx)
-postgres_database_user: ""
+# Semaphore database username
+semaphore_db_user: ""
 
-# Password for the shared PostgreSQL user
-postgres_database_user_password: ""
+# Password for the Semaphore database user
+semaphore_db_password: ""
 
 # Semaphore admin account username
 semaphore_admin_name: ""
@@ -37,3 +37,12 @@ nextcloud_homelab_user: ""
 
 # OS user that owns the Semaphore shell script
 user_name: ""
+
+# Root-only directory for runtime environment files
+secret_env_dir: /etc/homelab/secrets
+
+# Known hosts entries mounted into the Semaphore container for SSH verification
+semaphore_known_hosts: ""
+
+# Container image pinned in inventory
+semaphore_image: docker.io/semaphoreui/semaphore:v2.13.6

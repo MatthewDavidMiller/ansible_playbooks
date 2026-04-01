@@ -36,7 +36,10 @@ Fill in all placeholder values. Key things to configure:
 
 - `management_network` and `ip_ansible` — your management network CIDR and Ansible controller IP; these become the firewalld allowlist
 - `docker_username` / `docker_password` — Docker Hub credentials (prevents pull rate limits)
-- `porkbun_api_key` / `porkbun_api_key_secret` — required for SWAG certificate issuance
+- `porkbun_api_key` / `porkbun_api_key_secret` — required for DDNS and Traefik DNS-01 certificate issuance
+- `secret_env_dir` — where root-only runtime env files will be rendered on managed hosts
+- VM1 image variables (`traefik_image`, `postgres_image`, `nextcloud_image`, etc.) — pin the container tags you want to run
+- VM1 per-service DB credentials (`postgres_admin_user`, `nextcloud_db_user`, `paperless_db_user`, `semaphore_db_user`, and their passwords)
 - `top_domain` — your domain (e.g., `example.com`)
 - Per-host `ansible_host` values — IP addresses of your VMs
 
