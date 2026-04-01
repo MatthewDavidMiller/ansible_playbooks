@@ -1,5 +1,5 @@
-/usr/bin/podman pull {{ vaultwarden_image }}
 /usr/bin/podman run \
+--pull=newer \
 --name=vaultwarden \
 --network=vaultwarden_container_net \
 --volume {{ vaultwarden_path }}/vw-data:/data/:Z \

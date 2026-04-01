@@ -5,8 +5,8 @@ set -a
 . "{{ secret_env_dir }}/redis.env"
 set +a
 
-/usr/bin/podman pull {{ redis_image }}
 exec /usr/bin/podman run \
+--pull=newer \
 --name=redis \
 --network=nextcloud_container_net \
 --env TZ \

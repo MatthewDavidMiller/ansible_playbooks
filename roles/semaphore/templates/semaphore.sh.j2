@@ -5,8 +5,8 @@ set -a
 . "{{ secret_env_dir }}/semaphore.env"
 set +a
 
-/usr/bin/podman pull {{ semaphore_image }}
 exec /usr/bin/podman run \
+--pull=newer \
 --name semaphore \
 --env SEMAPHORE_DB_DIALECT \
 --env SEMAPHORE_DB_HOST \

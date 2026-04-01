@@ -81,6 +81,8 @@ porkbun_api_key: 'pk1_; "quoted" \ slash & dollars \$HOME'
 porkbun_api_key_secret: 'sk1_; "quoted" \ slash & dollars \$HOME and ''single'''
 postgres_admin_user: 'postgres-admin'
 postgres_admin_password: 'pg;admin "quoted" \ slash & dollars \$HOME and ''single'''
+postgres_legacy_bootstrap_user: ''
+postgres_legacy_bootstrap_password: ''
 nextcloud_database_name: 'nextcloud-db'
 nextcloud_db_user: 'nextcloud-user'
 nextcloud_db_password: 'nc;db "quoted" \ slash & dollars \$HOME and ''single'''
@@ -115,6 +117,16 @@ paperless_media_path: '/srv/paperless/media'
 paperless_export_path: '/srv/paperless/export'
 paperless_consume_path: '/srv/paperless/consume'
 semaphore_image: 'docker.io/semaphoreui/semaphore:v2.13.6'
+podman_service_name: 'generic-service'
+podman_service_image: 'docker.io/example/generic:1.2.3'
+podman_service_pull_policy: 'newer'
+podman_service_networks: []
+podman_service_ports: []
+podman_service_volumes: []
+podman_service_env: {}
+podman_service_labels: []
+podman_service_extra_args: []
+podman_service_type: 'forking'
 EOF
 
 cat > "$tmpdir/render.yml" <<EOF
@@ -192,6 +204,11 @@ cat > "$tmpdir/render.yml" <<EOF
       ansible.builtin.template:
         src: ${repo_root}/roles/semaphore/templates/semaphore.sh.j2
         dest: ${render_dir}/semaphore.sh
+
+    - name: Render podman_service.sh
+      ansible.builtin.template:
+        src: ${repo_root}/roles/podman_service/templates/podman_run.sh.j2
+        dest: ${render_dir}/podman_service.sh
 EOF
 
 ANSIBLE_LOCAL_TEMP="$tmpdir/.ansible-local" \
@@ -269,6 +286,8 @@ assert_not_contains "$render_dir/traefik_container.sh" "--env-file" "traefik_con
 assert_contains "$render_dir/traefik_container.sh" '. "/etc/homelab/secrets/traefik.env"' "traefik_container.sh sources traefik.env"
 assert_contains "$render_dir/traefik_container.sh" "--env PORKBUN_API_KEY" "traefik_container.sh passes PORKBUN_API_KEY"
 assert_contains "$render_dir/traefik_container.sh" "--env PORKBUN_SECRET_API_KEY" "traefik_container.sh passes PORKBUN_SECRET_API_KEY"
+assert_not_contains "$render_dir/traefik_container.sh" "podman pull" "traefik_container.sh no longer calls podman pull"
+assert_contains "$render_dir/traefik_container.sh" "--pull=newer" "traefik_container.sh uses --pull=newer"
 
 assert_not_contains "$render_dir/postgres_container.sh" "--env-file" "postgres_container.sh no longer uses --env-file"
 assert_contains "$render_dir/postgres_container.sh" '. "/etc/homelab/secrets/postgres.env"' "postgres_container.sh sources postgres.env"
@@ -276,25 +295,38 @@ assert_contains "$render_dir/postgres_container.sh" "--env POSTGRES_PASSWORD" "p
 assert_contains "$render_dir/postgres_container.sh" "--env NEXTCLOUD_DB_PASSWORD" "postgres_container.sh passes NEXTCLOUD_DB_PASSWORD"
 assert_contains "$render_dir/postgres_container.sh" "--env PAPERLESS_DB_PASSWORD" "postgres_container.sh passes PAPERLESS_DB_PASSWORD"
 assert_contains "$render_dir/postgres_container.sh" "--env SEMAPHORE_DB_PASSWORD" "postgres_container.sh passes SEMAPHORE_DB_PASSWORD"
+assert_not_contains "$render_dir/postgres_container.sh" "podman pull" "postgres_container.sh no longer calls podman pull"
+assert_contains "$render_dir/postgres_container.sh" "--pull=newer" "postgres_container.sh uses --pull=newer"
 
 assert_not_contains "$render_dir/nextcloud_container.sh" "--env-file" "nextcloud_container.sh no longer uses --env-file"
 assert_contains "$render_dir/nextcloud_container.sh" '. "/etc/homelab/secrets/nextcloud.env"' "nextcloud_container.sh sources nextcloud.env"
 assert_contains "$render_dir/nextcloud_container.sh" "--env NEXTCLOUD_ADMIN_PASSWORD" "nextcloud_container.sh passes NEXTCLOUD_ADMIN_PASSWORD"
 assert_contains "$render_dir/nextcloud_container.sh" "--env NEXTCLOUD_TRUSTED_DOMAINS" "nextcloud_container.sh passes NEXTCLOUD_TRUSTED_DOMAINS"
+assert_not_contains "$render_dir/nextcloud_container.sh" "podman pull" "nextcloud_container.sh no longer calls podman pull"
+assert_contains "$render_dir/nextcloud_container.sh" "--pull=newer" "nextcloud_container.sh uses --pull=newer"
 
 assert_not_contains "$render_dir/redis_container.sh" "--env-file" "redis_container.sh no longer uses --env-file"
 assert_contains "$render_dir/redis_container.sh" '. "/etc/homelab/secrets/redis.env"' "redis_container.sh sources redis.env"
 assert_contains "$render_dir/redis_container.sh" "--env TZ" "redis_container.sh passes TZ"
+assert_not_contains "$render_dir/redis_container.sh" "podman pull" "redis_container.sh no longer calls podman pull"
+assert_contains "$render_dir/redis_container.sh" "--pull=newer" "redis_container.sh uses --pull=newer"
 
 assert_not_contains "$render_dir/paperless_ngx.sh" "--env-file" "paperless_ngx.sh no longer uses --env-file"
 assert_contains "$render_dir/paperless_ngx.sh" '. "/etc/homelab/secrets/paperless.env"' "paperless_ngx.sh sources paperless.env"
 assert_contains "$render_dir/paperless_ngx.sh" "--env PAPERLESS_DBPASS" "paperless_ngx.sh passes PAPERLESS_DBPASS"
 assert_contains "$render_dir/paperless_ngx.sh" "--env PAPERLESS_URL" "paperless_ngx.sh passes PAPERLESS_URL"
+assert_not_contains "$render_dir/paperless_ngx.sh" "podman pull" "paperless_ngx.sh no longer calls podman pull"
+assert_contains "$render_dir/paperless_ngx.sh" "--pull=newer" "paperless_ngx.sh uses --pull=newer"
 
 assert_not_contains "$render_dir/semaphore.sh" "--env-file" "semaphore.sh no longer uses --env-file"
 assert_contains "$render_dir/semaphore.sh" '. "/etc/homelab/secrets/semaphore.env"' "semaphore.sh sources semaphore.env"
 assert_contains "$render_dir/semaphore.sh" "--env SEMAPHORE_ADMIN_PASSWORD" "semaphore.sh passes SEMAPHORE_ADMIN_PASSWORD"
 assert_contains "$render_dir/semaphore.sh" "--env SEMAPHORE_ACCESS_KEY_ENCRYPTION" "semaphore.sh passes SEMAPHORE_ACCESS_KEY_ENCRYPTION"
 assert_contains "$render_dir/semaphore.sh" "--env ANSIBLE_SSH_ARGS" "semaphore.sh passes ANSIBLE_SSH_ARGS"
+assert_not_contains "$render_dir/semaphore.sh" "podman pull" "semaphore.sh no longer calls podman pull"
+assert_contains "$render_dir/semaphore.sh" "--pull=newer" "semaphore.sh uses --pull=newer"
+
+assert_not_contains "$render_dir/podman_service.sh" "podman pull" "podman_service.sh no longer calls podman pull"
+assert_contains "$render_dir/podman_service.sh" "--pull=newer" "podman_service.sh uses --pull=newer"
 
 echo "=== Regression tests complete. ==="

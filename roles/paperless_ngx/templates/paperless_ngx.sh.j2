@@ -5,8 +5,8 @@ set -a
 . "{{ secret_env_dir }}/paperless.env"
 set +a
 
-/usr/bin/podman pull {{ paperless_image }}
 exec /usr/bin/podman run \
+--pull=newer \
 --name=paperless \
 --network=nextcloud_container_net \
 --env PAPERLESS_REDIS \

@@ -3,6 +3,10 @@
 #   podman_service_name:   string  — container name and script/unit filename stem
 #   podman_service_image:  string  — fully-qualified image reference
 
+# Podman image pull policy for podman run.
+# "newer" reuses the cached image unless the remote digest changed.
+podman_service_pull_policy: newer
+
 # Directories to create before deploying the container.
 # Each entry: { path: str, owner: str, group: str, mode: str }
 podman_service_dirs: []

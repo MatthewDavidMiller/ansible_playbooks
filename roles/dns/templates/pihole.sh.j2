@@ -1,5 +1,5 @@
-/usr/bin/podman pull docker.io/pihole/pihole:latest
 /usr/bin/podman run \
+--pull=newer \
 --name=pihole \
 --volume {{ pihole_path }}/etc-pihole:/etc/pihole:Z \
 --network pihole_container_net:ip={{ pihole_container_ip_address }} \

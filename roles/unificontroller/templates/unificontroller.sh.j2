@@ -1,5 +1,5 @@
-/usr/bin/podman pull docker.io/jacobalberty/unifi:latest
 /usr/bin/podman run \
+--pull=newer \
 --name=unificontroller \
 --network=unifi_container_net \
 -p 8080:8080 \

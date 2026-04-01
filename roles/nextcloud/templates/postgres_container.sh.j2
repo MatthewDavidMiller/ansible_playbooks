@@ -5,8 +5,8 @@ set -a
 . "{{ secret_env_dir }}/postgres.env"
 set +a
 
-/usr/bin/podman pull {{ postgres_image }}
 exec /usr/bin/podman run \
+--pull=newer \
 --name=postgres \
 --user=999:999 \
 --network=nextcloud_container_net \

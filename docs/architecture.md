@@ -122,7 +122,7 @@ See [roles/standard.md#standard_selinux](roles/standard.md#standard_selinux).
 
 ## Role Execution Order
 
-Standard roles run first, in this order, before any service roles:
+Most standard roles run first, in this order, before any service roles:
 
 1. `standard_ssh`
 2. `standard_qemu_guest_agent`
@@ -133,6 +133,7 @@ Standard roles run first, in this order, before any service roles:
 7. `standard_podman`
 8. `standard_rclone` ← must run before `standard_selinux` (FUSE packages must exist before the boolean is set)
 9. `standard_selinux` ← Rocky Linux only
-10. `standard_cleanup`
 
 Service roles follow. `nextcloud` must run before `paperless_ngx` because Paperless uses the PostgreSQL 17 and Redis containers started by the Nextcloud role.
+
+`standard_cleanup` runs last, after service roles, so Podman image prune only sees the currently deployed images as in use and does not delete the latest cached image before services restart.
