@@ -1,5 +1,5 @@
-/usr/bin/podman pull docker.io/linuxserver/wireguard:latest
 /usr/bin/podman run \
+--pull=newer \
 --name=wireguard \
 --volume {{ vpn_path }}/config:/config/:Z \
 --volume /lib/modules:/lib/modules/:Z \

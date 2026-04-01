@@ -74,8 +74,8 @@ Use UID/GID 1000 unless the container image requires a different user. Check the
 Create `roles/<service_name>/templates/<service>.sh.j2`:
 
 ```bash
-/usr/bin/podman pull docker.io/example/image:1.2.3
 /usr/bin/podman run \
+--pull=newer \
 --name <service> \
 --network <service>_container_net \
 -e SOME_ENV={{ some_variable }} \
@@ -87,7 +87,7 @@ Create `roles/<service_name>/templates/<service>.sh.j2`:
 Key conventions:
 - Always use `:Z` on volume mounts — this triggers SELinux file context relabeling on Rocky Linux 10
 - Use Podman DNS names (`<container>.dns.podman`) when containers need to talk to each other
-- Pull the pinned image reference before running so deploys stay repeatable
+- Use `podman run --pull=newer` so the cached image is reused unless the registry digest changes
 
 ---
 
@@ -169,9 +169,9 @@ Create `<service_name>.yml`:
     - standard_cron
     - standard_firewalld
     - standard_podman
-    - standard_cleanup
     - reverse_proxy      # if HTTPS access is needed
     - <service_name>
+    - standard_cleanup
 ```
 
 Add `standard_rclone` if the service needs rclone (backups or file mounts). Add `standard_selinux` if deploying to Rocky Linux 10 with FUSE mounts.

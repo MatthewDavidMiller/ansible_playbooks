@@ -168,6 +168,8 @@ Cleans up package caches, old logs, and stale container artifacts:
 - Vacuums systemd journal to 500 MB
 - Prunes stopped Podman containers, unused images, volumes, and networks
 
+Run this role after service roles in each playbook. The Podman image prune step relies on the freshly started containers still referencing the current image so the latest cached image is retained.
+
 **Distributions:** Debian 12, Rocky Linux 10, Arch Linux
 
 **Required variables:** None

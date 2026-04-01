@@ -11,5 +11,5 @@
     - dynamic_dns
     - standard_firewalld
     - standard_podman
-    - standard_cleanup
     - vpn
+    - standard_cleanup

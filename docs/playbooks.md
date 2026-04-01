@@ -28,7 +28,7 @@ This document describes every playbook's purpose, target, and role composition. 
 
 **Target:** `vm1`
 
-**Roles (in order):** `standard_ssh` → `standard_qemu_guest_agent` → `standard_update_packages` → `configure_timezone` → `standard_cron` → `dynamic_dns` → `standard_firewalld` → `standard_podman` → `standard_rclone` → `standard_selinux` → `standard_cleanup` → `backup` → `ansible` → `reverse_proxy` → `nextcloud` → `paperless_ngx` → `navidrome` → `vaultwarden` → `semaphore`
+**Roles (in order):** `standard_ssh` → `standard_qemu_guest_agent` → `standard_update_packages` → `configure_timezone` → `standard_cron` → `dynamic_dns` → `standard_firewalld` → `standard_podman` → `standard_rclone` → `standard_selinux` → `backup` → `ansible` → `reverse_proxy` → `nextcloud` → `paperless_ngx` → `navidrome` → `vaultwarden` → `semaphore` → `standard_cleanup`
 
 **Usage:** Configures VM1 (ID 120) — a single Rocky Linux 10 host running all services consolidated. See [architecture.md — VM1 Consolidated VM](architecture.md#vm1-consolidated-vm).
 
@@ -40,7 +40,7 @@ This document describes every playbook's purpose, target, and role composition. 
 
 **Target:** `vpn`
 
-**Roles (in order):** `standard_ssh` → `standard_qemu_guest_agent` → `standard_update_packages` → `configure_timezone` → `standard_cron` → `dynamic_dns` → `standard_firewalld` → `standard_podman` → `standard_cleanup` → `vpn`
+**Roles (in order):** `standard_ssh` → `standard_qemu_guest_agent` → `standard_update_packages` → `configure_timezone` → `standard_cron` → `dynamic_dns` → `standard_firewalld` → `standard_podman` → `vpn` → `standard_cleanup`
 
 **Usage:** Configures the WireGuard VPN server (VM 110). No SWAG — VPN is accessed directly.
 
@@ -50,7 +50,7 @@ This document describes every playbook's purpose, target, and role composition. 
 
 **Target:** `unificontroller`
 
-**Roles (in order):** `standard_ssh` → `standard_qemu_guest_agent` → `standard_update_packages` → `configure_timezone` → `standard_cron` → `standard_firewalld` → `standard_podman` → `standard_cleanup` → `reverse_proxy` → `unificontroller`
+**Roles (in order):** `standard_ssh` → `standard_qemu_guest_agent` → `standard_update_packages` → `configure_timezone` → `standard_cron` → `standard_firewalld` → `standard_podman` → `reverse_proxy` → `unificontroller` → `standard_cleanup`
 
 **Usage:** Configures the Ubiquiti Unifi Controller (VM 116).
 
@@ -60,7 +60,7 @@ This document describes every playbook's purpose, target, and role composition. 
 
 **Target:** `pihole`
 
-**Roles (in order):** `standard_ssh` → `standard_qemu_guest_agent` → `standard_update_packages` → `configure_timezone` → `standard_cron` → `standard_firewalld` → `standard_podman` → `standard_rclone` → `standard_cleanup` → `reverse_proxy` → `dns`
+**Roles (in order):** `standard_ssh` → `standard_qemu_guest_agent` → `standard_update_packages` → `configure_timezone` → `standard_cron` → `standard_firewalld` → `standard_podman` → `standard_rclone` → `reverse_proxy` → `dns` → `standard_cleanup`
 
 **Usage:** Configures the Pi-hole DNS server (VM 111).
 
@@ -70,7 +70,7 @@ This document describes every playbook's purpose, target, and role composition. 
 
 **Target:** `apcontroller`
 
-**Roles (in order):** `standard_ssh` → `standard_qemu_guest_agent` → `standard_update_packages` → `configure_timezone` → `standard_cron` → `standard_firewalld` → `standard_podman` → `standard_cleanup` → `reverse_proxy` → `omadacontroller`
+**Roles (in order):** `standard_ssh` → `standard_qemu_guest_agent` → `standard_update_packages` → `configure_timezone` → `standard_cron` → `standard_firewalld` → `standard_podman` → `reverse_proxy` → `omadacontroller` → `standard_cleanup`
 
 **Usage:** Configures the TP-Link Omada Controller (VM 112).
 

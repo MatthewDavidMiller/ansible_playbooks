@@ -2,8 +2,8 @@
 # Managed by Ansible — do not edit manually.
 # Role: podman_service  Service: {{ podman_service_name }}
 
-/usr/bin/podman pull {{ podman_service_image }}
 /usr/bin/podman run \
+  --pull={{ podman_service_pull_policy }} \
   --name={{ podman_service_name }} \
 {% for net in podman_service_networks %}
   --network={{ net }} \

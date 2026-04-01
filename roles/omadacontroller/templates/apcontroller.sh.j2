@@ -1,5 +1,5 @@
-/usr/bin/podman pull docker.io/mbentley/omada-controller:latest
 /usr/bin/podman run \
+--pull=newer \
 --name=apcontroller \
 --network=ap_container_net \
 --volume {{ apcontroller_path }}/data:/opt/tplink/EAPController/data/:Z \

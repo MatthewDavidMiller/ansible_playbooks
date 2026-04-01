@@ -5,8 +5,8 @@ set -a
 . "{{ secret_env_dir }}/traefik.env"
 set +a
 
-/usr/bin/podman pull {{ traefik_image }}
 exec /usr/bin/podman run \
+  --pull=newer \
   --name=traefik \
 {% for net in traefik_networks %}
   --network={{ net }} \

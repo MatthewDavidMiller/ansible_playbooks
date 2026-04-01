@@ -73,6 +73,7 @@ bash scripts/test_container_security.sh
 - Service launch scripts no longer use `--env-file`.
 - Service launch scripts source the correct file under `secret_env_dir` before `podman run`.
 - Each sourced variable expected by a container is passed with `--env VAR_NAME`.
+- Service launch scripts use `podman run --pull=newer` and no longer call standalone `podman pull`.
 
 Run it directly:
 

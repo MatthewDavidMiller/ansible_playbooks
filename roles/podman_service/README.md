@@ -8,6 +8,9 @@ pattern used by all service roles in this project:
 3. Write `/etc/systemd/system/<name>.service` — the systemd unit
 4. Enable and start the systemd service
 
+The generated script uses `podman run --pull=newer` by default so cached
+images are reused unless the remote registry digest changes.
+
 Callers keep their own service-specific `.j2` templates for the run script
 when the generic template is not sufficient (e.g. when the script needs
 complex conditional logic). In the common case the generic templates cover
@@ -28,6 +31,7 @@ everything through variables.
 
 | Variable | Type | Default | Description |
 |---|---|---|---|
+| `podman_service_pull_policy` | string | `newer` | Podman `--pull` policy; `newer` keeps the cached image unless the remote digest changed |
 | `podman_service_dirs` | list of objects | `[]` | Directories to create. Each entry: `path`, `owner`, `group`, `mode` |
 | `podman_service_networks` | list of strings | `[]` | `--network` values |
 | `podman_service_ports` | list of strings | `[]` | `-p host:container[/proto]` mappings |
@@ -86,6 +90,7 @@ to `podman_service` via `ansible.builtin.include_role`.
   vars:
     podman_service_name: myservice
     podman_service_image: docker.io/example/myservice:latest
+    podman_service_pull_policy: newer
     podman_service_dirs:
       - path: "{{ myservice_path }}/data"
         owner: "1000"

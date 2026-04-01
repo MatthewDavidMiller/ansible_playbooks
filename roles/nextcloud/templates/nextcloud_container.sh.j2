@@ -5,8 +5,8 @@ set -a
 . "{{ secret_env_dir }}/nextcloud.env"
 set +a
 
-/usr/bin/podman pull {{ nextcloud_image }}
 exec /usr/bin/podman run \
+--pull=newer \
 --name=nextcloud \
 --network=nextcloud_container_net \
 --volume {{ nextcloud_path }}/base:/var/www/html/:Z \

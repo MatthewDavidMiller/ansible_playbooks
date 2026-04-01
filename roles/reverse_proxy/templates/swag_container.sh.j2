@@ -1,5 +1,5 @@
-/usr/bin/podman pull docker.io/linuxserver/swag:latest
 /usr/bin/podman run \
+--pull=newer \
 --name=swag \
 {% if swag_networks is defined %}
 {% for net in swag_networks %}
