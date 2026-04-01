@@ -8,6 +8,7 @@
 
 set -euo pipefail
 
+REPO_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 DOCKER=${DOCKER:-docker}
 POSTGRES_IMAGE=${POSTGRES_IMAGE:-docker.io/postgres:17}
 REDIS_IMAGE=${REDIS_IMAGE:-docker.io/redis:7}
@@ -89,10 +90,350 @@ $DOCKER exec test_postgres_roles psql -U postgres_admin -d postgres -c "CREATE D
 $DOCKER exec test_postgres_roles env PGPASSWORD=ncpass psql -h localhost -U nextcloud_user -d nextcloud -c "SELECT current_user;" \
   | grep -q nextcloud_user && pass "Postgres: nextcloud role can access its own database" \
   || fail "Postgres: nextcloud role access failed"
-$DOCKER exec test_postgres_roles env PGPASSWORD=ncpass psql -h localhost -U nextcloud_user -d paperless -c "SELECT current_user;" >/tmp/test_postgres_roles.out 2>/tmp/test_postgres_roles.err \
-  && fail "Postgres: nextcloud role unexpectedly accessed paperless database" \
-  || pass "Postgres: per-service ownership blocks cross-database access by default"
+$DOCKER exec test_postgres_roles env PGPASSWORD=ncpass \
+  psql -h localhost -U nextcloud_user -d paperless -c "CREATE TABLE cross_db_smoke(id int);" \
+  >/tmp/test_postgres_roles.out 2>/tmp/test_postgres_roles.err \
+  && fail "Postgres: nextcloud role unexpectedly managed paperless database" \
+  || pass "Postgres: per-service ownership blocks cross-database writes by default"
 cleanup test_postgres_roles
+echo ""
+
+# ---------------------------------------------------------------------------
+echo "--- TEST-02B: PostgreSQL Existing Cluster Migration ---"
+TEST_PG_MIG_DIR=$(mktemp -d)
+TEST_PG_MIG_DATA="$TEST_PG_MIG_DIR/pgdata"
+TEST_PG_MIG_INIT="$TEST_PG_MIG_DIR/custom-init"
+mkdir -p "$TEST_PG_MIG_DATA" "$TEST_PG_MIG_INIT"
+chmod 0750 "$TEST_PG_MIG_DATA" "$TEST_PG_MIG_INIT"
+install -m 0755 "$REPO_ROOT/roles/nextcloud/files/db_wrapper.sh" \
+  "$TEST_PG_MIG_INIT/db_wrapper.sh"
+$DOCKER run --rm -v "$TEST_PG_MIG_DATA":/target alpine chown 999:999 /target
+$DOCKER run --rm -v "$TEST_PG_MIG_INIT":/target alpine chown -R 999:999 /target
+
+$DOCKER run -d --name test_postgres_migration_seed \
+  --user 999:999 \
+  --cap-drop=ALL \
+  --security-opt=no-new-privileges:true \
+  --memory=2g --memory-swap=2g \
+  --shm-size=256m \
+  --env POSTGRES_USER=nextcloud_user \
+  --env POSTGRES_PASSWORD=oldsharedpass \
+  --env POSTGRES_DB=nextcloud \
+  --volume "$TEST_PG_MIG_DATA":/var/lib/postgresql/data \
+  "$POSTGRES_IMAGE"
+
+sleep 15
+$DOCKER exec test_postgres_migration_seed env PGPASSWORD=oldsharedpass \
+  psql -h localhost -U nextcloud_user -d postgres \
+  -c "CREATE DATABASE paperless OWNER nextcloud_user;"
+$DOCKER exec test_postgres_migration_seed env PGPASSWORD=oldsharedpass \
+  psql -h localhost -U nextcloud_user -d postgres \
+  -c "CREATE DATABASE semaphore OWNER nextcloud_user;"
+$DOCKER exec test_postgres_migration_seed env PGPASSWORD=oldsharedpass \
+  psql -h localhost -U nextcloud_user -d semaphore \
+  -c "CREATE TABLE access_key (id serial primary key);"
+
+cleanup test_postgres_migration_seed
+
+$DOCKER run -d --name test_postgres_migration \
+  --user 999:999 \
+  --cap-drop=ALL \
+  --security-opt=no-new-privileges:true \
+  --memory=2g --memory-swap=2g \
+  --shm-size=256m \
+  --env POSTGRES_USER=postgres_admin \
+  --env POSTGRES_PASSWORD=adminpass \
+  --env POSTGRES_DB=nextcloud \
+  --env NEXTCLOUD_DB_NAME=nextcloud \
+  --env NEXTCLOUD_DB_USER=nextcloud_user \
+  --env NEXTCLOUD_DB_PASSWORD=oldsharedpass \
+  --env PAPERLESS_DB_NAME=paperless \
+  --env PAPERLESS_DB_USER=paperless_user \
+  --env PAPERLESS_DB_PASSWORD=plpass \
+  --env SEMAPHORE_DB_NAME=semaphore \
+  --env SEMAPHORE_DB_USER=semaphore_user \
+  --env SEMAPHORE_DB_PASSWORD=sempass \
+  --volume "$TEST_PG_MIG_DATA":/var/lib/postgresql/data \
+  --volume "$TEST_PG_MIG_INIT":/custom-init \
+  --entrypoint /custom-init/db_wrapper.sh \
+  "$POSTGRES_IMAGE"
+
+sleep 20
+$DOCKER inspect --format='{{.State.Status}}' test_postgres_migration 2>/dev/null \
+  | grep -q running && pass "Postgres migration: wrapper starts on existing shared-user data directory" \
+  || fail "Postgres migration: wrapper failed on existing shared-user data directory"
+$DOCKER exec test_postgres_migration env PGPASSWORD=adminpass \
+  psql -h localhost -U postgres_admin -d postgres -c "SELECT current_user;" \
+  | grep -q postgres_admin && pass "Postgres migration: postgres_admin is available after fallback bootstrap" \
+  || fail "Postgres migration: postgres_admin was not created"
+$DOCKER exec test_postgres_migration env PGPASSWORD=plpass \
+  psql -h localhost -U paperless_user -d paperless -c "CREATE TABLE migration_smoke(id int);" \
+  >/dev/null 2>&1 && pass "Postgres migration: paperless role owns migrated database" \
+  || fail "Postgres migration: paperless role cannot manage migrated database"
+$DOCKER exec test_postgres_migration env PGPASSWORD=sempass \
+  psql -h localhost -U semaphore_user -d semaphore \
+  -c "INSERT INTO access_key DEFAULT VALUES; CREATE TABLE migration_smoke(id int);" \
+  >/dev/null 2>&1 && pass "Postgres migration: semaphore role owns migrated database and serial-backed sequences" \
+  || fail "Postgres migration: semaphore role cannot manage migrated database objects after sequence ownership migration"
+
+cleanup test_postgres_migration
+cleanup_dir "$TEST_PG_MIG_DATA"
+cleanup_dir "$TEST_PG_MIG_INIT"
+rm -rf "$TEST_PG_MIG_DIR"
+echo ""
+
+# ---------------------------------------------------------------------------
+echo "--- TEST-02C: PostgreSQL Legacy postgres Superuser Migration ---"
+TEST_PG_LEGACY_DIR=$(mktemp -d)
+TEST_PG_LEGACY_DATA="$TEST_PG_LEGACY_DIR/pgdata"
+TEST_PG_LEGACY_INIT="$TEST_PG_LEGACY_DIR/custom-init"
+mkdir -p "$TEST_PG_LEGACY_DATA" "$TEST_PG_LEGACY_INIT"
+chmod 0750 "$TEST_PG_LEGACY_DATA" "$TEST_PG_LEGACY_INIT"
+install -m 0755 "$REPO_ROOT/roles/nextcloud/files/db_wrapper.sh" \
+  "$TEST_PG_LEGACY_INIT/db_wrapper.sh"
+$DOCKER run --rm -v "$TEST_PG_LEGACY_DATA":/target alpine chown 999:999 /target
+$DOCKER run --rm -v "$TEST_PG_LEGACY_INIT":/target alpine chown -R 999:999 /target
+
+$DOCKER run -d --name test_postgres_legacy_seed \
+  --user 999:999 \
+  --cap-drop=ALL \
+  --security-opt=no-new-privileges:true \
+  --memory=2g --memory-swap=2g \
+  --shm-size=256m \
+  --env POSTGRES_PASSWORD=legacysecret \
+  --env POSTGRES_DB=nextcloud \
+  --volume "$TEST_PG_LEGACY_DATA":/var/lib/postgresql/data \
+  "$POSTGRES_IMAGE"
+
+sleep 15
+$DOCKER exec test_postgres_legacy_seed env PGPASSWORD=legacysecret \
+  psql -h localhost -U postgres -d postgres \
+  -c "CREATE DATABASE paperless OWNER postgres;"
+$DOCKER exec test_postgres_legacy_seed env PGPASSWORD=legacysecret \
+  psql -h localhost -U postgres -d postgres \
+  -c "CREATE DATABASE semaphore OWNER postgres;"
+
+cleanup test_postgres_legacy_seed
+
+$DOCKER run -d --name test_postgres_legacy_migration \
+  --user 999:999 \
+  --cap-drop=ALL \
+  --security-opt=no-new-privileges:true \
+  --memory=2g --memory-swap=2g \
+  --shm-size=256m \
+  --env POSTGRES_USER=postgres_admin \
+  --env POSTGRES_PASSWORD=adminpass \
+  --env POSTGRES_DB=nextcloud \
+  --env NEXTCLOUD_DB_NAME=nextcloud \
+  --env NEXTCLOUD_DB_USER=nextcloud_user \
+  --env NEXTCLOUD_DB_PASSWORD=ncpass \
+  --env PAPERLESS_DB_NAME=paperless \
+  --env PAPERLESS_DB_USER=paperless_user \
+  --env PAPERLESS_DB_PASSWORD=plpass \
+  --env SEMAPHORE_DB_NAME=semaphore \
+  --env SEMAPHORE_DB_USER=semaphore_user \
+  --env SEMAPHORE_DB_PASSWORD=sempass \
+  --volume "$TEST_PG_LEGACY_DATA":/var/lib/postgresql/data \
+  --volume "$TEST_PG_LEGACY_INIT":/custom-init \
+  --entrypoint /custom-init/db_wrapper.sh \
+  "$POSTGRES_IMAGE"
+
+sleep 20
+$DOCKER inspect --format='{{.State.Status}}' test_postgres_legacy_migration 2>/dev/null \
+  | grep -q running && pass "Postgres legacy migration: wrapper starts on existing postgres-owned data directory" \
+  || fail "Postgres legacy migration: wrapper failed on existing postgres-owned data directory"
+$DOCKER exec test_postgres_legacy_migration env PGPASSWORD=adminpass \
+  psql -h localhost -U postgres_admin -d postgres -c "SELECT current_user;" \
+  | grep -q postgres_admin && pass "Postgres legacy migration: postgres_admin is available after fallback bootstrap" \
+  || fail "Postgres legacy migration: postgres_admin was not created"
+$DOCKER exec test_postgres_legacy_migration env PGPASSWORD=ncpass \
+  psql -h localhost -U nextcloud_user -d nextcloud -c "CREATE TABLE migration_smoke(id int);" \
+  >/dev/null 2>&1 && pass "Postgres legacy migration: nextcloud role owns migrated database" \
+  || fail "Postgres legacy migration: nextcloud role cannot manage migrated database"
+$DOCKER exec test_postgres_legacy_migration env PGPASSWORD=plpass \
+  psql -h localhost -U paperless_user -d paperless -c "CREATE TABLE migration_smoke(id int);" \
+  >/dev/null 2>&1 && pass "Postgres legacy migration: paperless role owns migrated database" \
+  || fail "Postgres legacy migration: paperless role cannot manage migrated database"
+$DOCKER exec test_postgres_legacy_migration env PGPASSWORD=sempass \
+  psql -h localhost -U semaphore_user -d semaphore -c "CREATE TABLE migration_smoke(id int);" \
+  >/dev/null 2>&1 && pass "Postgres legacy migration: semaphore role owns migrated database" \
+  || fail "Postgres legacy migration: semaphore role cannot manage migrated database"
+
+cleanup test_postgres_legacy_migration
+cleanup_dir "$TEST_PG_LEGACY_DATA"
+cleanup_dir "$TEST_PG_LEGACY_INIT"
+rm -rf "$TEST_PG_LEGACY_DIR"
+echo ""
+
+# ---------------------------------------------------------------------------
+echo "--- TEST-02D: PostgreSQL Arbitrary Legacy Superuser Migration ---"
+TEST_PG_CUSTOM_DIR=$(mktemp -d)
+TEST_PG_CUSTOM_DATA="$TEST_PG_CUSTOM_DIR/pgdata"
+TEST_PG_CUSTOM_INIT="$TEST_PG_CUSTOM_DIR/custom-init"
+mkdir -p "$TEST_PG_CUSTOM_DATA" "$TEST_PG_CUSTOM_INIT"
+chmod 0750 "$TEST_PG_CUSTOM_DATA" "$TEST_PG_CUSTOM_INIT"
+install -m 0755 "$REPO_ROOT/roles/nextcloud/files/db_wrapper.sh" \
+  "$TEST_PG_CUSTOM_INIT/db_wrapper.sh"
+$DOCKER run --rm -v "$TEST_PG_CUSTOM_DATA":/target alpine chown 999:999 /target
+$DOCKER run --rm -v "$TEST_PG_CUSTOM_INIT":/target alpine chown -R 999:999 /target
+
+$DOCKER run -d --name test_postgres_custom_seed \
+  --user 999:999 \
+  --cap-drop=ALL \
+  --security-opt=no-new-privileges:true \
+  --memory=2g --memory-swap=2g \
+  --shm-size=256m \
+  --env POSTGRES_USER=legacy_admin \
+  --env POSTGRES_PASSWORD=legacysecret \
+  --env POSTGRES_DB=nextcloud \
+  --volume "$TEST_PG_CUSTOM_DATA":/var/lib/postgresql/data \
+  "$POSTGRES_IMAGE"
+
+sleep 15
+$DOCKER exec test_postgres_custom_seed env PGPASSWORD=legacysecret \
+  psql -h localhost -U legacy_admin -d postgres \
+  -c "CREATE DATABASE paperless OWNER legacy_admin;"
+$DOCKER exec test_postgres_custom_seed env PGPASSWORD=legacysecret \
+  psql -h localhost -U legacy_admin -d postgres \
+  -c "CREATE DATABASE semaphore OWNER legacy_admin;"
+
+cleanup test_postgres_custom_seed
+
+$DOCKER run -d --name test_postgres_custom_migration \
+  --user 999:999 \
+  --cap-drop=ALL \
+  --security-opt=no-new-privileges:true \
+  --memory=2g --memory-swap=2g \
+  --shm-size=256m \
+  --env POSTGRES_USER=postgres_admin \
+  --env POSTGRES_PASSWORD=adminpass \
+  --env POSTGRES_LEGACY_BOOTSTRAP_USER=legacy_admin \
+  --env POSTGRES_LEGACY_BOOTSTRAP_PASSWORD=legacysecret \
+  --env POSTGRES_DB=nextcloud \
+  --env NEXTCLOUD_DB_NAME=nextcloud \
+  --env NEXTCLOUD_DB_USER=nextcloud_user \
+  --env NEXTCLOUD_DB_PASSWORD=ncpass \
+  --env PAPERLESS_DB_NAME=paperless \
+  --env PAPERLESS_DB_USER=paperless_user \
+  --env PAPERLESS_DB_PASSWORD=plpass \
+  --env SEMAPHORE_DB_NAME=semaphore \
+  --env SEMAPHORE_DB_USER=semaphore_user \
+  --env SEMAPHORE_DB_PASSWORD=sempass \
+  --volume "$TEST_PG_CUSTOM_DATA":/var/lib/postgresql/data \
+  --volume "$TEST_PG_CUSTOM_INIT":/custom-init \
+  --entrypoint /custom-init/db_wrapper.sh \
+  "$POSTGRES_IMAGE"
+
+sleep 20
+$DOCKER inspect --format='{{.State.Status}}' test_postgres_custom_migration 2>/dev/null \
+  | grep -q running && pass "Postgres custom migration: wrapper starts with explicit legacy bootstrap credentials" \
+  || fail "Postgres custom migration: wrapper failed with explicit legacy bootstrap credentials"
+$DOCKER exec test_postgres_custom_migration env PGPASSWORD=adminpass \
+  psql -h localhost -U postgres_admin -d postgres -c "SELECT current_user;" \
+  | grep -q postgres_admin && pass "Postgres custom migration: postgres_admin is available after legacy bootstrap override" \
+  || fail "Postgres custom migration: postgres_admin was not created"
+$DOCKER exec test_postgres_custom_migration env PGPASSWORD=ncpass \
+  psql -h localhost -U nextcloud_user -d nextcloud -c "CREATE TABLE migration_smoke(id int);" \
+  >/dev/null 2>&1 && pass "Postgres custom migration: nextcloud role owns migrated database" \
+  || fail "Postgres custom migration: nextcloud role cannot manage migrated database"
+$DOCKER exec test_postgres_custom_migration env PGPASSWORD=plpass \
+  psql -h localhost -U paperless_user -d paperless -c "CREATE TABLE migration_smoke(id int);" \
+  >/dev/null 2>&1 && pass "Postgres custom migration: paperless role owns migrated database" \
+  || fail "Postgres custom migration: paperless role cannot manage migrated database"
+$DOCKER exec test_postgres_custom_migration env PGPASSWORD=sempass \
+  psql -h localhost -U semaphore_user -d semaphore -c "CREATE TABLE migration_smoke(id int);" \
+  >/dev/null 2>&1 && pass "Postgres custom migration: semaphore role owns migrated database" \
+  || fail "Postgres custom migration: semaphore role cannot manage migrated database"
+
+cleanup test_postgres_custom_migration
+cleanup_dir "$TEST_PG_CUSTOM_DATA"
+cleanup_dir "$TEST_PG_CUSTOM_INIT"
+rm -rf "$TEST_PG_CUSTOM_DIR"
+echo ""
+
+# ---------------------------------------------------------------------------
+echo "--- TEST-02E: PostgreSQL Mixed Object Ownership Migration ---"
+TEST_PG_MIXED_DIR=$(mktemp -d)
+TEST_PG_MIXED_DATA="$TEST_PG_MIXED_DIR/pgdata"
+TEST_PG_MIXED_INIT="$TEST_PG_MIXED_DIR/custom-init"
+mkdir -p "$TEST_PG_MIXED_DATA" "$TEST_PG_MIXED_INIT"
+chmod 0750 "$TEST_PG_MIXED_DATA" "$TEST_PG_MIXED_INIT"
+install -m 0755 "$REPO_ROOT/roles/nextcloud/files/db_wrapper.sh" \
+  "$TEST_PG_MIXED_INIT/db_wrapper.sh"
+$DOCKER run --rm -v "$TEST_PG_MIXED_DATA":/target alpine chown 999:999 /target
+$DOCKER run --rm -v "$TEST_PG_MIXED_INIT":/target alpine chown -R 999:999 /target
+
+$DOCKER run -d --name test_postgres_mixed_seed \
+  --user 999:999 \
+  --cap-drop=ALL \
+  --security-opt=no-new-privileges:true \
+  --memory=2g --memory-swap=2g \
+  --shm-size=256m \
+  --env POSTGRES_USER=postgres_admin \
+  --env POSTGRES_PASSWORD=adminpass \
+  --env POSTGRES_DB=nextcloud \
+  --volume "$TEST_PG_MIXED_DATA":/var/lib/postgresql/data \
+  "$POSTGRES_IMAGE"
+
+sleep 15
+$DOCKER exec test_postgres_mixed_seed env PGPASSWORD=adminpass \
+  psql -h localhost -U postgres_admin -d postgres \
+  -c "CREATE ROLE nextcloud_user LOGIN PASSWORD 'ncpass';"
+$DOCKER exec test_postgres_mixed_seed env PGPASSWORD=adminpass \
+  psql -h localhost -U postgres_admin -d postgres \
+  -c "CREATE ROLE paperless_user LOGIN PASSWORD 'plpass';"
+$DOCKER exec test_postgres_mixed_seed env PGPASSWORD=adminpass \
+  psql -h localhost -U postgres_admin -d postgres \
+  -c "CREATE ROLE semaphore_user LOGIN PASSWORD 'sempass';"
+$DOCKER exec test_postgres_mixed_seed env PGPASSWORD=adminpass \
+  psql -h localhost -U postgres_admin -d postgres \
+  -c "CREATE DATABASE paperless OWNER paperless_user;"
+$DOCKER exec test_postgres_mixed_seed env PGPASSWORD=adminpass \
+  psql -h localhost -U postgres_admin -d postgres \
+  -c "CREATE DATABASE semaphore OWNER semaphore_user;"
+$DOCKER exec test_postgres_mixed_seed env PGPASSWORD=adminpass \
+  psql -h localhost -U postgres_admin -d semaphore \
+  -c "CREATE TABLE django_migrations (id serial primary key, app text, name text, applied timestamptz);"
+
+cleanup test_postgres_mixed_seed
+
+$DOCKER run -d --name test_postgres_mixed_migration \
+  --user 999:999 \
+  --cap-drop=ALL \
+  --security-opt=no-new-privileges:true \
+  --memory=2g --memory-swap=2g \
+  --shm-size=256m \
+  --env POSTGRES_USER=postgres_admin \
+  --env POSTGRES_PASSWORD=adminpass \
+  --env POSTGRES_DB=nextcloud \
+  --env NEXTCLOUD_DB_NAME=nextcloud \
+  --env NEXTCLOUD_DB_USER=nextcloud_user \
+  --env NEXTCLOUD_DB_PASSWORD=ncpass \
+  --env PAPERLESS_DB_NAME=paperless \
+  --env PAPERLESS_DB_USER=paperless_user \
+  --env PAPERLESS_DB_PASSWORD=plpass \
+  --env SEMAPHORE_DB_NAME=semaphore \
+  --env SEMAPHORE_DB_USER=semaphore_user \
+  --env SEMAPHORE_DB_PASSWORD=sempass \
+  --volume "$TEST_PG_MIXED_DATA":/var/lib/postgresql/data \
+  --volume "$TEST_PG_MIXED_INIT":/custom-init \
+  --entrypoint /custom-init/db_wrapper.sh \
+  "$POSTGRES_IMAGE"
+
+sleep 20
+$DOCKER inspect --format='{{.State.Status}}' test_postgres_mixed_migration 2>/dev/null \
+  | grep -q running && pass "Postgres mixed migration: wrapper starts with existing service-owned databases" \
+  || fail "Postgres mixed migration: wrapper failed with existing service-owned databases"
+$DOCKER exec test_postgres_mixed_migration env PGPASSWORD=sempass \
+  psql -h localhost -U semaphore_user -d semaphore \
+  -c "SELECT * FROM django_migrations; INSERT INTO django_migrations(app, name) VALUES ('main', '0001_initial');" \
+  >/dev/null 2>&1 && pass "Postgres mixed migration: semaphore role can access legacy admin-owned tables after normalization" \
+  || fail "Postgres mixed migration: semaphore role still cannot access legacy admin-owned tables"
+
+cleanup test_postgres_mixed_migration
+cleanup_dir "$TEST_PG_MIXED_DATA"
+cleanup_dir "$TEST_PG_MIXED_INIT"
+rm -rf "$TEST_PG_MIXED_DIR"
 echo ""
 
 # ---------------------------------------------------------------------------

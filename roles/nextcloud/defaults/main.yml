@@ -16,6 +16,13 @@ postgres_admin_user: ""
 # Password for the PostgreSQL admin user
 postgres_admin_password: ""
 
+# Optional legacy PostgreSQL superuser to use once during migrations from an
+# older cluster that was bootstrapped with a different admin role.
+postgres_legacy_bootstrap_user: ""
+
+# Password for the optional legacy PostgreSQL bootstrap user
+postgres_legacy_bootstrap_password: ""
+
 # PostgreSQL database name for Nextcloud
 nextcloud_database_name: ""
 

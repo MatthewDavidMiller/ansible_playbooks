@@ -87,6 +87,8 @@ This host runs all services consolidated. It uses Traefik v3 as the reverse prox
 | `nextcloud_disk` | string | UUID of Nextcloud data disk | `UUID=abc123...` |
 | `postgres_admin_user` | string | PostgreSQL admin username used for DB/bootstrap tasks | `postgres_admin` |
 | `postgres_admin_password` | string | PostgreSQL admin password | `secret` |
+| `postgres_legacy_bootstrap_user` | string | Optional old PostgreSQL superuser used to migrate an existing cluster | `legacy_admin` |
+| `postgres_legacy_bootstrap_password` | string | Optional password for `postgres_legacy_bootstrap_user` | `secret` |
 | `nextcloud_database_name` | string | Nextcloud database | `nextcloud` |
 | `nextcloud_homelab_user` | string | Nextcloud account name used for backup file paths (e.g. `nextcloud_path/data/<user>/files/`) | `nextcloud_user` |
 | `nextcloud_db_user` | string | Nextcloud database username | `nextcloud_user` |

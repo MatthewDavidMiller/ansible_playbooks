@@ -123,6 +123,8 @@ all:
           nextcloud_paperless_backup_location: Nextcloud:backup/nextcloud
           postgres_admin_user: postgres_admin
           postgres_admin_password: example_admin_password
+          postgres_legacy_bootstrap_user: ""
+          postgres_legacy_bootstrap_password: ""
           nextcloud_database_name: nextcloud
           nextcloud_homelab_user: nextcloud_user
           nextcloud_db_user: nextcloud_user
