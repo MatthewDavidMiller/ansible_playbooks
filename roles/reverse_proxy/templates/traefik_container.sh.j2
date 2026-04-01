@@ -1,10 +1,18 @@
+#!/bin/bash
+set -euo pipefail
+
+set -a
+. "{{ secret_env_dir }}/traefik.env"
+set +a
+
 /usr/bin/podman pull {{ traefik_image }}
-/usr/bin/podman run \
+exec /usr/bin/podman run \
   --name=traefik \
 {% for net in traefik_networks %}
   --network={{ net }} \
 {% endfor %}
-  --env-file {{ secret_env_dir }}/traefik.env \
+  --env PORKBUN_API_KEY \
+  --env PORKBUN_SECRET_API_KEY \
   -v {{ traefik_path }}/traefik.yml:/etc/traefik/traefik.yml:Z,ro \
   -v {{ traefik_path }}/config:/etc/traefik/config:Z,ro \
   -v {{ traefik_path }}/acme.json:/acme.json:Z \

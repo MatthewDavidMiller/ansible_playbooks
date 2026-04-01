@@ -1,7 +1,25 @@
+#!/bin/bash
+set -euo pipefail
+
+set -a
+. "{{ secret_env_dir }}/semaphore.env"
+set +a
+
 /usr/bin/podman pull {{ semaphore_image }}
-/usr/bin/podman run \
+exec /usr/bin/podman run \
 --name semaphore \
---env-file {{ secret_env_dir }}/semaphore.env \
+--env SEMAPHORE_DB_DIALECT \
+--env SEMAPHORE_DB_HOST \
+--env SEMAPHORE_DB_NAME \
+--env SEMAPHORE_DB_USER \
+--env SEMAPHORE_DB_PASS \
+--env SEMAPHORE_ADMIN \
+--env SEMAPHORE_ADMIN_PASSWORD \
+--env SEMAPHORE_ADMIN_NAME \
+--env SEMAPHORE_ADMIN_EMAIL \
+--env SEMAPHORE_ACCESS_KEY_ENCRYPTION \
+--env ANSIBLE_SSH_ARGS \
+--env TZ \
 --network semaphore_container_net \
 --network nextcloud_container_net \
 --volume /etc/semaphore/ssh_known_hosts:/etc/semaphore/ssh_known_hosts:Z,ro \

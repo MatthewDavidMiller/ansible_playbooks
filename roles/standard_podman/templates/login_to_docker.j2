@@ -6,10 +6,9 @@ After=network-online.target
 
 [Service]
 Environment=PODMAN_SYSTEMD_UNIT=%n
-EnvironmentFile={{ secret_env_dir }}/docker_login.env
 Restart=on-failure
 TimeoutStopSec=70
-ExecStart=/usr/bin/bash -lc 'printf "%s\n" "$DOCKER_PASSWORD" | /usr/bin/podman login --username "$DOCKER_USERNAME" --password-stdin docker.io'
+ExecStart=/usr/bin/bash -lc 'set -a; . "{{ secret_env_dir }}/docker_login.env"; set +a; printf "%s\n" "$DOCKER_PASSWORD" | /usr/bin/podman login --username "$DOCKER_USERNAME" --password-stdin docker.io'
 Type=oneshot
 RemainAfterExit=true
 

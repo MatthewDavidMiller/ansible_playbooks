@@ -131,18 +131,19 @@ This document records explicit design decisions — approaches considered but ul
 
 ---
 
-## Decision: Root-Only Runtime Env Files
+## Decision: Root-Only Runtime Env Files Are Shell-Sourced
 
-**Decision:** Sensitive runtime values are rendered to root-only env files under `secret_env_dir` and loaded by systemd or Podman with `EnvironmentFile=` / `--env-file`.
+**Decision:** Sensitive runtime values are rendered to root-only env files under `secret_env_dir` as shell-compatible assignments and loaded only by `bash` source commands inside launch paths.
 
 **Rationale:**
 - Avoids embedding secrets directly in unit `ExecStart` lines or shell scripts that are otherwise readable for troubleshooting.
 - Keeps the host-side exposure model simple for a homelab: secrets exist on disk, but only in root-readable files.
-- Works cleanly with Podman/systemd and does not require an external secret manager.
+- Prevents parser drift across systemd, bash, and Podman. The repo now treats bash as the single parser for these files, then passes exported variable names into Podman.
 
 **How to apply:**
-- Store service credentials in `{{ secret_env_dir }}/<service>.env` with mode `0600`.
-- Launch scripts may remain `0700`, but should contain paths to env files rather than plaintext secret values whenever practical.
+- Store service credentials in `{{ secret_env_dir }}/<service>.env` with mode `0600` and shell-safe `KEY={{ value | quote }}` assignments.
+- Source those files with `set -a; . <file>; set +a` inside `bash -lc` or the service launch script.
+- Do not use `EnvironmentFile=` or `podman run --env-file` for these secret files.
 
 ---
 

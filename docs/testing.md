@@ -25,6 +25,7 @@ git config core.hooksPath hooks
 cd /home/matthew/matt_dev/ansible_playbooks
 XDG_CACHE_HOME=/tmp/.cache ANSIBLE_LOCAL_TEMP=/tmp/.ansible-local ANSIBLE_REMOTE_TEMP=/tmp/.ansible-remote ansible-lint vm1.yml
 ANSIBLE_LOCAL_TEMP=/tmp/.ansible-local ANSIBLE_REMOTE_TEMP=/tmp/.ansible-remote ansible-playbook --syntax-check -i example_inventory.yml vm1.yml
+bash scripts/test_shell_secret_env.sh
 bash scripts/test_container_security.sh 2>&1 | tee /tmp/container_test_results.txt
 grep -E "^(PASS|FAIL|WARN|INFO)" /tmp/container_test_results.txt
 ```
@@ -63,9 +64,28 @@ bash scripts/test_container_security.sh
 
 ---
 
+## Shell-Sourced Env Regression Testing
+
+`scripts/test_shell_secret_env.sh` renders the affected templates locally and checks the parser-specific invariants for the secret env migration:
+
+- Special-character values containing `;`, backslashes, single quotes, and double quotes survive `bash -lc 'set -a; . file; env'` unchanged.
+- `login_to_docker.service` no longer uses `EnvironmentFile=`.
+- Service launch scripts no longer use `--env-file`.
+- Service launch scripts source the correct file under `secret_env_dir` before `podman run`.
+- Each sourced variable expected by a container is passed with `--env VAR_NAME`.
+
+Run it directly:
+
+```bash
+bash scripts/test_shell_secret_env.sh
+```
+
+---
+
 ## Expected Outcomes
 
 - `ansible-lint` and `--syntax-check` complete without errors.
+- `scripts/test_shell_secret_env.sh` reports `PASS` for shell quoting and generated launch artifact checks.
 - VM1 container tests report `PASS` for PostgreSQL, Redis, Nextcloud, Traefik (cap-added case), Paperless, Vaultwarden, Semaphore, and Navidrome.
 - Traefik without `NET_BIND_SERVICE` and WireGuard on hosts without the kernel module may emit `INFO`/`WARN`; these are informational environment-dependent checks, not automatic failures.
 
@@ -73,6 +93,6 @@ bash scripts/test_container_security.sh
 
 ## Notes
 
-- Because VM1 now uses root-only env files under `secret_env_dir`, local syntax and lint checks are the primary guardrail for template rendering problems.
+- Because VM1 now uses shell-sourced root-only env files under `secret_env_dir`, run `scripts/test_shell_secret_env.sh` after touching env templates or launch scripts so parser regressions are caught before deployment.
 - Semaphore host verification depends on real `semaphore_known_hosts` content in inventory; the container security script validates the runtime SSH args shape, not your real host keys.
 - VM1 backups remain intentionally unencrypted for this homelab. The hardening focus is on safer temp-file handling and reduced credential exposure, not backup-at-rest encryption.

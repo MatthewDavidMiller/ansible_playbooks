@@ -51,7 +51,7 @@
   ansible.builtin.copy:
     dest: "{{ secret_env_dir }}/redis.env"
     content: |
-      TZ=America/New_York
+      TZ={{ 'America/New_York' | quote }}
     owner: root
     group: root
     mode: "0600"

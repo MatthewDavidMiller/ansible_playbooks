@@ -1,8 +1,15 @@
+#!/bin/bash
+set -euo pipefail
+
+set -a
+. "{{ secret_env_dir }}/redis.env"
+set +a
+
 /usr/bin/podman pull {{ redis_image }}
-/usr/bin/podman run \
+exec /usr/bin/podman run \
 --name=redis \
 --network=nextcloud_container_net \
---env-file {{ secret_env_dir }}/redis.env \
+--env TZ \
 --memory=256m \
 --memory-swap=256m \
 --cap-drop=ALL \

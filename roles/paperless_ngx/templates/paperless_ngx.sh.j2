@@ -1,8 +1,24 @@
+#!/bin/bash
+set -euo pipefail
+
+set -a
+. "{{ secret_env_dir }}/paperless.env"
+set +a
+
 /usr/bin/podman pull {{ paperless_image }}
-/usr/bin/podman run \
+exec /usr/bin/podman run \
 --name=paperless \
 --network=nextcloud_container_net \
---env-file {{ secret_env_dir }}/paperless.env \
+--env PAPERLESS_REDIS \
+--env PAPERLESS_DBHOST \
+--env PAPERLESS_DBNAME \
+--env PAPERLESS_DBUSER \
+--env PAPERLESS_DBPASS \
+--env USERMAP_UID \
+--env USERMAP_GID \
+--env PAPERLESS_TIME_ZONE \
+--env PAPERLESS_OCR_LANGUAGE \
+--env PAPERLESS_URL \
 -v {{ paperless_data_path }}:/usr/src/paperless/data:Z \
 -v {{ paperless_media_path }}:/usr/src/paperless/media:Z \
 -v {{ paperless_export_path }}:/usr/src/paperless/export:Z \
