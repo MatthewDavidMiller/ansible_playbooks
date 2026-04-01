@@ -14,14 +14,12 @@
   ansible.posix.firewalld:
     zone: public
     target: DROP
-    immediate: true
     permanent: true
     state: present
 
 - name: Create new zone and set it to drop
   ansible.posix.firewalld:
     zone: homelab
-    immediate: true
     permanent: true
     state: present
 
@@ -29,7 +27,6 @@
   ansible.posix.firewalld:
     zone: homelab
     target: DROP
-    immediate: true
     permanent: true
     state: present
 
@@ -37,7 +34,6 @@
   ansible.posix.firewalld:
     zone: homelab
     source: "{{ management_network }}"
-    immediate: true
     permanent: true
     state: enabled
 
@@ -45,7 +41,6 @@
   ansible.posix.firewalld:
     zone: homelab
     source: "{{ ip_ansible }}"
-    immediate: true
     permanent: true
     state: enabled
   when: ip_ansible is defined
@@ -54,7 +49,6 @@
   ansible.posix.firewalld:
     zone: homelab
     icmp_block_inversion: true
-    immediate: true
     permanent: true
     state: enabled
 
@@ -62,7 +56,6 @@
   ansible.posix.firewalld:
     zone: homelab
     service: ssh
-    immediate: true
     permanent: true
     state: enabled
 
@@ -70,7 +63,6 @@
   ansible.posix.firewalld:
     zone: homelab
     icmp_block: echo-request
-    immediate: true
     permanent: true
     state: enabled
 
@@ -78,7 +70,6 @@
   ansible.posix.firewalld:
     zone: public
     service: ssh
-    immediate: true
     permanent: true
     state: disabled
 
@@ -86,7 +77,6 @@
   ansible.posix.firewalld:
     zone: public
     port: 22/tcp
-    immediate: true
     permanent: true
     state: disabled
 
@@ -94,7 +84,6 @@
   ansible.posix.firewalld:
     zone: public
     service: cockpit
-    immediate: true
     permanent: true
     state: disabled
 
@@ -102,7 +91,6 @@
   ansible.posix.firewalld:
     zone: public
     service: dhcpv6-client
-    immediate: true
     permanent: true
     state: disabled
 
@@ -110,7 +98,6 @@
   ansible.posix.firewalld:
     zone: public
     service: mdns
-    immediate: true
     permanent: true
     state: disabled
 
@@ -118,7 +105,6 @@
   ansible.posix.firewalld:
     zone: public
     interface: "{{ default_interface }}"
-    immediate: true
     permanent: true
     state: enabled
 
