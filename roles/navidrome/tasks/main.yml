@@ -21,25 +21,33 @@
       - navidrome_container_net
   when: navidrome_network.rc != 0
 
-- name: Create Navidrome container path
+- name: Create Navidrome managed paths
   ansible.builtin.file:
-    path: "{{ navidrome_path }}"
+    path: "{{ item.path }}"
     state: directory
+    owner: "{{ navidrome_uid }}"
+    group: "{{ navidrome_gid }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - path: "{{ navidrome_path }}"
+      mode: "0750"
+    - path: "{{ navidrome_path }}/music"
+      mode: "0750"
+    - path: "{{ navidrome_path }}/data"
+      mode: "0700"
+    - path: "{{ navidrome_path }}/backup"
+      mode: "0700"
 
-- name: Create Navidrome container music path
+- name: Align Navidrome writable path ownership
   ansible.builtin.file:
-    path: "{{ navidrome_path }}/music"
+    path: "{{ item }}"
     state: directory
-
-- name: Create Navidrome container data path
-  ansible.builtin.file:
-    path: "{{ navidrome_path }}/data"
-    state: directory
-
-- name: Create Navidrome container backup path
-  ansible.builtin.file:
-    path: "{{ navidrome_path }}/backup"
-    state: directory
+    owner: "{{ navidrome_uid }}"
+    group: "{{ navidrome_gid }}"
+    recurse: true
+  loop:
+    - "{{ navidrome_path }}/data"
+    - "{{ navidrome_path }}/backup"
 
 - name: Navidrome Service
   ansible.builtin.template:

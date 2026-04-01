@@ -289,6 +289,7 @@ The daily backup script (`backup_navidrome.sh`) branches on `backup_local`:
 
 **Notes:**
 - Navidrome runs with an explicit non-root UID/GID so it does not inherit root from the systemd context.
+- The role creates `{{ navidrome_path }}` and `music` as `0750`, and `data` and `backup` as `0700`, all owned by `navidrome_uid:navidrome_gid`, so the container can access its bind mounts without leaving them at host umask defaults.
 - When `navidrome_local_music_path` points into `{{ nextcloud_path }}/data/...`, the systemd unit waits for that path and starts after `nextcloud_container.service` so the library is present after boot.
 
 ---

@@ -33,7 +33,9 @@ nextcloud_webdav_pass: ""
 # OS user that owns the backup shell script
 user_name: ""
 
-# Explicit container UID/GID to avoid inheriting root from the systemd context
+# Explicit container UID/GID to avoid inheriting root from the systemd context.
+# Navidrome-managed directories under navidrome_path are created with this ownership.
+# The role sets explicit directory modes: 0750 for navidrome_path/music and 0700 for data/backup.
 navidrome_uid: "33"
 navidrome_gid: "33"
 
