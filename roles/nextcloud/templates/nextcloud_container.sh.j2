@@ -1,12 +1,32 @@
+#!/bin/bash
+set -euo pipefail
+
+set -a
+. "{{ secret_env_dir }}/nextcloud.env"
+set +a
+
 /usr/bin/podman pull {{ nextcloud_image }}
-/usr/bin/podman run \
+exec /usr/bin/podman run \
 --name=nextcloud \
 --network=nextcloud_container_net \
 --volume {{ nextcloud_path }}/base:/var/www/html/:Z \
 --volume {{ nextcloud_path }}/data:/var/www/html/data/:Z \
 --volume {{ nextcloud_path }}/config:/var/www/html/config/:Z \
 --volume {{ nextcloud_path }}/apps:/var/www/html/custom_apps/:Z \
---env-file {{ secret_env_dir }}/nextcloud.env \
+--env POSTGRES_DB \
+--env POSTGRES_USER \
+--env POSTGRES_PASSWORD \
+--env NEXTCLOUD_ADMIN_USER \
+--env NEXTCLOUD_ADMIN_PASSWORD \
+--env NEXTCLOUD_TRUSTED_DOMAINS \
+--env POSTGRES_HOST \
+--env TRUSTED_PROXIES \
+--env OVERWRITEPROTOCOL \
+--env OVERWRITECLIURL \
+--env PHP_UPLOAD_LIMIT \
+--env APACHE_BODY_LIMIT \
+--env REDIS_HOST \
+--env TZ \
 --memory=2g \
 --memory-swap=2g \
 --pids-limit=500 \

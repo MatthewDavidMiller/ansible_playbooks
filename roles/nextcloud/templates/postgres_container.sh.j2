@@ -1,11 +1,30 @@
+#!/bin/bash
+set -euo pipefail
+
+set -a
+. "{{ secret_env_dir }}/postgres.env"
+set +a
+
 /usr/bin/podman pull {{ postgres_image }}
-/usr/bin/podman run \
+exec /usr/bin/podman run \
 --name=postgres \
 --user=999:999 \
 --network=nextcloud_container_net \
 --volume {{ postgres_path }}/pgdata:/var/lib/postgresql/data/:Z \
 --volume {{ postgres_path }}/custom-init:/custom-init/:Z \
---env-file {{ secret_env_dir }}/postgres.env \
+--env POSTGRES_USER \
+--env POSTGRES_PASSWORD \
+--env POSTGRES_DB \
+--env NEXTCLOUD_DB_NAME \
+--env NEXTCLOUD_DB_USER \
+--env NEXTCLOUD_DB_PASSWORD \
+--env PAPERLESS_DB_NAME \
+--env PAPERLESS_DB_USER \
+--env PAPERLESS_DB_PASSWORD \
+--env SEMAPHORE_DB_NAME \
+--env SEMAPHORE_DB_USER \
+--env SEMAPHORE_DB_PASSWORD \
+--env TZ \
 --entrypoint /custom-init/db_wrapper.sh \
 --memory=2g \
 --memory-swap=2g \
