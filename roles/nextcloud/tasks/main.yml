@@ -186,8 +186,8 @@
     mode: "0700"
 
 - name: Postgres db_wrapper script
-  ansible.builtin.template:
-    src: db_wrapper.sh.j2
+  ansible.builtin.copy:
+    src: db_wrapper.sh
     dest: "{{ postgres_path }}/custom-init/db_wrapper.sh"
     owner: "999"
     group: "999"

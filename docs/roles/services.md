@@ -106,6 +106,8 @@ Deploys Nextcloud with PostgreSQL 17 and Redis. Also sets up Borg backup and cre
 | `nextcloud_disk` | string | UUID of Nextcloud data disk | `UUID=abc123...` |
 | `postgres_admin_user` | string | PostgreSQL admin role for bootstrap/maintenance | `postgres_admin` |
 | `postgres_admin_password` | string | PostgreSQL admin password | `secret` |
+| `postgres_legacy_bootstrap_user` | string | Optional old PostgreSQL superuser name for one-time migrations | `legacy_admin` |
+| `postgres_legacy_bootstrap_password` | string | Optional password for the legacy PostgreSQL superuser | `secret` |
 | `nextcloud_database_name` | string | Database name | `nextcloud` |
 | `nextcloud_db_user` | string | Nextcloud database username | `nextcloud_user` |
 | `nextcloud_db_password` | string | Nextcloud database password | `secret` |
@@ -124,7 +126,7 @@ Deploys Nextcloud with PostgreSQL 17 and Redis. Also sets up Borg backup and cre
 | `redis_container.service.j2` | `/etc/systemd/system/redis_container.service` | Systemd unit |
 | `nextcloud_container.sh.j2` | `/usr/local/bin/nextcloud_container.sh` | Nextcloud container launch script |
 | `nextcloud_container.service.j2` | `/etc/systemd/system/nextcloud_container.service` | Systemd unit |
-| `db_wrapper.sh.j2` | `/usr/local/bin/db_wrapper.sh` | Database maintenance wrapper |
+| `db_wrapper.sh` | `/usr/local/bin/db_wrapper.sh` | Database maintenance wrapper |
 | `backup_nextcloud_paperless.sh.j2` | `/usr/local/bin/backup_nextcloud_paperless.sh` | Daily Borg backup script for Nextcloud + Paperless |
 | `postgres.env.j2` | `{{ secret_env_dir }}/postgres.env` | Root-only PostgreSQL bootstrap env file |
 | `nextcloud.env.j2` | `{{ secret_env_dir }}/nextcloud.env` | Root-only Nextcloud app/env file |

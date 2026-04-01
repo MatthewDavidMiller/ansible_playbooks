@@ -14,6 +14,8 @@ exec /usr/bin/podman run \
 --volume {{ postgres_path }}/custom-init:/custom-init/:Z \
 --env POSTGRES_USER \
 --env POSTGRES_PASSWORD \
+--env POSTGRES_LEGACY_BOOTSTRAP_USER \
+--env POSTGRES_LEGACY_BOOTSTRAP_PASSWORD \
 --env POSTGRES_DB \
 --env NEXTCLOUD_DB_NAME \
 --env NEXTCLOUD_DB_USER \
