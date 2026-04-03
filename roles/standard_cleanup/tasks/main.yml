@@ -26,6 +26,7 @@
   ignore_errors: true
   register: podman_image_prune
   changed_when: podman_image_prune.stdout | length > 0
+  when: not (apply_runtime_changes_on_reboot | default(false) | bool)
 
 - name: Prune stopped Podman containers
   ansible.builtin.command: podman container prune -f
@@ -33,6 +34,7 @@
   ignore_errors: true
   register: podman_container_prune
   changed_when: podman_container_prune.stdout | length > 0
+  when: not (apply_runtime_changes_on_reboot | default(false) | bool)
 
 - name: Prune unused Podman volumes
   ansible.builtin.command: podman volume prune -f
@@ -40,6 +42,7 @@
   ignore_errors: true
   register: podman_volume_prune
   changed_when: podman_volume_prune.stdout | length > 0
+  when: not (apply_runtime_changes_on_reboot | default(false) | bool)
 
 - name: Prune unused Podman networks
   ansible.builtin.command: podman network prune -f
@@ -47,3 +50,4 @@
   ignore_errors: true
   register: podman_network_prune
   changed_when: podman_network_prune.stdout | length > 0
+  when: not (apply_runtime_changes_on_reboot | default(false) | bool)

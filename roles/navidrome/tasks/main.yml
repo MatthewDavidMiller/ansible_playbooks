@@ -111,3 +111,4 @@
   ansible.builtin.systemd:
     name: navidrome_container.service
     state: started
+  when: not (apply_runtime_changes_on_reboot | default(false) | bool)

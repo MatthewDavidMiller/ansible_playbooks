@@ -12,13 +12,13 @@ Collection of Ansible playbooks for configuring homelab Linux servers and servic
 ## Quick Start
 
 ```bash
-# Run VM1 (all consolidated services)
+# Run VM1 (stages firewall/container changes; reboot later to apply)
 ansible-playbook -i inventory.yml vm1.yml
 
 # Run all homelab VMs
 ansible-playbook -i inventory.yml homelab_vms.yml
 
-# Run updates + reboot
+# Run updates + reboot (preferred full VM1 cycle)
 ansible-playbook -i inventory.yml update_homelab_vms.yml
 
 # Dry run

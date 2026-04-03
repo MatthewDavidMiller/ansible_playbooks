@@ -62,3 +62,4 @@
   ansible.builtin.systemd:
     name: paperless_ngx.service
     state: started
+  when: not (apply_runtime_changes_on_reboot | default(false) | bool)

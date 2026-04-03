@@ -201,6 +201,7 @@ If you are adding the service to VM1 (ID 120) rather than a dedicated VM:
 - Add all required variables to the `vm1` host entry in inventory
 - If the service uses a Podman network, add that network to `traefik_networks` in the `vm1` inventory entry
 - If the service has a PostgreSQL instance, use a unique path variable (not `postgres_path`) to avoid collisions with other PostgreSQL instances
+- If the role would normally start or reload a live service, guard that task with `when: not (apply_runtime_changes_on_reboot | default(false) | bool)` so VM1 continues staging runtime changes until reboot
 
 ---
 

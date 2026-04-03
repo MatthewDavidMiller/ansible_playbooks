@@ -29,5 +29,10 @@
   ansible.builtin.systemd:
     name: login_to_docker.service
     enabled: true
-    state: started
     daemon_reload: true
+
+- name: Start Login to Docker Service
+  ansible.builtin.systemd:
+    name: login_to_docker.service
+    state: started
+  when: not (apply_runtime_changes_on_reboot | default(false) | bool)

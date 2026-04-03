@@ -4,11 +4,16 @@
     name: firewalld
     state: present
 
-- name: Ensure firewalld is running
+- name: Enable firewalld
   ansible.builtin.systemd:
     name: firewalld.service
     enabled: true
+
+- name: Start firewalld
+  ansible.builtin.systemd:
+    name: firewalld.service
     state: started
+  when: not (apply_runtime_changes_on_reboot | default(false) | bool)
 
 - name: Set default action for public to drop
   ansible.posix.firewalld:
@@ -111,3 +116,4 @@
 - name: Reload firewalld
   ansible.builtin.command: firewall-cmd --reload
   changed_when: false
+  when: not (apply_runtime_changes_on_reboot | default(false) | bool)

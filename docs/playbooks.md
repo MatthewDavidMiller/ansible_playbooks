@@ -30,9 +30,9 @@ This document describes every playbook's purpose, target, and role composition. 
 
 **Roles (in order):** `standard_ssh` → `standard_qemu_guest_agent` → `standard_update_packages` → `configure_timezone` → `standard_cron` → `dynamic_dns` → `standard_firewalld` → `standard_podman` → `standard_rclone` → `standard_selinux` → `backup` → `ansible` → `reverse_proxy` → `nextcloud` → `paperless_ngx` → `navidrome` → `vaultwarden` → `semaphore` → `standard_cleanup`
 
-**Usage:** Configures VM1 (ID 120) — a single Rocky Linux 10 host running all services consolidated. See [architecture.md — VM1 Consolidated VM](architecture.md#vm1-consolidated-vm).
+**Usage:** Configures VM1 (ID 120) — a single Rocky Linux 10 host running all services consolidated. Firewall and container runtime changes are staged during `vm1.yml` and take effect on the next reboot. See [architecture.md — VM1 Consolidated VM](architecture.md#vm1-consolidated-vm).
 
-**Notes:** `nextcloud` must run before `paperless_ngx` because it creates the shared PostgreSQL 17 and Redis containers. `standard_rclone` must run before `standard_selinux` so the FUSE packages exist before the SELinux boolean is set. VM1 now uses per-service PostgreSQL credentials, root-only runtime env files under `secret_env_dir`, explicit image variables for the container tags, management-only Traefik exposure for the dashboard and Semaphore, and local unencrypted backups as an accepted homelab tradeoff.
+**Notes:** `nextcloud` must run before `paperless_ngx` because it creates the shared PostgreSQL 17 and Redis containers. `standard_rclone` must run before `standard_selinux` so the FUSE packages exist before the SELinux boolean is set. VM1 now uses per-service PostgreSQL credentials, root-only runtime env files under `secret_env_dir`, explicit image variables for the container tags, management-only Traefik exposure for the dashboard and Semaphore, and local unencrypted backups as an accepted homelab tradeoff. `update_homelab_vms.yml` is the preferred end-to-end workflow because it runs `vm1.yml` and then reboots VM1 to activate the staged runtime changes.
 
 ---
 
