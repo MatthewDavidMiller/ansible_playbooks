@@ -6,7 +6,7 @@ set -a
 set +a
 
 exec /usr/bin/podman run \
---pull=newer \
+--pull=never \
 --name semaphore \
 --env SEMAPHORE_DB_DIALECT \
 --env SEMAPHORE_DB_HOST \

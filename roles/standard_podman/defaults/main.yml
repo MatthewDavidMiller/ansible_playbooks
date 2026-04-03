@@ -1,11 +1,8 @@
 ---
 # standard_podman role defaults
 
-# Docker Hub username for registry login (used in login_to_docker.service)
-docker_username: ""
-
-# Docker Hub password for registry login
-docker_password: ""
-
 # Root-only directory for runtime environment files
 secret_env_dir: /etc/homelab/secrets
+
+# Approved digest references that should exist locally before services start
+approved_container_images: []

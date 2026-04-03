@@ -11,4 +11,5 @@
     name:
       - ansible-collection-ansible-posix
       - ansible-collection-community-general
+      - ansible-collection-community-crypto
     state: present

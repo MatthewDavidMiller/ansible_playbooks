@@ -3,3 +3,5 @@ env/
 homelab_inventory.yml
 .devcontainer
 .claude/agent-memory/
+__pycache__/
+*.pyc

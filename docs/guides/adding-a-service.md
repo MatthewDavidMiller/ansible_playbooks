@@ -23,10 +23,11 @@ Use the existing active service roles as reference:
 
 - Use Podman + systemd, matching the existing VM1 services.
 - Render sensitive values to `{{ secret_env_dir }}/<service>.env` as root-only shell-sourced files.
-- Use `podman run --pull=newer`.
+- Use `podman run --pull=never`; `standard_podman` is responsible for pre-pulling approved digest refs.
 - Use `:Z` on container-mounted host paths.
 - Put the service on its own Podman network when it needs isolation.
 - If the service is proxied by Traefik, add an entry to `proxy_config` instead of creating a per-service reverse-proxy template.
+- Add the service image to `artifacts/containers.lock.yml` and to `approved_container_images` resolution in `vm1.yml`.
 
 ---
 
@@ -58,3 +59,4 @@ bash scripts/test_shell_secret_env.sh
 ```
 
 Run `bash scripts/test_container_security.sh` when the service changes container hardening or launch semantics.
+If the new service adds or changes an image entry in `artifacts/containers.lock.yml`, follow [container-image-updates.md](container-image-updates.md) before deploying it.

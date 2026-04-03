@@ -1,0 +1,61 @@
+---
+# Promotion metadata for maintained VM1 container images.
+# Update approved digests by running scripts/promote_artifacts.py when you
+# intentionally promote newer upstream tags.
+artifact_locked_images:
+  traefik:
+    upstream_ref: public.ecr.aws/docker/library/traefik:v3
+    approved_tag: v3
+    approved_digest: sha256:171c9c3565b29f6c133f1c1b43c5d4e5853415198e9e1078c001f8702ff66aec
+    internal_repo: homelab/traefik
+    signature_required: false
+    notes: Approved from public.ecr.aws/docker/library/traefik:v3 on 2026-04-03 after digest review. No Cosign signature was published for this digest.
+  postgres:
+    upstream_ref: public.ecr.aws/docker/library/postgres:17
+    approved_tag: "17"
+    approved_digest: sha256:b994732fcf33f73776c65d3a5bf1f80c00120ba5007e8ab90307b1a743c1fc16
+    internal_repo: homelab/postgres
+    signature_required: false
+    notes: Approved from public.ecr.aws/docker/library/postgres:17 on 2026-04-03 after digest review. No Cosign signature was published for this digest.
+  redis:
+    upstream_ref: public.ecr.aws/docker/library/redis:8
+    approved_tag: "8"
+    approved_digest: sha256:009cc37796fbdbe1b631b4cc0582bed167e5e403ed8bcd06f77eb6cb5aeb6f93
+    internal_repo: homelab/redis
+    signature_required: false
+    notes: Approved from public.ecr.aws/docker/library/redis:8 on 2026-04-03 after digest review. No Cosign signature was published for this digest.
+  nextcloud:
+    upstream_ref: public.ecr.aws/docker/library/nextcloud:latest
+    approved_tag: latest
+    approved_digest: sha256:2176a451aa8fbd9f003a3d745978377e9a5213850e0181f4bcb24be63885175b
+    internal_repo: homelab/nextcloud
+    signature_required: false
+    notes: Approved from public.ecr.aws/docker/library/nextcloud:latest on 2026-04-03 after digest review. No Cosign signature was published for this digest.
+  paperless:
+    upstream_ref: ghcr.io/paperless-ngx/paperless-ngx:2.20
+    approved_tag: "2.20"
+    approved_digest: sha256:4b05bcd28e6923768000b5d247cbf2c66fd49bdc3f3b05955bd4f6790a638b01
+    internal_repo: homelab/paperless-ngx
+    signature_required: false
+    notes: Approved from ghcr.io/paperless-ngx/paperless-ngx:2.20 on 2026-04-03 after digest review. No Cosign signature was published for this digest.
+  navidrome:
+    upstream_ref: docker.io/deluan/navidrome:latest
+    approved_tag: latest
+    approved_digest: sha256:b14a6acb5cd5ee73f3a13d63d8d68ede82dedb796aa522fbada94769d990cf0b
+    internal_repo: homelab/navidrome
+    signature_required: false
+    notes: Approved from docker.io/deluan/navidrome:latest on 2026-04-03 after digest review. No Cosign signature was published for this digest.
+  vaultwarden:
+    upstream_ref: ghcr.io/dani-garcia/vaultwarden:latest
+    approved_tag: latest
+    approved_digest: sha256:43498a94b22f9563f2a94b53760ab3e710eefc0d0cac2efda4b12b9eb8690664
+    internal_repo: homelab/vaultwarden
+    signature_required: false
+    notes: Approved from ghcr.io/dani-garcia/vaultwarden:latest on 2026-04-03 after digest review. Upstream publishes a signature, but signer identity and issuer are not pinned in this lock file yet.
+  semaphore:
+    upstream_ref: public.ecr.aws/semaphore/server:latest
+    approved_tag: latest
+    approved_digest: sha256:17678757e65621aaf27bffbfe8caa00fb85857d60124b49876a5326e3f3dfac9
+    internal_repo: homelab/semaphore
+    signature_required: false
+    notes: Approved from public.ecr.aws/semaphore/server:latest on 2026-04-03 after digest review. No Cosign signature was published for this digest.

@@ -1,0 +1,8 @@
+---
+- name: Apply host package updates on vm1
+  hosts: vm1
+  vars:
+    standard_update_apply_security_updates: false
+    standard_update_apply_full_updates: true
+  roles:
+    - standard_update_packages

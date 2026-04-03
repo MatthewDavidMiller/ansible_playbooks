@@ -1,0 +1,8 @@
+---
+# Versioned cloud image metadata for provisioning.
+cloud_image_lock:
+  rocky_linux_10_x86_64:
+    url: https://dl.rockylinux.org/pub/rocky/10/images/x86_64/Rocky-10-GenericCloud-Base-10.1-20251116.0.x86_64.qcow2
+    filename: Rocky-10-GenericCloud-Base-10.1-20251116.0.x86_64.qcow2
+    sha256: 28628abf08a134c6f9e1eccbcac3f2898715919a6da294ae2c6cd66d6bc347ad
+    notes: Pinned from the official Rocky Linux CHECKSUM file on 2026-04-03; mutable ".latest" URLs remain disallowed.

@@ -48,5 +48,5 @@ secret_env_dir: /etc/homelab/secrets
 # Known hosts entries mounted into the Semaphore container for SSH verification
 semaphore_known_hosts: ""
 
-# Container image pinned in inventory
-semaphore_image: docker.io/semaphoreui/semaphore:v2.13.6
+# Container image resolved from the approved artifact lock in vm1.yml
+semaphore_image: ""

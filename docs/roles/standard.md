@@ -20,7 +20,9 @@ Installs and enables the QEMU guest agent so Proxmox can coordinate clean shutdo
 
 ### `standard_update_packages`
 
-Updates installed packages to the latest available versions. On Rocky Linux 10 it also enables EPEL before upgrading.
+Applies security-only OS package updates during normal convergence and keeps broader package refreshes behind a standalone patching playbook.
+
+**Key behavior:** normal `vm1.yml` convergence runs `dnf` security updates for installed packages only; `standalone_tasks/update_vm1_packages.yml` switches the role into full-update mode on demand.
 
 ---
 
@@ -48,13 +50,11 @@ Builds the restrictive `homelab` firewalld model used by VM1.
 
 ### `standard_podman`
 
-Installs Podman and registry-login support.
+Installs Podman and enforces the approved-image policy before any service starts.
 
-**Required variables:** `docker_username`, `docker_password`, `secret_env_dir`
+**Required variables:** `approved_container_images`, `secret_env_dir`
 
-**Templates:** `login_to_docker.j2`, `docker_login.env.j2`
-
-**Key behavior:** writes a root-only Docker credential env file and a boot-time login service so image pulls can avoid anonymous rate limits.
+**Key behavior:** validates that every maintained image ref is an immutable digest reference, pre-pulls approved images, and keeps service restarts from fetching tags from upstream.
 
 ---
 

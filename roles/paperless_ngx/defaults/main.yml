@@ -34,5 +34,5 @@ user_name: ""
 # Root-only directory for runtime environment files
 secret_env_dir: /etc/homelab/secrets
 
-# Container image pinned in inventory
-paperless_image: ghcr.io/paperless-ngx/paperless-ngx:2.14.7
+# Container image resolved from the approved artifact lock in vm1.yml
+paperless_image: ""

@@ -1,5 +1,5 @@
 /usr/bin/podman run \
---pull=newer \
+--pull=never \
 --name navidrome \
 --network=navidrome_container_net \
 --user {{ navidrome_uid }}:{{ navidrome_gid }} \

@@ -23,8 +23,8 @@ porkbun_api_key_secret: ""
 # Root-only directory for runtime environment files
 secret_env_dir: /etc/homelab/secrets
 
-# Traefik image reference pinned in inventory
-traefik_image: docker.io/traefik:v3
+# Traefik image reference resolved from the approved artifact lock in vm1.yml
+traefik_image: ""
 
 # Management network CIDR allowed to reach the Traefik dashboard (used in ip-allowlist middleware)
 management_network: ""

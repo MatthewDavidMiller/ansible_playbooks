@@ -1,0 +1,12 @@
+---
+# standard_update_packages role defaults
+
+# Normal convergence applies security updates only. Use the dedicated
+# standalone update playbook to apply the wider host update set on demand.
+standard_update_apply_security_updates: true
+
+# Full package-set updates stay behind the dedicated standalone patch workflow.
+standard_update_apply_full_updates: false
+
+# Enable EPEL only when a maintained workflow explicitly requires it.
+standard_update_enable_epel: false

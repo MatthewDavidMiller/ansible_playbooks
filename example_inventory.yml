@@ -7,8 +7,6 @@ all:
         ansible_become: yes
         ansible_become_method: sudo
         default_interface: "example_interface"
-        docker_username: "example_username"
-        docker_password: "example_password"
         secret_env_dir: "/etc/homelab/secrets"
         ip_ansible: "192.168.1.1/32"
         management_network: "192.168.1.0/24"
@@ -29,7 +27,6 @@ all:
           homelab_domain: "example.com"
           homelab_subdomain: "home"
           traefik_path: /path/to/traefik
-          traefik_image: docker.io/traefik:v3
           traefik_networks:
             - nextcloud_container_net
             - navidrome_container_net
@@ -65,14 +62,6 @@ all:
               proxy_upstream_protocol: "http"
               container_destination: "semaphore.dns.podman"
               proxy_management_only: true
-
-          postgres_image: docker.io/postgres:17
-          redis_image: docker.io/redis:7
-          nextcloud_image: docker.io/nextcloud:31-apache
-          paperless_image: ghcr.io/paperless-ngx/paperless-ngx:2.14.7
-          navidrome_image: docker.io/deluan/navidrome:0.54.5
-          vaultwarden_image: docker.io/vaultwarden/server:1.33.2
-          semaphore_image: docker.io/semaphoreui/semaphore:v2.13.6
 
           postgres_path: /path/to/postgres
           nextcloud_path: /path/to/nextcloud

@@ -8,7 +8,7 @@ This guide covers provisioning new VMs on Proxmox using `scripts/proxmox_initial
 
 `scripts/proxmox_initial_setup.py` automates template creation and VM cloning:
 
-1. Downloads Debian 12 and Rocky Linux 10 cloud-init images
+1. Downloads the Rocky Linux 10 cloud-init image pinned in `artifacts/cloud_images.lock.yml` and verifies its SHA256 before import
 2. Creates cloud-init templates:
    - VMID 400 — Debian 12 (used for backup server)
    - VMID 401 — Rocky Linux 10 (used for all service VMs), CPU type set to `host`
@@ -139,6 +139,8 @@ Verify SSH access from your Ansible controller before running playbooks.
 
 ## Bootstrap (Rocky Linux 10 VMs)
 
+Before running the provisioning script, replace the placeholders in `artifacts/cloud_images.lock.yml` with a versioned official Rocky image URL, filename, and SHA256.
+
 Run `scripts/setup.py` on each new Rocky Linux 10 VM to install Ansible and set up the initial directory structure:
 
 ```bash
@@ -146,9 +148,7 @@ python3 scripts/setup.py
 ```
 
 This script:
-- Updates all packages with `dnf`
-- Installs Ansible
-- Installs required Ansible collections (`community.general`, `community.crypto`, `community.docker`)
+- Installs `ansible-core`, `sshpass`, and the distro-packaged collections used by the maintained playbooks
 - Creates `/ansible_configs` with appropriate permissions
 
 After bootstrapping, the VM is ready for Ansible management. See [getting-started.md](getting-started.md) for next steps.

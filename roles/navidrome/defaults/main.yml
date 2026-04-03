@@ -43,5 +43,5 @@ user_name: ""
 navidrome_uid: "33"
 navidrome_gid: "33"
 
-# Container image pinned in inventory
-navidrome_image: docker.io/deluan/navidrome:0.54.5
+# Container image resolved from the approved artifact lock in vm1.yml
+navidrome_image: ""

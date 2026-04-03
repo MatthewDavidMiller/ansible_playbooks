@@ -12,6 +12,7 @@ Start with [README.md](../README.md) for the project overview and quick start.
 |---|---|
 | [README.md](../README.md) | Project overview and common commands |
 | [guides/getting-started.md](guides/getting-started.md) | Setup from scratch and first playbook run |
+| [guides/container-image-updates.md](guides/container-image-updates.md) | Secure image review, digest updates, and container hardening validation |
 
 ## Agent Instructions
 
@@ -37,10 +38,12 @@ Start with [README.md](../README.md) for the project overview and quick start.
 | Document | Description |
 |---|---|
 | [guides/getting-started.md](guides/getting-started.md) | Setup from scratch — prerequisites, collections, first playbook run |
+| [guides/container-image-updates.md](guides/container-image-updates.md) | Approved container image update and review workflow |
 | [guides/adding-a-service.md](guides/adding-a-service.md) | How to add a new service using established patterns |
 | [guides/proxmox-setup.md](guides/proxmox-setup.md) | VM provisioning with `scripts/proxmox_initial_setup.py` |
 | [guides/dr-restore.md](guides/dr-restore.md) | Disaster recovery — initial migration to VM1 and restore from backups |
 | [guides/postgres-upgrade.md](guides/postgres-upgrade.md) | PostgreSQL major version upgrade procedure for the shared postgres container |
+| [`../artifacts/containers.lock.yml`](../artifacts/containers.lock.yml) | Approved container image lock for the maintained VM1 services |
 
 ## Testing & CI/CD
 

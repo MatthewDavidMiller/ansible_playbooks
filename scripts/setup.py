@@ -1,33 +1,39 @@
-# Credits
-# https://www.tutorialspoint.com/python/os_chmod.htm
-# https://ochoaprojects.github.io/posts/ProxMoxCloudInitImage/
+#!/usr/bin/env python3
+"""Bootstrap a new Rocky Linux VM for the maintained Ansible workflow."""
 
-# Initial setup for your first vm.
+from __future__ import annotations
 
-import subprocess
 import os
 import pwd
 import stat
+import subprocess
+from pathlib import Path
 
-# Debian update packages
-subprocess.call([r"apt-get", r"update", r"-y"])
-subprocess.call([r"apt-get", r"upgrade", r"-y"])
 
-# Install Ansible
-subprocess.call([r"apt-get", r"install", r"-y", r"ansible-base"])
+BOOTSTRAP_PACKAGES = [
+    "ansible-core",
+    "sshpass",
+    "ansible-collection-ansible-posix",
+    "ansible-collection-community-general",
+    "ansible-collection-community-crypto",
+]
 
-# Install Ansible Collections
-subprocess.call([r"ansible-galaxy", r"collection", r"install", r"community.general"])
-subprocess.call([r"ansible-galaxy", r"collection", r"install", r"community.crypto"])
-subprocess.call([r"ansible-galaxy", r"collection", r"install", r"community.docker"])
 
-# Create folder for ansible
-os.mkdir(r"/ansible_configs")
+def run(argv: list[str]) -> None:
+    subprocess.run(argv, check=True)
 
-# Get uid and gid of root
-uid = pwd.getpwnam(r"root").pw_uid
-gid = pwd.getpwnam(r"root").pw_gid
 
-# Set permissions for ansible config folder
-os.chown(r"/ansible_configs" + uid, gid)
-os.chmod(r"/ansible_configs", stat.S_IRWXU)
+def main() -> int:
+    run(["dnf", "install", "-y", *BOOTSTRAP_PACKAGES])
+
+    ansible_configs = Path("/ansible_configs")
+    ansible_configs.mkdir(mode=0o700, exist_ok=True)
+
+    root_user = pwd.getpwnam("root")
+    os.chown(ansible_configs, root_user.pw_uid, root_user.pw_gid)
+    os.chmod(ansible_configs, stat.S_IRWXU)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
