@@ -4,6 +4,10 @@
   vars:
     nextcloud_uid: "33"
     nextcloud_gid: "33"
+    apply_runtime_changes_on_reboot: true
+  module_defaults:
+    ansible.posix.firewalld:
+      offline: "{{ apply_runtime_changes_on_reboot | bool }}"
   roles:
     - standard_ssh
     - standard_qemu_guest_agent

@@ -280,13 +280,16 @@
   ansible.builtin.systemd:
     name: redis_container.service
     state: started
+  when: not (apply_runtime_changes_on_reboot | default(false) | bool)
 
 - name: Start postgres
   ansible.builtin.systemd:
     name: postgres_container.service
     state: started
+  when: not (apply_runtime_changes_on_reboot | default(false) | bool)
 
 - name: Start Nextcloud
   ansible.builtin.systemd:
     name: nextcloud_container.service
     state: started
+  when: not (apply_runtime_changes_on_reboot | default(false) | bool)
