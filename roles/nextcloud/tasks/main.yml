@@ -146,8 +146,9 @@
       - "{{ nextcloud_user_files_directory_mode }}"
       - "{}"
       - +
+  register: nextcloud_user_directory_permissions
   loop: "{{ nextcloud_user_files_roots.stdout_lines }}"
-  changed_when: stdout != ""
+  changed_when: nextcloud_user_directory_permissions.stdout != ""
   when:
     - nextcloud_normalize_user_files_permissions | bool
     - nextcloud_user_files_roots.stdout_lines | length > 0
@@ -168,8 +169,9 @@
       - "{{ nextcloud_user_files_file_mode }}"
       - "{}"
       - +
+  register: nextcloud_user_file_permissions
   loop: "{{ nextcloud_user_files_roots.stdout_lines }}"
-  changed_when: stdout != ""
+  changed_when: nextcloud_user_file_permissions.stdout != ""
   when:
     - nextcloud_normalize_user_files_permissions | bool
     - nextcloud_user_files_roots.stdout_lines | length > 0
