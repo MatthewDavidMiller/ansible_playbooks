@@ -1,6 +1,6 @@
 # Ansible Playbooks — Documentation Index
 
-Ansible playbooks for configuring homelab Linux VMs and services. Services run as Podman containers managed by systemd.
+Ansible playbooks for the maintained VM1 homelab workflow. Services run as Podman containers managed by systemd.
 
 Start with [README.md](../README.md) for the project overview and quick start.
 
@@ -30,7 +30,7 @@ Start with [README.md](../README.md) for the project overview and quick start.
 | [inventory.md](inventory.md) | Full inventory variable reference |
 | [roles/standard.md](roles/standard.md) | Standard infrastructure roles (`standard_ssh`, `standard_firewalld`, `standard_selinux`, etc.) |
 | [roles/services.md](roles/services.md) | Service roles (`nextcloud`, `vaultwarden`, `semaphore`, `reverse_proxy`, etc.) |
-| [roles/laptop.md](roles/laptop.md) | Arch Linux laptop installation and configuration roles |
+| [archive.md](archive.md) | Archived playbooks, roles, and historical reference docs |
 
 ## Guides
 

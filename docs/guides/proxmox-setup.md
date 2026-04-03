@@ -203,4 +203,4 @@ Rocky-based VMs inherit `--cpu host` from the template. If you create a Rocky VM
 qm set <VMID> --cpu host
 ```
 
-After adding a new VM, document it in [architecture.md — Host Topology](../architecture.md#host-topology).
+After adding a new VM, document it in [architecture.md — Active Topology](../architecture.md#active-topology).

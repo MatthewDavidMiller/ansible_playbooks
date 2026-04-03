@@ -1,227 +1,60 @@
-# Adding a New Service
+# Adding a Service
 
-This guide walks you through adding a new service to the homelab using the established Podman + systemd pattern. See [roles/services.md](../roles/services.md) for existing service roles as examples.
+This guide covers the maintained pattern: add the service to VM1, not to a new dedicated-VM playbook. Historical multi-VM examples live under [archive.md](../archive.md).
 
 ---
 
-## 1. Create the Role Directory
+## 1. Create the Role
+
+Create `roles/<service_name>/tasks/main.yml` and any needed templates/files under `roles/<service_name>/`.
+
+Use the existing active service roles as reference:
+
+- `roles/reverse_proxy/`
+- `roles/nextcloud/`
+- `roles/paperless_ngx/`
+- `roles/navidrome/`
+- `roles/vaultwarden/`
+- `roles/semaphore/`
+
+---
+
+## 2. Follow the Active Runtime Pattern
+
+- Use Podman + systemd, matching the existing VM1 services.
+- Render sensitive values to `{{ secret_env_dir }}/<service>.env` as root-only shell-sourced files.
+- Use `podman run --pull=newer`.
+- Use `:Z` on container-mounted host paths.
+- Put the service on its own Podman network when it needs isolation.
+- If the service is proxied by Traefik, add an entry to `proxy_config` instead of creating a per-service reverse-proxy template.
+
+---
+
+## 3. Wire It Into VM1
+
+- Add the role to `vm1.yml` in the correct order.
+- Add required variables to the `vm1` host entry in `inventory.yml`.
+- If Traefik must reach the service, add the service network to `traefik_networks`.
+- If the service depends on PostgreSQL or Redis, place it after `nextcloud`.
+- If the role changes live runtime behavior that VM1 stages until reboot, guard immediate-start behavior with `apply_runtime_changes_on_reboot`.
+
+---
+
+## 4. Document It
+
+- Add the role to [roles/services.md](../roles/services.md) or [roles/standard.md](../roles/standard.md).
+- Update [playbooks.md](../playbooks.md) if the role order changes.
+- Update [inventory.md](../inventory.md) with any new variables.
+- Update [testing.md](../testing.md) if the service changes the validation surface.
+
+---
+
+## 5. Verify It
 
 ```bash
-mkdir -p roles/<service_name>/tasks
-mkdir -p roles/<service_name>/templates
+ansible-lint
+ansible-playbook --syntax-check -i example_inventory.yml vm1.yml
+bash scripts/test_shell_secret_env.sh
 ```
 
----
-
-## 2. Write `roles/<service_name>/tasks/main.yml`
-
-Follow this task structure:
-
-**a. Create the container network:**
-```yaml
-- name: Create <service> container network
-  ansible.builtin.shell:
-    cmd: podman network create <service>_container_net
-  ignore_errors: true
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
-```
-
-**b. Create data directories:**
-```yaml
-- name: Create <service> data directory
-  ansible.builtin.file:
-    path: "{{ service_path }}"
-    state: directory
-    owner: 1000
-    group: 1000
-    mode: "0770"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
-```
-
-Use UID/GID 1000 unless the container image requires a different user. Check the image documentation.
-
-**c. Write the launch script:**
-```yaml
-- name: <service> script
-  ansible.builtin.template:
-    src: <service>.sh.j2
-    dest: /usr/local/bin/<service>.sh
-    owner: 1000
-    group: root
-    mode: "0770"
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
-```
-
-**d. Write the systemd unit:**
-```yaml
-- name: <service> service
-  ansible.builtin.template:
-    src: <service>.service.j2
-    dest: /etc/systemd/system/<service>.service
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
-
-- name: Enable <service>
-  ansible.builtin.systemd:
-    name: <service>.service
-    enabled: yes
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
-```
-
----
-
-## 3. Write the Shell Script Template
-
-Create `roles/<service_name>/templates/<service>.sh.j2`:
-
-```bash
-/usr/bin/podman run \
---pull=newer \
---name <service> \
---network <service>_container_net \
--e SOME_ENV={{ some_variable }} \
--e TZ=America/New_York \
---volume {{ service_path }}:/data:Z \
--d docker.io/example/image:1.2.3
-```
-
-Key conventions:
-- Always use `:Z` on volume mounts — this triggers SELinux file context relabeling on Rocky Linux 10
-- Use Podman DNS names (`<container>.dns.podman`) when containers need to talk to each other
-- Use `podman run --pull=newer` so the cached image is reused unless the registry digest changes
-
----
-
-## 4. Write the Systemd Unit Template
-
-Create `roles/<service_name>/templates/<service>.service.j2`:
-
-```ini
-[Unit]
-Description=<Service> Container
-After=network.target login_to_docker.service
-Requires=login_to_docker.service
-
-[Service]
-Restart=always
-ExecStartPre=-/usr/bin/podman stop <service>
-ExecStartPre=-/usr/bin/podman rm <service>
-ExecStart=/usr/local/bin/<service>.sh
-
-[Install]
-WantedBy=multi-user.target
-```
-
-If the service depends on other containers (e.g., a database), add them to `After=` and `Requires=`.
-
----
-
-## 5. Open Required Firewall Ports (if needed)
-
-If the service needs a port open beyond what `standard_firewalld` provides, add a firewalld task to your role (not to `standard_firewalld`):
-
-```yaml
-- name: Open port XXXX for <service>
-  ansible.posix.firewalld:
-    zone: homelab
-    port: XXXX/tcp
-    permanent: yes
-    state: enabled
-  when: ansible_facts['distribution'] == 'Debian' or ansible_facts['distribution'] == 'Archlinux' or ansible_facts['distribution'] == 'Rocky'
-```
-
-Ports 80 and 443 do not need to be added — Traefik exposes both via Podman `-p` flags, and Podman's DNAT rules preempt zone filtering for both ports.
-
----
-
-## 6. Add a Traefik Proxy Config (if HTTPS access is needed)
-
-No new template is needed. The generic `service_proxy.yml.j2` template handles all services. Just add an entry to `proxy_config` in the host's inventory:
-
-```yaml
-proxy_config:
-  - name: <service>_proxy
-    proxy_fqdn: "<service>.example.com"
-    proxy_upstream_port: "8080"
-    proxy_upstream_protocol: "http"
-    container_destination: "<service>.dns.podman"
-    # Optional for apps like Nextcloud WebDAV that need %2F preserved:
-    # proxy_allow_encoded_slash: true  # Enables Traefik encoded-slash support instance-wide on current v3 stable
-```
-
-Traefik will automatically request a Let's Encrypt certificate for `<service>.example.com` via Porkbun DNS challenge on first connection.
-
-See [inventory.md — proxy_config object schema](../inventory.md#proxy_config-object-schema).
-
----
-
-## 7. Create the Playbook
-
-Create `<service_name>.yml`:
-
-```yaml
----
-- hosts: <service_name>
-  roles:
-    - standard_ssh
-    - standard_qemu_guest_agent
-    - standard_update_packages
-    - configure_timezone
-    - standard_cron
-    - standard_firewalld
-    - standard_podman
-    - reverse_proxy      # if HTTPS access is needed
-    - <service_name>
-    - standard_cleanup
-```
-
-Add `standard_rclone` if the service needs rclone (backups or file mounts). Add `standard_selinux` if deploying to Rocky Linux 10 with FUSE mounts.
-
----
-
-## 8. Add to `homelab_vms.yml`
-
-```yaml
-- name: Run <service_name> config playbook
-  import_playbook: <service_name>.yml
-```
-
----
-
-## 9. Add to Inventory
-
-Add a host entry under `homelab.hosts` in your inventory with all required variables. Follow the naming conventions in [inventory.md — Variable naming conventions](../inventory.md#variable-naming-conventions).
-
----
-
-## Consolidated VM vs. Dedicated VM
-
-If you are adding the service to VM1 (ID 120) rather than a dedicated VM:
-
-- Add the role to `vm1.yml` in the appropriate order
-- Add all required variables to the `vm1` host entry in inventory
-- If the service uses a Podman network, add that network to `traefik_networks` in the `vm1` inventory entry
-- If the service has a PostgreSQL instance, use a unique path variable (not `postgres_path`) to avoid collisions with other PostgreSQL instances
-- If the role would normally start or reload a live service, guard that task with `when: not (apply_runtime_changes_on_reboot | default(false) | bool)` so VM1 continues staging runtime changes until reboot
-
----
-
-## Verify
-
-```bash
-# Lint
-ansible-lint <service_name>.yml
-
-# Dry run
-ansible-playbook -i inventory.yml <service_name>.yml --check -v
-
-# Apply
-ansible-playbook -i inventory.yml <service_name>.yml -v
-```
-
-On Rocky Linux 10, after the first live run check for SELinux denials:
-
-```bash
-ausearch -m avc -ts recent
-```
-
-See [architecture.md — SELinux](../architecture.md#selinux) for how to interpret and resolve denials.
+Run `bash scripts/test_container_security.sh` when the service changes container hardening or launch semantics.

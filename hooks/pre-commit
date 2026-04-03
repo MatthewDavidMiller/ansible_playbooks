@@ -1,5 +1,5 @@
 #!/bin/bash
-# Pre-commit hook: runs ansible-lint and container security tests.
+# Pre-commit hook: runs ansible-lint and syntax checks for maintained playbooks.
 # Install: git config core.hooksPath hooks
 # Skip:    git commit --no-verify
 
@@ -14,7 +14,7 @@ echo "PASS: ansible-lint"
 
 echo ""
 echo "--- Ansible Syntax Check ---"
-for playbook in vm1.yml vpn.yml pihole.yml unificontroller.yml apcontroller.yml backup.yml; do
+for playbook in vm1.yml homelab_vms.yml update_homelab_vms.yml reboot_vms.yml; do
   [ -f "$playbook" ] || continue
   ansible-playbook --syntax-check -i example_inventory.yml "$playbook"
 done

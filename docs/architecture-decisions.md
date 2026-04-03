@@ -1,6 +1,6 @@
 # Architecture Decisions
 
-This document records explicit design decisions — approaches considered but ultimately rejected — and the reasoning behind them. Understanding these decisions prevents reconsidering already-evaluated options.
+This document records explicit design decisions and rejected alternatives for the maintained VM1 workflow.
 
 ---
 
@@ -9,141 +9,81 @@ This document records explicit design decisions — approaches considered but ul
 **Decision:** Do not use Ansible Vault to encrypt credentials in the git repository.
 
 **Rationale:**
-- Real inventory with credentials is managed externally in Semaphore (not this git repository).
-- The checked-in `example_inventory.yml` is a template / reference, not a live inventory.
-- Vault would add complexity (managing encryption keys, distributing to contributors) without benefit: there are no live secrets in the repo to encrypt.
-- Contributors copy `example_inventory.yml` to their real inventory, fill in actual credentials, and manage that file securely outside git.
 
-**How to apply:**
-- When documenting variables that will contain secrets (passwords, API keys), note them as such in the variable table (for example, `postgres_admin_password: string | required | Secret: PostgreSQL admin password`).
-- Do not commit real values for these variables to git. The `example_inventory.yml` file uses placeholder values like `secret`, `mypassword`, `pk1_...`.
-- Treat the real inventory file (wherever contributors keep it) as a .gitignored local configuration, not a tracked artifact.
+- Real inventory with credentials is managed externally in Semaphore, not in this repo.
+- `example_inventory.yml` is a template and contains no live secrets.
+- Vault would add coordination overhead without protecting an actual checked-in secret source.
 
 ---
 
 ## Rejected: `host_vars/` and `group_vars/` Directory Structure
 
-**Decision:** Do not split inventory into `host_vars/`, `group_vars/`, and `inventory.yml` files.
+**Decision:** Keep the inline inventory pattern rather than splitting variables across `host_vars/` and `group_vars/`.
 
 **Rationale:**
-- Semaphore manages inventory injection at runtime. Variables are resolved and merged in the Semaphore UI, not by Ansible's `host_vars`/`group_vars` loading mechanism.
-- The inline `example_inventory.yml` format (all variables in one YAML file) is the correct pattern for this workflow: it serves as a complete, self-contained reference that Semaphore ingests as a single unit.
-- Splitting across multiple files adds fragmentation without corresponding benefit — contributors must understand and maintain multiple locations, and the single-file format is easier to reason about and document.
 
-**How to apply:**
-- Keep the inline inventory structure. All variables for a host go into its entry in `example_inventory.yml`.
-- Document the complete variable reference in `docs/inventory.md` (grouped by host for readability).
-- When Semaphore ingests `example_inventory.yml`, it does so as-is; no dynamic variable merging from separate `host_vars/` files occurs.
+- Semaphore manages inventory injection as one unit.
+- A single inventory template is easier to document and easier to reason about.
 
 ---
 
 ## Rejected: Dedicated Patching Playbook
 
-**Decision:** Do not create a separate `patch_homelab_vms.yml` playbook. Use the existing Semaphore schedule instead.
+**Decision:** Do not create a separate patching playbook.
 
 **Rationale:**
-- The `homelab_vms.yml` playbook is already scheduled weekly in Semaphore (applies all configuration roles + standard patching).
-- Creating a dedicated `patch_homelab_vms.yml` playbook would duplicate:
-  - The logic for determining which hosts to patch (same host selection as `homelab_vms.yml`)
-  - The standard roles (ssh, firewall, podman, etc.) that should run even on patch days
-  - The orchestration / restart policy decisions
-- Semaphore's scheduling feature already provides the "periodic patching" mechanism. Using the calendar UI in Semaphore is clearer than maintaining two playbooks in the codebase.
 
-**How to apply:**
-- Patching is triggered by the Semaphore schedule (weekly run of `homelab_vms.yml`), not by an OS-level cron job.
-- The `standard_cron` role sets `state: absent` for any historical patching cron jobs, ensuring no conflicting system-level scheduling.
-- When updating patching frequency, adjust the Semaphore schedule in the Semaphore UI, not in the Ansible code.
+- The maintained flow is `update_homelab_vms.yml`.
+- Creating a separate patch-only playbook would duplicate host selection and standard role execution.
+- Semaphore scheduling is the source of truth for recurring runs.
 
 ---
 
 ## Decision: Cron Job Removal via `standard_cron`
 
-**Decision:** The `standard_cron` role explicitly removes any patching cron jobs by setting their `state: absent`.
+**Decision:** The `standard_cron` role explicitly removes legacy patching cron jobs.
 
 **Rationale:**
-- In previous iterations, patching was driven by OS-level cron jobs. This has been replaced by Semaphore scheduling.
-- Leaving old cron jobs in place would cause duplicate runs (OS cron + Semaphore schedule) and unexpected behavior.
-- Explicitly removing them via Ansible ensures:
-  - A clean migration path: old systems have cron jobs removed when re-provisioned
-  - No surprises: cron-based patching doesn't run in parallel with Semaphore
-  - Clear intent: the Ansible code documents that Semaphore is the source of truth for scheduling
 
-**How to apply:**
-- The `standard_cron` role removes patching cron entries on every run.
-- Contributors running playbooks see `ok: [host] → cron...state=absent` tasks, confirming the cleanup is intentional.
-- If OS-level cron-based patching is ever needed again, this decision can be reversed by changing the cron task state to `present`.
+- Older cron-driven patch workflows should not coexist with Semaphore scheduling.
+- The removal is part of the migration to a single scheduler model.
 
 ---
 
 ## Decision: Container Security Hardening (`--cap-drop=ALL`)
 
-**Decision:** All service containers run with `--cap-drop=ALL` and `--security-opt=no-new-privileges:true`. Capabilities are re-added only where functionally required.
+**Decision:** Maintained service containers run with `--cap-drop=ALL` and `--security-opt=no-new-privileges:true`, then add back only the capabilities they actually need.
 
 **Exceptions and required caps:**
-- **Traefik:** adds `--cap-add=NET_BIND_SERVICE` (binds ports 80/443 as a non-root process)
-- **Pi-hole:** adds `--cap-add=NET_BIND_SERVICE` (binds port 53/tcp and 53/udp)
-- **Vaultwarden:** adds `--cap-add=NET_BIND_SERVICE` (required by the image's privileged-port listener)
-- **Redis:** adds `CHOWN`, `FOWNER`, and `DAC_OVERRIDE` for startup-time filesystem ownership handling
-- **Paperless NGX:** adds `CHOWN`, `SETUID`, `SETGID`, `FOWNER`, and `DAC_OVERRIDE` to support `USERMAP_UID/GID` and entrypoint privilege dropping
-- **Navidrome:** adds `DAC_READ_SEARCH` so the non-root process can traverse the mounted music library
-- **WireGuard:** uses `--privileged=true` instead (see dedicated decision below)
-- **Nextcloud:** omits `--cap-drop=ALL` entirely — the entrypoint runs `rsync --chown` to copy the webroot on every start, which requires `CHOWN` capability; dropping all capabilities breaks startup
 
-**Rationale:**
-- Capability dropping limits the blast radius of a container escape. A compromised container without `NET_RAW`, `SYS_ADMIN`, `DAC_OVERRIDE`, etc. cannot pivot to the host as effectively.
-- `no-new-privileges` prevents setuid binaries inside the container from acquiring capabilities after startup.
-- These flags are validated by the manual container security test suite (`scripts/test_container_security.sh`) before deployment or after hardening changes.
-
-**How to apply:**
-- New service containers default to `--cap-drop=ALL --security-opt=no-new-privileges:true`.
-- Before adding `--cap-add=<CAP>`, verify it is strictly required by testing the container without it (see `TEST-04` for Traefik as a reference pattern).
-- If a container image uses `gosu`, `su-exec`, or `rsync --chown` in its entrypoint, test with `--cap-drop=ALL` first and check logs for `Operation not permitted` errors.
-
----
-
-## Decision: WireGuard Uses `--privileged=true` (Exception to Cap-Drop Pattern)
-
-**Decision:** The WireGuard container runs with `--privileged=true` rather than the standard `--cap-drop=ALL` + selective `--cap-add` pattern.
-
-**Rationale:**
-- WireGuard requires loading the `wireguard` kernel module (`SYS_MODULE`), configuring network interfaces (`NET_ADMIN`), raw socket access (`NET_RAW`), and writing sysctl values — a combination that requires a superset of named capabilities that is impractical to enumerate precisely.
-- The linuxserver WireGuard image also uses `iptables`/`nftables` for NAT and routing, which require additional caps beyond `NET_ADMIN`.
-- `--privileged=true` is the standard approach for WireGuard containers and is accepted practice for VPN tunnelling containers that must interact with kernel networking subsystems.
-
-**How to apply:**
-- The WireGuard template (`roles/vpn/templates/wireguard.sh.j2`) uses only `--privileged=true` — do not add `--cap-drop=ALL` or `--cap-add` flags alongside `--privileged`, as they are no-ops and create misleading documentation.
-- Do not apply this exception to any other service role without equivalent justification.
+- **Traefik:** `NET_BIND_SERVICE`
+- **Vaultwarden:** `NET_BIND_SERVICE`
+- **Redis:** only the filesystem-related caps needed by its startup path
+- **Nextcloud:** does not use `cap-drop=ALL` because its image entrypoint requires a broader default capability set
 
 ---
 
 ## Decision: SSH Hardening Values
 
-**Decision:** The `standard_ssh` role applies specific hardening values via a validated drop-in under `/etc/ssh/sshd_config.d/`: `MaxAuthTries 3`, `LoginGraceTime 30`, `ClientAliveInterval 300`, `ClientAliveCountMax 2`, and `UsePAM no`.
+**Decision:** `standard_ssh` applies the project's hardening defaults via a validated drop-in under `/etc/ssh/sshd_config.d/`.
 
 **Rationale:**
-- **MaxAuthTries 3:** Reduces the window for brute-force attempts while still allowing for minor key-agent mistakes. All hosts require key-based auth (PasswordAuthentication is disabled), so 3 attempts is sufficient.
-- **LoginGraceTime 30:** Closes unauthenticated connections quickly. A 2-minute window (default) leaves the SSH daemon holding open connections that are never completed.
-- **ClientAliveInterval 300 / ClientAliveCountMax 2:** Detects dead SSH sessions (e.g., crashed clients, idle tunnels) and terminates them after 10 minutes of no response. Prevents accumulation of orphaned connections.
-- **UsePAM no:** PAM is not used for authentication on these hosts — all auth is via public key. Disabling PAM prevents accidental activation of PAM modules that could interfere with authentication flow.
 
-**How to apply:**
-- These values apply to all hosts via `standard_ssh`. Do not tune per-host unless a specific service requires it (e.g., a bastion host with higher MaxAuthTries).
+- Keep host access key-only.
+- Reduce brute-force and orphaned-session exposure.
+- Centralize SSH tuning in one managed file.
 
 ---
 
 ## Decision: Root-Only Runtime Env Files Are Shell-Sourced
 
-**Decision:** Sensitive runtime values are rendered to root-only env files under `secret_env_dir` as shell-compatible assignments and loaded only by `bash` source commands inside launch paths.
+**Decision:** Sensitive runtime values are rendered to root-only env files under `secret_env_dir` and sourced by shell before `podman run`.
 
 **Rationale:**
-- Avoids embedding secrets directly in unit `ExecStart` lines or shell scripts that are otherwise readable for troubleshooting.
-- Keeps the host-side exposure model simple for a homelab: secrets exist on disk, but only in root-readable files.
-- Prevents parser drift across systemd, bash, and Podman. The repo now treats bash as the single parser for these files, then passes exported variable names into Podman.
 
-**How to apply:**
-- Store service credentials in `{{ secret_env_dir }}/<service>.env` with mode `0600` and shell-safe `KEY={{ value | quote }}` assignments.
-- Source those files with `set -a; . <file>; set +a` inside `bash -lc` or the service launch script.
-- Do not use `EnvironmentFile=` or `podman run --env-file` for these secret files.
+- Keeps secrets out of systemd `ExecStart=` lines.
+- Avoids parser drift between systemd, shell, and Podman.
+- Matches the validation covered by `scripts/test_shell_secret_env.sh`.
 
 ---
 
@@ -152,36 +92,19 @@ This document records explicit design decisions — approaches considered but ul
 **Decision:** Keep VM1 backups unencrypted.
 
 **Rationale:**
-- The user explicitly accepted this risk for the homelab environment.
-- The main backup goals here are operational recovery and low-friction restores, not defense against physical disk seizure.
-- The practical hardening win is reducing accidental plaintext exposure during backup creation, so temp files now use root-only staging and cleanup.
 
-**How to apply:**
-- Keep Borg repositories and local service backups unencrypted.
-- Use `umask 077`, root-only temp directories, and `trap` cleanup in backup scripts.
-- Document the risk acceptance clearly in architecture and DR docs.
+- The operational priority is low-friction recovery.
+- The accepted tradeoff is documented.
+- Hardening effort is focused on safer temp-file handling and reduced credential exposure.
 
 ---
 
 ## Decision: Single Shared PostgreSQL 17 Container
 
-**Decision:** Consolidate all databases (Nextcloud, Paperless, Semaphore) into one PostgreSQL 17 container, accessed across multiple isolated Podman networks, while giving each application its own database role and password.
+**Decision:** Consolidate Nextcloud, Paperless, and Semaphore into one PostgreSQL 17 container while giving each app its own role and password.
 
 **Rationale:**
-- **Resource efficiency:** One container instance saves ~256 MB RAM compared to separate postgres instances. Even with VM1 at 16 GB total, consolidating stateful services still reduces waste and keeps headroom available for spikes.
-- **Simplified administration:** One `postgres_container` to manage, monitor, and upgrade instead of multiple. The `db_wrapper.sh` script creates all three databases and per-service application roles automatically.
-- **Network isolation without container isolation:** Services remain on isolated Podman networks (preventing DNS collisions), but backend databases are consolidated. This balances isolation and resource usage.
-- **Backup simplicity:** One `pg_dumpall` captures all three databases atomically. Restore is straightforward: start postgres, restore one dump, done.
 
-**Replaces:** The prior design of two separate containers:
-- PostgreSQL 15 for Nextcloud + Paperless (on `nextcloud_container_net`)
-- PostgreSQL 17 for Semaphore only (on `semaphore_container_net`)
-
-**How to apply:**
-- All services connect to the shared PostgreSQL 17 instance via Podman DNS (`postgres.dns.podman`).
-- The `nextcloud` role creates and configures `postgres_container` as the shared instance; Semaphore does not manage a separate postgres container.
-- Variable naming: `postgres_path` points to the one PostgreSQL 17 data directory. `semaphore_postgres_path` no longer exists.
-- The container still uses one PostgreSQL admin account for bootstrap and maintenance.
-- Applications use dedicated credentials: `nextcloud_db_user/password`, `paperless_db_user/password`, and `semaphore_db_user/password`.
-
----
+- Saves memory and operational overhead.
+- Simplifies backup and restore.
+- Preserves service isolation through separate Podman networks and per-service credentials.

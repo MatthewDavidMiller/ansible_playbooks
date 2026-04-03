@@ -1,7 +1,7 @@
 #!/bin/bash
 # Container security flag test script
 # Tests container capability, privilege, and memory flags
-# for all services before deploying to production via Ansible.
+# for the maintained VM1 services before deploying to production via Ansible.
 #
 # Usage: bash scripts/test_container_security.sh 2>&1 | tee /tmp/container_test_results.txt
 # See docs/testing.md for full descriptions of each test.
@@ -642,75 +642,6 @@ check_running test_navidrome "Navidrome: starts with explicit non-root 33:33 + c
 cleanup test_navidrome
 cleanup_dir "$TEST_ND_DATA"
 rm -rf "$TEST_ND_MUSIC"
-echo ""
-
-# ---------------------------------------------------------------------------
-echo "--- TEST-10: Pi-hole ---"
-TEST_PIHOLE_DIR=$(mktemp -d)
-chmod 0770 "$TEST_PIHOLE_DIR"
-$DOCKER run --rm -v "$TEST_PIHOLE_DIR":/target alpine chown 999:33 /target
-
-$DOCKER run -d --name test_pihole \
-  --cap-drop=ALL \
-  --cap-add=NET_BIND_SERVICE \
-  --security-opt=no-new-privileges:true \
-  --volume "$TEST_PIHOLE_DIR":/etc/pihole \
-  --memory=256m --memory-swap=256m \
-  -e TZ=America/New_York \
-  -e FTLCONF_webserver_api_password=testpass \
-  -e FTLCONF_dns_bogusPriv=false \
-  -e FTLCONF_dns_domainNeeded=false \
-  -e FTLCONF_dns_dnssec=true \
-  -e FTLCONF_dns_listeningMode=all \
-  -e FTLCONF_dns_upstreams=1.1.1.1 \
-  -p 5353:53/tcp \
-  -p 5353:53/udp \
-  docker.io/pihole/pihole:latest
-
-check_running test_pihole "Pi-hole: starts with cap-drop=ALL + NET_BIND_SERVICE"
-
-cleanup test_pihole
-cleanup_dir "$TEST_PIHOLE_DIR"
-echo ""
-
-# ---------------------------------------------------------------------------
-echo "--- TEST-11: WireGuard ---"
-# WireGuard uses --privileged=true (required for kernel module access and sysctl).
-# In environments without the wireguard kernel module (e.g. WSL without the module)
-# the container will exit after failing modprobe — this is reported as INFO, not FAIL.
-TEST_WG_DIR=$(mktemp -d)
-chmod 0755 "$TEST_WG_DIR"
-
-$DOCKER run -d --name test_wireguard \
-  --privileged=true \
-  --volume "$TEST_WG_DIR":/config/:Z \
-  --sysctl="net.ipv4.conf.all.src_valid_mark=1" \
-  --sysctl="net.ipv4.conf.all.forwarding=1" \
-  --sysctl="net.ipv4.ip_forward=1" \
-  --memory=128m --memory-swap=128m \
-  -e TZ=America/New_York \
-  -e SERVERURL=vpn.example.com \
-  -e SERVERPORT=51820 \
-  -e PEERS=testpeer \
-  -e INTERNAL_SUBNET=10.13.13.0/24 \
-  docker.io/linuxserver/wireguard:latest
-sleep 10
-
-WG_STATUS=$($DOCKER inspect --format='{{.State.Status}}' test_wireguard 2>/dev/null || echo "missing")
-if [ "$WG_STATUS" = "running" ]; then
-  pass "WireGuard: starts with --privileged=true"
-else
-  WG_LOGS=$($DOCKER logs test_wireguard 2>&1)
-  if echo "$WG_LOGS" | grep -qi "wireguard\|modprobe\|module\|ip_tables\|nft"; then
-    echo "INFO: WireGuard exited — kernel module not available in this environment (expected on WSL without wireguard module)"
-  else
-    echo "WARN: WireGuard exited unexpectedly; last 10 log lines:"
-    echo "$WG_LOGS" | tail -10
-  fi
-fi
-
-cleanup test_wireguard
-cleanup_dir "$TEST_WG_DIR"
 echo ""
 
 # ---------------------------------------------------------------------------
