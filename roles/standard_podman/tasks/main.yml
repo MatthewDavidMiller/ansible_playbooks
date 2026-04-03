@@ -23,7 +23,7 @@
 - name: Enforce approved digest references
   ansible.builtin.assert:
     that:
-      - item | regex_search("^[^[:space:]]+@sha256:[a-f0-9]{64}$")
+      - item is match("^\\S+@sha256:[0-9a-f]{64}$")
     fail_msg: "Unapproved image reference '{{ item }}'. Use an immutable digest reference of the form <registry>/<repo>@sha256:<digest>."
   loop: "{{ approved_container_images | unique }}"
 
