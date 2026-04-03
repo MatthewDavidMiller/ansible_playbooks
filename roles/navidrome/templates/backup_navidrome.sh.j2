@@ -25,8 +25,11 @@ fi
 # === Local: write directly to Nextcloud data dir, then notify Nextcloud ===
 DEST="{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/{{ navidrome_backup_location | replace('Nextcloud:', '') }}"
 /usr/bin/echo "[$(date)] Copying backup to local Nextcloud data dir: $DEST" >> "$BACKUP_LOG"
-/usr/bin/mkdir -p "$DEST"
-/usr/bin/cp "$LOCAL_BACKUP_DIR"/*.db "$DEST/" 2>/dev/null || true
+/usr/bin/install -d -o {{ nextcloud_uid }} -g {{ nextcloud_gid }} -m 0770 "$DEST"
+for backup_file in "$LOCAL_BACKUP_DIR"/*.db; do
+    [ -e "$backup_file" ] || break
+    /usr/bin/install -o {{ nextcloud_uid }} -g {{ nextcloud_gid }} -m 0640 "$backup_file" "$DEST/"
+done
 /usr/bin/podman exec nextcloud php occ files:scan \
     --path="{{ nextcloud_homelab_user }}/files/{{ navidrome_backup_location | replace('Nextcloud:', '') }}" \
     >> "$BACKUP_LOG" 2>&1 || true

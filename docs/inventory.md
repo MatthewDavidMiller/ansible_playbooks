@@ -85,6 +85,11 @@ This host runs all services consolidated. It uses Traefik v3 as the reverse prox
 | `postgres_path` | path | PostgreSQL 17 data dir (Nextcloud, Paperless, Semaphore) | `/opt/postgres` |
 | `nextcloud_path` | path | Nextcloud data directory | `/opt/nextcloud` |
 | `nextcloud_disk` | string | UUID of Nextcloud data disk | `UUID=abc123...` |
+| `nextcloud_uid` | string | Host-side UID that owns Nextcloud-managed files and local backup destinations | `33` |
+| `nextcloud_gid` | string | Host-side GID that owns Nextcloud-managed files and local backup destinations | `33` |
+| `nextcloud_normalize_user_files_permissions` | boolean | Normalize permissions under every `nextcloud_path/data/<user>/files` tree during the `nextcloud` role | `true` |
+| `nextcloud_user_files_directory_mode` | string | Directory mode applied when normalizing user file trees | `0770` |
+| `nextcloud_user_files_file_mode` | string | Regular file mode applied when normalizing user file trees | `0660` |
 | `postgres_admin_user` | string | PostgreSQL admin username used for DB/bootstrap tasks | `postgres_admin` |
 | `postgres_admin_password` | string | PostgreSQL admin password | `secret` |
 | `postgres_legacy_bootstrap_user` | string | Optional old PostgreSQL superuser used to migrate an existing cluster | `legacy_admin` |
@@ -121,14 +126,14 @@ This host runs all services consolidated. It uses Traefik v3 as the reverse prox
 | `nextcloud_borg_backup_path` | path | Local path for Borg backup repository (Nextcloud + Paperless) | `/opt/borg/nextcloud` |
 | `nextcloud_paperless_backup_location` | path | rclone remote path for Borg repo sync | `Nextcloud:backup/nextcloud` |
 | `vaultwarden_path` | path | Vaultwarden data directory | `/opt/vaultwarden` |
-| `vaultwarden_backup_location` | string | rclone remote backup label | `Nextcloud:vaultwarden_backup` |
+| `vaultwarden_backup_location` | string | Backup destination label for local write or rclone upload | `Nextcloud:vaultwarden_backup` |
 | `vaultwarden_signups_allowed` | boolean | Enable or disable public Vaultwarden signup | `false` |
-| `semaphore_backup_location` | string | rclone remote backup path for Semaphore DB dumps | `Nextcloud:semaphore_backup` |
+| `semaphore_backup_location` | string | Backup destination label for local write or rclone upload | `Nextcloud:semaphore_backup` |
 | `container_service_names` | string | Space-separated systemd unit names for Traefik `After=` | `postgres_container redis_container nextcloud_container paperless_ngx navidrome_container vaultwarden semaphore` |
 | `backup_host` | string | Backup server IP (CIDR) for firewalld | `192.168.1.50/32` |
 | `borg_backup_path` | path | Borg repository root (also the second NVMe mount point) | `/opt/borg_backup` |
 | `backup_disk` | string | UUID of the second NVMe disk for Borg | `UUID=abc123...` |
-| `backup_local` | boolean | `true` — archives local `nextcloud_path` instead of SSHFS | `true` |
+| `backup_local` | boolean | `true` — colocated services write backups into the local Nextcloud data tree and the backup role archives local `nextcloud_path` instead of SSHFS | `true` |
 
 ---
 

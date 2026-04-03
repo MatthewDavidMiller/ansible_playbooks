@@ -1,6 +1,9 @@
 ---
 - name: Configure vm1
   hosts: vm1
+  vars:
+    nextcloud_uid: "33"
+    nextcloud_gid: "33"
   roles:
     - standard_ssh
     - standard_qemu_guest_agent

@@ -11,8 +11,8 @@ BACKUP_FILE="$TMP_DIR/vaultwarden_db-$(date +%m_%d_%Y).sqlite3"
 
 {% if backup_local | default(false) %}
 DEST="{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/{{ vaultwarden_backup_location | replace('Nextcloud:', '') }}"
-/usr/bin/mkdir -p "$DEST"
-/usr/bin/cp "$BACKUP_FILE" "$DEST/"
+/usr/bin/install -d -o {{ nextcloud_uid }} -g {{ nextcloud_gid }} -m 0770 "$DEST"
+/usr/bin/install -o {{ nextcloud_uid }} -g {{ nextcloud_gid }} -m 0640 "$BACKUP_FILE" "$DEST/"
 /usr/bin/podman exec nextcloud php occ files:scan \
     --path="{{ nextcloud_homelab_user }}/files/{{ vaultwarden_backup_location | replace('Nextcloud:', '') }}" \
     >> /var/log/vaultwarden_backup.log 2>&1 || true

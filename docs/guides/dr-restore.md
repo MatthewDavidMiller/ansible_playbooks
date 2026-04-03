@@ -15,9 +15,9 @@ For VM provisioning details see [proxmox-setup.md](proxmox-setup.md).
 | Nextcloud + Paperless DBs | Borg archive → rclone daily | `Nextcloud:<nextcloud_paperless_backup_location>` |
 | Paperless document exports | Included in Borg archive above | same |
 | Nextcloud user files | Borg archive on second NVMe disk (backup role, daily) | `{{ borg_backup_path }}` on VM1 |
-| Vaultwarden SQLite DB | Direct cp to Nextcloud data dir (`backup_local: true`) | `{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/<vaultwarden_backup_location>` |
-| Navidrome DB | Direct cp to Nextcloud data dir (`backup_local: true`) | `{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/<navidrome_backup_location>` |
-| Semaphore DB | pg_dump into Nextcloud data dir (`backup_local: true`) | `{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/<semaphore_backup_location>` |
+| Vaultwarden SQLite DB | Local install into Nextcloud data dir as `nextcloud_uid:nextcloud_gid` (`backup_local: true`) | `{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/<vaultwarden_backup_location>` |
+| Navidrome DB | Local install into Nextcloud data dir as `nextcloud_uid:nextcloud_gid` (`backup_local: true`) | `{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/<navidrome_backup_location>` |
+| Semaphore DB | `pg_dump` staged locally, then installed into Nextcloud data dir as `nextcloud_uid:nextcloud_gid` (`backup_local: true`) | `{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/<semaphore_backup_location>` |
 | Navidrome music | Local bind-mount of Nextcloud data dir — source is Nextcloud user files (backed up by Borg above) | n/a |
 | SWAG/TLS certificates | Regeneratable via DNS-01 challenge | n/a |
 | Redis | Cache only — acceptable loss | n/a |

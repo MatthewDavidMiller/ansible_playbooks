@@ -70,6 +70,24 @@
     group: root
     mode: "0700"
 
+- name: Create Semaphore Nextcloud backup destination
+  ansible.builtin.file:
+    path: "{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/{{ semaphore_backup_location | replace('Nextcloud:', '') }}"
+    state: directory
+    owner: "{{ nextcloud_uid }}"
+    group: "{{ nextcloud_gid }}"
+    mode: "0770"
+  when: backup_local | default(false)
+
+- name: Repair Semaphore Nextcloud backup destination ownership
+  ansible.builtin.file:
+    path: "{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/{{ semaphore_backup_location | replace('Nextcloud:', '') }}"
+    state: directory
+    owner: "{{ nextcloud_uid }}"
+    group: "{{ nextcloud_gid }}"
+    recurse: true
+  when: backup_local | default(false)
+
 - name: Backup Semaphore DB Script
   ansible.builtin.template:
     src: backup_semaphore.sh.j2

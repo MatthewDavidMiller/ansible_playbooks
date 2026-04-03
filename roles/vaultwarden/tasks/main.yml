@@ -46,6 +46,24 @@
     path: "{{ vaultwarden_path }}/database_backups"
     state: directory
 
+- name: Create Vaultwarden Nextcloud backup destination
+  ansible.builtin.file:
+    path: "{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/{{ vaultwarden_backup_location | replace('Nextcloud:', '') }}"
+    state: directory
+    owner: "{{ nextcloud_uid }}"
+    group: "{{ nextcloud_gid }}"
+    mode: "0770"
+  when: backup_local | default(false)
+
+- name: Repair Vaultwarden Nextcloud backup destination ownership
+  ansible.builtin.file:
+    path: "{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/{{ vaultwarden_backup_location | replace('Nextcloud:', '') }}"
+    state: directory
+    owner: "{{ nextcloud_uid }}"
+    group: "{{ nextcloud_gid }}"
+    recurse: true
+  when: backup_local | default(false)
+
 - name: Vaultwarden Service
   ansible.builtin.template:
     src: vaultwarden.service.j2

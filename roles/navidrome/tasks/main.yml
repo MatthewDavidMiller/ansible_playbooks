@@ -75,6 +75,24 @@
       - jq
     state: present
 
+- name: Create Navidrome Nextcloud backup destination
+  ansible.builtin.file:
+    path: "{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/{{ navidrome_backup_location | replace('Nextcloud:', '') }}"
+    state: directory
+    owner: "{{ nextcloud_uid }}"
+    group: "{{ nextcloud_gid }}"
+    mode: "0770"
+  when: backup_local | default(false)
+
+- name: Repair Navidrome Nextcloud backup destination ownership
+  ansible.builtin.file:
+    path: "{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/{{ navidrome_backup_location | replace('Nextcloud:', '') }}"
+    state: directory
+    owner: "{{ nextcloud_uid }}"
+    group: "{{ nextcloud_gid }}"
+    recurse: true
+  when: backup_local | default(false)
+
 - name: Backup navidrome script
   ansible.builtin.template:
     src: backup_navidrome.sh.j2
