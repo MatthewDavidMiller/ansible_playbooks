@@ -13,8 +13,6 @@ Applied to the maintained homelab inventory.
 | `ansible_become` | boolean | Run tasks with privilege escalation | `yes` |
 | `ansible_become_method` | string | Escalation method | `sudo` |
 | `default_interface` | string | Primary network interface name | `eth0` |
-| `docker_username` | string | Docker Hub username for Podman login | `myuser` |
-| `docker_password` | string | Docker Hub password | `secret` |
 | `secret_env_dir` | path | Root-only directory for runtime env files | `/etc/homelab/secrets` |
 | `ip_ansible` | string | Ansible controller IP in CIDR form | `192.168.1.1/32` |
 | `management_network` | string | Management network CIDR | `192.168.1.0/24` |
@@ -42,18 +40,10 @@ VM1 is the single maintained service host. It runs Traefik, PostgreSQL, Redis, N
 | `homelab_domain` | string | Root domain used by DDNS | `example.com` |
 | `homelab_subdomain` | string | DDNS subdomain for VM1 | `home` |
 | `traefik_path` | path | Traefik data directory | `/opt/traefik` |
-| `traefik_image` | string | Pinned Traefik image | `docker.io/traefik:v3` |
 | `traefik_networks` | list | Podman networks Traefik must join | `[nextcloud_container_net, navidrome_container_net, vaultwarden_container_net, semaphore_container_net]` |
 | `traefik_dashboard_fqdn` | string | FQDN for the Traefik dashboard | `traefik.example.com` |
 | `traefik_acme_email` | string | ACME account email | `admin@example.com` |
 | `proxy_config` | list | Traefik dynamic route definitions | — |
-| `postgres_image` | string | Shared PostgreSQL image | `docker.io/postgres:17` |
-| `redis_image` | string | Shared Redis image | `docker.io/redis:7` |
-| `nextcloud_image` | string | Nextcloud image | `docker.io/nextcloud:31-apache` |
-| `paperless_image` | string | Paperless NGX image | `ghcr.io/paperless-ngx/paperless-ngx:2.14.7` |
-| `navidrome_image` | string | Navidrome image | `docker.io/deluan/navidrome:0.54.5` |
-| `vaultwarden_image` | string | Vaultwarden image | `docker.io/vaultwarden/server:1.33.2` |
-| `semaphore_image` | string | Semaphore image | `docker.io/semaphoreui/semaphore:v2.13.6` |
 | `postgres_path` | path | Shared PostgreSQL data directory | `/opt/postgres` |
 | `nextcloud_path` | path | Nextcloud base directory | `/opt/nextcloud` |
 | `nextcloud_disk` | string | UUID entry for the Nextcloud data disk | `UUID=...` |
@@ -104,6 +94,14 @@ VM1 is the single maintained service host. It runs Traefik, PostgreSQL, Redis, N
 | `borg_backup_path` | path | Borg repository root on the backup disk | `/opt/borg_backup` |
 | `backup_disk` | string | UUID entry for the backup disk | `UUID=...` |
 | `backup_local` | boolean | Use local Nextcloud-backed service backups | `true` |
+
+---
+
+## Artifact Locks
+
+Maintained container images are resolved in `vm1.yml` from `artifacts/containers.lock.yml` as upstream digest refs. Inventory does not set service image refs directly in the maintained path.
+
+`artifacts/cloud_images.lock.yml` serves the same role for the Proxmox Rocky image and must contain a versioned URL plus SHA256 before provisioning.
 
 ---
 

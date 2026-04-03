@@ -24,7 +24,7 @@ Deploys Traefik v3 for HTTPS termination and service routing on VM1.
 
 **Templates:** `traefik_container.sh.j2`, `traefik_container.service.j2`, `traefik.yml.j2`, `tls.yml.j2`, `security.yml.j2`, `dashboard.yml.j2`, `service_proxy.yml.j2`, `traefik.env.j2`
 
-**Key behavior:** publishes ports 80 and 443, requests per-FQDN certificates through Porkbun DNS-01, and renders dynamic route files from `proxy_config`.
+**Key behavior:** publishes ports 80 and 443, requests per-FQDN certificates through Porkbun DNS-01, renders dynamic route files from `proxy_config`, and runs only against pre-pulled approved digest refs.
 
 ---
 

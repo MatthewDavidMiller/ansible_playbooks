@@ -6,7 +6,7 @@ set -a
 set +a
 
 exec /usr/bin/podman run \
---pull=newer \
+--pull=never \
 --name=redis \
 --network=nextcloud_container_net \
 --env TZ \

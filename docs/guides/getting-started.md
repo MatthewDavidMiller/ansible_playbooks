@@ -8,19 +8,20 @@ This guide walks you through setting up the Ansible playbooks on a new machine f
 
 Install the following on your control machine:
 
-- **Ansible** — `pip install ansible` or via your package manager
+- **Ansible** — via your package manager or in a virtualenv
 - **ansible-lint** — `pip install ansible-lint`
 - **Python 3** — required by Ansible
+- **One of `podman` or `docker`** — required for local container security testing and for the pinned containerized fallback used by the image review tooling when `cosign`, `trivy`, or `skopeo` are not installed natively
 
 ---
 
 ## Install Required Collections
 
 ```bash
-ansible-galaxy collection install ansible.posix community.general community.crypto
+ansible-galaxy collection install -r collections/requirements.yml -p ./collections
 ```
 
-These collections are used across roles for firewalld, SELinux, and crypto operations.
+The repo's `ansible.cfg` prefers `./collections`, so the control node uses the pinned collection set from `collections/requirements.yml`.
 
 ---
 
@@ -35,13 +36,18 @@ cp example_inventory.yml inventory.yml
 Fill in all placeholder values. Key things to configure:
 
 - `management_network` and `ip_ansible` — your management network CIDR and Ansible controller IP; these become the firewalld allowlist
-- `docker_username` / `docker_password` — Docker Hub credentials (prevents pull rate limits)
 - `porkbun_api_key` / `porkbun_api_key_secret` — required for DDNS and Traefik DNS-01 certificate issuance
 - `secret_env_dir` — where root-only runtime env files will be rendered on managed hosts
-- VM1 image variables (`traefik_image`, `postgres_image`, `nextcloud_image`, etc.) — pin the container tags you want to run
 - VM1 per-service DB credentials (`postgres_admin_user`, `nextcloud_db_user`, `paperless_db_user`, `semaphore_db_user`, and their passwords)
 - `top_domain` — your domain (e.g., `example.com`)
 - `vm1.ansible_host` — VM1's IP address or hostname
+
+Before the first production deploy, review and pin the current upstream image digests in `artifacts/containers.lock.yml`. The maintained workflow is documented in [container-image-updates.md](container-image-updates.md) and starts with:
+
+```bash
+python3 scripts/promote_artifacts.py --check-tools
+bash scripts/review_container_updates.sh
+```
 
 For a complete variable reference see [inventory.md](../inventory.md).
 
@@ -68,8 +74,7 @@ ansible-playbook -i inventory.yml standalone_tasks/generate_ssh_key.yml -e key_n
 New VMs provisioned from the Rocky Linux 10 cloud-init template (VMID 401) need one-time bootstrapping before Ansible can connect as a non-root user.
 
 Run `scripts/setup.py` on the VM (or equivalent manual steps) to:
-- Update packages
-- Install Ansible
+- Install `ansible-core`, `sshpass`, and the distro-packaged collections used by the maintained playbooks
 - Create the `/ansible_configs` directory
 
 For VM provisioning itself see [guides/proxmox-setup.md](proxmox-setup.md).
@@ -95,6 +100,14 @@ Apply configuration:
 ```bash
 ansible-playbook -i inventory.yml vm1.yml -v
 ```
+
+Apply host package updates from approved repos only when you intend to do a full installed-package refresh:
+
+```bash
+ansible-playbook -i inventory.yml standalone_tasks/update_vm1_packages.yml -v
+```
+
+Normal `vm1.yml` runs apply security-only OS updates.
 
 ---
 

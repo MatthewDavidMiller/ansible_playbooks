@@ -6,7 +6,7 @@ set -a
 set +a
 
 exec /usr/bin/podman run \
-  --pull=newer \
+  --pull=never \
   --name=traefik \
 {% for net in traefik_networks %}
   --network={{ net }} \

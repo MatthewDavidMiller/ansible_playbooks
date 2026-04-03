@@ -9,22 +9,77 @@
 set -euo pipefail
 
 REPO_ROOT=$(cd "$(dirname "$0")/.." && pwd)
+LOCK_FILE=${LOCK_FILE:-"$REPO_ROOT/artifacts/containers.lock.yml"}
 DOCKER=${DOCKER:-docker}
-POSTGRES_IMAGE=${POSTGRES_IMAGE:-docker.io/postgres:17}
-REDIS_IMAGE=${REDIS_IMAGE:-docker.io/redis:7}
-NEXTCLOUD_IMAGE=${NEXTCLOUD_IMAGE:-docker.io/nextcloud:31-apache}
-TRAEFIK_IMAGE=${TRAEFIK_IMAGE:-docker.io/traefik:v3}
-PAPERLESS_IMAGE=${PAPERLESS_IMAGE:-ghcr.io/paperless-ngx/paperless-ngx:2.14.7}
-VAULTWARDEN_IMAGE=${VAULTWARDEN_IMAGE:-docker.io/vaultwarden/server:1.33.2}
-SEMAPHORE_IMAGE=${SEMAPHORE_IMAGE:-docker.io/semaphoreui/semaphore:v2.13.6}
-NAVIDROME_IMAGE=${NAVIDROME_IMAGE:-docker.io/deluan/navidrome:0.54.5}
+lock_image_ref() {
+  python3 - "$LOCK_FILE" "$1" <<'PY'
+from pathlib import Path
+import sys
 
-cleanup()     { $DOCKER rm -f "$1" 2>/dev/null || true; }
+import yaml
+
+lock_file = Path(sys.argv[1])
+service = sys.argv[2]
+data = yaml.safe_load(lock_file.read_text(encoding="utf-8"))
+entry = data["artifact_locked_images"][service]
+upstream_ref = entry["upstream_ref"]
+digest = entry["approved_digest"]
+
+if "@" in upstream_ref:
+    image_name = upstream_ref.rsplit("@", 1)[0]
+else:
+    last_slash = upstream_ref.rfind("/")
+    last_colon = upstream_ref.rfind(":")
+    if last_colon > last_slash:
+        image_name = upstream_ref[:last_colon]
+    else:
+        image_name = upstream_ref
+
+print(f"{image_name}@{digest}")
+PY
+}
+
+POSTGRES_IMAGE=${POSTGRES_IMAGE:-$(lock_image_ref postgres)}
+REDIS_IMAGE=${REDIS_IMAGE:-$(lock_image_ref redis)}
+NEXTCLOUD_IMAGE=${NEXTCLOUD_IMAGE:-$(lock_image_ref nextcloud)}
+TRAEFIK_IMAGE=${TRAEFIK_IMAGE:-$(lock_image_ref traefik)}
+PAPERLESS_IMAGE=${PAPERLESS_IMAGE:-$(lock_image_ref paperless)}
+VAULTWARDEN_IMAGE=${VAULTWARDEN_IMAGE:-$(lock_image_ref vaultwarden)}
+SEMAPHORE_IMAGE=${SEMAPHORE_IMAGE:-$(lock_image_ref semaphore)}
+NAVIDROME_IMAGE=${NAVIDROME_IMAGE:-$(lock_image_ref navidrome)}
+
+cleanup()     { $DOCKER rm -f "$1" >/dev/null 2>&1 || true; }
 cleanup_dir() {
   # Restore ownership to current user via docker so rm -rf works without sudo
   $DOCKER run --rm -v "$(dirname "$1")":/mnt \
     alpine chown -R "$(id -u):$(id -g)" "/mnt/$(basename "$1")"
   rm -rf "$1"
+}
+cleanup_all_test_containers() {
+  local name
+  for name in \
+    test_navidrome \
+    test_nextcloud \
+    test_paperless \
+    test_postgres \
+    test_postgres_custom_migration \
+    test_postgres_custom_seed \
+    test_postgres_legacy_migration \
+    test_postgres_legacy_seed \
+    test_postgres_migration \
+    test_postgres_migration_seed \
+    test_postgres_mixed_migration \
+    test_postgres_mixed_seed \
+    test_postgres_roles \
+    test_redis \
+    test_semaphore_base \
+    test_semaphore_caps \
+    test_traefik_cap \
+    test_traefik_nocap \
+    test_vaultwarden
+  do
+    cleanup "$name"
+  done
 }
 pass() { echo "PASS: $1"; }
 fail() { echo "FAIL: $1"; exit 1; }
@@ -34,6 +89,9 @@ check_running() {
   $DOCKER inspect --format='{{.State.Status}}' "$name" 2>/dev/null \
     | grep -q running && pass "$label" || fail "$label"
 }
+
+trap cleanup_all_test_containers EXIT
+cleanup_all_test_containers
 
 echo "=== Container Security Flag Tests ==="
 echo "Docker: $($DOCKER --version)"

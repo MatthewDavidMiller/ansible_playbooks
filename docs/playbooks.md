@@ -12,7 +12,7 @@ This document covers the maintained playbooks only. Legacy playbooks live under 
 
 **Usage:** Configures VM1, the single maintained Rocky Linux 10 service host. Runtime-affecting changes are staged during the play and become live after `reboot_vms.yml`.
 
-**Notes:** `nextcloud` must run before `paperless_ngx` and `semaphore` because it owns the shared PostgreSQL and Redis containers. `standard_rclone` must run before `standard_selinux`.
+**Notes:** `vm1.yml` resolves maintained service images from `artifacts/containers.lock.yml` and pre-pulls them through `standard_podman`. `standard_update_packages` applies security-only OS updates during normal convergence. `nextcloud` must run before `paperless_ngx` and `semaphore` because it owns the shared PostgreSQL and Redis containers. `standard_rclone` must run before `standard_selinux`.
 
 ---
 
@@ -37,3 +37,11 @@ This document covers the maintained playbooks only. Legacy playbooks live under 
 **Target:** `vm1`
 
 **Usage:** Reboots VM1 using delayed shutdown so the current Ansible/Semaphore run can finish cleanly before the host goes down.
+
+---
+
+## `standalone_tasks/update_vm1_packages.yml`
+
+**Target:** `vm1`
+
+**Usage:** Manual host patching workflow. Switches `standard_update_packages` into full-update mode so installed packages can be advanced beyond security errata when you explicitly choose to do so.

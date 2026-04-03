@@ -8,6 +8,11 @@ set -euo pipefail
 echo "=== Pre-commit checks ==="
 
 echo ""
+echo "--- Supply Chain Policy ---"
+bash scripts/test_supply_chain_policy.sh
+echo "PASS: supply-chain policy"
+
+echo ""
 echo "--- Ansible Lint ---"
 ansible-lint
 echo "PASS: ansible-lint"

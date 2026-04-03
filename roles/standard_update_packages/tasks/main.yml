@@ -3,9 +3,23 @@
   ansible.builtin.dnf:
     name: epel-release
     state: present
+  when: standard_update_enable_epel | bool
 
-- name: Update all packages to their latest version
+- name: Apply security updates from approved repositories
   ansible.builtin.dnf:
     name: "*"
     state: latest
+    update_only: true
+    security: true
     update_cache: true
+  when:
+    - standard_update_apply_security_updates | bool
+    - not standard_update_apply_full_updates | bool
+
+- name: Apply full host package updates from approved repositories
+  ansible.builtin.dnf:
+    name: "*"
+    state: latest
+    update_only: true
+    update_cache: true
+  when: standard_update_apply_full_updates | bool

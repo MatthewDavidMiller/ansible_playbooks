@@ -1,7 +1,9 @@
 ---
-- name: Install podman
+- name: Install podman and image tooling
   ansible.builtin.dnf:
-    name: podman
+    name:
+      - podman
+      - skopeo
     state: present
 
 - name: Create podman secret directory
@@ -12,27 +14,38 @@
     group: root
     mode: "0700"
 
-- name: Docker login secret env file
-  ansible.builtin.template:
-    src: docker_login.env.j2
-    dest: "{{ secret_env_dir }}/docker_login.env"
-    owner: root
-    group: root
-    mode: "0600"
+- name: Validate approved image policy inputs
+  ansible.builtin.assert:
+    that:
+      - approved_container_images | length > 0
+    fail_msg: Define approved_container_images with approved immutable digest references.
 
-- name: Login to Docker Service
-  ansible.builtin.template:
-    src: login_to_docker.j2
-    dest: /etc/systemd/system/login_to_docker.service
+- name: Enforce approved digest references
+  ansible.builtin.assert:
+    that:
+      - item | regex_search("^[^[:space:]]+@sha256:[a-f0-9]{64}$")
+    fail_msg: "Unapproved image reference '{{ item }}'. Use an immutable digest reference of the form <registry>/<repo>@sha256:<digest>."
+  loop: "{{ approved_container_images | unique }}"
 
-- name: Enable Login to Docker Service
-  ansible.builtin.systemd:
-    name: login_to_docker.service
-    enabled: true
-    daemon_reload: true
+- name: Check for approved images in the local podman store
+  ansible.builtin.command:
+    argv:
+      - podman
+      - image
+      - exists
+      - "{{ item }}"
+  loop: "{{ approved_container_images | unique }}"
+  register: approved_container_image_presence
+  changed_when: false
+  failed_when: false
 
-- name: Start Login to Docker Service
-  ansible.builtin.systemd:
-    name: login_to_docker.service
-    state: started
-  when: not (apply_runtime_changes_on_reboot | default(false) | bool)
+- name: Pull approved images into the local podman store
+  ansible.builtin.command:
+    argv:
+      - podman
+      - pull
+      - "{{ item.item }}"
+  loop: "{{ approved_container_image_presence.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: item.rc != 0
