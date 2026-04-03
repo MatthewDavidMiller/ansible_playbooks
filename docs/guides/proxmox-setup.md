@@ -148,7 +148,7 @@ python3 scripts/setup.py
 ```
 
 This script:
-- Installs `ansible-core`, `sshpass`, and the distro-packaged collections used by the maintained playbooks
+- Installs `ansible-core`, `openssh-clients`, `sshpass`, and the distro-packaged collections used by the maintained playbooks
 - Creates `/ansible_configs` with appropriate permissions
 
 After bootstrapping, the VM is ready for Ansible management. See [getting-started.md](getting-started.md) for next steps.

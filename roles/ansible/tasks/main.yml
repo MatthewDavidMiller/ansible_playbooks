@@ -3,6 +3,7 @@
   ansible.builtin.dnf:
     name:
       - ansible-core
+      - openssh-clients
       - sshpass
     state: present
 
@@ -11,5 +12,4 @@
     name:
       - ansible-collection-ansible-posix
       - ansible-collection-community-general
-      - ansible-collection-community-crypto
     state: present
