@@ -1,124 +1,39 @@
 # Playbooks Reference
 
-This document describes every playbook's purpose, target, and role composition. For common commands see [README.md](../README.md); for setup and first-run workflow see [guides/getting-started.md](guides/getting-started.md).
+This document covers the maintained playbooks only. Legacy playbooks live under [`archive/playbooks/`](../archive/playbooks/) and are indexed in [archive.md](archive.md).
 
 ---
 
-## Orchestrator Playbooks
-
-### `homelab_vms.yml`
-
-**Imports:** `vm1.yml`
-
-**Usage:** Run to configure all homelab VMs. Currently imports only `vm1.yml` as all services are consolidated there.
-
----
-
-### `update_homelab_vms.yml`
-
-**Imports:** `homelab_vms.yml` → `reboot_vms.yml`
-
-**Usage:** Full update cycle — reconfigure all VMs, then reboot vm1.
-
----
-
-## Service Playbooks
-
-### `vm1.yml`
+## `vm1.yml`
 
 **Target:** `vm1`
 
 **Roles (in order):** `standard_ssh` → `standard_qemu_guest_agent` → `standard_update_packages` → `configure_timezone` → `standard_cron` → `dynamic_dns` → `standard_firewalld` → `standard_podman` → `standard_rclone` → `standard_selinux` → `backup` → `ansible` → `reverse_proxy` → `nextcloud` → `paperless_ngx` → `navidrome` → `vaultwarden` → `semaphore` → `standard_cleanup`
 
-**Usage:** Configures VM1 (ID 120) — a single Rocky Linux 10 host running all services consolidated. Firewall and container runtime changes are staged during `vm1.yml` and take effect on the next reboot. See [architecture.md — VM1 Consolidated VM](architecture.md#vm1-consolidated-vm).
+**Usage:** Configures VM1, the single maintained Rocky Linux 10 service host. Runtime-affecting changes are staged during the play and become live after `reboot_vms.yml`.
 
-**Notes:** `nextcloud` must run before `paperless_ngx` because it creates the shared PostgreSQL 17 and Redis containers. `standard_rclone` must run before `standard_selinux` so the FUSE packages exist before the SELinux boolean is set. VM1 now uses per-service PostgreSQL credentials, root-only runtime env files under `secret_env_dir`, explicit image variables for the container tags, management-only Traefik exposure for the dashboard and Semaphore, and local unencrypted backups as an accepted homelab tradeoff. `update_homelab_vms.yml` is the preferred end-to-end workflow because it runs `vm1.yml` and then reboots VM1 to activate the staged runtime changes.
-
----
-
-### `vpn.yml`
-
-**Target:** `vpn`
-
-**Roles (in order):** `standard_ssh` → `standard_qemu_guest_agent` → `standard_update_packages` → `configure_timezone` → `standard_cron` → `dynamic_dns` → `standard_firewalld` → `standard_podman` → `vpn` → `standard_cleanup`
-
-**Usage:** Configures the WireGuard VPN server (VM 110). No SWAG — VPN is accessed directly.
+**Notes:** `nextcloud` must run before `paperless_ngx` and `semaphore` because it owns the shared PostgreSQL and Redis containers. `standard_rclone` must run before `standard_selinux`.
 
 ---
 
-### `unificontroller.yml`
+## `homelab_vms.yml`
 
-**Target:** `unificontroller`
+**Imports:** `vm1.yml`
 
-**Roles (in order):** `standard_ssh` → `standard_qemu_guest_agent` → `standard_update_packages` → `configure_timezone` → `standard_cron` → `standard_firewalld` → `standard_podman` → `reverse_proxy` → `unificontroller` → `standard_cleanup`
-
-**Usage:** Configures the Ubiquiti Unifi Controller (VM 116).
+**Usage:** Active orchestrator playbook for the homelab. It currently imports only `vm1.yml`.
 
 ---
 
-### `pihole.yml`
+## `update_homelab_vms.yml`
 
-**Target:** `pihole`
+**Imports:** `homelab_vms.yml` → `reboot_vms.yml`
 
-**Roles (in order):** `standard_ssh` → `standard_qemu_guest_agent` → `standard_update_packages` → `configure_timezone` → `standard_cron` → `standard_firewalld` → `standard_podman` → `standard_rclone` → `reverse_proxy` → `dns` → `standard_cleanup`
-
-**Usage:** Configures the Pi-hole DNS server (VM 111).
+**Usage:** Preferred end-to-end workflow. Reconfigures VM1, then reboots it so staged runtime changes take effect.
 
 ---
 
-### `apcontroller.yml`
-
-**Target:** `apcontroller`
-
-**Roles (in order):** `standard_ssh` → `standard_qemu_guest_agent` → `standard_update_packages` → `configure_timezone` → `standard_cron` → `standard_firewalld` → `standard_podman` → `reverse_proxy` → `omadacontroller` → `standard_cleanup`
-
-**Usage:** Configures the TP-Link Omada Controller (VM 112).
-
----
-
-## Laptop Playbooks
-
-### `laptop_config.yml`
-
-**Target:** `laptop`
-
-**Usage:** Configures an existing Arch Linux laptop installation — desktop environment (Sway), packages, shell aliases, git, security (AppArmor, firejail), and user environment. Run after `laptop_arch_install_2.yml`.
-
----
-
-### `laptop_arch_install_1.yml`
-
-**Target:** `laptop` (over root SSH into a live environment)
-
-**Usage:** Stage 1 of bare-metal Arch Linux install — partitioning, LUKS encryption, LVM, filesystems, base package installation via `pacstrap`. Run from the Arch ISO.
-
----
-
-### `laptop_arch_install_2.yml`
-
-**Target:** `laptop` (over root SSH, chrooted)
-
-**Usage:** Stage 2 of Arch Linux install — hostname, fstab, bootloader (systemd-boot), users, network. Run after stage 1.
-
----
-
-## Reboot Playbooks
-
-### `reboot_vms.yml`
+## `reboot_vms.yml`
 
 **Target:** `vm1`
 
-**Usage:** Reboots VM1 using a delayed shutdown (`shutdown -r +1`) so the running Semaphore/Ansible play has time to complete before the host goes down.
-
----
-
-## Standalone Tasks
-
-Located in `standalone_tasks/`. Run individually with `-i inventory.yml`.
-
-| File | Target | Purpose |
-|---|---|---|
-| `apt_update_server.yml` | `debian` | Upgrade all packages on Debian hosts |
-| `generate_ssh_key.yml` | `ansible` | Generate an Ed25519 SSH keypair at `/home/{{ user_name }}/{{ key_name }}` |
-| `reboot_server.yml` | `ubuntu_no_ansible` | Reboot servers with 300-second wait timeout |
-| `update_openwrt.yml` | `openwrt` | Update packages on OpenWrt devices via opkg |
+**Usage:** Reboots VM1 using delayed shutdown so the current Ansible/Semaphore run can finish cleanly before the host goes down.

@@ -4,7 +4,7 @@ Repository guidance for Claude Code when working in this project.
 
 ## Project
 
-This repo manages a homelab with Ansible. Most hosts are Rocky Linux 10 VMs running Podman containers under systemd; the laptop playbooks target Arch Linux.
+This repo manages the maintained VM1 homelab workflow with Ansible. Historical playbooks and roles are preserved under `archive/` for reference only.
 
 Start with [README.md](README.md), then use [docs/index.md](docs/index.md) for the full documentation map.
 
@@ -29,4 +29,5 @@ Start with [README.md](README.md), then use [docs/index.md](docs/index.md) for t
 - [docs/roles/standard.md](docs/roles/standard.md): shared infrastructure roles
 - [docs/roles/services.md](docs/roles/services.md): service role behavior and templates
 - [docs/guides/getting-started.md](docs/guides/getting-started.md): setup and first-run commands
+- [docs/archive.md](docs/archive.md): archived playbooks, roles, and historical docs
 - [docs/documentation-standards.md](docs/documentation-standards.md): doc ownership and cross-reference rules

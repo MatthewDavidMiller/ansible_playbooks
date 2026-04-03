@@ -19,11 +19,11 @@ For VM provisioning details see [proxmox-setup.md](proxmox-setup.md).
 | Navidrome DB | Local install into Nextcloud data dir as `nextcloud_uid:nextcloud_gid` (`backup_local: true`) | `{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/<navidrome_backup_location>` |
 | Semaphore DB | `pg_dump` staged locally, then installed into Nextcloud data dir as `nextcloud_uid:nextcloud_gid` (`backup_local: true`) | `{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/<semaphore_backup_location>` |
 | Navidrome music | Local bind-mount of Nextcloud data dir — source is Nextcloud user files (backed up by Borg above) | n/a |
-| SWAG/TLS certificates | Regeneratable via DNS-01 challenge | n/a |
+| Traefik/Let's Encrypt certificates | Regeneratable via DNS-01 challenge | n/a |
 | Redis | Cache only — acceptable loss | n/a |
 | Proxmox node config | Script on Proxmox host → rclone daily | `Nextcloud:<proxmox_backup_location>` |
 
-> Variable names above refer to host variables in your `inventory.yml`. See [inventory.md](../inventory.md#vm1-host-vm1-id-120).
+> Variable names above refer to host variables in your `inventory.yml`. See [inventory.md](../inventory.md#vm1-host).
 
 ---
 
@@ -362,7 +362,7 @@ DNS already points to VM1's IP. If you provisioned the replacement VM with a dif
 | `vault.<top_domain>` | Vaultwarden |
 | `semaphore.<top_domain>` | Semaphore |
 
-SWAG will issue a new wildcard certificate via DNS-01 challenge on first startup if the existing certificate does not carry over.
+Traefik will issue fresh per-service certificates via DNS-01 challenge if the existing `acme.json` state does not carry over.
 
 ---
 
@@ -375,5 +375,5 @@ Confirm each service is functional:
 - [ ] Navidrome music library is visible (populated from Nextcloud user files restored in Step 2g)
 - [ ] Vaultwarden vault unlocks with existing credentials
 - [ ] Semaphore projects and inventories are present
-- [ ] SWAG issued a valid TLS certificate (check browser padlock)
+- [ ] Traefik issued valid TLS certificates (check browser padlock)
 - [ ] Backup scripts are running: `crontab -l`

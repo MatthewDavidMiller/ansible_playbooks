@@ -4,36 +4,10 @@ profile: moderate
 # Paths to exclude from linting
 exclude_paths:
   - .git/
+  - archive/
   - example_inventory.yml
-  - laptop_arch_install_1.yml
-  - laptop_arch_install_2.yml
-  - laptop_config.yml
   - reboot_vms.yml
   - standalone_tasks/
-  - roles/aur_builds/
-  - roles/configure_git/
-  - roles/configure_locales/
-  - roles/configure_package_manager/
-  - roles/configure_psd/
-  - roles/configure_scripts/
-  - roles/configure_sudo/
-  - roles/configure_virt_manager/
-  - roles/configure_wm/
-  - roles/default_firewalld_config/
-  - roles/enable_apparmor/
-  - roles/enable_bluetooth/
-  - roles/enable_cups/
-  - roles/enable_firewalld/
-  - roles/enable_network_manager/
-  - roles/enable_ntpd/
-  - roles/enable_paccache/
-  - roles/fwupd_config/
-  - roles/get_uuids/
-  - roles/initial_Arch_install/
-  - roles/initial_install_mount_filesystems/
-  - roles/reflector_config/
-  - roles/setup_systemd_boot/
-  - roles/standard_openwrt/
 
 # Rules to skip that don't apply to this project
 skip_list:

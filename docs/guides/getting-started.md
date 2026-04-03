@@ -41,7 +41,7 @@ Fill in all placeholder values. Key things to configure:
 - VM1 image variables (`traefik_image`, `postgres_image`, `nextcloud_image`, etc.) — pin the container tags you want to run
 - VM1 per-service DB credentials (`postgres_admin_user`, `nextcloud_db_user`, `paperless_db_user`, `semaphore_db_user`, and their passwords)
 - `top_domain` — your domain (e.g., `example.com`)
-- Per-host `ansible_host` values — IP addresses of your VMs
+- `vm1.ansible_host` — VM1's IP address or hostname
 
 For a complete variable reference see [inventory.md](../inventory.md).
 
@@ -81,19 +81,19 @@ For VM provisioning itself see [guides/proxmox-setup.md](proxmox-setup.md).
 Test connectivity:
 
 ```bash
-ansible -i inventory.yml all -m ping
+ansible -i inventory.yml vm1 -m ping
 ```
 
-Dry run against one host:
+Dry run against VM1:
 
 ```bash
-ansible-playbook -i inventory.yml nextcloud.yml --check -v
+ansible-playbook -i inventory.yml vm1.yml --check -v
 ```
 
 Apply configuration:
 
 ```bash
-ansible-playbook -i inventory.yml nextcloud.yml -v
+ansible-playbook -i inventory.yml vm1.yml -v
 ```
 
 ---
@@ -104,4 +104,4 @@ ansible-playbook -i inventory.yml nextcloud.yml -v
 ansible-playbook -i inventory.yml homelab_vms.yml
 ```
 
-This imports all service playbooks in sequence. See [playbooks.md](../playbooks.md) for the full import order.
+This imports the maintained VM1 playbook. For the preferred configure-and-reboot flow, run `update_homelab_vms.yml`. See [playbooks.md](../playbooks.md) for the active playbook chain.

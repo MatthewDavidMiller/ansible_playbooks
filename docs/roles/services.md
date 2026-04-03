@@ -1,496 +1,97 @@
 # Service Roles Reference
 
-Each service role deploys one or more containers using the Podman + systemd pattern. See [architecture.md](../architecture.md) for network design and [playbooks.md](../playbooks.md) for playbook composition.
+These are the maintained service roles used by `vm1.yml`. Historical service roles live under the archive.
 
 ---
 
 ### `dynamic_dns`
 
-Updates a Porkbun DNS A record with the host's current WAN IP, retrieved from the Porkbun ping endpoint.
+Updates the VM1 Porkbun A record when the WAN IP changes.
 
-**Distributions:** Rocky Linux 10
+**Required variables:** `homelab_domain`, `homelab_subdomain`, `porkbun_api_key`, `porkbun_api_key_secret`, `secret_env_dir`
 
-**Required variables:**
+**Templates:** `dynamic_dns.py.j2`, `dynamic_dns.env.j2`
 
-| Variable | Type | Description | Example |
-|---|---|---|---|
-| `homelab_domain` | string | Root domain for the A record | `example.com` |
-| `homelab_subdomain` | string | Subdomain to update | `vpn` |
-| `porkbun_api_key` | string | Porkbun API key (global) | `pk1_...` |
-| `porkbun_api_key_secret` | string | Porkbun API secret (global) | `sk1_...` |
-| `secret_env_dir` | path | Root-only directory for runtime env files | `/etc/homelab/secrets` |
-
-**Templates:**
-
-| Template | Destination | Description |
-|---|---|---|
-| `dynamic_dns.py.j2` | `/usr/local/bin/dynamic_dns.py` | Python script; fetches WAN IP via Porkbun ping, compares to cache, updates Porkbun A record only when changed |
-| `dynamic_dns.env.j2` | `{{ secret_env_dir }}/dynamic_dns.env` | Root-only Porkbun credential/env file |
-
-**Notable tasks:**
-- Installs `python3-requests` via dnf
-- Writes `/etc/logrotate.d/dynamic_dns` (weekly, 4 weeks retained, compressed)
-- Installs a cron job running every 5 minutes; output appended to `/var/log/dynamic_dns.log`
-
-**Log file:** `/var/log/dynamic_dns.log` — rotated at 1 MB, 5 backups retained. Also echoes to stderr, so manual runs show output directly.
-
-**Cache file:** `/var/cache/dynamic_dns_ip` — stores the last successfully applied IP. When the cached IP matches the current WAN IP the script exits immediately with no API calls.
+**Key behavior:** writes a root-only env file, caches the last applied IP, logs to `/var/log/dynamic_dns.log`, and runs from cron every five minutes.
 
 ---
 
 ### `reverse_proxy`
 
-Deploys Traefik v3 for TLS termination and reverse proxying. Uses Traefik's built-in ACME engine with Porkbun DNS-01 challenge for per-FQDN certificates, and the file provider for dynamic routing config.
+Deploys Traefik v3 for HTTPS termination and service routing on VM1.
 
-**Distributions:** Rocky Linux 10
+**Required variables:** `traefik_path`, `traefik_networks`, `traefik_dashboard_fqdn`, `traefik_acme_email`, `proxy_config`, `container_service_names`, `management_network`, `ip_ansible`, `secret_env_dir`, `traefik_image`
 
-**Container image:** configurable via `traefik_image`
+**Templates:** `traefik_container.sh.j2`, `traefik_container.service.j2`, `traefik.yml.j2`, `tls.yml.j2`, `security.yml.j2`, `dashboard.yml.j2`, `service_proxy.yml.j2`, `traefik.env.j2`
 
-**Ports:** 80/tcp (HTTP→HTTPS redirect) + 443/tcp (HTTPS). Both exposed via Podman `-p`; no explicit firewalld rules needed — Podman's DNAT rules in PREROUTING preempt zone filtering.
-
-**Required variables:**
-
-| Variable | Type | Description | Example |
-|---|---|---|---|
-| `traefik_path` | path | Traefik data directory | `/opt/traefik` |
-| `traefik_networks` | list | All Podman networks Traefik must join | `[nextcloud_container_net, ...]` |
-| `traefik_dashboard_fqdn` | string | FQDN for Traefik dashboard (gets its own cert) | `traefik.example.com` |
-| `traefik_acme_email` | string | Email for Let's Encrypt ACME account registration | `admin@example.com` |
-| `porkbun_api_key` | string | Porkbun API key | `pk1_...` |
-| `porkbun_api_key_secret` | string | Porkbun API secret | `sk1_...` |
-| `management_network` | string | Management network CIDR — for dashboard `ipAllowList` | `192.168.1.0/24` |
-| `ip_ansible` | string | Ansible controller IP (CIDR) — for dashboard `ipAllowList` | `192.168.1.1/32` |
-| `proxy_config` | list | Proxy config objects — see [inventory.md](../inventory.md#proxy_config-object-schema) | — |
-| `container_service_names` | string | Space-separated systemd unit names for `After=` in Traefik service | `nextcloud_container postgres_container` |
-| `secret_env_dir` | path | Root-only directory for runtime env files | `/etc/homelab/secrets` |
-| `traefik_image` | string | Pinned Traefik image reference | `docker.io/traefik:v3` |
-
-**Templates:**
-
-| Template | Destination | Description |
-|---|---|---|
-| `traefik_container.sh.j2` | `/usr/local/bin/traefik_container.sh` | `podman run` command; iterates `traefik_networks` for `--network` flags |
-| `traefik_container.service.j2` | `/etc/systemd/system/traefik_container.service` | Systemd unit for Traefik |
-| `traefik.yml.j2` | `{{ traefik_path }}/traefik.yml` | Traefik static config (entrypoints, ACME resolver, file provider) |
-| `tls.yml.j2` | `{{ traefik_path }}/config/tls.yml` | TLS options: min TLS 1.2, cipher suites, SNI strict |
-| `security.yml.j2` | `{{ traefik_path }}/config/security.yml` | Middlewares: `security-headers`, `ip-allowlist-mgmt`, and `rate-limit-default` |
-| `dashboard.yml.j2` | `{{ traefik_path }}/config/dashboard.yml` | Dashboard router — HTTPS only, restricted to management network |
-| `service_proxy.yml.j2` | `{{ traefik_path }}/config/{{ name }}.yml` | Generic service router + backend (one file per `proxy_config` entry) |
-| `traefik.env.j2` | `{{ secret_env_dir }}/traefik.env` | Root-only Porkbun credential/env file |
-
-**Notes:**
-- `acme.json` is initialised with `force: false` — an existing file (with live certs) is never overwritten by Ansible
-- Setting `certResolver: porkbun` on the `websecure` entrypoint without specifying wildcard `domains` causes Traefik to request individual certs for each router's exact `Host()` FQDN
-- The generic `service_proxy.yml.j2` template is used for all `proxy_config` entries — no per-service template is needed
-- Any proxy entry can add `proxy_allow_encoded_slash: true` to forward `%2F` in the request path; on current Traefik v3 stable this enables entrypoint-level support for the Traefik instance when any route requests it
-- Any proxy entry can add `proxy_management_only: true` to apply the management-network allowlist
+**Key behavior:** publishes ports 80 and 443, requests per-FQDN certificates through Porkbun DNS-01, and renders dynamic route files from `proxy_config`.
 
 ---
 
 ### `nextcloud`
 
-Deploys Nextcloud with PostgreSQL 17 and Redis. Also sets up Borg backup and creates the container network used by Paperless NGX. PostgreSQL 17 is shared with Paperless NGX and Semaphore.
+Deploys the shared PostgreSQL container, Redis container, and Nextcloud itself.
 
-**Distributions:** Debian 12, Rocky Linux 10, Arch Linux
+**Required variables:** `postgres_image`, `redis_image`, `nextcloud_image`, `postgres_path`, `nextcloud_path`, `nextcloud_disk`, `postgres_admin_user`, `postgres_admin_password`, `nextcloud_database_name`, `nextcloud_db_user`, `nextcloud_db_password`, `nextcloud_admin_user`, `nextcloud_admin_password`, `nextcloud_trusted_domains`, `secret_env_dir`
 
-**Container images:** configurable via `postgres_image`, `redis_image`, and `nextcloud_image`
+**Templates:** `postgres_container.sh.j2`, `postgres_container.service.j2`, `redis_container.sh.j2`, `redis_container.service.j2`, `nextcloud_container.sh.j2`, `nextcloud_container.service.j2`, `postgres.env.j2`, `nextcloud.env.j2`
 
-**Data directories:** `{{ postgres_path }}`, `{{ nextcloud_path }}`
-
-**Required variables:**
-
-| Variable | Type | Description | Example |
-|---|---|---|---|
-| `postgres_path` | path | PostgreSQL 17 data directory (shared with Paperless and Semaphore) | `/opt/postgres` |
-| `nextcloud_path` | path | Nextcloud data directory | `/opt/nextcloud` |
-| `nextcloud_disk` | string | UUID of Nextcloud data disk | `UUID=abc123...` |
-| `nextcloud_uid` | string | Host-side UID that owns Nextcloud-managed files and local backup destinations | `33` |
-| `nextcloud_gid` | string | Host-side GID that owns Nextcloud-managed files and local backup destinations | `33` |
-| `nextcloud_normalize_user_files_permissions` | boolean | Normalize permissions under every `{{ nextcloud_path }}/data/<user>/files` tree | `true` |
-| `nextcloud_user_files_directory_mode` | string | Directory mode applied during user file-tree normalization | `0770` |
-| `nextcloud_user_files_file_mode` | string | Regular file mode applied during user file-tree normalization | `0660` |
-| `postgres_admin_user` | string | PostgreSQL admin role for bootstrap/maintenance | `postgres_admin` |
-| `postgres_admin_password` | string | PostgreSQL admin password | `secret` |
-| `postgres_legacy_bootstrap_user` | string | Optional old PostgreSQL superuser name for one-time migrations | `legacy_admin` |
-| `postgres_legacy_bootstrap_password` | string | Optional password for the legacy PostgreSQL superuser | `secret` |
-| `nextcloud_database_name` | string | Database name | `nextcloud` |
-| `nextcloud_db_user` | string | Nextcloud database username | `nextcloud_user` |
-| `nextcloud_db_password` | string | Nextcloud database password | `secret` |
-| `nextcloud_admin_user` | string | Admin username | `admin` |
-| `nextcloud_admin_password` | string | Admin password | `secret` |
-| `nextcloud_trusted_domains` | string | Trusted domains | `nextcloud.example.com` |
-| `secret_env_dir` | path | Root-only directory for runtime env files | `/etc/homelab/secrets` |
-
-**Templates:**
-
-| Template | Destination | Description |
-|---|---|---|
-| `postgres_container.sh.j2` | `/usr/local/bin/postgres_container.sh` | PostgreSQL 17 container launch script |
-| `postgres_container.service.j2` | `/etc/systemd/system/postgres_container.service` | Systemd unit |
-| `redis_container.sh.j2` | `/usr/local/bin/redis_container.sh` | Redis container launch script |
-| `redis_container.service.j2` | `/etc/systemd/system/redis_container.service` | Systemd unit |
-| `nextcloud_container.sh.j2` | `/usr/local/bin/nextcloud_container.sh` | Nextcloud container launch script |
-| `nextcloud_container.service.j2` | `/etc/systemd/system/nextcloud_container.service` | Systemd unit |
-| `db_wrapper.sh` | `/usr/local/bin/db_wrapper.sh` | Database maintenance wrapper |
-| `backup_nextcloud_paperless.sh.j2` | `/usr/local/bin/backup_nextcloud_paperless.sh` | Daily Borg backup script for Nextcloud + Paperless |
-| `postgres.env.j2` | `{{ secret_env_dir }}/postgres.env` | Root-only PostgreSQL bootstrap env file |
-| `nextcloud.env.j2` | `{{ secret_env_dir }}/nextcloud.env` | Root-only Nextcloud app/env file |
-
-**Systemd services installed:** `postgres_container`, `redis_container`, `nextcloud_container`
-
-**Notes:**
-- PostgreSQL runs as UID/GID `999:999`; the `custom-init/db_wrapper.sh` wrapper must be owned by `999:999` so the image entrypoint can execute it after `--user=999:999` is applied.
-- Redis uses `--cap-drop=ALL` with `CHOWN`, `FOWNER`, and `DAC_OVERRIDE` added back for startup-time filesystem handling inside the image.
-- Each application now gets its own PostgreSQL role and password even though the engine is shared.
-- Host paths under `{{ nextcloud_path }}` are owned by `nextcloud_uid:nextcloud_gid` so local backup writers can stage files that Nextcloud can read and index immediately.
-- When `nextcloud_normalize_user_files_permissions: true`, the role scans every `{{ nextcloud_path }}/data/<user>/files` tree and removes `other` access by normalizing directories to `nextcloud_user_files_directory_mode` and regular files to `nextcloud_user_files_file_mode`.
-- The normalization pass intentionally excludes `appdata_*`, updater, and other non-user paths by targeting only directories named `files` exactly two levels below `{{ nextcloud_path }}/data`.
+**Key behavior:** owns the shared database layer for Nextcloud, Paperless, and Semaphore, and must run before those consumers.
 
 ---
 
 ### `paperless_ngx`
 
-Deploys Paperless NGX. Depends on the PostgreSQL 17 and Redis containers created by the `nextcloud` role — run `nextcloud` before `paperless_ngx`.
+Deploys Paperless NGX on top of the PostgreSQL and Redis containers created by `nextcloud`.
 
-**Distributions:** Debian 12, Rocky Linux 10, Arch Linux
+**Required variables:** `paperless_path`, `paperless_data_path`, `paperless_media_path`, `paperless_export_path`, `paperless_consume_path`, `paperless_database_name`, `paperless_db_user`, `paperless_db_password`, `paperless_image`, `secret_env_dir`
 
-**Container image:** configurable via `paperless_image`
-
-**Required variables:**
-
-| Variable | Type | Description | Example |
-|---|---|---|---|
-| `paperless_path` | path | Base Paperless data directory | `/opt/paperless` |
-| `paperless_data_path` | path | Paperless data directory | `/opt/paperless/data` |
-| `paperless_media_path` | path | Paperless media directory | `/opt/paperless/media` |
-| `paperless_export_path` | path | Paperless export directory | `/opt/paperless/export` |
-| `paperless_consume_path` | path | Paperless consume directory | `/opt/paperless/consume` |
-| `paperless_database_name` | string | Database name | `paperless` |
-| `paperless_db_user` | string | Paperless database username | `paperless_user` |
-| `paperless_db_password` | string | Paperless database password | `secret` |
-| `secret_env_dir` | path | Root-only directory for runtime env files | `/etc/homelab/secrets` |
-
-**Templates:**
-
-| Template | Destination | Description |
-|---|---|---|
-| `paperless_ngx.sh.j2` | `/usr/local/bin/paperless_ngx.sh` | Container launch script |
-| `paperless_ngx.service.j2` | `/etc/systemd/system/paperless_ngx.service` | Systemd unit |
-| `paperless.env.j2` | `{{ secret_env_dir }}/paperless.env` | Root-only Paperless app/env file |
-
-**Systemd services installed:** `paperless_ngx`
-
-**Notes:**
-- Paperless NGX uses `--cap-drop=ALL` with `CHOWN`, `SETUID`, `SETGID`, `FOWNER`, and `DAC_OVERRIDE` added back to support `USERMAP_UID/GID` and entrypoint privilege transitions.
-
----
-
-### `semaphore`
-
-Deploys Semaphore CI/CD. Uses the shared PostgreSQL 17 database created by the `nextcloud` role. The daily backup script (`backup_semaphore.sh`) dumps the Semaphore database into a root-only temp directory, then:
-- When `backup_local: true`: creates `{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/{{ semaphore_backup_location | replace('Nextcloud:', '') }}` as `nextcloud_uid:nextcloud_gid`, installs the dump there as `0640`, and runs `occ files:scan`.
-- Otherwise: uploads via `rclone copy` to `Nextcloud:{{ semaphore_backup_location }}`.
-
-**Distributions:** Debian 12, Rocky Linux 10, Arch Linux
-
-**Container image:** configurable via `semaphore_image`
-
-**Required variables:**
-
-| Variable | Type | Description | Example |
-|---|---|---|---|
-| `semaphore_database_name` | string | Database name (in shared PostgreSQL 17) | `semaphore` |
-| `semaphore_db_user` | string | Semaphore database username | `semaphore_user` |
-| `semaphore_db_password` | string | Semaphore database password | `secret` |
-| `semaphore_admin_name` | string | Admin username | `admin` |
-| `semaphore_admin_email` | string | Admin email | `admin@example.com` |
-| `semaphore_admin_password` | string | Admin password | `secret` |
-| `semaphore_encryption_key` | string | 32-character encryption key | `abc123...` |
-| `semaphore_backup_location` | string | Backup destination label | `Nextcloud:semaphore_backup` |
-| `nextcloud_uid` | string | Host-side UID used for local Nextcloud backup destinations | `33` |
-| `nextcloud_gid` | string | Host-side GID used for local Nextcloud backup destinations | `33` |
-| `semaphore_known_hosts` | string | Known-host entries mounted into the container | `192.168.1.10 ssh-ed25519 AAAA...` |
-| `secret_env_dir` | path | Root-only directory for runtime env files | `/etc/homelab/secrets` |
-
-**Templates:**
-
-| Template | Destination | Description |
-|---|---|---|
-| `semaphore.sh.j2` | `/usr/local/bin/semaphore.sh` | Semaphore container launch script |
-| `semaphore.service.j2` | `/etc/systemd/system/semaphore.service` | Systemd unit |
-| `backup_semaphore.sh.j2` | `/usr/local/bin/backup_semaphore.sh` | Daily database dump; local cp or rclone based on `backup_local` |
-| `semaphore.env.j2` | `{{ secret_env_dir }}/semaphore.env` | Root-only Semaphore app/env file |
-| `ssh_known_hosts.j2` | `/etc/semaphore/ssh_known_hosts` | Known-host file for strict SSH host verification |
-
-**Systemd services installed:** `semaphore`
-
-**Cron jobs installed:** `Backup Semaphore` (daily)
-
-**Notes:**
-- Semaphore connects to the shared PostgreSQL 17 instance via Podman DNS (`postgres.dns.podman`) on the `semaphore_container_net` network.
-- SSH host key verification is enabled; the role mounts a managed `ssh_known_hosts` file into the container.
-- When `backup_local` is enabled, the role repairs ownership on the Semaphore backup subtree only; it does not recurse across unrelated Nextcloud user data.
-
----
-
-### `vaultwarden`
-
-Deploys Vaultwarden password manager with SQLite. Sets up a daily backup cron job.
-
-The backup script (`backup_db.j2`) takes a SQLite hot copy, then:
-- When `backup_local: true`: creates `{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/{{ vaultwarden_backup_location | replace('Nextcloud:', '') }}` as `nextcloud_uid:nextcloud_gid`, installs the backup there as `0640`, and runs `occ files:scan`.
-- Otherwise: uploads via `rclone copy` to `Nextcloud:{{ vaultwarden_backup_location }}`.
-
-**Distributions:** Debian 12, Rocky Linux 10, Arch Linux
-
-**Container image:** configurable via `vaultwarden_image`
-
-**Required variables:**
-
-| Variable | Type | Description | Example |
-|---|---|---|---|
-| `vaultwarden_path` | path | Vaultwarden data directory | `/opt/vaultwarden` |
-| `vaultwarden_backup_location` | string | Backup destination label | `Nextcloud:vaultwarden_backup` |
-| `vaultwarden_signups_allowed` | boolean | Enable or disable public signup | `false` |
-| `nextcloud_uid` | string | Host-side UID used for local Nextcloud backup destinations | `33` |
-| `nextcloud_gid` | string | Host-side GID used for local Nextcloud backup destinations | `33` |
-
-**Templates:**
-
-| Template | Destination | Description |
-|---|---|---|
-| `vaultwarden.sh.j2` | `/usr/local/bin/vaultwarden.sh` | Container launch script |
-| `vaultwarden.service.j2` | `/etc/systemd/system/vaultwarden.service` | Systemd unit |
-| `backup_db.j2` | `/usr/local/bin/backup_vaultwarden.sh` | Daily SQLite backup; local cp or rclone based on `backup_local` |
-
-**Systemd services installed:** `vaultwarden`
-
-**Notes:**
-- Vaultwarden uses `--cap-drop=ALL` with `NET_BIND_SERVICE` added back.
-- Public signup is disabled by default on VM1.
-- When `backup_local` is enabled, the role repairs ownership on the Vaultwarden backup subtree only; it does not recurse across unrelated Nextcloud user data.
+**Templates:** `paperless_ngx.sh.j2`, `paperless_ngx.service.j2`, `paperless.env.j2`
 
 ---
 
 ### `navidrome`
 
-Deploys Navidrome music server. Music files are served from a local path bind-mounted as `/music:ro,z` inside the container. Set `navidrome_local_music_path` to use the Nextcloud on-disk Music folder directly (e.g., on VM1 where Nextcloud is colocated); otherwise the role falls back to `{{ navidrome_path }}/music`.
+Deploys Navidrome with an explicit non-root runtime user and a local backup workflow.
 
-The daily backup script (`backup_navidrome.sh`) branches on `backup_local`:
-- When `backup_local: true`: creates `{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/{{ navidrome_backup_location | replace('Nextcloud:', '') }}` as `nextcloud_uid:nextcloud_gid`, installs `.db` files there as `0640`, runs `occ files:scan`, and prunes files older than 30 days using `find`.
-- Otherwise: uploads via `rclone copy` to `Nextcloud:{{ navidrome_backup_location }}` and prunes via `rclone delete --min-age 30d`.
+**Required variables:** `navidrome_path`, `navidrome_backup_location`, `navidrome_uid`, `navidrome_gid`, `navidrome_image`
 
-**Distributions:** Rocky Linux 10
-
-**Container image:** configurable via `navidrome_image`
-
-**Required variables:**
-
-| Variable | Type | Description | Example |
-|---|---|---|---|
-| `navidrome_path` | path | Navidrome data directory | `/opt/navidrome` |
-| `navidrome_local_music_path` | path | **Optional.** Local path to bind-mount as `/music:ro,z`. Defaults to `{{ navidrome_path }}/music`. | `/opt/nextcloud/data/admin/files/Music` |
-| `navidrome_uid` | string | Explicit container UID | `33` |
-| `navidrome_gid` | string | Explicit container GID | `33` |
-| `nextcloud_uid` | string | Host-side UID used for local Nextcloud backup destinations | `33` |
-| `nextcloud_gid` | string | Host-side GID used for local Nextcloud backup destinations | `33` |
-
-**Templates:**
-
-| Template | Destination | Description |
-|---|---|---|
-| `navidrome_container.sh.j2` | `/usr/local/bin/navidrome_container.sh` | Container launch script; uses `navidrome_local_music_path` if defined, else `navidrome_path/music` |
-| `navidrome_container.service.j2` | `/etc/systemd/system/navidrome_container.service` | Systemd unit; waits for the configured music path and orders after Nextcloud when using the local Nextcloud data tree |
-| `backup_navidrome.sh.j2` | `/usr/local/bin/backup_navidrome.sh` | Daily backup script; local cp or rclone based on `backup_local` |
-
-**Systemd services installed:** `navidrome_container`
-
-**Notes:**
-- Navidrome runs with an explicit non-root UID/GID so it does not inherit root from the systemd context.
-- The role creates `{{ navidrome_path }}` and `music` as `0750`, and `data` and `backup` as `0700`, all owned by `navidrome_uid:navidrome_gid`, so the container can access its bind mounts without leaving them at host umask defaults.
-- When `navidrome_local_music_path` points into `{{ nextcloud_path }}/data/...`, the systemd unit waits for that path and starts after `nextcloud_container.service` so the library is present after boot.
-- When `backup_local` is enabled, the role repairs ownership on the Navidrome backup subtree only; it does not recurse across unrelated Nextcloud user data.
+**Key behavior:** either bind-mounts `navidrome_local_music_path` or falls back to the role's own music path.
 
 ---
 
-### `vpn`
+### `vaultwarden`
 
-Deploys WireGuard in a container. Sets up Porkbun DDNS to keep the server's dynamic IP registered in DNS.
+Deploys Vaultwarden and its SQLite-backed backup workflow.
 
-**Distributions:** Rocky Linux 10 (also Debian/Arch with condition gates)
+**Required variables:** `vaultwarden_path`, `vaultwarden_backup_location`, `vaultwarden_signups_allowed`, `vaultwarden_image`
 
-**Container image:** `docker.io/linuxserver/wireguard:latest`
+**Templates:** `vaultwarden.sh.j2`, `vaultwarden.service.j2`, `backup_db.j2`
 
-**Required variables:**
+---
 
-| Variable | Type | Description | Example |
-|---|---|---|---|
-| `vpn_path` | path | WireGuard config directory | `/opt/wireguard` |
-| `user_name` | string | Comma-separated peer usernames | `user1,user2` |
-| `homelab_domain` | string | Root domain for DDNS | `example.com` |
-| `homelab_subdomain` | string | Subdomain for DDNS | `vpn` |
-| `listen_port` | string | WireGuard listen port | `51820` |
-| `wireguard_dns_server` | string | DNS server for clients | `192.168.1.1` |
-| `wireguard_server_network_prefix` | string | Tunnel network | `10.0.0.0/24` |
-| `wireguard_allowed_ips` | string | Routes pushed to clients | `192.168.1.0/24, 10.0.0.1/32` |
+### `semaphore`
 
-**Templates:**
+Deploys Semaphore and backs up its PostgreSQL database into the local Nextcloud data tree when `backup_local: true`.
 
-| Template | Destination | Description |
-|---|---|---|
-| `wireguard.sh.j2` | `/usr/local/bin/wireguard.sh` | Container launch script |
-| `wireguard.service.j2` | `/etc/systemd/system/wireguard.service` | Systemd unit |
-| `porkbun-ddns.sh.j2` | `/usr/local/bin/porkbun-ddns.sh` | DDNS update script |
-| `porkbun-ddns.service.j2` | `/etc/systemd/system/porkbun-ddns.service` | Systemd unit for DDNS |
-| `wireguard_module.j2` | `/etc/modules-load.d/wireguard.conf` | Kernel module load config |
+**Required variables:** `semaphore_database_name`, `semaphore_db_user`, `semaphore_db_password`, `semaphore_admin_name`, `semaphore_admin_email`, `semaphore_admin_password`, `semaphore_encryption_key`, `semaphore_known_hosts`, `semaphore_backup_location`, `semaphore_image`, `secret_env_dir`
 
-**Systemd services installed:** `wireguard`, `porkbun-ddns`
+**Templates:** `semaphore.sh.j2`, `semaphore.service.j2`, `semaphore.env.j2`, `backup_semaphore.sh.j2`, `ssh_known_hosts.j2`
 
 ---
 
 ### `backup`
 
-Installs Borg backup server (Debian 12 only). Sets up an SSHFS mount and backup scripts for Nextcloud.
+Manages the local Borg backup disk and the daily backup scripts for VM1.
 
-**Distributions:** Debian 12 only
+**Required variables:** `nextcloud_borg_backup_path`, `nextcloud_paperless_backup_location`, `borg_backup_path`, `backup_disk`, `backup_host`, `backup_local`
 
-**Required variables:**
+**Templates:** `init_backup_repo.sh.j2`, `backup_files.sh.j2`
 
-| Variable | Type | Description | Example |
-|---|---|---|---|
-| `borg_backup_path` | path | Borg repository root | `/opt/borg` |
-| `ssh_mount_path` | path | SSHFS mount point | `/mnt/nextcloud_backup` |
-| `backup_disk` | string | UUID of backup disk | `UUID=abc123...` |
-| `nextcloud_host` | string | Nextcloud server hostname | `nextcloud.example.com` |
-| `nextcloud_backup_path` | path | Borg repo path for Nextcloud | `/opt/borg/nextcloud` |
-
-**Templates:**
-
-| Template | Destination | Description |
-|---|---|---|
-| `init_backup_repo.sh.j2` | `/usr/local/bin/init_backup_repo.sh` | Initialises Borg repository |
-| `backup_files.sh.j2` | `/usr/local/bin/backup_files.sh` | Daily backup script |
-
----
-
-### `dns`
-
-Deploys Pi-hole in a container with a custom network subnet. Disables `systemd-resolved` (conflicts with Pi-hole's DNS port). Sets up daily database backup.
-
-**Distributions:** Debian 12, Rocky Linux 10, Arch Linux
-
-**Container image:** `docker.io/pihole/pihole:latest`
-
-**Required variables:**
-
-| Variable | Type | Description | Example |
-|---|---|---|---|
-| `pihole_path` | path | Pi-hole data directory | `/opt/pihole` |
-| `pihole_container_network` | string | Podman network name | `pihole_net` |
-| `pihole_container_ip_address` | string | Pi-hole container IP | `172.16.1.2` |
-
-**Templates:**
-
-| Template | Destination | Description |
-|---|---|---|
-| `pihole.sh.j2` | `/usr/local/bin/pihole.sh` | Container launch script |
-| `pihole.service.j2` | `/etc/systemd/system/pihole.service` | Systemd unit |
-| `backup_db.j2` | `/usr/local/bin/backup_pihole.sh` | Daily DB backup script |
-
-**Systemd services installed:** `pihole`
-
-**Notes:**
-- Pi-hole uses `--cap-drop=ALL` with `NET_BIND_SERVICE` added back because it binds port `53/tcp` and `53/udp`.
-
----
-
-### `unificontroller`
-
-Deploys the Ubiquiti Unifi Controller.
-
-**Distributions:** Debian 12, Rocky Linux 10, Arch Linux
-
-**Container image:** `docker.io/linuxserver/unifi-network-application:latest`
-
-**Required variables:**
-
-| Variable | Type | Description | Example |
-|---|---|---|---|
-| `unificontroller_path` | path | Unifi data directory | `/opt/unifi` |
-
-**Templates:**
-
-| Template | Destination | Description |
-|---|---|---|
-| `unificontroller.sh.j2` | `/usr/local/bin/unificontroller.sh` | Container launch script |
-| `unificontroller.service.j2` | `/etc/systemd/system/unificontroller.service` | Systemd unit |
-
-**Systemd services installed:** `unificontroller`
-
----
-
-### `omadacontroller`
-
-Deploys the TP-Link Omada Controller.
-
-**Distributions:** Debian 12, Rocky Linux 10, Arch Linux
-
-**Container image:** `docker.io/mbentley/omada-controller:latest`
-
-**Required variables:**
-
-| Variable | Type | Description | Example |
-|---|---|---|---|
-| `unificontroller_path` | path | Omada data directory (reuses variable name) | `/opt/omada` |
-
-**Templates:**
-
-| Template | Destination | Description |
-|---|---|---|
-| `apcontroller.sh.j2` | `/usr/local/bin/apcontroller.sh` | Container launch script |
-| `apcontroller.service.j2` | `/etc/systemd/system/apcontroller.service` | Systemd unit |
-
-**Systemd services installed:** `apcontroller`
+**Key behavior:** initializes the Borg repo if needed, mounts the backup disk, and keeps the VM1 backup workflow local-first.
 
 ---
 
 ### `ansible`
 
-Installs Ansible and sshpass so the host can run playbooks.
-
-**Distributions:** Debian 12, Rocky Linux 10, Arch Linux
-
-**Required variables:** None
-
-**Templates:** None
-
----
-
-### `podman_service` (reusable library role)
-
-A generic scaffolding role that encapsulates the standard four-step container deployment pattern. It is a reusable building block for future service roles — current service roles use their own custom templates rather than this role.
-
-**Purpose:** Centralises the repetitive work of creating data directories, writing a `podman run` shell script, writing a systemd unit, and enabling the service. Service roles that adopt it pass configuration via variables rather than maintaining per-role templates.
-
-**Variables:**
-
-| Variable | Type | Description | Example |
-|---|---|---|---|
-| `podman_service_name` | string | Service name (used for script and unit filenames) | `vaultwarden` |
-| `podman_service_image` | string | Container image | `docker.io/vaultwarden/server:latest` |
-| `podman_service_dirs` | list | Directories to create with owner/mode | `[{path: /opt/vw, owner: "1000", mode: "0770"}]` |
-| `podman_service_ports` | list | Port mappings | `["8080:80"]` |
-| `podman_service_volumes` | list | Volume mounts | `["/opt/vw:/data:Z"]` |
-| `podman_service_env` | dict | Environment variables | `{TZ: America/New_York}` |
-| `podman_service_memory` | string | Memory limit | `256m` |
-| `podman_service_caps_add` | list | Capabilities to add (after cap-drop=ALL) | `[NET_BIND_SERVICE]` |
-| `podman_service_extra_args` | string | Additional `podman run` flags verbatim | `--pids-limit=200` |
-
-**Templates:**
-
-| Template | Description |
-|---|---|
-| `podman_run.sh.j2` | Generic `podman run` command builder |
-| `podman_service.service.j2` | Generic systemd unit |
-
-**See also:** `roles/podman_service/README.md` for full usage examples.
+Installs the host-side Ansible runtime and supporting dependencies used by Semaphore-triggered jobs on VM1.

@@ -4,72 +4,30 @@ all:
   children:
     homelab:
       vars:
-        # Global variables
         ansible_become: yes
         ansible_become_method: sudo
-        # Device variables
         default_interface: "example_interface"
         docker_username: "example_username"
-        nextcloud_webdav_path: "https://example.nextcloud.com/remote.php/dav/files/user"
+        docker_password: "example_password"
+        secret_env_dir: "/etc/homelab/secrets"
         ip_ansible: "192.168.1.1/32"
         management_network: "192.168.1.0/24"
         user_name: "example_user"
-        docker_password: "example_password"
-        secret_env_dir: "/etc/homelab/secrets"
         porkbun_api_key: "example_api_key"
         porkbun_api_key_secret: "example_api_key_secret"
         top_domain: "example.com"
-        swag_path: "/example_path"
-        swag_dns_plugin: "example_plugin"
         nextcloud_dns_name: "example.nextcloud.com"
         nextcloud_rclone_user: "example_user"
         nextcloud_webdav_user: "example_user"
         nextcloud_rclone_pass: "example_pass"
         nextcloud_webdav_pass: "example_pass"
-        patching_weekday: 1
-        patching_hour: 12
-        patching_minute: 30
-        patching_month: "1"
-
-        container_patching_weekday: 5
-        container_patching_hour: 3
-        container_patching_minute: 45
-        container_patching_month: "12"
+        nextcloud_webdav_path: "https://example.nextcloud.com/remote.php/dav/files/user"
 
       hosts:
-        vpn:
-          ansible_host: vpn.example.com
-          # Device variables
-          user_name: "user1,user2,user3"
-          vpn_path: /path/to/vpn
-          homelab_domain: "example.com"
-          homelab_subdomain: "example"
-          listen_port: "1194"
-          wireguard_dns_server: "192.168.1.1"
-          wireguard_server_network_prefix: "10.0.0.0/24"
-          wireguard_allowed_ips: "192.168.1.0/24, 10.0.0.1/32"
-
-        unificontroller:
-          ansible_host: unificontroller.example.com
-          # Device variables
-          unificontroller_path: "/path/to/unifi"
-          swag_network: "example_network"
-          swag_host_domain: "example.internal"
-          swag_requires: "example_service"
-          proxy_config:
-            - name: "example_config"
-              proxy_fqdn: "proxy.example.com"
-              container_destination: "example.dns.podman"
-
-          default_server_name: "example_server"
-          default_app_name: "example_app"
-          container_service_names: "service1"
-
         vm1:
-          ansible_host: 192.168.1.X  # Replace with vm1's actual IP
+          ansible_host: 192.168.1.X
           homelab_domain: "example.com"
-          homelab_subdomain: "example"
-          # Traefik — list of all container networks to join
+          homelab_subdomain: "home"
           traefik_path: /path/to/traefik
           traefik_image: docker.io/traefik:v3
           traefik_networks:
@@ -108,7 +66,6 @@ all:
               container_destination: "semaphore.dns.podman"
               proxy_management_only: true
 
-          # Nextcloud + Paperless NGX + Semaphore (share PostgreSQL 17 + Redis)
           postgres_image: docker.io/postgres:17
           redis_image: docker.io/redis:7
           nextcloud_image: docker.io/nextcloud:31-apache
@@ -116,7 +73,8 @@ all:
           navidrome_image: docker.io/deluan/navidrome:0.54.5
           vaultwarden_image: docker.io/vaultwarden/server:1.33.2
           semaphore_image: docker.io/semaphoreui/semaphore:v2.13.6
-          postgres_path: /path/to/postgres_nextcloud
+
+          postgres_path: /path/to/postgres
           nextcloud_path: /path/to/nextcloud
           nextcloud_disk: "UUID=example-uuid"
           nextcloud_borg_backup_path: /path/to/nextcloud/borg/backup
@@ -146,7 +104,6 @@ all:
           paperless_db_password: example_paperless_password
           paperless_dns_name: paperless.example.com
 
-          # Semaphore (database hosted on shared postgres_container)
           semaphore_database_name: semaphore
           semaphore_db_user: semaphore_user
           semaphore_db_password: example_semaphore_password
@@ -156,30 +113,20 @@ all:
           semaphore_encryption_key: example_32_char_encryption_key_xx
           semaphore_known_hosts: |
             192.168.1.10 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAexampleknownhost
+          semaphore_backup_location: Nextcloud:semaphore_backup
 
-          # Navidrome
           navidrome_path: /path/to/navidrome
           navidrome_backup_location: Nextcloud:navidrome_backup
-          # Local music path: bind-mount Nextcloud's on-disk Music folder directly (bypasses rclone FUSE)
           navidrome_local_music_path: /path/to/nextcloud/data/<username>/files/Music
           navidrome_uid: "33"
           navidrome_gid: "33"
 
-          # Vaultwarden
           vaultwarden_path: /path/to/vaultwarden
           vaultwarden_backup_location: Nextcloud:vaultwarden_backup
           vaultwarden_signups_allowed: false
 
-          # Semaphore backup
-          semaphore_backup_location: Nextcloud:semaphore_backup
-
-          # Systemd dependency ordering for Traefik service unit After= directive
           container_service_names: "postgres_container redis_container nextcloud_container paperless_ngx navidrome_container vaultwarden semaphore"
-
-          # Borg backup to second NVMe disk (local — Nextcloud runs on this host)
           borg_backup_path: /path/to/borg_backup
           backup_disk: "UUID=example-uuid-backup-disk"
           backup_local: true
-
-          # Firewall — allow Borg backup traffic from backup server
           backup_host: "192.168.1.50/32"

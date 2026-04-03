@@ -13,7 +13,7 @@ git config core.hooksPath hooks
 **What runs:**
 
 1. `ansible-lint`
-2. `ansible-playbook --syntax-check` for the main playbooks
+2. `ansible-playbook --syntax-check` for the maintained playbooks
 
 `scripts/test_container_security.sh` remains a manual validation step because it pulls container images and can take several minutes.
 
@@ -23,8 +23,11 @@ git config core.hooksPath hooks
 
 ```bash
 cd /home/matthew/matt_dev/ansible_playbooks
-XDG_CACHE_HOME=/tmp/.cache ANSIBLE_LOCAL_TEMP=/tmp/.ansible-local ANSIBLE_REMOTE_TEMP=/tmp/.ansible-remote ansible-lint vm1.yml
+XDG_CACHE_HOME=/tmp/.cache ANSIBLE_LOCAL_TEMP=/tmp/.ansible-local ANSIBLE_REMOTE_TEMP=/tmp/.ansible-remote ansible-lint
 ANSIBLE_LOCAL_TEMP=/tmp/.ansible-local ANSIBLE_REMOTE_TEMP=/tmp/.ansible-remote ansible-playbook --syntax-check -i example_inventory.yml vm1.yml
+ANSIBLE_LOCAL_TEMP=/tmp/.ansible-local ANSIBLE_REMOTE_TEMP=/tmp/.ansible-remote ansible-playbook --syntax-check -i example_inventory.yml homelab_vms.yml
+ANSIBLE_LOCAL_TEMP=/tmp/.ansible-local ANSIBLE_REMOTE_TEMP=/tmp/.ansible-remote ansible-playbook --syntax-check -i example_inventory.yml update_homelab_vms.yml
+ANSIBLE_LOCAL_TEMP=/tmp/.ansible-local ANSIBLE_REMOTE_TEMP=/tmp/.ansible-remote ansible-playbook --syntax-check -i example_inventory.yml reboot_vms.yml
 bash scripts/test_shell_secret_env.sh
 bash scripts/test_container_security.sh 2>&1 | tee /tmp/container_test_results.txt
 grep -E "^(PASS|FAIL|WARN|INFO)" /tmp/container_test_results.txt
@@ -36,7 +39,7 @@ grep -E "^(PASS|FAIL|WARN|INFO)" /tmp/container_test_results.txt
 
 ## Container Security Testing
 
-The script validates the hardening profile used by VM1:
+The script validates the current VM1 hardening profile:
 
 1. PostgreSQL starts with `--cap-drop=ALL`, `--shm-size=256m`, and the expected ownership.
 2. PostgreSQL role isolation works: per-service roles can use their own databases and should not have cross-database access by default.
@@ -47,7 +50,6 @@ The script validates the hardening profile used by VM1:
 7. Vaultwarden starts with `NET_BIND_SERVICE` and `SIGNUPS_ALLOWED=false`.
 8. Semaphore starts with `cap-drop=ALL` and strict SSH host-key checking args.
 9. Navidrome starts as explicit non-root UID/GID `33:33` with `cap-drop=ALL`.
-10. Pi-hole and WireGuard reference checks remain for the non-VM1 service patterns in this repo.
 
 The script also defines image override env vars so local testing can pin the same image references used in inventory:
 
@@ -88,8 +90,7 @@ bash scripts/test_shell_secret_env.sh
 
 - `ansible-lint` and `--syntax-check` complete without errors.
 - `scripts/test_shell_secret_env.sh` reports `PASS` for shell quoting and generated launch artifact checks.
-- VM1 container tests report `PASS` for PostgreSQL, Redis, Nextcloud, Traefik (cap-added case), Paperless, Vaultwarden, Semaphore, and Navidrome.
-- Traefik without `NET_BIND_SERVICE` and WireGuard on hosts without the kernel module may emit `INFO`/`WARN`; these are informational environment-dependent checks, not automatic failures.
+- VM1 container tests report `PASS` for PostgreSQL, Redis, Nextcloud, Traefik, Paperless, Vaultwarden, Semaphore, and Navidrome.
 
 ---
 

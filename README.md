@@ -1,24 +1,25 @@
 # Ansible Playbooks
 
-Collection of Ansible playbooks for configuring homelab Linux servers and services. Targets Rocky Linux 10 VMs running Podman containers managed via systemd. Laptop configuration playbooks target Arch Linux.
+Ansible repo for the maintained homelab VM1 workflow: one Rocky Linux 10 VM running Podman services under systemd. Historical playbooks and roles are kept under `archive/` for reference and are not maintained.
 
 ## Documentation
 
 - [docs/index.md](docs/index.md) — full documentation index
-- [docs/architecture.md](docs/architecture.md) — host topology, network design, SELinux policy
+- [docs/architecture.md](docs/architecture.md) — active VM1 topology and runtime design
 - [docs/guides/getting-started.md](docs/guides/getting-started.md) — setup from scratch
-- [example_inventory.yml](example_inventory.yml) — inventory template with all required variables
+- [docs/archive.md](docs/archive.md) — archived playbooks, roles, and historical notes
+- [example_inventory.yml](example_inventory.yml) — active inventory template for VM1
 
 ## Quick Start
 
 ```bash
-# Run VM1 (stages firewall/container changes; reboot later to apply)
+# Run VM1 (stages runtime changes; reboot later to apply)
 ansible-playbook -i inventory.yml vm1.yml
 
-# Run all homelab VMs
+# Active orchestrator for the homelab
 ansible-playbook -i inventory.yml homelab_vms.yml
 
-# Run updates + reboot (preferred full VM1 cycle)
+# Preferred full cycle: configure VM1, then reboot it
 ansible-playbook -i inventory.yml update_homelab_vms.yml
 
 # Dry run
