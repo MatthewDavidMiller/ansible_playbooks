@@ -21,6 +21,10 @@ nextcloud_path: ""
 # Nextcloud username whose files directory is used as the backup destination
 nextcloud_homelab_user: ""
 
+# UID/GID used by Nextcloud to own files on the host-mounted data path
+nextcloud_uid: "33"
+nextcloud_gid: "33"
+
 # WebDAV URL for the Nextcloud rclone remote (used by davfs2_secrets template)
 nextcloud_webdav_path: ""
 

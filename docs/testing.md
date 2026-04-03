@@ -74,6 +74,7 @@ bash scripts/test_container_security.sh
 - Service launch scripts source the correct file under `secret_env_dir` before `podman run`.
 - Each sourced variable expected by a container is passed with `--env VAR_NAME`.
 - Service launch scripts use `podman run --pull=newer` and no longer call standalone `podman pull`.
+- Local backup scripts for Navidrome, Vaultwarden, and Semaphore render ownership-preserving `install` commands for the Nextcloud data tree when `backup_local: true`.
 
 Run it directly:
 

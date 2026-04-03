@@ -7,6 +7,17 @@ postgres_path: ""
 # Path to the Nextcloud container data directory (on the dedicated disk)
 nextcloud_path: ""
 
+# UID/GID used by Nextcloud to own files on the host-mounted data path
+nextcloud_uid: "33"
+nextcloud_gid: "33"
+
+# Normalize permissions on all Nextcloud user file trees under data/<user>/files.
+# Directories default to 0770; regular files default to 0660 so no execute bit is
+# granted on file content while still keeping owner+group access only.
+nextcloud_normalize_user_files_permissions: true
+nextcloud_user_files_directory_mode: "0770"
+nextcloud_user_files_file_mode: "0660"
+
 # Block device identifier for the Nextcloud disk mount (e.g. "UUID=xxxx-xxxx")
 nextcloud_disk: ""
 

@@ -104,6 +104,11 @@ Deploys Nextcloud with PostgreSQL 17 and Redis. Also sets up Borg backup and cre
 | `postgres_path` | path | PostgreSQL 17 data directory (shared with Paperless and Semaphore) | `/opt/postgres` |
 | `nextcloud_path` | path | Nextcloud data directory | `/opt/nextcloud` |
 | `nextcloud_disk` | string | UUID of Nextcloud data disk | `UUID=abc123...` |
+| `nextcloud_uid` | string | Host-side UID that owns Nextcloud-managed files and local backup destinations | `33` |
+| `nextcloud_gid` | string | Host-side GID that owns Nextcloud-managed files and local backup destinations | `33` |
+| `nextcloud_normalize_user_files_permissions` | boolean | Normalize permissions under every `{{ nextcloud_path }}/data/<user>/files` tree | `true` |
+| `nextcloud_user_files_directory_mode` | string | Directory mode applied during user file-tree normalization | `0770` |
+| `nextcloud_user_files_file_mode` | string | Regular file mode applied during user file-tree normalization | `0660` |
 | `postgres_admin_user` | string | PostgreSQL admin role for bootstrap/maintenance | `postgres_admin` |
 | `postgres_admin_password` | string | PostgreSQL admin password | `secret` |
 | `postgres_legacy_bootstrap_user` | string | Optional old PostgreSQL superuser name for one-time migrations | `legacy_admin` |
@@ -137,6 +142,9 @@ Deploys Nextcloud with PostgreSQL 17 and Redis. Also sets up Borg backup and cre
 - PostgreSQL runs as UID/GID `999:999`; the `custom-init/db_wrapper.sh` wrapper must be owned by `999:999` so the image entrypoint can execute it after `--user=999:999` is applied.
 - Redis uses `--cap-drop=ALL` with `CHOWN`, `FOWNER`, and `DAC_OVERRIDE` added back for startup-time filesystem handling inside the image.
 - Each application now gets its own PostgreSQL role and password even though the engine is shared.
+- Host paths under `{{ nextcloud_path }}` are owned by `nextcloud_uid:nextcloud_gid` so local backup writers can stage files that Nextcloud can read and index immediately.
+- When `nextcloud_normalize_user_files_permissions: true`, the role scans every `{{ nextcloud_path }}/data/<user>/files` tree and removes `other` access by normalizing directories to `nextcloud_user_files_directory_mode` and regular files to `nextcloud_user_files_file_mode`.
+- The normalization pass intentionally excludes `appdata_*`, updater, and other non-user paths by targeting only directories named `files` exactly two levels below `{{ nextcloud_path }}/data`.
 
 ---
 
@@ -180,7 +188,7 @@ Deploys Paperless NGX. Depends on the PostgreSQL 17 and Redis containers created
 ### `semaphore`
 
 Deploys Semaphore CI/CD. Uses the shared PostgreSQL 17 database created by the `nextcloud` role. The daily backup script (`backup_semaphore.sh`) dumps the Semaphore database into a root-only temp directory, then:
-- When `backup_local: true`: copies the dump directly to `{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/{{ semaphore_backup_location | replace('Nextcloud:', '') }}` and runs `occ files:scan`.
+- When `backup_local: true`: creates `{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/{{ semaphore_backup_location | replace('Nextcloud:', '') }}` as `nextcloud_uid:nextcloud_gid`, installs the dump there as `0640`, and runs `occ files:scan`.
 - Otherwise: uploads via `rclone copy` to `Nextcloud:{{ semaphore_backup_location }}`.
 
 **Distributions:** Debian 12, Rocky Linux 10, Arch Linux
@@ -199,6 +207,8 @@ Deploys Semaphore CI/CD. Uses the shared PostgreSQL 17 database created by the `
 | `semaphore_admin_password` | string | Admin password | `secret` |
 | `semaphore_encryption_key` | string | 32-character encryption key | `abc123...` |
 | `semaphore_backup_location` | string | Backup destination label | `Nextcloud:semaphore_backup` |
+| `nextcloud_uid` | string | Host-side UID used for local Nextcloud backup destinations | `33` |
+| `nextcloud_gid` | string | Host-side GID used for local Nextcloud backup destinations | `33` |
 | `semaphore_known_hosts` | string | Known-host entries mounted into the container | `192.168.1.10 ssh-ed25519 AAAA...` |
 | `secret_env_dir` | path | Root-only directory for runtime env files | `/etc/homelab/secrets` |
 
@@ -219,6 +229,7 @@ Deploys Semaphore CI/CD. Uses the shared PostgreSQL 17 database created by the `
 **Notes:**
 - Semaphore connects to the shared PostgreSQL 17 instance via Podman DNS (`postgres.dns.podman`) on the `semaphore_container_net` network.
 - SSH host key verification is enabled; the role mounts a managed `ssh_known_hosts` file into the container.
+- When `backup_local` is enabled, the role repairs ownership on the Semaphore backup subtree only; it does not recurse across unrelated Nextcloud user data.
 
 ---
 
@@ -227,7 +238,7 @@ Deploys Semaphore CI/CD. Uses the shared PostgreSQL 17 database created by the `
 Deploys Vaultwarden password manager with SQLite. Sets up a daily backup cron job.
 
 The backup script (`backup_db.j2`) takes a SQLite hot copy, then:
-- When `backup_local: true`: copies it directly to `{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/{{ vaultwarden_backup_location | replace('Nextcloud:', '') }}` and runs `occ files:scan`.
+- When `backup_local: true`: creates `{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/{{ vaultwarden_backup_location | replace('Nextcloud:', '') }}` as `nextcloud_uid:nextcloud_gid`, installs the backup there as `0640`, and runs `occ files:scan`.
 - Otherwise: uploads via `rclone copy` to `Nextcloud:{{ vaultwarden_backup_location }}`.
 
 **Distributions:** Debian 12, Rocky Linux 10, Arch Linux
@@ -241,6 +252,8 @@ The backup script (`backup_db.j2`) takes a SQLite hot copy, then:
 | `vaultwarden_path` | path | Vaultwarden data directory | `/opt/vaultwarden` |
 | `vaultwarden_backup_location` | string | Backup destination label | `Nextcloud:vaultwarden_backup` |
 | `vaultwarden_signups_allowed` | boolean | Enable or disable public signup | `false` |
+| `nextcloud_uid` | string | Host-side UID used for local Nextcloud backup destinations | `33` |
+| `nextcloud_gid` | string | Host-side GID used for local Nextcloud backup destinations | `33` |
 
 **Templates:**
 
@@ -255,6 +268,7 @@ The backup script (`backup_db.j2`) takes a SQLite hot copy, then:
 **Notes:**
 - Vaultwarden uses `--cap-drop=ALL` with `NET_BIND_SERVICE` added back.
 - Public signup is disabled by default on VM1.
+- When `backup_local` is enabled, the role repairs ownership on the Vaultwarden backup subtree only; it does not recurse across unrelated Nextcloud user data.
 
 ---
 
@@ -263,7 +277,7 @@ The backup script (`backup_db.j2`) takes a SQLite hot copy, then:
 Deploys Navidrome music server. Music files are served from a local path bind-mounted as `/music:ro,z` inside the container. Set `navidrome_local_music_path` to use the Nextcloud on-disk Music folder directly (e.g., on VM1 where Nextcloud is colocated); otherwise the role falls back to `{{ navidrome_path }}/music`.
 
 The daily backup script (`backup_navidrome.sh`) branches on `backup_local`:
-- When `backup_local: true`: copies `.db` files directly to `{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/{{ navidrome_backup_location | replace('Nextcloud:', '') }}` and runs `occ files:scan`. Prunes files older than 30 days using `find`.
+- When `backup_local: true`: creates `{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/{{ navidrome_backup_location | replace('Nextcloud:', '') }}` as `nextcloud_uid:nextcloud_gid`, installs `.db` files there as `0640`, runs `occ files:scan`, and prunes files older than 30 days using `find`.
 - Otherwise: uploads via `rclone copy` to `Nextcloud:{{ navidrome_backup_location }}` and prunes via `rclone delete --min-age 30d`.
 
 **Distributions:** Rocky Linux 10
@@ -278,6 +292,8 @@ The daily backup script (`backup_navidrome.sh`) branches on `backup_local`:
 | `navidrome_local_music_path` | path | **Optional.** Local path to bind-mount as `/music:ro,z`. Defaults to `{{ navidrome_path }}/music`. | `/opt/nextcloud/data/admin/files/Music` |
 | `navidrome_uid` | string | Explicit container UID | `33` |
 | `navidrome_gid` | string | Explicit container GID | `33` |
+| `nextcloud_uid` | string | Host-side UID used for local Nextcloud backup destinations | `33` |
+| `nextcloud_gid` | string | Host-side GID used for local Nextcloud backup destinations | `33` |
 
 **Templates:**
 
@@ -293,6 +309,7 @@ The daily backup script (`backup_navidrome.sh`) branches on `backup_local`:
 - Navidrome runs with an explicit non-root UID/GID so it does not inherit root from the systemd context.
 - The role creates `{{ navidrome_path }}` and `music` as `0750`, and `data` and `backup` as `0700`, all owned by `navidrome_uid:navidrome_gid`, so the container can access its bind mounts without leaving them at host umask defaults.
 - When `navidrome_local_music_path` points into `{{ nextcloud_path }}/data/...`, the systemd unit waits for that path and starts after `nextcloud_container.service` so the library is present after boot.
+- When `backup_local` is enabled, the role repairs ownership on the Navidrome backup subtree only; it does not recurse across unrelated Nextcloud user data.
 
 ---
 

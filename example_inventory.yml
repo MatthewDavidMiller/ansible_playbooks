@@ -121,6 +121,8 @@ all:
           nextcloud_disk: "UUID=example-uuid"
           nextcloud_borg_backup_path: /path/to/nextcloud/borg/backup
           nextcloud_paperless_backup_location: Nextcloud:backup/nextcloud
+          nextcloud_uid: "33"
+          nextcloud_gid: "33"
           postgres_admin_user: postgres_admin
           postgres_admin_password: example_admin_password
           postgres_legacy_bootstrap_user: ""

@@ -84,8 +84,8 @@
   ansible.builtin.file:
     path: "{{ nextcloud_path }}"
     state: directory
-    owner: "33"
-    group: "33"
+    owner: "{{ nextcloud_uid }}"
+    group: "{{ nextcloud_gid }}"
     mode: "0770"
 
 - name: Mount Disk for backups
@@ -100,32 +100,94 @@
   ansible.builtin.file:
     path: "{{ nextcloud_path }}/base"
     state: directory
-    owner: "33"
-    group: "33"
+    owner: "{{ nextcloud_uid }}"
+    group: "{{ nextcloud_gid }}"
     mode: "0770"
 
 - name: Create Nextcloud data container path
   ansible.builtin.file:
     path: "{{ nextcloud_path }}/data"
     state: directory
-    owner: "33"
-    group: "33"
+    owner: "{{ nextcloud_uid }}"
+    group: "{{ nextcloud_gid }}"
     mode: "0770"
+
+- name: Find Nextcloud user files roots
+  ansible.builtin.command:
+    argv:
+      - find
+      - "{{ nextcloud_path }}/data"
+      - -mindepth
+      - "2"
+      - -maxdepth
+      - "2"
+      - -type
+      - d
+      - -name
+      - files
+      - -print
+  register: nextcloud_user_files_roots
+  changed_when: false
+  when: nextcloud_normalize_user_files_permissions | bool
+
+- name: Normalize Nextcloud user directory permissions
+  ansible.builtin.command:
+    argv:
+      - find
+      - "{{ item }}"
+      - -type
+      - d
+      - -not
+      - -perm
+      - "{{ nextcloud_user_files_directory_mode }}"
+      - -print
+      - -exec
+      - chmod
+      - "{{ nextcloud_user_files_directory_mode }}"
+      - "{}"
+      - +
+  loop: "{{ nextcloud_user_files_roots.stdout_lines }}"
+  changed_when: stdout != ""
+  when:
+    - nextcloud_normalize_user_files_permissions | bool
+    - nextcloud_user_files_roots.stdout_lines | length > 0
+
+- name: Normalize Nextcloud user file permissions
+  ansible.builtin.command:
+    argv:
+      - find
+      - "{{ item }}"
+      - -type
+      - f
+      - -not
+      - -perm
+      - "{{ nextcloud_user_files_file_mode }}"
+      - -print
+      - -exec
+      - chmod
+      - "{{ nextcloud_user_files_file_mode }}"
+      - "{}"
+      - +
+  loop: "{{ nextcloud_user_files_roots.stdout_lines }}"
+  changed_when: stdout != ""
+  when:
+    - nextcloud_normalize_user_files_permissions | bool
+    - nextcloud_user_files_roots.stdout_lines | length > 0
 
 - name: Create Nextcloud config container path
   ansible.builtin.file:
     path: "{{ nextcloud_path }}/config"
     state: directory
-    owner: "33"
-    group: "33"
+    owner: "{{ nextcloud_uid }}"
+    group: "{{ nextcloud_gid }}"
     mode: "0770"
 
 - name: Create Nextcloud apps container path
   ansible.builtin.file:
     path: "{{ nextcloud_path }}/apps"
     state: directory
-    owner: "33"
-    group: "33"
+    owner: "{{ nextcloud_uid }}"
+    group: "{{ nextcloud_gid }}"
     mode: "0770"
 
 - name: Redis Service

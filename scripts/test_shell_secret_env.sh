@@ -96,11 +96,15 @@ nextcloud_admin_user: 'nextcloud-admin'
 nextcloud_admin_password: 'nc;admin "quoted" \ slash & dollars \$HOME and ''single'''
 nextcloud_trusted_domains: 'cloud.example.com cloud-alt.example.com'
 nextcloud_dns_name: 'cloud.example.com'
+nextcloud_homelab_user: 'admin'
+nextcloud_uid: '33'
+nextcloud_gid: '33'
 paperless_dns_name: 'paperless.example.com'
 semaphore_admin_name: 'sem-admin'
 semaphore_admin_email: 'sem-admin@example.com'
 semaphore_admin_password: 'sem;admin "quoted" \ slash & dollars \$HOME and ''single'''
 semaphore_encryption_key: 'enc;key "quoted" \ slash & dollars \$HOME and ''single'''
+semaphore_backup_location: 'Nextcloud:semaphore_backup'
 traefik_image: 'docker.io/traefik:v3'
 traefik_networks:
   - 'proxy_net'
@@ -116,7 +120,12 @@ paperless_data_path: '/srv/paperless/data'
 paperless_media_path: '/srv/paperless/media'
 paperless_export_path: '/srv/paperless/export'
 paperless_consume_path: '/srv/paperless/consume'
+backup_local: true
 semaphore_image: 'docker.io/semaphoreui/semaphore:v2.13.6'
+navidrome_path: '/srv/navidrome'
+navidrome_backup_location: 'Nextcloud:navidrome_backup'
+vaultwarden_path: '/srv/vaultwarden'
+vaultwarden_backup_location: 'Nextcloud:vaultwarden_backup'
 podman_service_name: 'generic-service'
 podman_service_image: 'docker.io/example/generic:1.2.3'
 podman_service_pull_policy: 'newer'
@@ -204,6 +213,21 @@ cat > "$tmpdir/render.yml" <<EOF
       ansible.builtin.template:
         src: ${repo_root}/roles/semaphore/templates/semaphore.sh.j2
         dest: ${render_dir}/semaphore.sh
+
+    - name: Render backup_navidrome.sh
+      ansible.builtin.template:
+        src: ${repo_root}/roles/navidrome/templates/backup_navidrome.sh.j2
+        dest: ${render_dir}/backup_navidrome.sh
+
+    - name: Render backup_vaultwarden.sh
+      ansible.builtin.template:
+        src: ${repo_root}/roles/vaultwarden/templates/backup_db.j2
+        dest: ${render_dir}/backup_vaultwarden.sh
+
+    - name: Render backup_semaphore.sh
+      ansible.builtin.template:
+        src: ${repo_root}/roles/semaphore/templates/backup_semaphore.sh.j2
+        dest: ${render_dir}/backup_semaphore.sh
 
     - name: Render podman_service.sh
       ansible.builtin.template:
@@ -325,6 +349,18 @@ assert_contains "$render_dir/semaphore.sh" "--env SEMAPHORE_ACCESS_KEY_ENCRYPTIO
 assert_contains "$render_dir/semaphore.sh" "--env ANSIBLE_SSH_ARGS" "semaphore.sh passes ANSIBLE_SSH_ARGS"
 assert_not_contains "$render_dir/semaphore.sh" "podman pull" "semaphore.sh no longer calls podman pull"
 assert_contains "$render_dir/semaphore.sh" "--pull=newer" "semaphore.sh uses --pull=newer"
+
+assert_contains "$render_dir/backup_navidrome.sh" '/usr/bin/install -d -o 33 -g 33 -m 0770 "$DEST"' "backup_navidrome.sh creates the Nextcloud destination with Nextcloud ownership"
+assert_contains "$render_dir/backup_navidrome.sh" '/usr/bin/install -o 33 -g 33 -m 0640 "$backup_file" "$DEST/"' "backup_navidrome.sh installs backups with Nextcloud ownership"
+assert_not_contains "$render_dir/backup_navidrome.sh" '/usr/bin/cp "$LOCAL_BACKUP_DIR"/*.db "$DEST/"' "backup_navidrome.sh no longer copies backups as root"
+
+assert_contains "$render_dir/backup_vaultwarden.sh" '/usr/bin/install -d -o 33 -g 33 -m 0770 "$DEST"' "backup_vaultwarden.sh creates the Nextcloud destination with Nextcloud ownership"
+assert_contains "$render_dir/backup_vaultwarden.sh" '/usr/bin/install -o 33 -g 33 -m 0640 "$BACKUP_FILE" "$DEST/"' "backup_vaultwarden.sh installs backups with Nextcloud ownership"
+assert_not_contains "$render_dir/backup_vaultwarden.sh" '/usr/bin/cp "$BACKUP_FILE" "$DEST/"' "backup_vaultwarden.sh no longer copies backups as root"
+
+assert_contains "$render_dir/backup_semaphore.sh" '/usr/bin/install -d -o 33 -g 33 -m 0770 "$DEST"' "backup_semaphore.sh creates the Nextcloud destination with Nextcloud ownership"
+assert_contains "$render_dir/backup_semaphore.sh" '/usr/bin/install -o 33 -g 33 -m 0640 "$DUMP_FILE" "$DEST/"' "backup_semaphore.sh installs backups with Nextcloud ownership"
+assert_not_contains "$render_dir/backup_semaphore.sh" '/usr/bin/cp "$DUMP_FILE" "$DEST/"' "backup_semaphore.sh no longer copies backups as root"
 
 assert_not_contains "$render_dir/podman_service.sh" "podman pull" "podman_service.sh no longer calls podman pull"
 assert_contains "$render_dir/podman_service.sh" "--pull=newer" "podman_service.sh uses --pull=newer"
