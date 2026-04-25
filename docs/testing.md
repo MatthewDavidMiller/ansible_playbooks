@@ -35,6 +35,7 @@ python3 scripts/promote_artifacts.py --check-tools
 python3 scripts/promote_artifacts.py --service traefik
 bash scripts/test_container_security.sh 2>&1 | tee /tmp/container_test_results.txt
 grep -E "^(PASS|FAIL|WARN|INFO)" /tmp/container_test_results.txt
+bash scripts/test_container_security.sh semaphore
 ```
 
 > `:Z` SELinux volume relabel flags are intentionally omitted from the local container tests.
@@ -56,6 +57,14 @@ The script validates the current VM1 hardening profile:
 9. Navidrome starts as explicit non-root UID/GID `33:33` with `cap-drop=ALL`.
 
 By default the script now reads the approved image refs from `artifacts/containers.lock.yml`, converts them to digest-pinned `repo@sha256:...` refs, and tests those exact images. It still accepts image override env vars when you need to test a candidate image before writing it into the lock file:
+
+For faster debugging, pass one or more targets instead of running the full suite:
+
+```bash
+bash scripts/test_container_security.sh static
+bash scripts/test_container_security.sh semaphore
+bash scripts/test_container_security.sh postgres redis
+```
 
 ```bash
 TRAEFIK_IMAGE=public.ecr.aws/docker/library/traefik@sha256:171c9c3565b29f6c133f1c1b43c5d4e5853415198e9e1078c001f8702ff66aec \

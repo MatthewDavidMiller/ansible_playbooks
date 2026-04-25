@@ -26,7 +26,7 @@ exec /usr/bin/podman run \
 --volume /var/lib/semaphore:/var/lib/semaphore:Z \
 --read-only \
 --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
---tmpfs /tmp/semaphore:rw,nosuid,nodev,size=64m \
+--mount type=tmpfs,destination=/tmp/semaphore,tmpfs-size=64M,tmpfs-mode=0750,U=true \
 --memory=384m \
 --memory-swap=384m \
 --pids-limit=300 \

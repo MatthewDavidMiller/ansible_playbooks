@@ -3,7 +3,8 @@
 # Tests container capability, privilege, and memory flags
 # for the maintained VM1 services before deploying to production via Ansible.
 #
-# Usage: bash scripts/test_container_security.sh 2>&1 | tee /tmp/container_test_results.txt
+# Usage: bash scripts/test_container_security.sh [all|static|postgres|redis|nextcloud|traefik|paperless|vaultwarden|semaphore|navidrome]...
+#        bash scripts/test_container_security.sh semaphore 2>&1 | tee /tmp/container_test_results.txt
 # See docs/testing.md for full descriptions of each test.
 
 set -euo pipefail
@@ -11,6 +12,31 @@ set -euo pipefail
 REPO_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 LOCK_FILE=${LOCK_FILE:-"$REPO_ROOT/artifacts/containers.lock.yml"}
 DOCKER=${DOCKER:-docker}
+usage() {
+  sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'
+}
+should_run() {
+  local selected
+  for selected in "${SELECTED_TESTS[@]}"; do
+    [[ "$selected" == all || "$selected" == "$1" ]] && return 0
+  done
+  return 1
+}
+SELECTED_TESTS=("${@:-all}")
+for selected_test in "${SELECTED_TESTS[@]}"; do
+  case "$selected_test" in
+    all|static|postgres|redis|nextcloud|traefik|paperless|vaultwarden|semaphore|navidrome) ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Unknown test target: $selected_test" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
 lock_image_ref() {
   python3 - "$LOCK_FILE" "$1" <<'PY'
 from pathlib import Path
@@ -102,10 +128,12 @@ trap cleanup_all_test_containers EXIT
 cleanup_all_test_containers
 
 echo "=== Container Security Flag Tests ==="
+echo "Targets: ${SELECTED_TESTS[*]}"
 echo "Docker: $($DOCKER --version)"
 echo "User: $(id)"
 echo ""
 
+if should_run static; then
 echo "--- TEST-00: Static hardening and network containment policy ---"
 assert_file_contains "--network=nextcloud_proxy_net" "Nextcloud: joins dedicated proxy network" roles/nextcloud/templates/nextcloud_container.sh.j2
 assert_file_contains "--network=paperless_proxy_net" "Paperless: joins dedicated proxy network" roles/paperless_ngx/templates/paperless_ngx.sh.j2
@@ -114,22 +142,27 @@ assert_file_contains "paperless_proxy_net" "Inventory: Traefik reaches Paperless
 assert_file_not_contains "- nextcloud_container_net" "Inventory: Traefik is not placed on database/cache backend network" example_inventory.yml
 assert_file_contains "--read-only" "Traefik: read-only root filesystem is configured" roles/reverse_proxy/templates/traefik_container.sh.j2
 assert_file_contains "--read-only" "Postgres: read-only root filesystem is configured" roles/nextcloud/templates/postgres_container.sh.j2
-assert_file_not_contains "uid=999|gid=999" "Postgres: tmpfs mounts avoid Podman-unsupported uid/gid options" roles/nextcloud/templates/postgres_container.sh.j2
-assert_file_contains "\\{\\{ postgres_path \\}\\}/run:/var/run/postgresql/" "Postgres: socket directory uses prepared 999-owned bind mount" roles/nextcloud/templates/postgres_container.sh.j2
+assert_file_contains "--mount type=tmpfs,destination=/var/run/postgresql,tmpfs-size=16M,tmpfs-mode=0750,U=true" "Postgres: socket directory uses a service-owned tmpfs mount" roles/nextcloud/templates/postgres_container.sh.j2
+assert_file_not_contains "\\{\\{ postgres_path \\}\\}/run:/var/run/postgresql" "Postgres: socket directory is not host-persisted" roles/nextcloud/templates/postgres_container.sh.j2
 assert_file_contains "--read-only" "Redis: read-only root filesystem is configured" roles/nextcloud/templates/redis_container.sh.j2
 assert_file_contains "--read-only" "Navidrome: read-only root filesystem is configured" roles/navidrome/templates/navidrome_container.sh.j2
 assert_file_contains "--read-only" "Vaultwarden: read-only root filesystem is configured" roles/vaultwarden/templates/vaultwarden.sh.j2
 assert_file_contains "--read-only" "Semaphore: read-only root filesystem is configured" roles/semaphore/templates/semaphore.sh.j2
+assert_file_contains "--mount type=tmpfs,destination=/tmp/semaphore,tmpfs-size=64M,tmpfs-mode=0750,U=true" "Semaphore: project temp path uses a service-owned tmpfs mount" roles/semaphore/templates/semaphore.sh.j2
+assert_file_not_contains "mode=1777" "Semaphore: project temp path is not world-writable" roles/semaphore/templates/semaphore.sh.j2
 echo ""
+fi
 
 # ---------------------------------------------------------------------------
+if should_run postgres; then
 echo "--- TEST-01: PostgreSQL ---"
+POSTGRES_SOCKET_TMP_MOUNT=(--tmpfs /var/run/postgresql:rw,nosuid,nodev,size=16m,mode=0750,uid=999,gid=999)
+if [[ "$DOCKER" == *podman* ]]; then
+  POSTGRES_SOCKET_TMP_MOUNT=(--mount type=tmpfs,destination=/var/run/postgresql,tmpfs-size=16M,tmpfs-mode=0750,U=true)
+fi
 TEST_PG_DIR=$(mktemp -d)
-TEST_PG_RUN=$(mktemp -d)
 chmod 0750 "$TEST_PG_DIR"
-chmod 0750 "$TEST_PG_RUN"
 $DOCKER run --rm -v "$TEST_PG_DIR":/target alpine chown 999:999 /target
-$DOCKER run --rm -v "$TEST_PG_RUN":/target alpine chown 999:999 /target
 
 $DOCKER run -d --name test_postgres \
   --user 999:999 \
@@ -140,7 +173,7 @@ $DOCKER run -d --name test_postgres \
   --read-only \
   --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
   --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
-  --volume "$TEST_PG_RUN":/var/run/postgresql \
+  "${POSTGRES_SOCKET_TMP_MOUNT[@]}" \
   --env POSTGRES_USER=testuser \
   --env POSTGRES_PASSWORD=testpass \
   --env POSTGRES_DB=testdb \
@@ -157,14 +190,10 @@ $DOCKER exec test_postgres pg_isready -U testuser \
 
 cleanup test_postgres
 cleanup_dir "$TEST_PG_DIR"
-cleanup_dir "$TEST_PG_RUN"
 echo ""
 
 # ---------------------------------------------------------------------------
 echo "--- TEST-02: PostgreSQL Role Isolation ---"
-TEST_PG_ROLES_RUN=$(mktemp -d)
-chmod 0750 "$TEST_PG_ROLES_RUN"
-$DOCKER run --rm -v "$TEST_PG_ROLES_RUN":/target alpine chown 999:999 /target
 $DOCKER run -d --name test_postgres_roles \
   --user 999:999 \
   --cap-drop=ALL \
@@ -174,7 +203,7 @@ $DOCKER run -d --name test_postgres_roles \
   --read-only \
   --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
   --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
-  --volume "$TEST_PG_ROLES_RUN":/var/run/postgresql \
+  "${POSTGRES_SOCKET_TMP_MOUNT[@]}" \
   --env POSTGRES_USER=postgres_admin \
   --env POSTGRES_PASSWORD=adminpass \
   --env POSTGRES_DB=postgres \
@@ -193,7 +222,6 @@ $DOCKER exec test_postgres_roles env PGPASSWORD=ncpass \
   && fail "Postgres: nextcloud role unexpectedly managed paperless database" \
   || pass "Postgres: per-service ownership blocks cross-database writes by default"
 cleanup test_postgres_roles
-cleanup_dir "$TEST_PG_ROLES_RUN"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -201,14 +229,12 @@ echo "--- TEST-02B: PostgreSQL Existing Cluster Migration ---"
 TEST_PG_MIG_DIR=$(mktemp -d)
 TEST_PG_MIG_DATA="$TEST_PG_MIG_DIR/pgdata"
 TEST_PG_MIG_INIT="$TEST_PG_MIG_DIR/custom-init"
-TEST_PG_MIG_RUN="$TEST_PG_MIG_DIR/run"
-mkdir -p "$TEST_PG_MIG_DATA" "$TEST_PG_MIG_INIT" "$TEST_PG_MIG_RUN"
-chmod 0750 "$TEST_PG_MIG_DATA" "$TEST_PG_MIG_INIT" "$TEST_PG_MIG_RUN"
+mkdir -p "$TEST_PG_MIG_DATA" "$TEST_PG_MIG_INIT"
+chmod 0750 "$TEST_PG_MIG_DATA" "$TEST_PG_MIG_INIT"
 install -m 0755 "$REPO_ROOT/roles/nextcloud/files/db_wrapper.sh" \
   "$TEST_PG_MIG_INIT/db_wrapper.sh"
 $DOCKER run --rm -v "$TEST_PG_MIG_DATA":/target alpine chown 999:999 /target
 $DOCKER run --rm -v "$TEST_PG_MIG_INIT":/target alpine chown -R 999:999 /target
-$DOCKER run --rm -v "$TEST_PG_MIG_RUN":/target alpine chown 999:999 /target
 
 $DOCKER run -d --name test_postgres_migration_seed \
   --user 999:999 \
@@ -219,7 +245,7 @@ $DOCKER run -d --name test_postgres_migration_seed \
   --read-only \
   --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
   --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
-  --volume "$TEST_PG_MIG_RUN":/var/run/postgresql \
+  "${POSTGRES_SOCKET_TMP_MOUNT[@]}" \
   --env POSTGRES_USER=nextcloud_user \
   --env POSTGRES_PASSWORD=oldsharedpass \
   --env POSTGRES_DB=nextcloud \
@@ -248,7 +274,7 @@ $DOCKER run -d --name test_postgres_migration \
   --read-only \
   --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
   --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
-  --volume "$TEST_PG_MIG_RUN":/var/run/postgresql \
+  "${POSTGRES_SOCKET_TMP_MOUNT[@]}" \
   --env POSTGRES_USER=postgres_admin \
   --env POSTGRES_PASSWORD=adminpass \
   --env POSTGRES_DB=nextcloud \
@@ -287,7 +313,6 @@ $DOCKER exec test_postgres_migration env PGPASSWORD=sempass \
 cleanup test_postgres_migration
 cleanup_dir "$TEST_PG_MIG_DATA"
 cleanup_dir "$TEST_PG_MIG_INIT"
-cleanup_dir "$TEST_PG_MIG_RUN"
 rm -rf "$TEST_PG_MIG_DIR"
 echo ""
 
@@ -296,14 +321,12 @@ echo "--- TEST-02C: PostgreSQL Legacy postgres Superuser Migration ---"
 TEST_PG_LEGACY_DIR=$(mktemp -d)
 TEST_PG_LEGACY_DATA="$TEST_PG_LEGACY_DIR/pgdata"
 TEST_PG_LEGACY_INIT="$TEST_PG_LEGACY_DIR/custom-init"
-TEST_PG_LEGACY_RUN="$TEST_PG_LEGACY_DIR/run"
-mkdir -p "$TEST_PG_LEGACY_DATA" "$TEST_PG_LEGACY_INIT" "$TEST_PG_LEGACY_RUN"
-chmod 0750 "$TEST_PG_LEGACY_DATA" "$TEST_PG_LEGACY_INIT" "$TEST_PG_LEGACY_RUN"
+mkdir -p "$TEST_PG_LEGACY_DATA" "$TEST_PG_LEGACY_INIT"
+chmod 0750 "$TEST_PG_LEGACY_DATA" "$TEST_PG_LEGACY_INIT"
 install -m 0755 "$REPO_ROOT/roles/nextcloud/files/db_wrapper.sh" \
   "$TEST_PG_LEGACY_INIT/db_wrapper.sh"
 $DOCKER run --rm -v "$TEST_PG_LEGACY_DATA":/target alpine chown 999:999 /target
 $DOCKER run --rm -v "$TEST_PG_LEGACY_INIT":/target alpine chown -R 999:999 /target
-$DOCKER run --rm -v "$TEST_PG_LEGACY_RUN":/target alpine chown 999:999 /target
 
 $DOCKER run -d --name test_postgres_legacy_seed \
   --user 999:999 \
@@ -314,7 +337,7 @@ $DOCKER run -d --name test_postgres_legacy_seed \
   --read-only \
   --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
   --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
-  --volume "$TEST_PG_LEGACY_RUN":/var/run/postgresql \
+  "${POSTGRES_SOCKET_TMP_MOUNT[@]}" \
   --env POSTGRES_PASSWORD=legacysecret \
   --env POSTGRES_DB=nextcloud \
   --volume "$TEST_PG_LEGACY_DATA":/var/lib/postgresql/data \
@@ -339,7 +362,7 @@ $DOCKER run -d --name test_postgres_legacy_migration \
   --read-only \
   --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
   --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
-  --volume "$TEST_PG_LEGACY_RUN":/var/run/postgresql \
+  "${POSTGRES_SOCKET_TMP_MOUNT[@]}" \
   --env POSTGRES_USER=postgres_admin \
   --env POSTGRES_PASSWORD=adminpass \
   --env POSTGRES_DB=nextcloud \
@@ -381,7 +404,6 @@ $DOCKER exec test_postgres_legacy_migration env PGPASSWORD=sempass \
 cleanup test_postgres_legacy_migration
 cleanup_dir "$TEST_PG_LEGACY_DATA"
 cleanup_dir "$TEST_PG_LEGACY_INIT"
-cleanup_dir "$TEST_PG_LEGACY_RUN"
 rm -rf "$TEST_PG_LEGACY_DIR"
 echo ""
 
@@ -390,14 +412,12 @@ echo "--- TEST-02D: PostgreSQL Arbitrary Legacy Superuser Migration ---"
 TEST_PG_CUSTOM_DIR=$(mktemp -d)
 TEST_PG_CUSTOM_DATA="$TEST_PG_CUSTOM_DIR/pgdata"
 TEST_PG_CUSTOM_INIT="$TEST_PG_CUSTOM_DIR/custom-init"
-TEST_PG_CUSTOM_RUN="$TEST_PG_CUSTOM_DIR/run"
-mkdir -p "$TEST_PG_CUSTOM_DATA" "$TEST_PG_CUSTOM_INIT" "$TEST_PG_CUSTOM_RUN"
-chmod 0750 "$TEST_PG_CUSTOM_DATA" "$TEST_PG_CUSTOM_INIT" "$TEST_PG_CUSTOM_RUN"
+mkdir -p "$TEST_PG_CUSTOM_DATA" "$TEST_PG_CUSTOM_INIT"
+chmod 0750 "$TEST_PG_CUSTOM_DATA" "$TEST_PG_CUSTOM_INIT"
 install -m 0755 "$REPO_ROOT/roles/nextcloud/files/db_wrapper.sh" \
   "$TEST_PG_CUSTOM_INIT/db_wrapper.sh"
 $DOCKER run --rm -v "$TEST_PG_CUSTOM_DATA":/target alpine chown 999:999 /target
 $DOCKER run --rm -v "$TEST_PG_CUSTOM_INIT":/target alpine chown -R 999:999 /target
-$DOCKER run --rm -v "$TEST_PG_CUSTOM_RUN":/target alpine chown 999:999 /target
 
 $DOCKER run -d --name test_postgres_custom_seed \
   --user 999:999 \
@@ -408,7 +428,7 @@ $DOCKER run -d --name test_postgres_custom_seed \
   --read-only \
   --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
   --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
-  --volume "$TEST_PG_CUSTOM_RUN":/var/run/postgresql \
+  "${POSTGRES_SOCKET_TMP_MOUNT[@]}" \
   --env POSTGRES_USER=legacy_admin \
   --env POSTGRES_PASSWORD=legacysecret \
   --env POSTGRES_DB=nextcloud \
@@ -434,7 +454,7 @@ $DOCKER run -d --name test_postgres_custom_migration \
   --read-only \
   --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
   --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
-  --volume "$TEST_PG_CUSTOM_RUN":/var/run/postgresql \
+  "${POSTGRES_SOCKET_TMP_MOUNT[@]}" \
   --env POSTGRES_USER=postgres_admin \
   --env POSTGRES_PASSWORD=adminpass \
   --env POSTGRES_LEGACY_BOOTSTRAP_USER=legacy_admin \
@@ -478,7 +498,6 @@ $DOCKER exec test_postgres_custom_migration env PGPASSWORD=sempass \
 cleanup test_postgres_custom_migration
 cleanup_dir "$TEST_PG_CUSTOM_DATA"
 cleanup_dir "$TEST_PG_CUSTOM_INIT"
-cleanup_dir "$TEST_PG_CUSTOM_RUN"
 rm -rf "$TEST_PG_CUSTOM_DIR"
 echo ""
 
@@ -487,14 +506,12 @@ echo "--- TEST-02E: PostgreSQL Mixed Object Ownership Migration ---"
 TEST_PG_MIXED_DIR=$(mktemp -d)
 TEST_PG_MIXED_DATA="$TEST_PG_MIXED_DIR/pgdata"
 TEST_PG_MIXED_INIT="$TEST_PG_MIXED_DIR/custom-init"
-TEST_PG_MIXED_RUN="$TEST_PG_MIXED_DIR/run"
-mkdir -p "$TEST_PG_MIXED_DATA" "$TEST_PG_MIXED_INIT" "$TEST_PG_MIXED_RUN"
-chmod 0750 "$TEST_PG_MIXED_DATA" "$TEST_PG_MIXED_INIT" "$TEST_PG_MIXED_RUN"
+mkdir -p "$TEST_PG_MIXED_DATA" "$TEST_PG_MIXED_INIT"
+chmod 0750 "$TEST_PG_MIXED_DATA" "$TEST_PG_MIXED_INIT"
 install -m 0755 "$REPO_ROOT/roles/nextcloud/files/db_wrapper.sh" \
   "$TEST_PG_MIXED_INIT/db_wrapper.sh"
 $DOCKER run --rm -v "$TEST_PG_MIXED_DATA":/target alpine chown 999:999 /target
 $DOCKER run --rm -v "$TEST_PG_MIXED_INIT":/target alpine chown -R 999:999 /target
-$DOCKER run --rm -v "$TEST_PG_MIXED_RUN":/target alpine chown 999:999 /target
 
 $DOCKER run -d --name test_postgres_mixed_seed \
   --user 999:999 \
@@ -505,7 +522,7 @@ $DOCKER run -d --name test_postgres_mixed_seed \
   --read-only \
   --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
   --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
-  --volume "$TEST_PG_MIXED_RUN":/var/run/postgresql \
+  "${POSTGRES_SOCKET_TMP_MOUNT[@]}" \
   --env POSTGRES_USER=postgres_admin \
   --env POSTGRES_PASSWORD=adminpass \
   --env POSTGRES_DB=nextcloud \
@@ -543,7 +560,7 @@ $DOCKER run -d --name test_postgres_mixed_migration \
   --read-only \
   --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
   --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
-  --volume "$TEST_PG_MIXED_RUN":/var/run/postgresql \
+  "${POSTGRES_SOCKET_TMP_MOUNT[@]}" \
   --env POSTGRES_USER=postgres_admin \
   --env POSTGRES_PASSWORD=adminpass \
   --env POSTGRES_DB=nextcloud \
@@ -574,11 +591,12 @@ $DOCKER exec test_postgres_mixed_migration env PGPASSWORD=sempass \
 cleanup test_postgres_mixed_migration
 cleanup_dir "$TEST_PG_MIXED_DATA"
 cleanup_dir "$TEST_PG_MIXED_INIT"
-cleanup_dir "$TEST_PG_MIXED_RUN"
 rm -rf "$TEST_PG_MIXED_DIR"
 echo ""
+fi
 
 # ---------------------------------------------------------------------------
+if should_run redis; then
 echo "--- TEST-03: Redis ---"
 $DOCKER run -d --name test_redis \
   --cap-drop=ALL \
@@ -600,8 +618,10 @@ $DOCKER exec test_redis redis-cli ping \
 
 cleanup test_redis
 echo ""
+fi
 
 # ---------------------------------------------------------------------------
+if should_run nextcloud; then
 echo "--- TEST-04: Nextcloud ---"
 # NOTE: Nextcloud's entrypoint uses rsync --chown to copy its webroot on every start,
 # requiring the CHOWN capability. --cap-drop=ALL breaks this. Production config uses
@@ -626,8 +646,10 @@ $DOCKER inspect --format='{{.State.Status}}' test_nextcloud \
 cleanup test_nextcloud
 cleanup_dir "$TEST_NC_DIR"
 echo ""
+fi
 
 # ---------------------------------------------------------------------------
+if should_run traefik; then
 echo "--- TEST-05: Traefik ---"
 TEST_TRAEFIK_DIR=$(mktemp -d)
 cat > "$TEST_TRAEFIK_DIR/traefik.yml" <<'EOF'
@@ -668,8 +690,10 @@ check_running test_traefik_cap "Traefik: starts with cap-drop=ALL + NET_BIND_SER
 cleanup test_traefik_cap
 rm -rf "$TEST_TRAEFIK_DIR"
 echo ""
+fi
 
 # ---------------------------------------------------------------------------
+if should_run paperless; then
 echo "--- TEST-06: Paperless NGX ---"
 TEST_PL_DATA=$(mktemp -d)
 TEST_PL_MEDIA=$(mktemp -d)
@@ -709,8 +733,10 @@ cleanup_dir "$TEST_PL_MEDIA"
 cleanup_dir "$TEST_PL_EXPORT"
 cleanup_dir "$TEST_PL_CONSUME"
 echo ""
+fi
 
 # ---------------------------------------------------------------------------
+if should_run vaultwarden; then
 echo "--- TEST-07: Vaultwarden ---"
 TEST_VW_DIR=$(mktemp -d)
 chmod 0777 "$TEST_VW_DIR"
@@ -732,8 +758,10 @@ check_running test_vaultwarden "Vaultwarden: starts with cap-drop=ALL + NET_BIND
 cleanup test_vaultwarden
 rm -rf "$TEST_VW_DIR"
 echo ""
+fi
 
 # ---------------------------------------------------------------------------
+if should_run semaphore; then
 echo "--- TEST-08: Semaphore ---"
 TEST_SEM_DIR=$(mktemp -d)
 TEST_SEM_STATE_DIR=$(mktemp -d)
@@ -742,6 +770,11 @@ cat > "$TEST_SEM_DIR/ssh_known_hosts" <<'EOF'
 EOF
 $DOCKER run --rm -v "$TEST_SEM_DIR":/target alpine chown -R 1001:0 /target
 $DOCKER run --rm -v "$TEST_SEM_STATE_DIR":/target alpine chown -R 1001:0 /target
+
+SEMAPHORE_PROJECT_TMP_MOUNT=(--tmpfs /tmp/semaphore:rw,nosuid,nodev,size=64m,mode=0750,uid=1001,gid=0)
+if [[ "$DOCKER" == *podman* ]]; then
+  SEMAPHORE_PROJECT_TMP_MOUNT=(--mount type=tmpfs,destination=/tmp/semaphore,tmpfs-size=64M,tmpfs-mode=0750,U=true)
+fi
 
 # Test A: baseline
 $DOCKER run -d --name test_semaphore_base \
@@ -763,7 +796,7 @@ $DOCKER run -d --name test_semaphore_caps \
   --security-opt=no-new-privileges:true \
   --read-only \
   --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
-  --tmpfs /tmp/semaphore:rw,nosuid,nodev,size=64m \
+  "${SEMAPHORE_PROJECT_TMP_MOUNT[@]}" \
   --memory=512m --memory-swap=512m \
   --pids-limit=300 \
   --volume "$TEST_SEM_DIR":/etc/semaphore \
@@ -781,14 +814,20 @@ $DOCKER inspect --format='{{.State.Status}}' test_semaphore_caps 2>/dev/null \
   | grep -q running \
   && pass "Semaphore: starts with cap-drop=ALL + read-only rootfs + writable config mount" \
   || fail "Semaphore: failed with cap-drop=ALL + read-only rootfs + writable config mount"
+$DOCKER exec test_semaphore_caps sh -c 'mkdir /tmp/semaphore/project_1 && rmdir /tmp/semaphore/project_1' \
+  >/dev/null 2>&1 \
+  && pass "Semaphore: can create project work directories on read-only rootfs" \
+  || fail "Semaphore: cannot create project work directories on read-only rootfs"
 echo "--- Semaphore cap-drop logs (last 20 lines) ---"
 $DOCKER logs test_semaphore_caps 2>&1 | tail -20
 cleanup test_semaphore_caps
 cleanup_dir "$TEST_SEM_DIR"
 cleanup_dir "$TEST_SEM_STATE_DIR"
 echo ""
+fi
 
 # ---------------------------------------------------------------------------
+if should_run navidrome; then
 echo "--- TEST-09: Navidrome ---"
 TEST_ND_DATA=$(mktemp -d)
 TEST_ND_MUSIC=$(mktemp -d)
@@ -814,6 +853,7 @@ cleanup test_navidrome
 cleanup_dir "$TEST_ND_DATA"
 rm -rf "$TEST_ND_MUSIC"
 echo ""
+fi
 
 # ---------------------------------------------------------------------------
 echo "=== Tests complete. Review PASS/FAIL/WARN/INFO lines above. ==="

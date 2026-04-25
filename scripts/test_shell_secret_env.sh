@@ -283,6 +283,8 @@ assert_contains "$render_dir/postgres_container.sh" "--env PAPERLESS_DB_PASSWORD
 assert_contains "$render_dir/postgres_container.sh" "--env SEMAPHORE_DB_PASSWORD" "postgres_container.sh passes SEMAPHORE_DB_PASSWORD"
 assert_not_contains "$render_dir/postgres_container.sh" "podman pull" "postgres_container.sh no longer calls podman pull"
 assert_contains "$render_dir/postgres_container.sh" "--pull=never" "postgres_container.sh uses --pull=never"
+assert_contains "$render_dir/postgres_container.sh" "--mount type=tmpfs,destination=/var/run/postgresql,tmpfs-size=16M,tmpfs-mode=0750,U=true" "postgres_container.sh mounts service-owned socket tmpfs"
+assert_not_contains "$render_dir/postgres_container.sh" '/run:/var/run/postgresql' "postgres_container.sh does not host-persist the socket directory"
 
 assert_not_contains "$render_dir/nextcloud_container.sh" "--env-file" "nextcloud_container.sh no longer uses --env-file"
 assert_contains "$render_dir/nextcloud_container.sh" '. "/etc/homelab/secrets/nextcloud.env"' "nextcloud_container.sh sources nextcloud.env"
@@ -311,6 +313,8 @@ assert_contains "$render_dir/semaphore.sh" "--env SEMAPHORE_ACCESS_KEY_ENCRYPTIO
 assert_contains "$render_dir/semaphore.sh" "--env ANSIBLE_SSH_ARGS" "semaphore.sh passes ANSIBLE_SSH_ARGS"
 assert_not_contains "$render_dir/semaphore.sh" "podman pull" "semaphore.sh no longer calls podman pull"
 assert_contains "$render_dir/semaphore.sh" "--pull=never" "semaphore.sh uses --pull=never"
+assert_contains "$render_dir/semaphore.sh" "--mount type=tmpfs,destination=/tmp/semaphore,tmpfs-size=64M,tmpfs-mode=0750,U=true" "semaphore.sh mounts service-owned project tmpfs"
+assert_not_contains "$render_dir/semaphore.sh" "mode=1777" "semaphore.sh does not render a world-writable project temp path"
 
 assert_contains "$render_dir/backup_navidrome.sh" '/usr/bin/install -d -o 33 -g 33 -m 0770 "$DEST"' "backup_navidrome.sh creates the Nextcloud destination with Nextcloud ownership"
 assert_contains "$render_dir/backup_navidrome.sh" '/usr/bin/install -o 33 -g 33 -m 0640 "$backup_file" "$DEST/"' "backup_navidrome.sh installs backups with Nextcloud ownership"

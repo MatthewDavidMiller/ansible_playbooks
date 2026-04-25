@@ -102,14 +102,6 @@
     group: "999"
     mode: "0750"
 
-- name: Create postgres runtime socket directory
-  ansible.builtin.file:
-    path: "{{ postgres_path }}/run"
-    state: directory
-    owner: "999"
-    group: "999"
-    mode: "0750"
-
 - name: Create Nextcloud container path
   ansible.builtin.file:
     path: "{{ nextcloud_path }}"

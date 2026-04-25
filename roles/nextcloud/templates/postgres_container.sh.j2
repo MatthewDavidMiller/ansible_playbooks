@@ -15,7 +15,7 @@ exec /usr/bin/podman run \
 --read-only \
 --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
 --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
---volume {{ postgres_path }}/run:/var/run/postgresql/:Z \
+--mount type=tmpfs,destination=/var/run/postgresql,tmpfs-size=16M,tmpfs-mode=0750,U=true \
 --env POSTGRES_USER \
 --env POSTGRES_PASSWORD \
 --env POSTGRES_LEGACY_BOOTSTRAP_USER \

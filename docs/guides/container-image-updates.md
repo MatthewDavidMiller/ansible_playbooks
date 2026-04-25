@@ -78,7 +78,7 @@ Treat each update as approved only after all of the following are true:
 - `trivy` reported no unfixed `MEDIUM`, `HIGH`, or `CRITICAL` findings. Review the detailed output in `logs/container-vulnerability-findings.log`.
 - Any local VEX/ignore use is digest-specific, service-specific, time-bounded, and backed by runtime hardening or network containment.
 - `scripts/test_supply_chain_policy.sh` passed.
-- `scripts/test_container_security.sh` passed against the locked image set.
+- `scripts/test_container_security.sh` passed against the locked image set. During focused debugging, target affected services with commands like `bash scripts/test_container_security.sh semaphore`.
 
 The container security test now defaults to the digest-pinned refs in [`artifacts/containers.lock.yml`](../../artifacts/containers.lock.yml), so it exercises the same approved images that `vm1.yml` deploys. You can still override individual images with environment variables when needed.
 
