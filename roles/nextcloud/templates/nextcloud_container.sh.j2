@@ -9,6 +9,7 @@ exec /usr/bin/podman run \
 --pull=never \
 --name=nextcloud \
 --network=nextcloud_container_net \
+--network=nextcloud_proxy_net \
 --volume {{ nextcloud_path }}/base:/var/www/html/:Z \
 --volume {{ nextcloud_path }}/data:/var/www/html/data/:Z \
 --volume {{ nextcloud_path }}/config:/var/www/html/config/:Z \

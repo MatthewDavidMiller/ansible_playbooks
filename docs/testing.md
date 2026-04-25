@@ -79,6 +79,7 @@ bash scripts/test_container_security.sh
 4. Optionally write the approved digest back to `artifacts/containers.lock.yml`.
 
 Trivy output is written to `logs/container-vulnerability-findings.log`; `logs/` is git ignored.
+If present, local files at `logs/.trivyignore` and `logs/trivy-vex.json` are passed to Trivy for private accepted-risk review. Real ignore/VEX content must stay out of the public repo.
 
 The script prefers native `skopeo`, `cosign`, and `trivy` binaries. If one is missing, it falls back to a pinned official container image for that tool via `podman` or `docker`.
 

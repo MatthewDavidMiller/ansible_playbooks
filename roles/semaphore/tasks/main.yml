@@ -31,9 +31,17 @@
   ansible.builtin.file:
     path: /etc/semaphore
     state: directory
-    owner: root
+    owner: "1001"
     group: root
-    mode: "0700"
+    mode: "0750"
+
+- name: Create semaphore state directory
+  ansible.builtin.file:
+    path: /var/lib/semaphore
+    state: directory
+    owner: "1001"
+    group: root
+    mode: "0750"
 
 - name: Semaphore env file
   ansible.builtin.template:
@@ -47,7 +55,7 @@
   ansible.builtin.template:
     src: ssh_known_hosts.j2
     dest: /etc/semaphore/ssh_known_hosts
-    owner: root
+    owner: "1001"
     group: root
     mode: "0600"
 

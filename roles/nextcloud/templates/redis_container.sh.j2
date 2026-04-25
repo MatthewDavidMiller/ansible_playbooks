@@ -9,9 +9,13 @@ exec /usr/bin/podman run \
 --pull=never \
 --name=redis \
 --network=nextcloud_container_net \
+--read-only \
+--tmpfs /tmp:rw,noexec,nosuid,nodev,size=16m \
+--tmpfs /data:rw,noexec,nosuid,nodev,size=64m \
 --env TZ \
 --memory=256m \
 --memory-swap=256m \
+--pids-limit=200 \
 --cap-drop=ALL \
 --cap-add=CHOWN \
 --cap-add=FOWNER \

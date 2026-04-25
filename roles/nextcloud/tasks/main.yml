@@ -23,6 +23,28 @@
       - nextcloud_container_net
   when: nextcloud_network.rc != 0
 
+- name: Inspect nextcloud proxy network
+  ansible.builtin.command:
+    argv:
+      - podman
+      - network
+      - inspect
+      - nextcloud_proxy_net
+  register: nextcloud_proxy_network
+  changed_when: false
+  failed_when: false
+
+- name: Create nextcloud proxy network
+  ansible.builtin.command:
+    argv:
+      - podman
+      - network
+      - create
+      - --subnet
+      - 172.16.1.32/29
+      - nextcloud_proxy_net
+  when: nextcloud_proxy_network.rc != 0
+
 - name: Create nextcloud secret directory
   ansible.builtin.file:
     path: "{{ secret_env_dir }}"

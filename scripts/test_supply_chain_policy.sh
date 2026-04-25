@@ -42,6 +42,19 @@ assert_match() {
   fail "$label"
 }
 
+assert_not_tracked() {
+  local label="$1"
+  local path
+  shift
+  for path in "$@"; do
+    if git ls-files --error-unmatch "$path" >/tmp/supply_chain_policy.out 2>&1; then
+      cat /tmp/supply_chain_policy.out
+      fail "$label"
+    fi
+  done
+  pass "$label"
+}
+
 echo "=== Supply Chain Policy Checks ==="
 
 assert_match "^artifact_locked_images:" "container artifact lock file exists" artifacts/containers.lock.yml
@@ -54,5 +67,6 @@ assert_match "security:[[:space:]]*true" "standard_update_packages applies secur
 assert_match "ansible-galaxy collection install -r collections/requirements\\.yml" "control-node installs use the pinned collection manifest" scripts/desktop_local_ansible.sh docs/guides/getting-started.md
 assert_no_match "ansible-galaxy collection install (community|ansible\\.posix)" "collection installs must not bypass the pinned requirements file" scripts docs
 assert_no_match "\\.latest\\." "mutable cloud image URLs are not allowed" scripts/proxmox_initial_setup.py artifacts/cloud_images.lock.yml docs/guides/proxmox-setup.md
+assert_not_tracked "real local Trivy VEX/ignore files are not committed" .trivyignore .trivyignore.yaml trivy-vex.json logs/.trivyignore logs/.trivyignore.yaml logs/trivy-vex.json logs/container-vulnerability-findings.log logs/container-vulnerability-remediation.md
 
 echo "=== Supply chain policy checks passed ==="

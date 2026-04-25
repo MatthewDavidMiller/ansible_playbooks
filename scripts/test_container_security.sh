@@ -83,6 +83,14 @@ cleanup_all_test_containers() {
 }
 pass() { echo "PASS: $1"; }
 fail() { echo "FAIL: $1"; exit 1; }
+assert_file_contains() {
+  local pattern="$1" label="$2" file="$3"
+  rg -q -- "$pattern" "$file" && pass "$label" || fail "$label"
+}
+assert_file_not_contains() {
+  local pattern="$1" label="$2" file="$3"
+  rg -q -- "$pattern" "$file" && fail "$label" || pass "$label"
+}
 check_running() {
   local name="$1" label="$2"
   sleep 5
@@ -98,6 +106,20 @@ echo "Docker: $($DOCKER --version)"
 echo "User: $(id)"
 echo ""
 
+echo "--- TEST-00: Static hardening and network containment policy ---"
+assert_file_contains "--network=nextcloud_proxy_net" "Nextcloud: joins dedicated proxy network" roles/nextcloud/templates/nextcloud_container.sh.j2
+assert_file_contains "--network=paperless_proxy_net" "Paperless: joins dedicated proxy network" roles/paperless_ngx/templates/paperless_ngx.sh.j2
+assert_file_contains "nextcloud_proxy_net" "Inventory: Traefik reaches Nextcloud through proxy network" example_inventory.yml
+assert_file_contains "paperless_proxy_net" "Inventory: Traefik reaches Paperless through proxy network" example_inventory.yml
+assert_file_not_contains "- nextcloud_container_net" "Inventory: Traefik is not placed on database/cache backend network" example_inventory.yml
+assert_file_contains "--read-only" "Traefik: read-only root filesystem is configured" roles/reverse_proxy/templates/traefik_container.sh.j2
+assert_file_contains "--read-only" "Postgres: read-only root filesystem is configured" roles/nextcloud/templates/postgres_container.sh.j2
+assert_file_contains "--read-only" "Redis: read-only root filesystem is configured" roles/nextcloud/templates/redis_container.sh.j2
+assert_file_contains "--read-only" "Navidrome: read-only root filesystem is configured" roles/navidrome/templates/navidrome_container.sh.j2
+assert_file_contains "--read-only" "Vaultwarden: read-only root filesystem is configured" roles/vaultwarden/templates/vaultwarden.sh.j2
+assert_file_contains "--read-only" "Semaphore: read-only root filesystem is configured" roles/semaphore/templates/semaphore.sh.j2
+echo ""
+
 # ---------------------------------------------------------------------------
 echo "--- TEST-01: PostgreSQL ---"
 TEST_PG_DIR=$(mktemp -d)
@@ -110,6 +132,10 @@ $DOCKER run -d --name test_postgres \
   --security-opt=no-new-privileges:true \
   --memory=4g --memory-swap=4g \
   --shm-size=256m \
+  --read-only \
+  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
+  --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
+  --tmpfs /var/run/postgresql:rw,noexec,nosuid,nodev,uid=999,gid=999,size=16m \
   --env POSTGRES_USER=testuser \
   --env POSTGRES_PASSWORD=testpass \
   --env POSTGRES_DB=testdb \
@@ -136,6 +162,10 @@ $DOCKER run -d --name test_postgres_roles \
   --security-opt=no-new-privileges:true \
   --memory=2g --memory-swap=2g \
   --shm-size=256m \
+  --read-only \
+  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
+  --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
+  --tmpfs /var/run/postgresql:rw,noexec,nosuid,nodev,uid=999,gid=999,size=16m \
   --env POSTGRES_USER=postgres_admin \
   --env POSTGRES_PASSWORD=adminpass \
   --env POSTGRES_DB=postgres \
@@ -174,6 +204,10 @@ $DOCKER run -d --name test_postgres_migration_seed \
   --security-opt=no-new-privileges:true \
   --memory=2g --memory-swap=2g \
   --shm-size=256m \
+  --read-only \
+  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
+  --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
+  --tmpfs /var/run/postgresql:rw,noexec,nosuid,nodev,uid=999,gid=999,size=16m \
   --env POSTGRES_USER=nextcloud_user \
   --env POSTGRES_PASSWORD=oldsharedpass \
   --env POSTGRES_DB=nextcloud \
@@ -199,6 +233,10 @@ $DOCKER run -d --name test_postgres_migration \
   --security-opt=no-new-privileges:true \
   --memory=2g --memory-swap=2g \
   --shm-size=256m \
+  --read-only \
+  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
+  --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
+  --tmpfs /var/run/postgresql:rw,noexec,nosuid,nodev,uid=999,gid=999,size=16m \
   --env POSTGRES_USER=postgres_admin \
   --env POSTGRES_PASSWORD=adminpass \
   --env POSTGRES_DB=nextcloud \
@@ -258,6 +296,10 @@ $DOCKER run -d --name test_postgres_legacy_seed \
   --security-opt=no-new-privileges:true \
   --memory=2g --memory-swap=2g \
   --shm-size=256m \
+  --read-only \
+  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
+  --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
+  --tmpfs /var/run/postgresql:rw,noexec,nosuid,nodev,uid=999,gid=999,size=16m \
   --env POSTGRES_PASSWORD=legacysecret \
   --env POSTGRES_DB=nextcloud \
   --volume "$TEST_PG_LEGACY_DATA":/var/lib/postgresql/data \
@@ -279,6 +321,10 @@ $DOCKER run -d --name test_postgres_legacy_migration \
   --security-opt=no-new-privileges:true \
   --memory=2g --memory-swap=2g \
   --shm-size=256m \
+  --read-only \
+  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
+  --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
+  --tmpfs /var/run/postgresql:rw,noexec,nosuid,nodev,uid=999,gid=999,size=16m \
   --env POSTGRES_USER=postgres_admin \
   --env POSTGRES_PASSWORD=adminpass \
   --env POSTGRES_DB=nextcloud \
@@ -341,6 +387,10 @@ $DOCKER run -d --name test_postgres_custom_seed \
   --security-opt=no-new-privileges:true \
   --memory=2g --memory-swap=2g \
   --shm-size=256m \
+  --read-only \
+  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
+  --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
+  --tmpfs /var/run/postgresql:rw,noexec,nosuid,nodev,uid=999,gid=999,size=16m \
   --env POSTGRES_USER=legacy_admin \
   --env POSTGRES_PASSWORD=legacysecret \
   --env POSTGRES_DB=nextcloud \
@@ -363,6 +413,10 @@ $DOCKER run -d --name test_postgres_custom_migration \
   --security-opt=no-new-privileges:true \
   --memory=2g --memory-swap=2g \
   --shm-size=256m \
+  --read-only \
+  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
+  --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
+  --tmpfs /var/run/postgresql:rw,noexec,nosuid,nodev,uid=999,gid=999,size=16m \
   --env POSTGRES_USER=postgres_admin \
   --env POSTGRES_PASSWORD=adminpass \
   --env POSTGRES_LEGACY_BOOTSTRAP_USER=legacy_admin \
@@ -427,6 +481,10 @@ $DOCKER run -d --name test_postgres_mixed_seed \
   --security-opt=no-new-privileges:true \
   --memory=2g --memory-swap=2g \
   --shm-size=256m \
+  --read-only \
+  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
+  --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
+  --tmpfs /var/run/postgresql:rw,noexec,nosuid,nodev,uid=999,gid=999,size=16m \
   --env POSTGRES_USER=postgres_admin \
   --env POSTGRES_PASSWORD=adminpass \
   --env POSTGRES_DB=nextcloud \
@@ -461,6 +519,10 @@ $DOCKER run -d --name test_postgres_mixed_migration \
   --security-opt=no-new-privileges:true \
   --memory=2g --memory-swap=2g \
   --shm-size=256m \
+  --read-only \
+  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
+  --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
+  --tmpfs /var/run/postgresql:rw,noexec,nosuid,nodev,uid=999,gid=999,size=16m \
   --env POSTGRES_USER=postgres_admin \
   --env POSTGRES_PASSWORD=adminpass \
   --env POSTGRES_DB=nextcloud \
@@ -502,7 +564,11 @@ $DOCKER run -d --name test_redis \
   --cap-add=FOWNER \
   --cap-add=DAC_OVERRIDE \
   --security-opt=no-new-privileges:true \
+  --read-only \
+  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=16m \
+  --tmpfs /data:rw,noexec,nosuid,nodev,size=64m \
   --memory=512m --memory-swap=512m \
+  --pids-limit=200 \
   "$REDIS_IMAGE"
 
 check_running test_redis "Redis: starts with cap-drop=ALL + CHOWN/FOWNER/DAC_OVERRIDE + 512m limit"
@@ -568,7 +634,10 @@ $DOCKER run -d --name test_traefik_cap \
   --cap-drop=ALL \
   --cap-add=NET_BIND_SERVICE \
   --security-opt=no-new-privileges:true \
+  --read-only \
+  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=16m \
   --memory=256m --memory-swap=256m \
+  --pids-limit=200 \
   --volume "$TEST_TRAEFIK_DIR/traefik.yml":/etc/traefik/traefik.yml:ro \
   -p 18080:80 \
   "$TRAEFIK_IMAGE"
@@ -628,7 +697,10 @@ $DOCKER run -d --name test_vaultwarden \
   --cap-drop=ALL \
   --cap-add=NET_BIND_SERVICE \
   --security-opt=no-new-privileges:true \
+  --read-only \
+  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=16m \
   --memory=256m --memory-swap=256m \
+  --pids-limit=200 \
   --volume "$TEST_VW_DIR":/data \
   -e SIGNUPS_ALLOWED=false \
   "$VAULTWARDEN_IMAGE"
@@ -641,6 +713,14 @@ echo ""
 
 # ---------------------------------------------------------------------------
 echo "--- TEST-08: Semaphore ---"
+TEST_SEM_DIR=$(mktemp -d)
+TEST_SEM_STATE_DIR=$(mktemp -d)
+cat > "$TEST_SEM_DIR/ssh_known_hosts" <<'EOF'
+127.0.0.1 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestOnlyPlaceholderKnownHostKey
+EOF
+$DOCKER run --rm -v "$TEST_SEM_DIR":/target alpine chown -R 1001:0 /target
+$DOCKER run --rm -v "$TEST_SEM_STATE_DIR":/target alpine chown -R 1001:0 /target
+
 # Test A: baseline
 $DOCKER run -d --name test_semaphore_base \
   -e SEMAPHORE_DB_DIALECT=bolt \
@@ -659,7 +739,13 @@ cleanup test_semaphore_base
 $DOCKER run -d --name test_semaphore_caps \
   --cap-drop=ALL \
   --security-opt=no-new-privileges:true \
+  --read-only \
+  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
+  --tmpfs /tmp/semaphore:rw,nosuid,nodev,size=64m \
   --memory=512m --memory-swap=512m \
+  --pids-limit=300 \
+  --volume "$TEST_SEM_DIR":/etc/semaphore \
+  --volume "$TEST_SEM_STATE_DIR":/var/lib/semaphore \
   -e SEMAPHORE_DB_DIALECT=bolt \
   -e SEMAPHORE_ADMIN=admin \
   -e SEMAPHORE_ADMIN_PASSWORD=Admin1234! \
@@ -671,11 +757,13 @@ $DOCKER run -d --name test_semaphore_caps \
 sleep 8
 $DOCKER inspect --format='{{.State.Status}}' test_semaphore_caps 2>/dev/null \
   | grep -q running \
-  && pass "Semaphore: starts with cap-drop=ALL" \
-  || echo "WARN: Semaphore exits with cap-drop=ALL — check logs for required capabilities"
+  && pass "Semaphore: starts with cap-drop=ALL + read-only rootfs + writable config mount" \
+  || fail "Semaphore: failed with cap-drop=ALL + read-only rootfs + writable config mount"
 echo "--- Semaphore cap-drop logs (last 20 lines) ---"
 $DOCKER logs test_semaphore_caps 2>&1 | tail -20
 cleanup test_semaphore_caps
+cleanup_dir "$TEST_SEM_DIR"
+cleanup_dir "$TEST_SEM_STATE_DIR"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -689,7 +777,10 @@ $DOCKER run -d --name test_navidrome \
   --user "33:33" \
   --cap-drop=ALL \
   --security-opt=no-new-privileges:true \
+  --read-only \
+  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=16m \
   --memory=256m --memory-swap=256m \
+  --pids-limit=200 \
   --volume "$TEST_ND_MUSIC":/music:ro \
   --volume "$TEST_ND_DATA":/data \
   -e ND_LOGLEVEL=info \

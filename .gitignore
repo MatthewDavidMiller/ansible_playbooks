@@ -6,3 +6,6 @@ homelab_inventory.yml
 __pycache__/
 *.pyc
 logs/
+.trivyignore
+.trivyignore.yaml
+trivy-vex.json

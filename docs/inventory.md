@@ -40,7 +40,7 @@ VM1 is the single maintained service host. It runs Traefik, PostgreSQL, Redis, N
 | `homelab_domain` | string | Root domain used by DDNS | `example.com` |
 | `homelab_subdomain` | string | DDNS subdomain for VM1 | `home` |
 | `traefik_path` | path | Traefik data directory | `/opt/traefik` |
-| `traefik_networks` | list | Podman networks Traefik must join | `[nextcloud_container_net, navidrome_container_net, vaultwarden_container_net, semaphore_container_net]` |
+| `traefik_networks` | list | Proxy-facing Podman networks Traefik must join | `[nextcloud_proxy_net, paperless_proxy_net, navidrome_container_net, vaultwarden_container_net, semaphore_container_net]` |
 | `traefik_dashboard_fqdn` | string | FQDN for the Traefik dashboard | `traefik.example.com` |
 | `traefik_acme_email` | string | ACME account email | `admin@example.com` |
 | `proxy_config` | list | Traefik dynamic route definitions | — |
@@ -138,6 +138,6 @@ All entries use the generic `service_proxy.yml.j2` template.
 
 ## `traefik_networks`
 
-`traefik_networks` lists every Podman network Traefik must join so it can reach proxied backends by Podman DNS name (`<container>.dns.podman`).
+`traefik_networks` lists every proxy-facing Podman network Traefik must join so it can reach proxied backends by Podman DNS name (`<container>.dns.podman`).
 
-On VM1, Traefik joins each service network that hosts a proxied container.
+Do not include backend-only database/cache networks such as `nextcloud_container_net`; Nextcloud and Paperless use dedicated proxy networks for ingress while remaining attached to the backend network for PostgreSQL and Redis.

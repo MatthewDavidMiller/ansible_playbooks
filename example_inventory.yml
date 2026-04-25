@@ -28,7 +28,8 @@ all:
           homelab_subdomain: "home"
           traefik_path: /path/to/traefik
           traefik_networks:
-            - nextcloud_container_net
+            - nextcloud_proxy_net
+            - paperless_proxy_net
             - navidrome_container_net
             - vaultwarden_container_net
             - semaphore_container_net

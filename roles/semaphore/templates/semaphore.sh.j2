@@ -22,9 +22,14 @@ exec /usr/bin/podman run \
 --env TZ \
 --network semaphore_container_net \
 --network nextcloud_container_net \
---volume /etc/semaphore/ssh_known_hosts:/etc/semaphore/ssh_known_hosts:Z,ro \
+--volume /etc/semaphore:/etc/semaphore:Z \
+--volume /var/lib/semaphore:/var/lib/semaphore:Z \
+--read-only \
+--tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
+--tmpfs /tmp/semaphore:rw,nosuid,nodev,size=64m \
 --memory=384m \
 --memory-swap=384m \
+--pids-limit=300 \
 --cap-drop=ALL \
 --security-opt=no-new-privileges:true \
 -d {{ semaphore_image }}

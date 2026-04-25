@@ -17,6 +17,8 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_LOCK_FILE = REPO_ROOT / "artifacts" / "containers.lock.yml"
 DEFAULT_SCAN_LOG = REPO_ROOT / "logs" / "container-vulnerability-findings.log"
+DEFAULT_TRIVY_IGNORE_FILE = REPO_ROOT / "logs" / ".trivyignore"
+DEFAULT_TRIVY_VEX_FILE = REPO_ROOT / "logs" / "trivy-vex.json"
 TOOLING_GUIDE = REPO_ROOT / "docs" / "guides" / "container-image-updates.md"
 SCAN_SEVERITIES = "MEDIUM,HIGH,CRITICAL"
 FALLBACK_TOOL_IMAGES = {
@@ -86,6 +88,7 @@ def resolve_tool_command(name: str) -> tuple[list[str], str]:
     if name == "trivy":
         trivy_cache_dir.mkdir(parents=True, exist_ok=True)
         add_mount(argv, trivy_cache_dir, "/root/.cache/trivy", read_only=False)
+        add_mount(argv, REPO_ROOT, str(REPO_ROOT))
 
     argv.append(FALLBACK_TOOL_IMAGES[name])
     return argv, f"container fallback via {engine} ({FALLBACK_TOOL_IMAGES[name]})"
@@ -202,7 +205,16 @@ def verify_signature(image_ref: str, entry: dict, service: str) -> None:
     )
 
 
-def scan_image(image_ref: str, service: str, log_handle, log_path: Path) -> bool:
+def local_trivy_policy_args(ignore_file: Path, vex_file: Path) -> list[str]:
+    argv: list[str] = []
+    if ignore_file.exists():
+        argv.extend(["--ignorefile", str(ignore_file)])
+    if vex_file.exists():
+        argv.extend(["--vex", str(vex_file)])
+    return argv
+
+
+def scan_image(image_ref: str, service: str, log_handle, log_path: Path, ignore_file: Path, vex_file: Path) -> bool:
     argv = [
         *tool_command("trivy"),
         "image",
@@ -215,6 +227,7 @@ def scan_image(image_ref: str, service: str, log_handle, log_path: Path) -> bool
         SCAN_SEVERITIES,
         "--exit-code",
         "1",
+        *local_trivy_policy_args(ignore_file, vex_file),
         image_ref,
     ]
     result = subprocess.run(
@@ -226,6 +239,10 @@ def scan_image(image_ref: str, service: str, log_handle, log_path: Path) -> bool
     log_handle.write(f"\n=== {service} ===\n")
     log_handle.write(f"image: {image_ref}\n")
     log_handle.write(f"severity threshold: {SCAN_SEVERITIES}\n")
+    if ignore_file.exists():
+        log_handle.write(f"local_ignore_file: {ignore_file}\n")
+    if vex_file.exists():
+        log_handle.write(f"local_vex_file: {vex_file}\n")
     log_handle.write(f"exit_code: {result.returncode}\n\n")
     if result.stdout:
         log_handle.write(result.stdout)
@@ -286,6 +303,18 @@ def main() -> int:
         default=DEFAULT_SCAN_LOG,
         help=f"Write trivy scan output to this log file (default: {DEFAULT_SCAN_LOG.relative_to(REPO_ROOT)})",
     )
+    parser.add_argument(
+        "--trivy-ignore-file",
+        type=Path,
+        default=DEFAULT_TRIVY_IGNORE_FILE,
+        help=f"Optional local Trivy ignore file (default: {DEFAULT_TRIVY_IGNORE_FILE.relative_to(REPO_ROOT)})",
+    )
+    parser.add_argument(
+        "--trivy-vex-file",
+        type=Path,
+        default=DEFAULT_TRIVY_VEX_FILE,
+        help=f"Optional local Trivy VEX file (default: {DEFAULT_TRIVY_VEX_FILE.relative_to(REPO_ROOT)})",
+    )
     args = parser.parse_args()
 
     if args.check_tools:
@@ -331,7 +360,14 @@ def main() -> int:
                 verify_signature(digest_ref, entry, service)
 
             scan_ok = True
-            if scan_log_handle is not None and not scan_image(digest_ref, service, scan_log_handle, args.scan_log):
+            if scan_log_handle is not None and not scan_image(
+                digest_ref,
+                service,
+                scan_log_handle,
+                args.scan_log,
+                args.trivy_ignore_file,
+                args.trivy_vex_file,
+            ):
                 scan_failures.append(service)
                 scan_ok = False
 

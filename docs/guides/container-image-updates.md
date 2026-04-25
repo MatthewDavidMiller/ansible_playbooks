@@ -55,6 +55,13 @@ That workflow does the following:
 
 Trivy findings are written to `logs/container-vulnerability-findings.log`. The `logs/` directory is git ignored so local scan output is easy to inspect without being committed.
 
+For local accepted-risk review, the scanner also honors git-ignored policy files when present:
+
+- `logs/.trivyignore` is passed to Trivy with `--ignorefile`.
+- `logs/trivy-vex.json` is passed to Trivy with `--vex`.
+
+Do not commit real accepted CVEs, VEX statements, exposure analysis, or remediation timing. Keep those files under `logs/` and record only public-safe process notes in git.
+
 If you want to inspect the resolved digest before writing it back to the lock file, run the promotion step directly without `--write` first:
 
 ```bash
@@ -69,6 +76,7 @@ Treat each update as approved only after all of the following are true:
 - `skopeo` resolved the expected upstream tag to a digest.
 - `cosign verify` succeeded for services that require signatures and have pinned signer metadata in the lock file.
 - `trivy` reported no unfixed `MEDIUM`, `HIGH`, or `CRITICAL` findings. Review the detailed output in `logs/container-vulnerability-findings.log`.
+- Any local VEX/ignore use is digest-specific, service-specific, time-bounded, and backed by runtime hardening or network containment.
 - `scripts/test_supply_chain_policy.sh` passed.
 - `scripts/test_container_security.sh` passed against the locked image set.
 

@@ -5,8 +5,9 @@
 # Path to the Traefik container configuration directory
 traefik_path: ""
 
-# List of Podman network names Traefik joins to reach backend containers
-# e.g. [nextcloud_container_net, navidrome_container_net, ...]
+# List of Podman network names Traefik joins to reach proxied containers.
+# Do not include backend-only database/cache networks.
+# e.g. [nextcloud_proxy_net, paperless_proxy_net, navidrome_container_net, ...]
 traefik_networks: []
 # Fully-qualified domain name for the Traefik dashboard
 traefik_dashboard_fqdn: ""

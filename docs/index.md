@@ -39,6 +39,7 @@ Start with [README.md](../README.md) for the project overview and quick start.
 |---|---|
 | [guides/getting-started.md](guides/getting-started.md) | Setup from scratch — prerequisites, collections, first playbook run |
 | [guides/container-image-updates.md](guides/container-image-updates.md) | Approved container image update and review workflow |
+| [guides/container-vulnerability-policy.md](guides/container-vulnerability-policy.md) | Public-safe local VEX/ignore policy and compensating controls |
 | [guides/adding-a-service.md](guides/adding-a-service.md) | How to add a new service using established patterns |
 | [guides/proxmox-setup.md](guides/proxmox-setup.md) | VM provisioning with `scripts/proxmox_initial_setup.py` |
 | [guides/dr-restore.md](guides/dr-restore.md) | Disaster recovery — initial migration to VM1 and restore from backups |

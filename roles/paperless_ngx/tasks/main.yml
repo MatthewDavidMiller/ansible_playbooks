@@ -15,6 +15,28 @@
     group: root
     mode: "0600"
 
+- name: Inspect paperless proxy network
+  ansible.builtin.command:
+    argv:
+      - podman
+      - network
+      - inspect
+      - paperless_proxy_net
+  register: paperless_proxy_network
+  changed_when: false
+  failed_when: false
+
+- name: Create paperless proxy network
+  ansible.builtin.command:
+    argv:
+      - podman
+      - network
+      - create
+      - --subnet
+      - 172.16.1.40/29
+      - paperless_proxy_net
+  when: paperless_proxy_network.rc != 0
+
 - name: Create paperless paths
   ansible.builtin.file:
     path: "{{ item_path }}"

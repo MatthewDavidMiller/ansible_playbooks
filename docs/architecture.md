@@ -43,7 +43,7 @@ VM1 runs all maintained services on a single Rocky Linux 10 host to reduce resou
 
 **Key design decisions:**
 
-- Traefik joins all four container networks via `traefik_networks`.
+- Traefik joins only proxy-facing container networks via `traefik_networks`; it is not a member of the backend database/cache network.
 - SELinux stays enforcing.
 - PostgreSQL is shared across Nextcloud, Paperless, and Semaphore, but each application gets its own role and password.
 - Runtime secrets are rendered to root-only env files in `secret_env_dir`.
@@ -52,18 +52,20 @@ VM1 runs all maintained services on a single Rocky Linux 10 host to reduce resou
 
 ## Container Network Isolation
 
-Each service runs in its own Podman network. The shared PostgreSQL 17 container is accessed across service networks via Podman DNS resolution.
+Publicly proxied services have proxy-facing Podman networks, while PostgreSQL and Redis stay on a backend-only network. Traefik resolves backends through the proxy networks and does not join the database/cache network.
 
 **VM1 networks:**
 
 | Network | Subnet | Members |
 |---|---|---|
-| `nextcloud_container_net` | 172.16.1.8/29 | postgres, redis, nextcloud, paperless, traefik |
+| `nextcloud_container_net` | 172.16.1.0/28 | postgres, redis, nextcloud, paperless, semaphore |
+| `nextcloud_proxy_net` | 172.16.1.32/29 | nextcloud, traefik |
+| `paperless_proxy_net` | 172.16.1.40/29 | paperless, traefik |
 | `navidrome_container_net` | 172.16.1.24/29 | navidrome, traefik |
 | `vaultwarden_container_net` | 172.16.1.16/29 | vaultwarden, traefik |
-| `semaphore_container_net` | (auto) | postgres, semaphore, traefik |
+| `semaphore_container_net` | (auto) | semaphore, traefik |
 
-Traefik resolves backends via Podman DNS (`nextcloud.dns.podman`, etc.) and must be a member of every network it proxies. On VM1 it uses the `traefik_networks` list in inventory.
+Traefik resolves backends via Podman DNS (`nextcloud.dns.podman`, etc.) and must be a member of every proxy-facing network it uses. On VM1 it uses the `traefik_networks` list in inventory.
 
 See [inventory.md — traefik_networks](inventory.md#traefik_networks) and [roles/services.md#reverse_proxy](roles/services.md#reverse_proxy).
 

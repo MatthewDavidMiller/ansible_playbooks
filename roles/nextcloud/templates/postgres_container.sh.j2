@@ -12,6 +12,10 @@ exec /usr/bin/podman run \
 --network=nextcloud_container_net \
 --volume {{ postgres_path }}/pgdata:/var/lib/postgresql/data/:Z \
 --volume {{ postgres_path }}/custom-init:/custom-init/:Z \
+--read-only \
+--tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
+--tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
+--tmpfs /var/run/postgresql:rw,noexec,nosuid,nodev,uid=999,gid=999,size=16m \
 --env POSTGRES_USER \
 --env POSTGRES_PASSWORD \
 --env POSTGRES_LEGACY_BOOTSTRAP_USER \
@@ -31,6 +35,7 @@ exec /usr/bin/podman run \
 --memory=2g \
 --memory-swap=2g \
 --shm-size=256m \
+--pids-limit=500 \
 --cap-drop=ALL \
 --security-opt=no-new-privileges:true \
 -d {{ postgres_image }}
