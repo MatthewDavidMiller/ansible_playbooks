@@ -20,10 +20,10 @@ artifact_locked_images:
   redis:
     upstream_ref: public.ecr.aws/docker/library/redis:8
     approved_tag: "8"
-    approved_digest: sha256:009cc37796fbdbe1b631b4cc0582bed167e5e403ed8bcd06f77eb6cb5aeb6f93
+    approved_digest: sha256:832d7785830f3f4b559300e6191fc914b15642c1935252338825cf4332200148
     internal_repo: homelab/redis
     signature_required: false
-    notes: Approved from public.ecr.aws/docker/library/redis:8 on 2026-04-03 after digest review. No Cosign signature was published for this digest.
+    notes: Approved via scripts/promote_artifacts.py
   nextcloud:
     upstream_ref: public.ecr.aws/docker/library/nextcloud:latest
     approved_tag: latest
@@ -48,10 +48,10 @@ artifact_locked_images:
   vaultwarden:
     upstream_ref: ghcr.io/dani-garcia/vaultwarden:latest
     approved_tag: latest
-    approved_digest: sha256:43498a94b22f9563f2a94b53760ab3e710eefc0d0cac2efda4b12b9eb8690664
+    approved_digest: sha256:9a8eec71f4a52411cc43edc7a50f33e9b6f62b5baca0dd95f0c6e7fd60f1a341
     internal_repo: homelab/vaultwarden
     signature_required: false
-    notes: Approved from ghcr.io/dani-garcia/vaultwarden:latest on 2026-04-03 after digest review. Upstream publishes a signature, but signer identity and issuer are not pinned in this lock file yet.
+    notes: Approved via scripts/promote_artifacts.py
   semaphore:
     upstream_ref: public.ecr.aws/semaphore/server:latest
     approved_tag: latest
