@@ -114,6 +114,8 @@ assert_file_contains "paperless_proxy_net" "Inventory: Traefik reaches Paperless
 assert_file_not_contains "- nextcloud_container_net" "Inventory: Traefik is not placed on database/cache backend network" example_inventory.yml
 assert_file_contains "--read-only" "Traefik: read-only root filesystem is configured" roles/reverse_proxy/templates/traefik_container.sh.j2
 assert_file_contains "--read-only" "Postgres: read-only root filesystem is configured" roles/nextcloud/templates/postgres_container.sh.j2
+assert_file_not_contains "uid=999|gid=999" "Postgres: tmpfs mounts avoid Podman-unsupported uid/gid options" roles/nextcloud/templates/postgres_container.sh.j2
+assert_file_contains "\\{\\{ postgres_path \\}\\}/run:/var/run/postgresql/" "Postgres: socket directory uses prepared 999-owned bind mount" roles/nextcloud/templates/postgres_container.sh.j2
 assert_file_contains "--read-only" "Redis: read-only root filesystem is configured" roles/nextcloud/templates/redis_container.sh.j2
 assert_file_contains "--read-only" "Navidrome: read-only root filesystem is configured" roles/navidrome/templates/navidrome_container.sh.j2
 assert_file_contains "--read-only" "Vaultwarden: read-only root filesystem is configured" roles/vaultwarden/templates/vaultwarden.sh.j2
@@ -123,8 +125,11 @@ echo ""
 # ---------------------------------------------------------------------------
 echo "--- TEST-01: PostgreSQL ---"
 TEST_PG_DIR=$(mktemp -d)
+TEST_PG_RUN=$(mktemp -d)
 chmod 0750 "$TEST_PG_DIR"
+chmod 0750 "$TEST_PG_RUN"
 $DOCKER run --rm -v "$TEST_PG_DIR":/target alpine chown 999:999 /target
+$DOCKER run --rm -v "$TEST_PG_RUN":/target alpine chown 999:999 /target
 
 $DOCKER run -d --name test_postgres \
   --user 999:999 \
@@ -135,7 +140,7 @@ $DOCKER run -d --name test_postgres \
   --read-only \
   --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
   --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
-  --tmpfs /var/run/postgresql:rw,noexec,nosuid,nodev,uid=999,gid=999,size=16m \
+  --volume "$TEST_PG_RUN":/var/run/postgresql \
   --env POSTGRES_USER=testuser \
   --env POSTGRES_PASSWORD=testpass \
   --env POSTGRES_DB=testdb \
@@ -152,10 +157,14 @@ $DOCKER exec test_postgres pg_isready -U testuser \
 
 cleanup test_postgres
 cleanup_dir "$TEST_PG_DIR"
+cleanup_dir "$TEST_PG_RUN"
 echo ""
 
 # ---------------------------------------------------------------------------
 echo "--- TEST-02: PostgreSQL Role Isolation ---"
+TEST_PG_ROLES_RUN=$(mktemp -d)
+chmod 0750 "$TEST_PG_ROLES_RUN"
+$DOCKER run --rm -v "$TEST_PG_ROLES_RUN":/target alpine chown 999:999 /target
 $DOCKER run -d --name test_postgres_roles \
   --user 999:999 \
   --cap-drop=ALL \
@@ -165,7 +174,7 @@ $DOCKER run -d --name test_postgres_roles \
   --read-only \
   --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
   --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
-  --tmpfs /var/run/postgresql:rw,noexec,nosuid,nodev,uid=999,gid=999,size=16m \
+  --volume "$TEST_PG_ROLES_RUN":/var/run/postgresql \
   --env POSTGRES_USER=postgres_admin \
   --env POSTGRES_PASSWORD=adminpass \
   --env POSTGRES_DB=postgres \
@@ -184,6 +193,7 @@ $DOCKER exec test_postgres_roles env PGPASSWORD=ncpass \
   && fail "Postgres: nextcloud role unexpectedly managed paperless database" \
   || pass "Postgres: per-service ownership blocks cross-database writes by default"
 cleanup test_postgres_roles
+cleanup_dir "$TEST_PG_ROLES_RUN"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -191,12 +201,14 @@ echo "--- TEST-02B: PostgreSQL Existing Cluster Migration ---"
 TEST_PG_MIG_DIR=$(mktemp -d)
 TEST_PG_MIG_DATA="$TEST_PG_MIG_DIR/pgdata"
 TEST_PG_MIG_INIT="$TEST_PG_MIG_DIR/custom-init"
-mkdir -p "$TEST_PG_MIG_DATA" "$TEST_PG_MIG_INIT"
-chmod 0750 "$TEST_PG_MIG_DATA" "$TEST_PG_MIG_INIT"
+TEST_PG_MIG_RUN="$TEST_PG_MIG_DIR/run"
+mkdir -p "$TEST_PG_MIG_DATA" "$TEST_PG_MIG_INIT" "$TEST_PG_MIG_RUN"
+chmod 0750 "$TEST_PG_MIG_DATA" "$TEST_PG_MIG_INIT" "$TEST_PG_MIG_RUN"
 install -m 0755 "$REPO_ROOT/roles/nextcloud/files/db_wrapper.sh" \
   "$TEST_PG_MIG_INIT/db_wrapper.sh"
 $DOCKER run --rm -v "$TEST_PG_MIG_DATA":/target alpine chown 999:999 /target
 $DOCKER run --rm -v "$TEST_PG_MIG_INIT":/target alpine chown -R 999:999 /target
+$DOCKER run --rm -v "$TEST_PG_MIG_RUN":/target alpine chown 999:999 /target
 
 $DOCKER run -d --name test_postgres_migration_seed \
   --user 999:999 \
@@ -207,7 +219,7 @@ $DOCKER run -d --name test_postgres_migration_seed \
   --read-only \
   --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
   --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
-  --tmpfs /var/run/postgresql:rw,noexec,nosuid,nodev,uid=999,gid=999,size=16m \
+  --volume "$TEST_PG_MIG_RUN":/var/run/postgresql \
   --env POSTGRES_USER=nextcloud_user \
   --env POSTGRES_PASSWORD=oldsharedpass \
   --env POSTGRES_DB=nextcloud \
@@ -236,7 +248,7 @@ $DOCKER run -d --name test_postgres_migration \
   --read-only \
   --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
   --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
-  --tmpfs /var/run/postgresql:rw,noexec,nosuid,nodev,uid=999,gid=999,size=16m \
+  --volume "$TEST_PG_MIG_RUN":/var/run/postgresql \
   --env POSTGRES_USER=postgres_admin \
   --env POSTGRES_PASSWORD=adminpass \
   --env POSTGRES_DB=nextcloud \
@@ -275,6 +287,7 @@ $DOCKER exec test_postgres_migration env PGPASSWORD=sempass \
 cleanup test_postgres_migration
 cleanup_dir "$TEST_PG_MIG_DATA"
 cleanup_dir "$TEST_PG_MIG_INIT"
+cleanup_dir "$TEST_PG_MIG_RUN"
 rm -rf "$TEST_PG_MIG_DIR"
 echo ""
 
@@ -283,12 +296,14 @@ echo "--- TEST-02C: PostgreSQL Legacy postgres Superuser Migration ---"
 TEST_PG_LEGACY_DIR=$(mktemp -d)
 TEST_PG_LEGACY_DATA="$TEST_PG_LEGACY_DIR/pgdata"
 TEST_PG_LEGACY_INIT="$TEST_PG_LEGACY_DIR/custom-init"
-mkdir -p "$TEST_PG_LEGACY_DATA" "$TEST_PG_LEGACY_INIT"
-chmod 0750 "$TEST_PG_LEGACY_DATA" "$TEST_PG_LEGACY_INIT"
+TEST_PG_LEGACY_RUN="$TEST_PG_LEGACY_DIR/run"
+mkdir -p "$TEST_PG_LEGACY_DATA" "$TEST_PG_LEGACY_INIT" "$TEST_PG_LEGACY_RUN"
+chmod 0750 "$TEST_PG_LEGACY_DATA" "$TEST_PG_LEGACY_INIT" "$TEST_PG_LEGACY_RUN"
 install -m 0755 "$REPO_ROOT/roles/nextcloud/files/db_wrapper.sh" \
   "$TEST_PG_LEGACY_INIT/db_wrapper.sh"
 $DOCKER run --rm -v "$TEST_PG_LEGACY_DATA":/target alpine chown 999:999 /target
 $DOCKER run --rm -v "$TEST_PG_LEGACY_INIT":/target alpine chown -R 999:999 /target
+$DOCKER run --rm -v "$TEST_PG_LEGACY_RUN":/target alpine chown 999:999 /target
 
 $DOCKER run -d --name test_postgres_legacy_seed \
   --user 999:999 \
@@ -299,7 +314,7 @@ $DOCKER run -d --name test_postgres_legacy_seed \
   --read-only \
   --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
   --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
-  --tmpfs /var/run/postgresql:rw,noexec,nosuid,nodev,uid=999,gid=999,size=16m \
+  --volume "$TEST_PG_LEGACY_RUN":/var/run/postgresql \
   --env POSTGRES_PASSWORD=legacysecret \
   --env POSTGRES_DB=nextcloud \
   --volume "$TEST_PG_LEGACY_DATA":/var/lib/postgresql/data \
@@ -324,7 +339,7 @@ $DOCKER run -d --name test_postgres_legacy_migration \
   --read-only \
   --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
   --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
-  --tmpfs /var/run/postgresql:rw,noexec,nosuid,nodev,uid=999,gid=999,size=16m \
+  --volume "$TEST_PG_LEGACY_RUN":/var/run/postgresql \
   --env POSTGRES_USER=postgres_admin \
   --env POSTGRES_PASSWORD=adminpass \
   --env POSTGRES_DB=nextcloud \
@@ -366,6 +381,7 @@ $DOCKER exec test_postgres_legacy_migration env PGPASSWORD=sempass \
 cleanup test_postgres_legacy_migration
 cleanup_dir "$TEST_PG_LEGACY_DATA"
 cleanup_dir "$TEST_PG_LEGACY_INIT"
+cleanup_dir "$TEST_PG_LEGACY_RUN"
 rm -rf "$TEST_PG_LEGACY_DIR"
 echo ""
 
@@ -374,12 +390,14 @@ echo "--- TEST-02D: PostgreSQL Arbitrary Legacy Superuser Migration ---"
 TEST_PG_CUSTOM_DIR=$(mktemp -d)
 TEST_PG_CUSTOM_DATA="$TEST_PG_CUSTOM_DIR/pgdata"
 TEST_PG_CUSTOM_INIT="$TEST_PG_CUSTOM_DIR/custom-init"
-mkdir -p "$TEST_PG_CUSTOM_DATA" "$TEST_PG_CUSTOM_INIT"
-chmod 0750 "$TEST_PG_CUSTOM_DATA" "$TEST_PG_CUSTOM_INIT"
+TEST_PG_CUSTOM_RUN="$TEST_PG_CUSTOM_DIR/run"
+mkdir -p "$TEST_PG_CUSTOM_DATA" "$TEST_PG_CUSTOM_INIT" "$TEST_PG_CUSTOM_RUN"
+chmod 0750 "$TEST_PG_CUSTOM_DATA" "$TEST_PG_CUSTOM_INIT" "$TEST_PG_CUSTOM_RUN"
 install -m 0755 "$REPO_ROOT/roles/nextcloud/files/db_wrapper.sh" \
   "$TEST_PG_CUSTOM_INIT/db_wrapper.sh"
 $DOCKER run --rm -v "$TEST_PG_CUSTOM_DATA":/target alpine chown 999:999 /target
 $DOCKER run --rm -v "$TEST_PG_CUSTOM_INIT":/target alpine chown -R 999:999 /target
+$DOCKER run --rm -v "$TEST_PG_CUSTOM_RUN":/target alpine chown 999:999 /target
 
 $DOCKER run -d --name test_postgres_custom_seed \
   --user 999:999 \
@@ -390,7 +408,7 @@ $DOCKER run -d --name test_postgres_custom_seed \
   --read-only \
   --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
   --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
-  --tmpfs /var/run/postgresql:rw,noexec,nosuid,nodev,uid=999,gid=999,size=16m \
+  --volume "$TEST_PG_CUSTOM_RUN":/var/run/postgresql \
   --env POSTGRES_USER=legacy_admin \
   --env POSTGRES_PASSWORD=legacysecret \
   --env POSTGRES_DB=nextcloud \
@@ -416,7 +434,7 @@ $DOCKER run -d --name test_postgres_custom_migration \
   --read-only \
   --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
   --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
-  --tmpfs /var/run/postgresql:rw,noexec,nosuid,nodev,uid=999,gid=999,size=16m \
+  --volume "$TEST_PG_CUSTOM_RUN":/var/run/postgresql \
   --env POSTGRES_USER=postgres_admin \
   --env POSTGRES_PASSWORD=adminpass \
   --env POSTGRES_LEGACY_BOOTSTRAP_USER=legacy_admin \
@@ -460,6 +478,7 @@ $DOCKER exec test_postgres_custom_migration env PGPASSWORD=sempass \
 cleanup test_postgres_custom_migration
 cleanup_dir "$TEST_PG_CUSTOM_DATA"
 cleanup_dir "$TEST_PG_CUSTOM_INIT"
+cleanup_dir "$TEST_PG_CUSTOM_RUN"
 rm -rf "$TEST_PG_CUSTOM_DIR"
 echo ""
 
@@ -468,12 +487,14 @@ echo "--- TEST-02E: PostgreSQL Mixed Object Ownership Migration ---"
 TEST_PG_MIXED_DIR=$(mktemp -d)
 TEST_PG_MIXED_DATA="$TEST_PG_MIXED_DIR/pgdata"
 TEST_PG_MIXED_INIT="$TEST_PG_MIXED_DIR/custom-init"
-mkdir -p "$TEST_PG_MIXED_DATA" "$TEST_PG_MIXED_INIT"
-chmod 0750 "$TEST_PG_MIXED_DATA" "$TEST_PG_MIXED_INIT"
+TEST_PG_MIXED_RUN="$TEST_PG_MIXED_DIR/run"
+mkdir -p "$TEST_PG_MIXED_DATA" "$TEST_PG_MIXED_INIT" "$TEST_PG_MIXED_RUN"
+chmod 0750 "$TEST_PG_MIXED_DATA" "$TEST_PG_MIXED_INIT" "$TEST_PG_MIXED_RUN"
 install -m 0755 "$REPO_ROOT/roles/nextcloud/files/db_wrapper.sh" \
   "$TEST_PG_MIXED_INIT/db_wrapper.sh"
 $DOCKER run --rm -v "$TEST_PG_MIXED_DATA":/target alpine chown 999:999 /target
 $DOCKER run --rm -v "$TEST_PG_MIXED_INIT":/target alpine chown -R 999:999 /target
+$DOCKER run --rm -v "$TEST_PG_MIXED_RUN":/target alpine chown 999:999 /target
 
 $DOCKER run -d --name test_postgres_mixed_seed \
   --user 999:999 \
@@ -484,7 +505,7 @@ $DOCKER run -d --name test_postgres_mixed_seed \
   --read-only \
   --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
   --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
-  --tmpfs /var/run/postgresql:rw,noexec,nosuid,nodev,uid=999,gid=999,size=16m \
+  --volume "$TEST_PG_MIXED_RUN":/var/run/postgresql \
   --env POSTGRES_USER=postgres_admin \
   --env POSTGRES_PASSWORD=adminpass \
   --env POSTGRES_DB=nextcloud \
@@ -522,7 +543,7 @@ $DOCKER run -d --name test_postgres_mixed_migration \
   --read-only \
   --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
   --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
-  --tmpfs /var/run/postgresql:rw,noexec,nosuid,nodev,uid=999,gid=999,size=16m \
+  --volume "$TEST_PG_MIXED_RUN":/var/run/postgresql \
   --env POSTGRES_USER=postgres_admin \
   --env POSTGRES_PASSWORD=adminpass \
   --env POSTGRES_DB=nextcloud \
@@ -553,6 +574,7 @@ $DOCKER exec test_postgres_mixed_migration env PGPASSWORD=sempass \
 cleanup test_postgres_mixed_migration
 cleanup_dir "$TEST_PG_MIXED_DATA"
 cleanup_dir "$TEST_PG_MIXED_INIT"
+cleanup_dir "$TEST_PG_MIXED_RUN"
 rm -rf "$TEST_PG_MIXED_DIR"
 echo ""
 
