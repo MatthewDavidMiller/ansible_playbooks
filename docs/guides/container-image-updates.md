@@ -9,7 +9,7 @@ The deploy path stays pinned to immutable digests in [`artifacts/containers.lock
 1. Change the intended upstream tag in the lock file.
 2. Resolve the exact digest with `skopeo`.
 3. Verify the image signature with `cosign` when `signature_required: true` and the lock entry pins the expected signer metadata.
-4. Scan the image with `trivy`.
+4. Scan the image with `trivy` for unfixed `MEDIUM`, `HIGH`, and `CRITICAL` vulnerabilities.
 5. Run the repo's policy and container-hardening tests before deployment.
 
 ## Tooling
@@ -53,6 +53,8 @@ That workflow does the following:
 2. `bash scripts/test_supply_chain_policy.sh`
 3. `bash scripts/test_container_security.sh`
 
+Trivy findings are written to `logs/container-vulnerability-findings.log`. The `logs/` directory is git ignored so local scan output is easy to inspect without being committed.
+
 If you want to inspect the resolved digest before writing it back to the lock file, run the promotion step directly without `--write` first:
 
 ```bash
@@ -66,7 +68,7 @@ Treat each update as approved only after all of the following are true:
 
 - `skopeo` resolved the expected upstream tag to a digest.
 - `cosign verify` succeeded for services that require signatures and have pinned signer metadata in the lock file.
-- `trivy` reported no `HIGH` or `CRITICAL` findings.
+- `trivy` reported no unfixed `MEDIUM`, `HIGH`, or `CRITICAL` findings. Review the detailed output in `logs/container-vulnerability-findings.log`.
 - `scripts/test_supply_chain_policy.sh` passed.
 - `scripts/test_container_security.sh` passed against the locked image set.
 

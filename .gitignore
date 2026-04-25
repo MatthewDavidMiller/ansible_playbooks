@@ -5,3 +5,4 @@ homelab_inventory.yml
 .claude/agent-memory/
 __pycache__/
 *.pyc
+logs/

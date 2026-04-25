@@ -75,8 +75,10 @@ bash scripts/test_container_security.sh
 
 1. Resolve each `upstream_ref` to a digest with `skopeo`.
 2. Verify signatures with `cosign` when `signature_required: true` and the lock entry includes pinned signer metadata.
-3. Scan for `HIGH` and `CRITICAL` findings with `trivy`.
+3. Scan for unfixed `MEDIUM`, `HIGH`, and `CRITICAL` findings with `trivy`.
 4. Optionally write the approved digest back to `artifacts/containers.lock.yml`.
+
+Trivy output is written to `logs/container-vulnerability-findings.log`; `logs/` is git ignored.
 
 The script prefers native `skopeo`, `cosign`, and `trivy` binaries. If one is missing, it falls back to a pinned official container image for that tool via `podman` or `docker`.
 

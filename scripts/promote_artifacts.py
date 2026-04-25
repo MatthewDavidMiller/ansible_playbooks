@@ -16,7 +16,9 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_LOCK_FILE = REPO_ROOT / "artifacts" / "containers.lock.yml"
+DEFAULT_SCAN_LOG = REPO_ROOT / "logs" / "container-vulnerability-findings.log"
 TOOLING_GUIDE = REPO_ROOT / "docs" / "guides" / "container-image-updates.md"
+SCAN_SEVERITIES = "MEDIUM,HIGH,CRITICAL"
 FALLBACK_TOOL_IMAGES = {
     "skopeo": "quay.io/skopeo/stable@sha256:a5a222322c25987ad9fcdf005306c90c5a84db66a3b3dcef98f5f9af4ea15d3f",
     "cosign": "ghcr.io/sigstore/cosign/cosign@sha256:774391ac9f0c137ee419ce56522df5fd3b1f52be90c5b77e97f7c053bdd67a67",
@@ -200,24 +202,47 @@ def verify_signature(image_ref: str, entry: dict, service: str) -> None:
     )
 
 
-def scan_image(image_ref: str) -> None:
-    run(
-        [
-            *tool_command("trivy"),
-            "image",
-            "--scanners",
-            "vuln",
-            "--image-src",
-            "remote",
-            "--ignore-unfixed",
-            "--severity",
-            "HIGH,CRITICAL",
-            "--exit-code",
-            "1",
-            image_ref,
-        ],
-        capture_output=False,
+def scan_image(image_ref: str, service: str, log_handle, log_path: Path) -> bool:
+    argv = [
+        *tool_command("trivy"),
+        "image",
+        "--scanners",
+        "vuln",
+        "--image-src",
+        "remote",
+        "--ignore-unfixed",
+        "--severity",
+        SCAN_SEVERITIES,
+        "--exit-code",
+        "1",
+        image_ref,
+    ]
+    result = subprocess.run(
+        argv,
+        check=False,
+        text=True,
+        capture_output=True,
     )
+    log_handle.write(f"\n=== {service} ===\n")
+    log_handle.write(f"image: {image_ref}\n")
+    log_handle.write(f"severity threshold: {SCAN_SEVERITIES}\n")
+    log_handle.write(f"exit_code: {result.returncode}\n\n")
+    if result.stdout:
+        log_handle.write(result.stdout)
+    if result.stderr:
+        log_handle.write("\n--- stderr ---\n")
+        log_handle.write(result.stderr)
+    if not result.stdout and not result.stderr:
+        log_handle.write("No output from trivy.\n")
+    log_handle.write("\n")
+    log_handle.flush()
+
+    if result.returncode == 0:
+        print(f"[{service}] scan=PASS no unfixed {SCAN_SEVERITIES} vulnerabilities")
+        return True
+
+    print(f"[{service}] scan=FAIL see {log_path}")
+    return False
 
 
 def mirror_image(upstream_ref: str, internal_ref: str, digest: str) -> None:
@@ -255,6 +280,12 @@ def main() -> int:
         action="store_true",
         help="Skip trivy vulnerability scanning",
     )
+    parser.add_argument(
+        "--scan-log",
+        type=Path,
+        default=DEFAULT_SCAN_LOG,
+        help=f"Write trivy scan output to this log file (default: {DEFAULT_SCAN_LOG.relative_to(REPO_ROOT)})",
+    )
     args = parser.parse_args()
 
     if args.check_tools:
@@ -266,40 +297,66 @@ def main() -> int:
 
     lock_data = load_lock_file(args.lock_file)
     images = lock_data["artifact_locked_images"]
-    selected = set(args.service or images.keys())
+    selected = args.service or list(images.keys())
 
     for service in selected:
         if service not in images:
             raise SystemExit(f"Unknown service in lock file: {service}")
 
-    for service in selected:
-        entry = images[service]
-        upstream_ref = entry["upstream_ref"]
-        digest = resolve_digest(upstream_ref)
-        print(f"[{service}] upstream={upstream_ref}")
-        print(f"[{service}] digest={digest}")
-        digest_ref = to_digest_ref(upstream_ref, digest)
-        print(f"[{service}] approved={digest_ref}")
+    scan_failures: list[str] = []
+    scan_log_handle = None
+    if not args.skip_scan:
+        args.scan_log.parent.mkdir(parents=True, exist_ok=True)
+        scan_log_handle = args.scan_log.open("w", encoding="utf-8")
+        scan_log_handle.write("# Container vulnerability scan findings\n")
+        scan_log_handle.write(f"severity threshold: {SCAN_SEVERITIES}\n")
+        scan_log_handle.write(f"lock file: {args.lock_file}\n")
+        scan_log_handle.write(f"services: {', '.join(selected)}\n")
 
-        if args.registry:
-            internal_ref = f"{args.registry}/{entry['internal_repo']}"
-            print(f"[{service}] mirror={internal_ref}@{digest}")
+    try:
+        for service in selected:
+            entry = images[service]
+            upstream_ref = entry["upstream_ref"]
+            digest = resolve_digest(upstream_ref)
+            print(f"[{service}] upstream={upstream_ref}")
+            print(f"[{service}] digest={digest}")
+            digest_ref = to_digest_ref(upstream_ref, digest)
+            print(f"[{service}] approved={digest_ref}")
 
-        if entry.get("signature_required", False) and not args.skip_signature_verify:
-            verify_signature(digest_ref, entry, service)
-
-        if not args.skip_scan:
-            scan_image(digest_ref)
-
-        if args.registry:
-            mirror_image(digest_ref, internal_ref, digest)
-
-        if args.write:
-            entry["approved_digest"] = digest
             if args.registry:
-                entry["notes"] = f"Approved via scripts/promote_artifacts.py and mirrored to {args.registry}"
-            else:
-                entry["notes"] = "Approved via scripts/promote_artifacts.py"
+                internal_ref = f"{args.registry}/{entry['internal_repo']}"
+                print(f"[{service}] mirror={internal_ref}@{digest}")
+
+            if entry.get("signature_required", False) and not args.skip_signature_verify:
+                verify_signature(digest_ref, entry, service)
+
+            scan_ok = True
+            if scan_log_handle is not None and not scan_image(digest_ref, service, scan_log_handle, args.scan_log):
+                scan_failures.append(service)
+                scan_ok = False
+
+            if not scan_ok:
+                continue
+
+            if args.registry:
+                mirror_image(digest_ref, internal_ref, digest)
+
+            if args.write:
+                entry["approved_digest"] = digest
+                if args.registry:
+                    entry["notes"] = f"Approved via scripts/promote_artifacts.py and mirrored to {args.registry}"
+                else:
+                    entry["notes"] = "Approved via scripts/promote_artifacts.py"
+    finally:
+        if scan_log_handle is not None:
+            scan_log_handle.close()
+
+    if scan_failures:
+        print(
+            f"Vulnerability scan failed for {', '.join(scan_failures)}. "
+            f"Review findings in {args.scan_log}."
+        )
+        return 1
 
     if args.write:
         with args.lock_file.open("w", encoding="utf-8") as handle:
