@@ -313,6 +313,7 @@ assert_contains "$render_dir/semaphore.sh" "--env SEMAPHORE_ACCESS_KEY_ENCRYPTIO
 assert_contains "$render_dir/semaphore.sh" "--env ANSIBLE_SSH_ARGS" "semaphore.sh passes ANSIBLE_SSH_ARGS"
 assert_not_contains "$render_dir/semaphore.sh" "podman pull" "semaphore.sh no longer calls podman pull"
 assert_contains "$render_dir/semaphore.sh" "--pull=never" "semaphore.sh uses --pull=never"
+assert_contains "$render_dir/semaphore.sh" "--mount type=tmpfs,destination=/home/semaphore,tmpfs-size=32M,tmpfs-mode=0750,U=true" "semaphore.sh mounts service-owned home tmpfs"
 assert_contains "$render_dir/semaphore.sh" "--mount type=tmpfs,destination=/tmp/semaphore,tmpfs-size=64M,tmpfs-mode=0750,U=true" "semaphore.sh mounts service-owned project tmpfs"
 assert_not_contains "$render_dir/semaphore.sh" "mode=1777" "semaphore.sh does not render a world-writable project temp path"
 

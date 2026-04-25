@@ -148,6 +148,7 @@ assert_file_contains "--read-only" "Redis: read-only root filesystem is configur
 assert_file_contains "--read-only" "Navidrome: read-only root filesystem is configured" roles/navidrome/templates/navidrome_container.sh.j2
 assert_file_contains "--read-only" "Vaultwarden: read-only root filesystem is configured" roles/vaultwarden/templates/vaultwarden.sh.j2
 assert_file_contains "--read-only" "Semaphore: read-only root filesystem is configured" roles/semaphore/templates/semaphore.sh.j2
+assert_file_contains "--mount type=tmpfs,destination=/home/semaphore,tmpfs-size=32M,tmpfs-mode=0750,U=true" "Semaphore: home directory uses a service-owned tmpfs mount" roles/semaphore/templates/semaphore.sh.j2
 assert_file_contains "--mount type=tmpfs,destination=/tmp/semaphore,tmpfs-size=64M,tmpfs-mode=0750,U=true" "Semaphore: project temp path uses a service-owned tmpfs mount" roles/semaphore/templates/semaphore.sh.j2
 assert_file_not_contains "mode=1777" "Semaphore: project temp path is not world-writable" roles/semaphore/templates/semaphore.sh.j2
 echo ""
@@ -772,8 +773,10 @@ $DOCKER run --rm -v "$TEST_SEM_DIR":/target alpine chown -R 1001:0 /target
 $DOCKER run --rm -v "$TEST_SEM_STATE_DIR":/target alpine chown -R 1001:0 /target
 
 SEMAPHORE_PROJECT_TMP_MOUNT=(--tmpfs /tmp/semaphore:rw,nosuid,nodev,size=64m,mode=0750,uid=1001,gid=0)
+SEMAPHORE_HOME_TMP_MOUNT=(--tmpfs /home/semaphore:rw,nosuid,nodev,size=32m,mode=0750,uid=1001,gid=0)
 if [[ "$DOCKER" == *podman* ]]; then
   SEMAPHORE_PROJECT_TMP_MOUNT=(--mount type=tmpfs,destination=/tmp/semaphore,tmpfs-size=64M,tmpfs-mode=0750,U=true)
+  SEMAPHORE_HOME_TMP_MOUNT=(--mount type=tmpfs,destination=/home/semaphore,tmpfs-size=32M,tmpfs-mode=0750,U=true)
 fi
 
 # Test A: baseline
@@ -796,6 +799,7 @@ $DOCKER run -d --name test_semaphore_caps \
   --security-opt=no-new-privileges:true \
   --read-only \
   --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
+  "${SEMAPHORE_HOME_TMP_MOUNT[@]}" \
   "${SEMAPHORE_PROJECT_TMP_MOUNT[@]}" \
   --memory=512m --memory-swap=512m \
   --pids-limit=300 \
@@ -818,6 +822,10 @@ $DOCKER exec test_semaphore_caps sh -c 'mkdir /tmp/semaphore/project_1 && rmdir 
   >/dev/null 2>&1 \
   && pass "Semaphore: can create project work directories on read-only rootfs" \
   || fail "Semaphore: cannot create project work directories on read-only rootfs"
+$DOCKER exec test_semaphore_caps sh -c 'mkdir -p "$HOME/.ansible/cp"' \
+  >/dev/null 2>&1 \
+  && pass "Semaphore: Ansible home runtime directory is writable on read-only rootfs" \
+  || fail "Semaphore: Ansible home runtime directory is not writable on read-only rootfs"
 echo "--- Semaphore cap-drop logs (last 20 lines) ---"
 $DOCKER logs test_semaphore_caps 2>&1 | tail -20
 cleanup test_semaphore_caps
