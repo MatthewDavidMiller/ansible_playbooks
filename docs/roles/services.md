@@ -74,7 +74,7 @@ Deploys Vaultwarden and its SQLite-backed backup workflow.
 
 Deploys Semaphore and backs up its PostgreSQL database into the local Nextcloud data tree when `backup_local: true`.
 
-**Required variables:** `semaphore_database_name`, `semaphore_db_user`, `semaphore_db_password`, `semaphore_admin_name`, `semaphore_admin_email`, `semaphore_admin_password`, `semaphore_encryption_key` (32 characters), `semaphore_known_hosts`, `semaphore_backup_location`, `semaphore_image`, `secret_env_dir`
+**Required variables:** `semaphore_database_name`, `semaphore_db_user`, `semaphore_db_password`, `semaphore_admin_name`, `semaphore_admin_email`, `semaphore_admin_password`, `semaphore_encryption_key` (at least 32 characters), `semaphore_known_hosts`, `semaphore_backup_location`, `semaphore_image`, `secret_env_dir`
 
 **Templates:** `semaphore.sh.j2`, `semaphore.service.j2`, `semaphore.env.j2`, `backup_semaphore.sh.j2`, `ssh_known_hosts.j2`
 

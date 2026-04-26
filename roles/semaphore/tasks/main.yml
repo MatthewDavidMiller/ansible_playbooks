@@ -2,10 +2,10 @@
 - name: Validate Semaphore secret inputs
   ansible.builtin.assert:
     that:
-      - semaphore_encryption_key | length == 32
+      - semaphore_encryption_key | length >= 32
       - semaphore_admin_password | length > 0
       - semaphore_db_password | length > 0
-    fail_msg: "Set non-empty Semaphore passwords and a 32-character semaphore_encryption_key."
+    fail_msg: "Set non-empty Semaphore passwords and a semaphore_encryption_key that is at least 32 characters."
   no_log: true
 
 - name: Inspect semaphore container network

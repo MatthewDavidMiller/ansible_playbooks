@@ -19,7 +19,7 @@ semaphore_admin_email: ""
 # Semaphore admin account password
 semaphore_admin_password: ""
 
-# 32-character encryption key used by Semaphore for access key storage
+# Encryption key used by Semaphore for access key storage; must be at least 32 characters
 semaphore_encryption_key: ""
 
 # Rclone remote path for Semaphore DB backup uploads (e.g. "Nextcloud:semaphore_backup")

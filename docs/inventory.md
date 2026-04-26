@@ -79,7 +79,7 @@ VM1 is the single maintained service host. It runs Traefik, PostgreSQL, Redis, N
 | `semaphore_admin_name` | string | Semaphore admin username | `admin` |
 | `semaphore_admin_email` | string | Semaphore admin email | `admin@example.com` |
 | `semaphore_admin_password` | string | Semaphore admin password | `secret` |
-| `semaphore_encryption_key` | string | 32-character Semaphore encryption key | `abc123...` |
+| `semaphore_encryption_key` | string | Semaphore encryption key, at least 32 characters | `abc123...` |
 | `semaphore_known_hosts` | string | Known-host block mounted into Semaphore | `192.168.1.10 ssh-ed25519 AAAA...` |
 | `semaphore_backup_location` | string | Local or rclone destination label | `Nextcloud:semaphore_backup` |
 | `navidrome_path` | path | Navidrome base directory | `/opt/navidrome` |
