@@ -5,6 +5,8 @@
       - default_interface | length > 0
       - management_network is match('^([0-9]{1,3}\\.){3}[0-9]{1,3}/[0-9]{1,2}$')
       - ip_ansible is match('^([0-9]{1,3}\\.){3}[0-9]{1,3}/[0-9]{1,2}$')
+      - management_network != '0.0.0.0/0'
+      - ip_ansible != '0.0.0.0/0'
     fail_msg: "Set default_interface, management_network, and ip_ansible before applying firewall policy."
 
 - name: Install firewalld

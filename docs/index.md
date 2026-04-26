@@ -26,6 +26,7 @@ Start with [README.md](../README.md) for the project overview and quick start.
 | Document | Description |
 |---|---|
 | [architecture.md](architecture.md) | Host topology, distribution targets, container/network/SELinux design |
+| [security.md](security.md) | VM1 threat model, hardening baseline, and security change rules |
 | [architecture-decisions.md](architecture-decisions.md) | Rejected approaches and their rationale (Vault, host_vars/, dedicated patching playbook, etc.) |
 | [playbooks.md](playbooks.md) | All playbooks — target hosts, role order, usage notes |
 | [inventory.md](inventory.md) | Full inventory variable reference |

@@ -6,6 +6,8 @@
       - ip_ansible is match('^([0-9]{1,3}\\.){3}[0-9]{1,3}/[0-9]{1,2}$')
       - traefik_dashboard_basic_auth_users | length > 0
       - traefik_dashboard_basic_auth_users | difference(['']) | length == traefik_dashboard_basic_auth_users | length
+      - management_network != '0.0.0.0/0'
+      - ip_ansible != '0.0.0.0/0'
     fail_msg: "Set management_network, ip_ansible, and traefik_dashboard_basic_auth_users before exposing Traefik."
 
 - name: Validate Traefik dashboard BasicAuth user format
@@ -14,6 +16,28 @@
       - item is match('^[^:]+:.+')
     fail_msg: "Each traefik_dashboard_basic_auth_users entry must be formatted as user:hashed-password."
   loop: "{{ traefik_dashboard_basic_auth_users }}"
+
+- name: Validate reverse proxy route definitions
+  ansible.builtin.assert:
+    that:
+      - config_name.name is match('^[A-Za-z0-9_-]+$')
+      - config_name.proxy_fqdn | length > 0
+      - config_name.proxy_upstream_protocol in ['http', 'https']
+      - config_name.proxy_upstream_port is match('^[0-9]{1,5}$')
+      - (config_name.proxy_upstream_port | int) > 0
+      - (config_name.proxy_upstream_port | int) <= 65535
+      - config_name.container_destination | length > 0
+    fail_msg: "Each proxy_config entry needs a safe name, FQDN, http/https upstream, valid port, and container destination."
+  loop: "{{ proxy_config }}"
+  loop_control:
+    loop_var: config_name
+
+- name: Validate reverse proxy route names are unique
+  ansible.builtin.assert:
+    that:
+      - proxy_config | map(attribute='name') | list | unique | length == proxy_config | length
+      - proxy_config | map(attribute='proxy_fqdn') | list | unique | length == proxy_config | length
+    fail_msg: "proxy_config route names and FQDNs must be unique."
 
 - name: Create traefik container path
   ansible.builtin.file:

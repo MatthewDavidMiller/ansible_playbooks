@@ -5,9 +5,16 @@ PasswordAuthentication no
 PermitEmptyPasswords no
 GSSAPIAuthentication no
 PermitRootLogin no
+X11Forwarding no
+AllowTcpForwarding no
 MaxAuthTries 3
+MaxSessions 2
 LoginGraceTime 30
 ClientAliveInterval 300
 ClientAliveCountMax 2
 PubkeyAuthentication yes
 UsePAM yes
+LogLevel VERBOSE
+{% if standard_ssh_allow_users | length > 0 %}
+AllowUsers {{ standard_ssh_allow_users | join(' ') }}
+{% endif %}

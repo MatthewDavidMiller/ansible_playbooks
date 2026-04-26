@@ -10,12 +10,16 @@
   ansible.builtin.file:
     path: "{{ borg_backup_path }}"
     state: directory
+    owner: root
+    group: root
     mode: "0740"
 
 - name: Create SSH FS directory
   ansible.builtin.file:
     path: "{{ ssh_mount_path }}"
     state: directory
+    owner: root
+    group: root
     mode: "0740"
   when: not (backup_local | default(false))
 
@@ -31,12 +35,16 @@
   ansible.builtin.template:
     src: init_backup_repo.sh.j2
     dest: /usr/local/bin/init_backup_repo.sh
+    owner: root
+    group: root
     mode: "0700"
 
 - name: Backup Script
   ansible.builtin.template:
     src: backup_files.sh.j2
     dest: /usr/local/bin/backup_files.sh
+    owner: root
+    group: root
     mode: "0700"
 
 - name: Backup Daily

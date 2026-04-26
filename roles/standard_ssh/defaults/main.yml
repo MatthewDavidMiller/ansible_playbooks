@@ -1,6 +1,5 @@
 ---
 # standard_ssh role defaults
-# This role applies hardened sshd_config settings using lineinfile.
-# It uses no role-level variables — all settings are hardcoded per the project's
-# SSH hardening policy.  This file is present so ansible-lint can confirm
-# there are no undefined variables.
+# Optional account allowlist for SSH. Leave empty to avoid locking out
+# inventory-driven deployments that have not standardized on one login user.
+standard_ssh_allow_users: []

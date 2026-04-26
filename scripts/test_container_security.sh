@@ -146,8 +146,17 @@ assert_file_contains "--mount type=tmpfs,destination=/var/run/postgresql,tmpfs-s
 assert_file_not_contains "\\{\\{ postgres_path \\}\\}/run:/var/run/postgresql" "Postgres: socket directory is not host-persisted" roles/nextcloud/templates/postgres_container.sh.j2
 assert_file_contains "--read-only" "Redis: read-only root filesystem is configured" roles/nextcloud/templates/redis_container.sh.j2
 assert_file_contains "--read-only" "Navidrome: read-only root filesystem is configured" roles/navidrome/templates/navidrome_container.sh.j2
+assert_file_contains "--user \\{\\{ navidrome_uid \\}\\}:\\{\\{ navidrome_gid \\}\\}" "Navidrome: runs as explicit non-root UID/GID" roles/navidrome/templates/navidrome_container.sh.j2
 assert_file_contains "--read-only" "Vaultwarden: read-only root filesystem is configured" roles/vaultwarden/templates/vaultwarden.sh.j2
 assert_file_contains "--read-only" "Semaphore: read-only root filesystem is configured" roles/semaphore/templates/semaphore.sh.j2
+assert_file_contains "--cap-drop=ALL" "Traefik: drops all capabilities before adding required bind capability" roles/reverse_proxy/templates/traefik_container.sh.j2
+assert_file_contains "--cap-add=NET_BIND_SERVICE" "Traefik: only adds bind-service capability" roles/reverse_proxy/templates/traefik_container.sh.j2
+assert_file_contains "--cap-drop=ALL" "Postgres: drops all capabilities" roles/nextcloud/templates/postgres_container.sh.j2
+assert_file_contains "--cap-drop=ALL" "Redis: drops all capabilities before adding required filesystem caps" roles/nextcloud/templates/redis_container.sh.j2
+assert_file_contains "--cap-drop=ALL" "Paperless: drops all capabilities before adding required entrypoint caps" roles/paperless_ngx/templates/paperless_ngx.sh.j2
+assert_file_contains "--cap-drop=ALL" "Navidrome: drops all capabilities" roles/navidrome/templates/navidrome_container.sh.j2
+assert_file_contains "--cap-drop=ALL" "Vaultwarden: drops all capabilities before adding required bind capability" roles/vaultwarden/templates/vaultwarden.sh.j2
+assert_file_contains "--cap-drop=ALL" "Semaphore: drops all capabilities" roles/semaphore/templates/semaphore.sh.j2
 assert_file_contains "--mount type=tmpfs,destination=/home/semaphore,tmpfs-size=32M,tmpfs-mode=0750,U=true" "Semaphore: home directory uses a service-owned tmpfs mount" roles/semaphore/templates/semaphore.sh.j2
 assert_file_contains "--mount type=tmpfs,destination=/tmp/semaphore,tmpfs-size=64M,tmpfs-mode=0750,U=true" "Semaphore: project temp path uses a service-owned tmpfs mount" roles/semaphore/templates/semaphore.sh.j2
 assert_file_not_contains "mode=1777" "Semaphore: project temp path is not world-writable" roles/semaphore/templates/semaphore.sh.j2

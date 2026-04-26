@@ -133,6 +133,7 @@ bash scripts/test_shell_secret_env.sh
 - `ansible-lint` and `--syntax-check` complete without errors.
 - `scripts/test_shell_secret_env.sh` reports `PASS` for shell quoting and generated launch artifact checks.
 - `scripts/test_supply_chain_policy.sh` reports `PASS` for immutable image refs, approved collection installs, and pinned provisioning inputs.
+- `scripts/test_supply_chain_policy.sh` also enforces core SSH, firewall, proxy, backup, and secret-rendering guardrails.
 - `python3 scripts/promote_artifacts.py --check-tools` reports either native binaries or the pinned container fallback for `skopeo`, `cosign`, and `trivy`.
 - VM1 container tests report `PASS` for PostgreSQL, Redis, Nextcloud, Traefik, Paperless, Vaultwarden, Semaphore, and Navidrome.
 

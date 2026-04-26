@@ -36,21 +36,33 @@
   ansible.builtin.file:
     path: "{{ vaultwarden_path }}"
     state: directory
+    owner: root
+    group: root
+    mode: "0750"
 
 - name: Create Vaultwarden container data path
   ansible.builtin.file:
     path: "{{ vaultwarden_path }}/vw-data"
     state: directory
+    owner: root
+    group: root
+    mode: "0700"
 
 - name: Create Vaultwarden container ssl certs path
   ansible.builtin.file:
     path: "{{ vaultwarden_path }}/ssl_certs"
     state: directory
+    owner: root
+    group: root
+    mode: "0700"
 
 - name: Create Vaultwarden backups path
   ansible.builtin.file:
     path: "{{ vaultwarden_path }}/database_backups"
     state: directory
+    owner: root
+    group: root
+    mode: "0700"
 
 - name: Create Vaultwarden Nextcloud backup destination
   ansible.builtin.file:
@@ -67,6 +79,7 @@
     state: directory
     owner: "{{ nextcloud_uid }}"
     group: "{{ nextcloud_gid }}"
+    mode: "0770"
     recurse: true
   when: backup_local | default(false)
 
