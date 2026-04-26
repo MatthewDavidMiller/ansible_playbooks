@@ -12,6 +12,10 @@ traefik_networks: []
 # Fully-qualified domain name for the Traefik dashboard
 traefik_dashboard_fqdn: ""
 
+# htpasswd-style BasicAuth users for the Traefik dashboard.
+# Each entry must be formatted as "user:hashed-password".
+traefik_dashboard_basic_auth_users: []
+
 # Email address registered with the ACME provider (Porkbun) for certificate issuance
 traefik_acme_email: ""
 

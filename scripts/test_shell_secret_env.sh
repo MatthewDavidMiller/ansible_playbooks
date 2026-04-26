@@ -99,6 +99,11 @@ traefik_image: 'docker.io/traefik@sha256:111111111111111111111111111111111111111
 traefik_networks:
   - 'proxy_net'
   - 'backend_net'
+traefik_dashboard_basic_auth_users:
+  - 'admin:\$apr1\$example\$T2v8QdKqzJ8D7c4s1bYhZ/'
+traefik_dashboard_fqdn: 'traefik.example.com'
+management_network: '192.168.1.0/24'
+ip_ansible: '192.168.1.10/32'
 traefik_path: '/srv/traefik'
 postgres_image: 'docker.io/postgres@sha256:2222222222222222222222222222222222222222222222222222222222222222'
 postgres_path: '/srv/postgres'
@@ -161,6 +166,16 @@ cat > "$tmpdir/render.yml" <<EOF
       ansible.builtin.template:
         src: ${repo_root}/roles/reverse_proxy/templates/traefik_container.sh.j2
         dest: ${render_dir}/traefik_container.sh
+
+    - name: Render Traefik security middleware
+      ansible.builtin.template:
+        src: ${repo_root}/roles/reverse_proxy/templates/security.yml.j2
+        dest: ${render_dir}/security.yml
+
+    - name: Render Traefik dashboard router
+      ansible.builtin.template:
+        src: ${repo_root}/roles/reverse_proxy/templates/dashboard.yml.j2
+        dest: ${render_dir}/dashboard.yml
 
     - name: Render postgres_container.sh
       ansible.builtin.template:
@@ -274,6 +289,10 @@ assert_contains "$render_dir/traefik_container.sh" "--env PORKBUN_API_KEY" "trae
 assert_contains "$render_dir/traefik_container.sh" "--env PORKBUN_SECRET_API_KEY" "traefik_container.sh passes PORKBUN_SECRET_API_KEY"
 assert_not_contains "$render_dir/traefik_container.sh" "podman pull" "traefik_container.sh no longer calls podman pull"
 assert_contains "$render_dir/traefik_container.sh" "--pull=never" "traefik_container.sh uses --pull=never"
+assert_contains "$render_dir/security.yml" "dashboard-basic-auth:" "security.yml defines dashboard BasicAuth middleware"
+assert_contains "$render_dir/security.yml" "basicAuth:" "security.yml renders Traefik BasicAuth config"
+assert_contains "$render_dir/security.yml" 'admin:$apr1$example$T2v8QdKqzJ8D7c4s1bYhZ/' "security.yml renders configured dashboard user hash"
+assert_contains "$render_dir/dashboard.yml" "dashboard-basic-auth@file" "dashboard.yml applies dashboard BasicAuth middleware"
 
 assert_not_contains "$render_dir/postgres_container.sh" "--env-file" "postgres_container.sh no longer uses --env-file"
 assert_contains "$render_dir/postgres_container.sh" '. "/etc/homelab/secrets/postgres.env"' "postgres_container.sh sources postgres.env"

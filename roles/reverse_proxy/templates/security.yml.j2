@@ -18,6 +18,13 @@ http:
           - "{{ management_network }}"
           - "{{ ip_ansible }}"
 
+    dashboard-basic-auth:
+      basicAuth:
+        users:
+{% for user in traefik_dashboard_basic_auth_users %}
+          - "{{ user }}"
+{% endfor %}
+
     rate-limit-default:
       rateLimit:
         average: 100

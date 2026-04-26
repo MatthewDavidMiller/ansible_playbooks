@@ -47,6 +47,7 @@ VM1 runs all maintained services on a single Rocky Linux 10 host to reduce resou
 - SELinux stays enforcing.
 - PostgreSQL is shared across Nextcloud, Paperless, and Semaphore, but each application gets its own role and password.
 - Runtime secrets are rendered to root-only env files in `secret_env_dir`.
+- The Traefik dashboard requires both management-source allowlisting and BasicAuth.
 
 ---
 
@@ -81,6 +82,8 @@ Allowed traffic in `homelab` zone:
 - ICMP echo-request (ping)
 
 Ports 80 and 443 remain intentionally public on VM1. Rootful Podman's `-p 80:80/tcp -p 443:443/tcp` flags add DNAT rules before firewalld zone filtering, so these ports should be treated as explicit public ingress to Traefik.
+
+The firewall role validates `default_interface`, `management_network`, and `ip_ansible` before applying policy. When runtime changes are enabled, rules are applied immediately and persisted; when `apply_runtime_changes_on_reboot` is true, the role stages permanent rules for the next reboot.
 
 See [roles/standard.md#standard_firewalld](roles/standard.md#standard_firewalld) and [roles/services.md#reverse_proxy](roles/services.md#reverse_proxy).
 

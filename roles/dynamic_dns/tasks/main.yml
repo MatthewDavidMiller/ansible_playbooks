@@ -20,6 +20,7 @@
     owner: root
     group: root
     mode: "0600"
+  no_log: true
 
 - name: Dynamic DNS script
   ansible.builtin.template:

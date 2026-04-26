@@ -60,6 +60,7 @@
     owner: root
     group: root
     mode: "0600"
+  no_log: true
 
 - name: Nextcloud env file
   ansible.builtin.template:
@@ -68,6 +69,7 @@
     owner: root
     group: root
     mode: "0600"
+  no_log: true
 
 - name: Redis env file
   ansible.builtin.copy:
@@ -77,6 +79,7 @@
     owner: root
     group: root
     mode: "0600"
+  no_log: true
 
 - name: Create postgres database container path
   ansible.builtin.file:
@@ -251,7 +254,7 @@
   ansible.builtin.template:
     src: redis_container.sh.j2
     dest: /usr/local/bin/redis_container.sh
-    owner: "{{ user_name }}"
+    owner: root
     group: root
     mode: "0700"
 
@@ -259,7 +262,7 @@
   ansible.builtin.template:
     src: nextcloud_container.sh.j2
     dest: /usr/local/bin/nextcloud_container.sh
-    owner: "{{ user_name }}"
+    owner: root
     group: root
     mode: "0700"
 
@@ -267,7 +270,7 @@
   ansible.builtin.template:
     src: postgres_container.sh.j2
     dest: /usr/local/bin/postgres_container.sh
-    owner: "{{ user_name }}"
+    owner: root
     group: root
     mode: "0700"
 
@@ -283,7 +286,7 @@
   ansible.builtin.template:
     src: backup_nextcloud_paperless.sh.j2
     dest: /usr/local/bin/backup_nextcloud_paperless.sh
-    owner: "{{ user_name }}"
+    owner: root
     group: root
     mode: "0700"
 

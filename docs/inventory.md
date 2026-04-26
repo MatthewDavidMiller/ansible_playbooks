@@ -42,6 +42,7 @@ VM1 is the single maintained service host. It runs Traefik, PostgreSQL, Redis, N
 | `traefik_path` | path | Traefik data directory | `/opt/traefik` |
 | `traefik_networks` | list | Proxy-facing Podman networks Traefik must join | `[nextcloud_proxy_net, paperless_proxy_net, navidrome_container_net, vaultwarden_container_net, semaphore_container_net]` |
 | `traefik_dashboard_fqdn` | string | FQDN for the Traefik dashboard | `traefik.example.com` |
+| `traefik_dashboard_basic_auth_users` | list | htpasswd-style BasicAuth users for the Traefik dashboard | `["admin:$apr1$..."]` |
 | `traefik_acme_email` | string | ACME account email | `admin@example.com` |
 | `proxy_config` | list | Traefik dynamic route definitions | — |
 | `postgres_path` | path | Shared PostgreSQL data directory | `/opt/postgres` |
@@ -78,7 +79,7 @@ VM1 is the single maintained service host. It runs Traefik, PostgreSQL, Redis, N
 | `semaphore_admin_name` | string | Semaphore admin username | `admin` |
 | `semaphore_admin_email` | string | Semaphore admin email | `admin@example.com` |
 | `semaphore_admin_password` | string | Semaphore admin password | `secret` |
-| `semaphore_encryption_key` | string | Semaphore encryption key | `abc123...` |
+| `semaphore_encryption_key` | string | 32-character Semaphore encryption key | `abc123...` |
 | `semaphore_known_hosts` | string | Known-host block mounted into Semaphore | `192.168.1.10 ssh-ed25519 AAAA...` |
 | `semaphore_backup_location` | string | Local or rclone destination label | `Nextcloud:semaphore_backup` |
 | `navidrome_path` | path | Navidrome base directory | `/opt/navidrome` |
@@ -141,3 +142,25 @@ All entries use the generic `service_proxy.yml.j2` template.
 `traefik_networks` lists every proxy-facing Podman network Traefik must join so it can reach proxied backends by Podman DNS name (`<container>.dns.podman`).
 
 Do not include backend-only database/cache networks such as `nextcloud_container_net`; Nextcloud and Paperless use dedicated proxy networks for ingress while remaining attached to the backend network for PostgreSQL and Redis.
+
+## Traefik Dashboard BasicAuth
+
+The Traefik dashboard is protected by both management-source allowlisting and BasicAuth. Set `traefik_dashboard_basic_auth_users` to one or more `user:hash` strings in inventory.
+
+Generate an Apache MD5 htpasswd hash on the control node with OpenSSL:
+
+```bash
+read -rsp 'Traefik dashboard password: ' TRAEFIK_DASHBOARD_PASSWORD
+printf '\n'
+printf 'admin:%s\n' "$(openssl passwd -apr1 "$TRAEFIK_DASHBOARD_PASSWORD")"
+unset TRAEFIK_DASHBOARD_PASSWORD
+```
+
+Then paste the resulting `admin:$apr1$...` value into inventory:
+
+```yaml
+traefik_dashboard_basic_auth_users:
+  - 'admin:$apr1$example$T2v8QdKqzJ8D7c4s1bYhZ/'
+```
+
+Keep the whole string quoted because htpasswd hashes contain `$` characters.

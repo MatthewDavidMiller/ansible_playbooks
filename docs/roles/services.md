@@ -20,11 +20,11 @@ Updates the VM1 Porkbun A record when the WAN IP changes.
 
 Deploys Traefik v3 for HTTPS termination and service routing on VM1.
 
-**Required variables:** `traefik_path`, `traefik_networks`, `traefik_dashboard_fqdn`, `traefik_acme_email`, `proxy_config`, `container_service_names`, `management_network`, `ip_ansible`, `secret_env_dir`, `traefik_image`
+**Required variables:** `traefik_path`, `traefik_networks`, `traefik_dashboard_fqdn`, `traefik_dashboard_basic_auth_users`, `traefik_acme_email`, `proxy_config`, `container_service_names`, `management_network`, `ip_ansible`, `secret_env_dir`, `traefik_image`
 
 **Templates:** `traefik_container.sh.j2`, `traefik_container.service.j2`, `traefik.yml.j2`, `tls.yml.j2`, `security.yml.j2`, `dashboard.yml.j2`, `service_proxy.yml.j2`, `traefik.env.j2`
 
-**Key behavior:** publishes ports 80 and 443, requests per-FQDN certificates through Porkbun DNS-01, renders dynamic route files from `proxy_config`, and runs only against pre-pulled approved digest refs.
+**Key behavior:** publishes ports 80 and 443, requests per-FQDN certificates through Porkbun DNS-01, protects the dashboard with both management-source allowlisting and BasicAuth, renders dynamic route files from `proxy_config`, and runs only against pre-pulled approved digest refs.
 
 ---
 
@@ -74,7 +74,7 @@ Deploys Vaultwarden and its SQLite-backed backup workflow.
 
 Deploys Semaphore and backs up its PostgreSQL database into the local Nextcloud data tree when `backup_local: true`.
 
-**Required variables:** `semaphore_database_name`, `semaphore_db_user`, `semaphore_db_password`, `semaphore_admin_name`, `semaphore_admin_email`, `semaphore_admin_password`, `semaphore_encryption_key`, `semaphore_known_hosts`, `semaphore_backup_location`, `semaphore_image`, `secret_env_dir`
+**Required variables:** `semaphore_database_name`, `semaphore_db_user`, `semaphore_db_password`, `semaphore_admin_name`, `semaphore_admin_email`, `semaphore_admin_password`, `semaphore_encryption_key` (32 characters), `semaphore_known_hosts`, `semaphore_backup_location`, `semaphore_image`, `secret_env_dir`
 
 **Templates:** `semaphore.sh.j2`, `semaphore.service.j2`, `semaphore.env.j2`, `backup_semaphore.sh.j2`, `ssh_known_hosts.j2`
 

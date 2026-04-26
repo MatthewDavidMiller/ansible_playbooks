@@ -71,7 +71,19 @@ This document records explicit design decisions and rejected alternatives for th
 
 - Keep host access key-only.
 - Reduce brute-force and orphaned-session exposure.
+- Keep PAM session/account controls available while password and challenge-response authentication remain disabled.
 - Centralize SSH tuning in one managed file.
+
+---
+
+## Decision: Traefik Dashboard Defense in Depth
+
+**Decision:** The Traefik dashboard requires both management-source IP allowlisting and BasicAuth.
+
+**Rationale:**
+
+- The dashboard is an administrative surface exposed through public HTTPS entrypoints.
+- Source allowlists reduce exposure, while BasicAuth prevents allowlist mistakes from becoming unauthenticated access.
 
 ---
 

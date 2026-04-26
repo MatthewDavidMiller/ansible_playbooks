@@ -1,4 +1,10 @@
 ---
+- name: Validate Vaultwarden public signup policy
+  ansible.builtin.assert:
+    that:
+      - not (vaultwarden_signups_allowed | bool)
+    fail_msg: "vaultwarden_signups_allowed must remain false for the hardened VM1 deployment."
+
 - name: Install sqlite3
   ansible.builtin.dnf:
     name: sqlite

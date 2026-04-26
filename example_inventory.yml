@@ -34,6 +34,8 @@ all:
             - vaultwarden_container_net
             - semaphore_container_net
           traefik_dashboard_fqdn: "traefik.example.com"
+          traefik_dashboard_basic_auth_users:
+            - 'admin:$apr1$example$T2v8QdKqzJ8D7c4s1bYhZ/'
           traefik_acme_email: "admin@example.com"
           proxy_config:
             - name: nextcloud_proxy
@@ -100,7 +102,7 @@ all:
           semaphore_admin_name: admin
           semaphore_admin_email: admin@example.com
           semaphore_admin_password: example_password
-          semaphore_encryption_key: example_32_char_encryption_key_xx
+          semaphore_encryption_key: example_32_char_encryption_keyxx
           semaphore_known_hosts: |
             192.168.1.10 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAexampleknownhost
           semaphore_backup_location: Nextcloud:semaphore_backup
