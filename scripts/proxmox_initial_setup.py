@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import re
 import subprocess
 import urllib.request
@@ -13,7 +14,8 @@ import yaml
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-LOCK_FILE = REPO_ROOT / "artifacts" / "cloud_images.lock.yml"
+LOCK_FILE_ENV = "PROXMOX_CLOUD_IMAGE_LOCK"
+DEFAULT_LOCK_FILE = REPO_ROOT / "artifacts" / "cloud_images.lock.yml"
 DOWNLOAD_DIR = Path("/var/lib/vz/template")
 ROCKY_TEMPLATE_ID = "401"
 ROCKY_TEMPLATE_NAME = "RockyLinuxCloudInitTemplate"
@@ -38,6 +40,11 @@ ROCKY_VMS = [
 
 def run(argv: list[str]) -> None:
     subprocess.run(argv, check=True)
+
+
+def run_change(message: str, argv: list[str]) -> None:
+    run(argv)
+    print(f"CHANGE: {message}", flush=True)
 
 
 def capture(argv: list[str]) -> subprocess.CompletedProcess[str]:
@@ -85,15 +92,60 @@ def disk_size_bytes(config: str, disk: str) -> int | None:
     return parse_size_bytes(match.group(1))
 
 
+def set_vm_options(
+    vmid: str,
+    parsed: dict[str, str],
+    options: dict[str, str],
+    message: str,
+) -> None:
+    changes = {key: value for key, value in options.items() if parsed.get(key) != value}
+    if not changes:
+        return
+
+    argv = ["qm", "set", vmid]
+    for key, value in changes.items():
+        argv.extend([f"--{key}", value])
+
+    details = ", ".join(f"{key}={value}" for key, value in changes.items())
+    run_change(f"{message}: {details}", argv)
+    parsed.update(changes)
+
+
+def resolve_lock_file() -> Path:
+    configured = os.environ.get(LOCK_FILE_ENV)
+    candidates = []
+    if configured:
+        candidates.append(Path(configured).expanduser())
+    candidates.extend(
+        [
+            DEFAULT_LOCK_FILE,
+            Path.cwd() / "artifacts" / "cloud_images.lock.yml",
+        ]
+    )
+
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+
+    checked = "\n".join(f"  - {candidate}" for candidate in candidates)
+    raise SystemExit(
+        "Unable to find the Rocky cloud image lock file.\n"
+        f"Checked:\n{checked}\n"
+        "Run this script from the repository root, copy artifacts/cloud_images.lock.yml "
+        f"alongside the repository layout, or set {LOCK_FILE_ENV}=/path/to/cloud_images.lock.yml."
+    )
+
+
 def load_rocky_image_lock() -> dict:
-    with LOCK_FILE.open("r", encoding="utf-8") as handle:
+    lock_file = resolve_lock_file()
+    with lock_file.open("r", encoding="utf-8") as handle:
         data = yaml.safe_load(handle)
     image = data["cloud_image_lock"]["rocky_linux_10_x86_64"]
     for key in ("url", "filename", "sha256"):
         value = image[key]
         if value.startswith("REPLACE_WITH_"):
             raise SystemExit(
-                f"{LOCK_FILE} still contains placeholder {key}; pin the official Rocky image first."
+                f"{lock_file} still contains placeholder {key}; pin the official Rocky image first."
             )
     return image
 
@@ -123,10 +175,11 @@ def download_verified_image(url: str, filename: str, expected_sha256: str) -> Pa
         )
 
     partial.replace(destination)
+    print(f"CHANGE: Download cloud image {url} to {destination}", flush=True)
     return destination
 
 
-def create_rocky_template(image_path: Path) -> None:
+def create_rocky_template() -> None:
     config = qm_config(ROCKY_TEMPLATE_ID)
     if config:
         parsed = parse_qm_config(config)
@@ -134,10 +187,18 @@ def create_rocky_template(image_path: Path) -> None:
             raise SystemExit(
                 f"VMID {ROCKY_TEMPLATE_ID} already exists but is not a template."
             )
-        configure_rocky_template()
+        configure_rocky_template(parsed)
         return
 
-    run(
+    rocky_image = load_rocky_image_lock()
+    image_path = download_verified_image(
+        rocky_image["url"],
+        rocky_image["filename"],
+        rocky_image["sha256"],
+    )
+
+    run_change(
+        f"Create Rocky template VMID {ROCKY_TEMPLATE_ID}",
         [
             "qm",
             "create",
@@ -146,10 +207,14 @@ def create_rocky_template(image_path: Path) -> None:
             ROCKY_TEMPLATE_NAME,
             "--net0",
             "virtio,bridge=vmbr0",
-        ]
+        ],
     )
-    run(["qm", "importdisk", ROCKY_TEMPLATE_ID, str(image_path), VM_STORAGE])
-    run(
+    run_change(
+        f"Import Rocky cloud image into VMID {ROCKY_TEMPLATE_ID}",
+        ["qm", "importdisk", ROCKY_TEMPLATE_ID, str(image_path), VM_STORAGE],
+    )
+    run_change(
+        f"Attach imported disk to VMID {ROCKY_TEMPLATE_ID}",
         [
             "qm",
             "set",
@@ -158,22 +223,38 @@ def create_rocky_template(image_path: Path) -> None:
             "virtio-scsi-pci",
             "--scsi0",
             f"{VM_STORAGE}:vm-{ROCKY_TEMPLATE_ID}-disk-0",
-        ]
+        ],
     )
-    run(["qm", "set", ROCKY_TEMPLATE_ID, "--scsi1", f"{VM_STORAGE}:cloudinit"])
-    configure_rocky_template()
-    run(["qm", "template", ROCKY_TEMPLATE_ID])
+    run_change(
+        f"Attach cloud-init disk to VMID {ROCKY_TEMPLATE_ID}",
+        ["qm", "set", ROCKY_TEMPLATE_ID, "--scsi1", f"{VM_STORAGE}:cloudinit"],
+    )
+    parsed = parse_qm_config(qm_config(ROCKY_TEMPLATE_ID) or "")
+    configure_rocky_template(parsed)
+    run_change(
+        f"Mark VMID {ROCKY_TEMPLATE_ID} as a template",
+        ["qm", "template", ROCKY_TEMPLATE_ID],
+    )
 
 
-def configure_rocky_template() -> None:
-    run(["qm", "set", ROCKY_TEMPLATE_ID, "--name", ROCKY_TEMPLATE_NAME])
-    run(["qm", "set", ROCKY_TEMPLATE_ID, "--boot", "c", "--bootdisk", "scsi0"])
-    run(["qm", "set", ROCKY_TEMPLATE_ID, "--serial0", "socket", "--vga", "serial0"])
-    run(["qm", "set", ROCKY_TEMPLATE_ID, "--bios", "ovmf"])
-    run(["qm", "set", ROCKY_TEMPLATE_ID, "--cores", "2"])
-    run(["qm", "set", ROCKY_TEMPLATE_ID, "--memory", "2048"])
-    run(["qm", "set", ROCKY_TEMPLATE_ID, "--agent", "enabled=1"])
-    run(["qm", "set", ROCKY_TEMPLATE_ID, "--cpu", "host"])
+def configure_rocky_template(parsed: dict[str, str]) -> None:
+    set_vm_options(
+        ROCKY_TEMPLATE_ID,
+        parsed,
+        {
+            "name": ROCKY_TEMPLATE_NAME,
+            "boot": "c",
+            "bootdisk": "scsi0",
+            "serial0": "socket",
+            "vga": "serial0",
+            "bios": "ovmf",
+            "cores": "2",
+            "memory": "2048",
+            "agent": "enabled=1",
+            "cpu": "host",
+        },
+        f"Configure Rocky template VMID {ROCKY_TEMPLATE_ID}",
+    )
 
 
 def clone_rocky_vm(vm: dict[str, str]) -> None:
@@ -184,44 +265,51 @@ def clone_rocky_vm(vm: dict[str, str]) -> None:
         if parsed.get("template") == "1":
             raise SystemExit(f"VMID {vmid} already exists as a template.")
     else:
-        run(["qm", "clone", ROCKY_TEMPLATE_ID, vmid, "--name", vm["name"]])
+        run_change(
+            f"Clone Rocky template VMID {ROCKY_TEMPLATE_ID} to VMID {vmid}",
+            ["qm", "clone", ROCKY_TEMPLATE_ID, vmid, "--name", vm["name"]],
+        )
         config = qm_config(vmid)
         if config is None:
             raise SystemExit(f"Unable to read config for cloned VMID {vmid}.")
 
     parsed = parse_qm_config(config)
     if "efidisk0" not in parsed:
-        run(
+        run_change(
+            f"Add EFI disk to VMID {vmid}",
             [
                 "qm",
                 "set",
                 vmid,
                 "--efidisk0",
                 f"{VM_STORAGE}:1,format=raw,efitype=4m,pre-enrolled-keys=0",
-            ]
+            ],
         )
 
-    run(["qm", "set", vmid, "--name", vm["name"]])
-    run(["qm", "set", vmid, "--cores", vm["cores"]])
-    run(["qm", "set", vmid, "--memory", vm["memory"]])
+    set_vm_options(
+        vmid,
+        parsed,
+        {
+            "name": vm["name"],
+            "cores": vm["cores"],
+            "memory": vm["memory"],
+        },
+        f"Configure VMID {vmid}",
+    )
 
     root_disk_size = vm.get("root_disk_size")
     if root_disk_size:
         current_size = disk_size_bytes(config, "scsi0")
         target_size = parse_size_bytes(root_disk_size)
         if current_size is None or current_size < target_size:
-            run(["qm", "resize", vmid, "scsi0", root_disk_size])
+            run_change(
+                f"Resize VMID {vmid} scsi0 to {root_disk_size}",
+                ["qm", "resize", vmid, "scsi0", root_disk_size],
+            )
 
 
 def main() -> int:
-    rocky_image = load_rocky_image_lock()
-    image_path = download_verified_image(
-        rocky_image["url"],
-        rocky_image["filename"],
-        rocky_image["sha256"],
-    )
-
-    create_rocky_template(image_path)
+    create_rocky_template()
     for vm in ROCKY_VMS:
         clone_rocky_vm(vm)
 

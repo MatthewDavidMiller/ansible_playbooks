@@ -33,8 +33,16 @@ python3 scripts/proxmox_initial_setup.py
 ```
 
 The script uses `qm` commands and must run as root on the Proxmox node.
+It also needs access to `artifacts/cloud_images.lock.yml`. If you copy the script to
+the Proxmox host as `/root/proxmox_initial_setup.py`, either copy the lock file to
+`/root/artifacts/cloud_images.lock.yml` or run it with an explicit lock path:
+
+```bash
+PROXMOX_CLOUD_IMAGE_LOCK=/path/to/cloud_images.lock.yml python3 /root/proxmox_initial_setup.py
+```
 
 The script is idempotent for the maintained VMIDs. If the Rocky template or a maintained VM already exists, the script skips the create/clone step and reapplies safe settings such as name, CPU, and memory. It only adds an EFI disk when one is missing and only grows a managed root disk when the current size is smaller than the requested size. If a maintained VMID exists with the wrong type, such as VMID 401 not being a template, the script exits instead of overwriting it.
+When the script has to create, clone, resize, or correct drift, it prints `CHANGE:` lines for the operations that completed. A fully converged run exits without change output.
 
 ---
 
