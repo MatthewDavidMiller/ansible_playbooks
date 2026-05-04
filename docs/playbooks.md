@@ -24,7 +24,7 @@ This document covers the maintained playbooks only. Legacy playbooks live under 
 
 **Usage:** Configures VM2 as a Rocky Linux 10 SSH/tmux development VM for Codex and Claude Code.
 
-**Notes:** `vm2.yml` enables EPEL for the dev workstation package set, installs agent CLIs through user-local npm under `user_name`, exposes the `devmux` helper for persistent tmux sessions, and maps `vm2_selinux_extra_booleans` into `standard_selinux_extra_booleans`. By default, VM2 enables `domain_can_mmap_files` for standard dev tooling.
+**Notes:** `vm2.yml` enables EPEL for the dev workstation package set, installs agent CLIs through user-local npm under `user_name`, exposes the `devmux` helper for persistent tmux sessions, shows interactive SSH users how to run `devmux` and detach with `Ctrl-b`, then `d`, and maps `vm2_selinux_extra_booleans` into `standard_selinux_extra_booleans`. By default, VM2 enables `domain_can_mmap_files` for standard dev tooling.
 
 ---
 

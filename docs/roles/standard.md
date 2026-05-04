@@ -111,4 +111,4 @@ Configures VM2 as an SSH/tmux development host for Codex and Claude Code.
 | `dev_vm_packages` | list | Rocky package baseline for the dev VM | `[tmux, git, nodejs]` |
 | `dev_vm_npm_global_packages` | list | npm packages installed for the dev user | `["@openai/codex", "@anthropic-ai/claude-code"]` |
 
-**Key behavior:** installs heavy workstation packages, keeps npm global packages under the dev user's home directory, exposes that bin path through `/etc/profile.d/dev-vm-npm.sh`, and installs a `devmux` helper that attaches to or creates a persistent tmux session. `vm2.yml` pairs this role with a VM2-only SELinux `domain_can_mmap_files` boolean for standard dev tooling.
+**Key behavior:** installs heavy workstation packages, keeps npm global packages under the dev user's home directory, exposes that bin path through `/etc/profile.d/dev-vm-npm.sh`, and installs a `devmux` helper that attaches to or creates a persistent tmux session. Interactive SSH logins for the dev user show a short `devmux` usage hint, including `Ctrl-b`, then `d`, to detach from tmux. `vm2.yml` pairs this role with a VM2-only SELinux `domain_can_mmap_files` boolean for standard dev tooling.

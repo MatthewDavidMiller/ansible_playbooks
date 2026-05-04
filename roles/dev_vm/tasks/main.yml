@@ -75,3 +75,18 @@
       devmux() {
           tmux new-session -A -s "${DEVMUX_SESSION:-{{ dev_vm_tmux_session }}}" "$@"
       }
+
+      if [ "$USER" = "{{ dev_vm_user }}" ] && [ -n "$SSH_CONNECTION" ]; then
+          case "$-" in
+              *i*)
+                  cat <<'EOF'
+
+      Dev VM session helper:
+        Run "devmux" to attach to or create the persistent tmux session.
+        Detach from tmux with Ctrl-b, then d.
+        Set DEVMUX_SESSION=name before running devmux to use a different session.
+
+      EOF
+                  ;;
+          esac
+      fi

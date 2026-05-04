@@ -124,7 +124,7 @@ See [roles/standard.md#standard_selinux](roles/standard.md#standard_selinux).
 
 ## VM2 Dev VM
 
-VM2 is the interactive development host. Users connect over SSH, start or reattach to a tmux session with `devmux`, and run Codex or Claude Code from that persistent shell.
+VM2 is the interactive development host. Users connect over SSH, start or reattach to a tmux session with `devmux`, detach with `Ctrl-b`, then `d`, and run Codex or Claude Code from that persistent shell.
 
 **Key design decisions:**
 
@@ -132,6 +132,7 @@ VM2 is the interactive development host. Users connect over SSH, start or reatta
 - The dev tooling is owned by the existing `user_name` account.
 - npm global packages install under `/home/{{ user_name }}/.npm-global` instead of a root-owned global prefix.
 - The playbook installs the `devmux` helper but does not automatically attach SSH logins to tmux, so Ansible, scp, and noninteractive SSH remain predictable.
+- Interactive SSH logins show the dev user how to run `devmux` and detach from the tmux session.
 
 ---
 
