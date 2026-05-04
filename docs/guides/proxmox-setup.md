@@ -10,24 +10,15 @@ This guide covers provisioning new VMs on Proxmox using `scripts/proxmox_initial
 
 1. Downloads the Rocky Linux 10 cloud-init image pinned in `artifacts/cloud_images.lock.yml` and verifies its SHA256 before import
 2. Creates cloud-init templates:
-   - VMID 400 — Debian 12 (used for backup server)
-   - VMID 401 — Rocky Linux 10 (used for all service VMs), CPU type set to `host`
+   - VMID 401 — Rocky Linux 10, CPU type set to `host`
 
 > **Note:** Rocky Linux 10 requires `--cpu host` on the Proxmox VM. The default emulated CPU type (`kvm64`) is missing instructions the Rocky 10 kernel expects, causing a kernel panic at boot.
 3. Clones templates to create VMs:
 
 | VMID | Name | Template | Cores | RAM |
 |---|---|---|---|---|
-| 100 | Ansible | 401 (Rocky 10) | 2 | 2048 MB |
-| 106 | Backup | 400 (Debian 12) | 2 | 2048 MB |
-| 110 | VPN | 401 | 2 | 2048 MB |
-| 111 | Pihole | 401 | 2 | 2048 MB |
-| 112 | NetworkController | 401 | 2 | 2048 MB |
-| 113 | Nextcloud | 401 | 2 | 2048 MB |
-| 114 | Navidrome | 401 | 2 | 2048 MB |
-| 115 | Vaultwarden | 401 | 2 | 2048 MB |
-| 116 | UnifiController | 401 | 2 | 2048 MB |
 | 120 | VM1 | 401 | 4 | 16384 MB |
+| 121 | VM2 | 401 | 4 | 32768 MB |
 
 Each VM gets an EFI disk (`efitype=4m, pre-enrolled-keys=0`) and UEFI BIOS.
 
@@ -43,6 +34,8 @@ python3 scripts/proxmox_initial_setup.py
 
 The script uses `qm` commands and must run as root on the Proxmox node.
 
+The script is idempotent for the maintained VMIDs. If the Rocky template or a maintained VM already exists, the script skips the create/clone step and reapplies safe settings such as name, CPU, and memory. It only adds an EFI disk when one is missing and only grows a managed root disk when the current size is smaller than the requested size. If a maintained VMID exists with the wrong type, such as VMID 401 not being a template, the script exits instead of overwriting it.
+
 ---
 
 ## Post-Clone Steps
@@ -56,6 +49,10 @@ qm resize 120 scsi0 60G
 ```
 
 All other VMs use the default template disk size.
+
+### VM2 (VMID 121)
+
+The script resizes VM2's root disk to 100 GB during provisioning so local repositories, package caches, and agent workspaces have room to grow.
 
 ### VM1 Second Disk (Borg Backup)
 

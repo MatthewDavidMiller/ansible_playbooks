@@ -122,3 +122,11 @@ all:
           backup_disk: "UUID=example-uuid-backup-disk"
           backup_local: true
           backup_host: "192.168.1.50/32"
+
+        vm2:
+          ansible_host: 192.168.1.121
+          dev_vm_tmux_session: dev
+          dev_vm_npm_prefix: /home/example_user/.npm-global
+          vm2_selinux_extra_booleans:
+            - name: domain_can_mmap_files
+              state: true

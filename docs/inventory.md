@@ -1,6 +1,6 @@
 # Inventory Variable Reference
 
-Use `example_inventory.yml` as the template for your real inventory. This document covers the maintained VM1 workflow only.
+Use `example_inventory.yml` as the template for your real inventory. This document covers the maintained VM1 and VM2 workflow.
 
 ---
 
@@ -103,6 +103,21 @@ VM1 is the single maintained service host. It runs Traefik, PostgreSQL, Redis, N
 Maintained container images are resolved in `vm1.yml` from `artifacts/containers.lock.yml` as upstream digest refs. Inventory does not set service image refs directly in the maintained path.
 
 `artifacts/cloud_images.lock.yml` serves the same role for the Proxmox Rocky image and must contain a versioned URL plus SHA256 before provisioning.
+
+---
+
+## `vm2` Host
+
+VM2 is the SSH/tmux development VM for Codex and Claude Code. It inherits the shared `homelab` variables and needs only its connection target by default.
+
+| Variable | Type | Description | Example |
+|---|---|---|---|
+| `ansible_host` | string | Hostname or IP | `192.168.1.121` |
+| `dev_vm_tmux_session` | string | Default tmux session name for the `devmux` helper | `dev` |
+| `dev_vm_npm_prefix` | path | User-local npm global prefix | `/home/example_user/.npm-global` |
+| `vm2_selinux_extra_booleans` | list | VM2 SELinux booleans passed into `standard_selinux_extra_booleans` | `[{name: domain_can_mmap_files, state: true}]` |
+
+The `dev_vm` role uses `user_name` as the interactive SSH/dev user and installs user-local npm packages under `/home/{{ user_name }}/.npm-global`.
 
 ---
 

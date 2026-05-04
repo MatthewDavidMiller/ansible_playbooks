@@ -1,6 +1,6 @@
 # Ansible Playbooks
 
-Ansible repo for the maintained homelab VM1 workflow: one Rocky Linux 10 VM running Podman services under systemd. Historical playbooks and roles are kept under `archive/` for reference and are not maintained.
+Ansible repo for the maintained homelab VM workflow: VM1 runs Rocky Linux 10 Podman services under systemd, and VM2 is a Rocky Linux 10 SSH/tmux dev VM for Codex and Claude Code. Historical playbooks and roles are kept under `archive/` for reference and are not maintained.
 
 ## Documentation
 
@@ -18,17 +18,22 @@ Ansible repo for the maintained homelab VM1 workflow: one Rocky Linux 10 VM runn
 # Run VM1 (stages runtime changes; reboot later to apply)
 ansible-playbook -i inventory.yml vm1.yml
 
+# Run VM2 dev VM setup
+ansible-playbook -i inventory.yml vm2.yml
+
 # Apply host package updates from approved repos
 ansible-playbook -i inventory.yml standalone_tasks/update_vm1_packages.yml
+ansible-playbook -i inventory.yml standalone_tasks/update_vm2_packages.yml
 
 # Active orchestrator for the homelab
 ansible-playbook -i inventory.yml homelab_vms.yml
 
-# Preferred full cycle: configure VM1, then reboot it
+# Preferred full cycle: configure maintained VMs, then reboot them
 ansible-playbook -i inventory.yml update_homelab_vms.yml
 
 # Dry run
 ansible-playbook -i inventory.yml vm1.yml --check
+ansible-playbook -i inventory.yml vm2.yml --check
 
 # Lint
 ansible-lint
@@ -38,7 +43,7 @@ python3 scripts/promote_artifacts.py --check-tools
 bash scripts/review_container_updates.sh --service traefik
 ```
 
-Normal `vm1.yml` runs apply security-only OS updates. Use `standalone_tasks/update_vm1_packages.yml` when you intentionally want the broader installed package set refreshed.
+Normal `vm1.yml` and `vm2.yml` runs apply security-only OS updates. Use the standalone update playbooks when you intentionally want the broader installed package set refreshed.
 
 ## License
 

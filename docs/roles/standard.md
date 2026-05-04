@@ -1,6 +1,6 @@
-# Standard Roles Reference
+# Standard And Dev Roles Reference
 
-These are the maintained infrastructure roles used by `vm1.yml`. Historical standard roles live under the archive.
+These are the maintained infrastructure and dev-host roles used by the active VM playbooks. Historical standard roles live under the archive.
 
 ---
 
@@ -70,7 +70,14 @@ Installs rclone and writes the root rclone config used by backups and any file-m
 
 Keeps SELinux enforcing on Rocky Linux 10 and sets the booleans required by the VM1 Podman workflow.
 
-**Key behavior:** enables `container_manage_cgroup`, sets `virt_use_fusefs`, installs troubleshooting tools, and relies on `:Z` mounts for container relabeling.
+**Optional variables:**
+
+| Variable | Type | Description | Example |
+|---|---|---|---|
+| `standard_selinux_extra_booleans` | list | Host-specific SELinux booleans to set persistently | `[{name: domain_can_mmap_files, state: true}]` |
+| `standard_selinux_extra_fcontexts` | list | Host-specific SELinux file context rules to apply and restore | `[{target: "/srv/dev(/.*)?", setype: container_file_t, restore_path: "/srv/dev"}]` |
+
+**Key behavior:** enables `container_manage_cgroup`, sets `virt_use_fusefs`, installs troubleshooting tools, applies explicit host-specific SELinux exceptions, and relies on `:Z` mounts for container relabeling.
 
 ---
 
@@ -79,3 +86,29 @@ Keeps SELinux enforcing on Rocky Linux 10 and sets the booleans required by the 
 Runs the post-deploy cleanup pass.
 
 **Key behavior:** clears caches, prunes stale logs, vacuums the journal, and prunes stopped or unused Podman artifacts after service deployment completes.
+
+---
+
+### `dev_vm`
+
+Configures VM2 as an SSH/tmux development host for Codex and Claude Code.
+
+**Distributions:** Rocky Linux 10
+
+**Required variables:**
+
+| Variable | Type | Description | Example |
+|---|---|---|---|
+| `user_name` | string | Existing non-root SSH user that owns the agent CLIs | `example_user` |
+
+**Optional variables:**
+
+| Variable | Type | Description | Example |
+|---|---|---|---|
+| `dev_vm_user` | string | Dev user override; defaults to `user_name` | `example_user` |
+| `dev_vm_npm_prefix` | path | User-local npm global prefix | `/home/example_user/.npm-global` |
+| `dev_vm_tmux_session` | string | Default tmux session name for `devmux` | `dev` |
+| `dev_vm_packages` | list | Rocky package baseline for the dev VM | `[tmux, git, nodejs]` |
+| `dev_vm_npm_global_packages` | list | npm packages installed for the dev user | `["@openai/codex", "@anthropic-ai/claude-code"]` |
+
+**Key behavior:** installs heavy workstation packages, keeps npm global packages under the dev user's home directory, exposes that bin path through `/etc/profile.d/dev-vm-npm.sh`, and installs a `devmux` helper that attaches to or creates a persistent tmux session. `vm2.yml` pairs this role with a VM2-only SELinux `domain_can_mmap_files` boolean for standard dev tooling.

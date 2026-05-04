@@ -1,0 +1,77 @@
+---
+- name: Validate dev VM user input
+  ansible.builtin.assert:
+    that:
+      - dev_vm_user | length > 0
+      - dev_vm_npm_prefix is match('^/home/[^/]+/.+')
+    fail_msg: "Set dev_vm_user and dev_vm_npm_prefix to a user-owned path under /home."
+
+- name: Confirm dev VM user exists
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ dev_vm_user }}"
+
+- name: Install dev workstation packages
+  ansible.builtin.dnf:
+    name: "{{ dev_vm_packages }}"
+    state: present
+
+- name: Ensure user-local npm directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ dev_vm_user }}"
+    mode: "0755"
+  loop:
+    - "{{ dev_vm_npm_prefix }}"
+    - "{{ dev_vm_npm_prefix }}/bin"
+
+- name: Configure npm prefix for dev user
+  ansible.builtin.lineinfile:
+    path: "/home/{{ dev_vm_user }}/.npmrc"
+    regexp: "^prefix="
+    line: "prefix={{ dev_vm_npm_prefix }}"
+    create: true
+    owner: "{{ dev_vm_user }}"
+    mode: "0644"
+
+- name: Install Codex and Claude Code for dev user
+  community.general.npm:
+    name: "{{ item }}"
+    global: true
+    state: present
+  become: true
+  become_user: "{{ dev_vm_user }}"
+  environment:
+    HOME: "/home/{{ dev_vm_user }}"
+    NPM_CONFIG_PREFIX: "{{ dev_vm_npm_prefix }}"
+    PATH: "{{ dev_vm_npm_prefix }}/bin:{{ ansible_env.PATH }}"
+  loop: "{{ dev_vm_npm_global_packages }}"
+
+- name: Expose user-local npm binaries on login shells
+  ansible.builtin.copy:
+    dest: /etc/profile.d/dev-vm-npm.sh
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible.
+      if [ "$USER" = "{{ dev_vm_user }}" ] && [ -d "{{ dev_vm_npm_prefix }}/bin" ]; then
+          case ":$PATH:" in
+              *":{{ dev_vm_npm_prefix }}/bin:"*) ;;
+              *) PATH="{{ dev_vm_npm_prefix }}/bin:$PATH" ;;
+          esac
+      fi
+      export PATH
+
+- name: Install tmux helper for long-running agent sessions
+  ansible.builtin.copy:
+    dest: /etc/profile.d/dev-vm-tmux.sh
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible.
+      devmux() {
+          tmux new-session -A -s "${DEVMUX_SESSION:-{{ dev_vm_tmux_session }}}" "$@"
+      }

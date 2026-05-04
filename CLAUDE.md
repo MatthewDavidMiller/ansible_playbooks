@@ -4,7 +4,7 @@ Repository guidance for Claude Code when working in this project.
 
 ## Project
 
-This repo manages the maintained VM1 homelab workflow with Ansible. Historical playbooks and roles are preserved under `archive/` for reference only.
+This repo manages the maintained homelab VM workflow with Ansible. Historical playbooks and roles are preserved under `archive/` for reference only.
 
 Start with [README.md](README.md), then use [docs/index.md](docs/index.md) for the full documentation map.
 

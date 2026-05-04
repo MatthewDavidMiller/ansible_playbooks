@@ -23,6 +23,27 @@
     state: true
     persistent: true
 
+- name: Apply host-specific SELinux booleans
+  ansible.posix.seboolean:
+    name: "{{ item.name }}"
+    state: "{{ item.state | default(true) }}"
+    persistent: "{{ item.persistent | default(true) }}"
+  loop: "{{ standard_selinux_extra_booleans }}"
+
+- name: Apply host-specific SELinux file contexts
+  community.general.sefcontext:
+    target: "{{ item.target }}"
+    setype: "{{ item.setype }}"
+    state: "{{ item.state | default('present') }}"
+  loop: "{{ standard_selinux_extra_fcontexts }}"
+  register: standard_selinux_extra_fcontext_changes
+
+- name: Restore host-specific SELinux file contexts
+  ansible.builtin.command: "restorecon -RFv {{ item.item.restore_path | default(item.item.target) }}"
+  changed_when: item.changed
+  loop: "{{ standard_selinux_extra_fcontext_changes.results }}"
+  when: item.changed
+
 - name: Check installed SELinux modules
   ansible.builtin.command: semodule -l
   register: semodule_list

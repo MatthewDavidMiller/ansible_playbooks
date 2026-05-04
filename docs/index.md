@@ -1,6 +1,6 @@
 # Ansible Playbooks — Documentation Index
 
-Ansible playbooks for the maintained VM1 homelab workflow. Services run as Podman containers managed by systemd.
+Ansible playbooks for the maintained homelab VM workflow. VM1 runs Podman services managed by systemd; VM2 is an SSH/tmux dev VM for Codex and Claude Code.
 
 Start with [README.md](../README.md) for the project overview and quick start.
 
@@ -26,7 +26,7 @@ Start with [README.md](../README.md) for the project overview and quick start.
 | Document | Description |
 |---|---|
 | [architecture.md](architecture.md) | Host topology, distribution targets, container/network/SELinux design |
-| [security.md](security.md) | VM1 threat model, hardening baseline, and security change rules |
+| [security.md](security.md) | VM threat model, hardening baseline, and security change rules |
 | [architecture-decisions.md](architecture-decisions.md) | Rejected approaches and their rationale (Vault, host_vars/, dedicated patching playbook, etc.) |
 | [playbooks.md](playbooks.md) | All playbooks — target hosts, role order, usage notes |
 | [inventory.md](inventory.md) | Full inventory variable reference |
