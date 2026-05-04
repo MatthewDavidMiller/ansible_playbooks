@@ -17,7 +17,7 @@ This guide covers provisioning new VMs on Proxmox using `scripts/proxmox_initial
 
 | VMID | Name | Template | Cores | RAM |
 |---|---|---|---|---|
-| 120 | VM1 | 401 | 4 | 16384 MB |
+| 120 | VM1 | 401 | 2 | 16384 MB |
 | 121 | VM2 | 401 | 4 | 32768 MB |
 
 Each VM gets an EFI disk (`efitype=4m, pre-enrolled-keys=0`) and UEFI BIOS.

@@ -23,7 +23,7 @@ ROCKY_VMS = [
     {
         "vmid": "120",
         "name": "VM1",
-        "cores": "4",
+        "cores": "2",
         "memory": "16384",
     },
     {
