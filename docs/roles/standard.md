@@ -10,6 +10,14 @@ Deploys the managed SSH hardening drop-in under `/etc/ssh/sshd_config.d/`.
 
 **Key behavior:** disables password auth and root login, keeps project SSH defaults centralized, and validates the config before reload.
 
+**Optional variables:**
+
+| Variable | Type | Description | Example |
+|---|---|---|---|
+| `standard_ssh_allow_users` | list | Optional account allowlist for SSH logins | `[example_user]` |
+| `standard_ssh_allow_tcp_forwarding` | bool | Enable SSH TCP forwarding for hosts that need editor remoting | `true` |
+| `standard_ssh_max_sessions` | integer | SSH session channel limit | `10` |
+
 ---
 
 ### `standard_qemu_guest_agent`

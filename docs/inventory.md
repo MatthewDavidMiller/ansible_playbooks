@@ -115,6 +115,8 @@ VM2 is the SSH/tmux development VM for Codex and Claude Code. It inherits the sh
 | `ansible_host` | string | Hostname or IP | `192.168.1.121` |
 | `dev_vm_tmux_session` | string | Default tmux session name for the `devmux` helper | `dev` |
 | `dev_vm_npm_prefix` | path | User-local npm global prefix | `/home/example_user/.npm-global` |
+| `standard_ssh_allow_tcp_forwarding` | bool | SSH TCP forwarding override for editor remoting; VM2 playbook defaults to `true` | `true` |
+| `standard_ssh_max_sessions` | integer | SSH session channel limit; VM2 playbook defaults to `10` | `10` |
 | `vm2_selinux_extra_booleans` | list | VM2 SELinux booleans passed into `standard_selinux_extra_booleans` | `[{name: domain_can_mmap_files, state: true}]` |
 
 The `dev_vm` role uses `user_name` as the interactive SSH/dev user and installs user-local npm packages under `/home/{{ user_name }}/.npm-global`.

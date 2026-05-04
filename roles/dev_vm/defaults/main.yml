@@ -23,6 +23,7 @@ dev_vm_packages:
   - tar
   - ripgrep
   - fd-find
+  - bubblewrap
   - podman
   - golang
   - rust

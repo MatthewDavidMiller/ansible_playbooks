@@ -90,7 +90,9 @@ assert_no_fixed_match "UsePAM no" "SSH keeps PAM session/account controls availa
 assert_match "PasswordAuthentication no" "SSH disables password authentication" roles/standard_ssh/templates/10-standard-hardening.conf.j2
 assert_match "PermitRootLogin no" "SSH disables root login" roles/standard_ssh/templates/10-standard-hardening.conf.j2
 assert_match "X11Forwarding no" "SSH disables X11 forwarding" roles/standard_ssh/templates/10-standard-hardening.conf.j2
-assert_match "AllowTcpForwarding no" "SSH disables TCP forwarding by default" roles/standard_ssh/templates/10-standard-hardening.conf.j2
+assert_match "standard_ssh_allow_tcp_forwarding:[[:space:]]*false" "SSH disables TCP forwarding by default" roles/standard_ssh/defaults/main.yml
+assert_match "AllowTcpForwarding .*standard_ssh_allow_tcp_forwarding" "SSH renders TCP forwarding from the role default or host override" roles/standard_ssh/templates/10-standard-hardening.conf.j2
+assert_match "standard_ssh_allow_tcp_forwarding:[[:space:]]*true" "VM2 explicitly allows SSH TCP forwarding for editor remoting" vm2.yml
 assert_match "LogLevel VERBOSE" "SSH logs key auth details" roles/standard_ssh/templates/10-standard-hardening.conf.j2
 assert_match "dashboard-basic-auth@file" "Traefik dashboard requires BasicAuth middleware" roles/reverse_proxy/templates/dashboard.yml.j2
 assert_match "basicAuth:" "Traefik dashboard BasicAuth middleware is defined" roles/reverse_proxy/templates/security.yml.j2

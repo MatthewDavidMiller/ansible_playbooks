@@ -3,3 +3,9 @@
 # Optional account allowlist for SSH. Leave empty to avoid locking out
 # inventory-driven deployments that have not standardized on one login user.
 standard_ssh_allow_users: []
+
+# Keep forwarding disabled by default. Hosts that need editor remoting can opt in.
+standard_ssh_allow_tcp_forwarding: false
+
+# Keep the hardened default low; VS Code Remote SSH needs more concurrent sessions.
+standard_ssh_max_sessions: 2

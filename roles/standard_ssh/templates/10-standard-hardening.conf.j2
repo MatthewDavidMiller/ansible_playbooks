@@ -6,9 +6,9 @@ PermitEmptyPasswords no
 GSSAPIAuthentication no
 PermitRootLogin no
 X11Forwarding no
-AllowTcpForwarding no
+AllowTcpForwarding {{ standard_ssh_allow_tcp_forwarding | bool | ternary('yes', 'no') }}
 MaxAuthTries 3
-MaxSessions 2
+MaxSessions {{ standard_ssh_max_sessions | int }}
 LoginGraceTime 30
 ClientAliveInterval 300
 ClientAliveCountMax 2
