@@ -48,5 +48,8 @@ secret_env_dir: /etc/homelab/secrets
 # Known hosts entries mounted into the Semaphore container for SSH verification
 semaphore_known_hosts: ""
 
+# Non-internal Podman network used only for Semaphore's outbound SSH automation.
+semaphore_egress_network: semaphore_egress_net
+
 # Container image resolved from the approved artifact lock in vm1.yml
 semaphore_image: ""

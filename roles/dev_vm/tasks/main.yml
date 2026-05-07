@@ -48,6 +48,80 @@
     PATH: "{{ dev_vm_npm_prefix }}/bin:{{ ansible_env.PATH }}"
   loop: "{{ dev_vm_npm_global_packages }}"
 
+- name: Ensure user-local Python directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ dev_vm_user }}"
+    mode: "0755"
+  loop:
+    - "{{ dev_vm_python_user_base }}"
+    - "{{ dev_vm_python_user_base }}/bin"
+
+- name: Install Python CLI tools for dev user
+  ansible.builtin.pip:
+    name: "{{ item }}"
+    extra_args: --user
+    state: present
+  become: true
+  become_user: "{{ dev_vm_user }}"
+  environment:
+    HOME: "/home/{{ dev_vm_user }}"
+    PATH: "{{ dev_vm_python_user_base }}/bin:{{ ansible_env.PATH }}"
+  loop: "{{ dev_vm_python_user_packages }}"
+
+- name: Expose user-local Python binaries on login shells
+  ansible.builtin.copy:
+    dest: /etc/profile.d/dev-vm-python.sh
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible.
+      if [ "$USER" = "{{ dev_vm_user }}" ] && [ -d "{{ dev_vm_python_user_base }}/bin" ]; then
+          case ":$PATH:" in
+              *":{{ dev_vm_python_user_base }}/bin:"*) ;;
+              *) PATH="{{ dev_vm_python_user_base }}/bin:$PATH" ;;
+          esac
+      fi
+      export PATH
+
+- name: Check for repo-pinned Ansible collection requirements
+  ansible.builtin.stat:
+    path: "{{ dev_vm_ansible_collection_requirements }}"
+  register: dev_vm_collection_requirements
+  when: dev_vm_install_project_collections | bool
+
+- name: Ensure repo Ansible collections path exists
+  ansible.builtin.file:
+    path: "{{ dev_vm_ansible_collection_path }}"
+    state: directory
+    owner: "{{ dev_vm_user }}"
+    mode: "0755"
+  when:
+    - dev_vm_install_project_collections | bool
+    - dev_vm_collection_requirements.stat.exists | default(false)
+
+- name: Install repo-pinned Ansible collections
+  ansible.builtin.command:
+    argv:
+      - ansible-galaxy
+      - collection
+      - install
+      - -r
+      - "{{ dev_vm_ansible_collection_requirements }}"
+      - -p
+      - "{{ dev_vm_ansible_collection_path }}"
+  become: true
+  become_user: "{{ dev_vm_user }}"
+  environment:
+    HOME: "/home/{{ dev_vm_user }}"
+  register: dev_vm_ansible_collection_install
+  changed_when: "'Nothing to do' not in dev_vm_ansible_collection_install.stdout"
+  when:
+    - dev_vm_install_project_collections | bool
+    - dev_vm_collection_requirements.stat.exists | default(false)
+
 - name: Expose user-local npm binaries on login shells
   ansible.builtin.copy:
     dest: /etc/profile.d/dev-vm-npm.sh

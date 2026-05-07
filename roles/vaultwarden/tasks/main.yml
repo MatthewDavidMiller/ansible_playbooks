@@ -27,10 +27,37 @@
       - podman
       - network
       - create
+      - --internal
       - --subnet
       - 172.16.1.16/29
       - vaultwarden_container_net
   when: vaultwarden_network.rc != 0
+
+- name: Remove non-internal vaultwarden proxy network
+  ansible.builtin.command:
+    argv:
+      - podman
+      - network
+      - rm
+      - --force
+      - --time
+      - "30"
+      - vaultwarden_container_net
+  when: vaultwarden_network.rc == 0
+    and not ((vaultwarden_network.stdout | from_json | first).internal | default((vaultwarden_network.stdout | from_json | first).Internal | default(false)) | bool)
+
+- name: Recreate vaultwarden proxy network as internal
+  ansible.builtin.command:
+    argv:
+      - podman
+      - network
+      - create
+      - --internal
+      - --subnet
+      - 172.16.1.16/29
+      - vaultwarden_container_net
+  when: vaultwarden_network.rc == 0
+    and not ((vaultwarden_network.stdout | from_json | first).internal | default((vaultwarden_network.stdout | from_json | first).Internal | default(false)) | bool)
 
 - name: Create Vaultwarden container path
   ansible.builtin.file:

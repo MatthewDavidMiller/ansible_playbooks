@@ -27,17 +27,119 @@
       - (config_name.proxy_upstream_port | int) > 0
       - (config_name.proxy_upstream_port | int) <= 65535
       - config_name.container_destination | length > 0
+      - config_name.proxy_network is defined
+      - config_name.proxy_network is match('^[A-Za-z0-9_.-]+$')
+      - config_name.proxy_network not in reverse_proxy_forbidden_networks
     fail_msg: "Each proxy_config entry needs a safe name, FQDN, http/https upstream, valid port, and container destination."
   loop: "{{ proxy_config }}"
   loop_control:
     loop_var: config_name
+  vars:
+    reverse_proxy_forbidden_networks:
+      - nextcloud_container_net
 
 - name: Validate reverse proxy route names are unique
   ansible.builtin.assert:
     that:
       - proxy_config | map(attribute='name') | list | unique | length == proxy_config | length
       - proxy_config | map(attribute='proxy_fqdn') | list | unique | length == proxy_config | length
+      - traefik_dashboard_fqdn not in (proxy_config | map(attribute='proxy_fqdn') | list)
     fail_msg: "proxy_config route names and FQDNs must be unique."
+
+- name: Build Traefik app network list
+  ansible.builtin.set_fact:
+    traefik_app_networks: "{{ proxy_config | map(attribute='proxy_network') | list | unique }}"
+
+- name: Validate Traefik egress network
+  ansible.builtin.assert:
+    that:
+      - traefik_egress_network is match('^[A-Za-z0-9_.-]+$')
+      - traefik_egress_network not in traefik_app_networks
+      - traefik_egress_network != 'nextcloud_container_net'
+    fail_msg: "traefik_egress_network must be a safe dedicated non-backend network name."
+
+- name: Inspect Traefik egress network
+  ansible.builtin.command:
+    argv:
+      - podman
+      - network
+      - inspect
+      - "{{ traefik_egress_network }}"
+  register: traefik_egress_network_inspect
+  changed_when: false
+  failed_when: false
+
+- name: Create Traefik egress network
+  ansible.builtin.command:
+    argv:
+      - podman
+      - network
+      - create
+      - "{{ traefik_egress_network }}"
+  when: traefik_egress_network_inspect.rc != 0
+
+- name: Inspect route proxy networks
+  ansible.builtin.command:
+    argv:
+      - podman
+      - network
+      - inspect
+      - "{{ route_network }}"
+  register: route_proxy_networks
+  changed_when: false
+  failed_when: false
+  loop: "{{ traefik_app_networks }}"
+  loop_control:
+    loop_var: route_network
+
+- name: Remove non-internal route proxy networks
+  ansible.builtin.command:
+    argv:
+      - podman
+      - network
+      - rm
+      - --force
+      - --time
+      - "30"
+      - "{{ route_network.item }}"
+  loop: "{{ route_proxy_networks.results }}"
+  loop_control:
+    loop_var: route_network
+  when:
+    - route_network.rc == 0
+    - not ((route_network.stdout | from_json | first).internal | default((route_network.stdout | from_json | first).Internal | default(false)) | bool)
+
+- name: Create internal route proxy networks with deterministic subnets
+  ansible.builtin.command:
+    argv:
+      - podman
+      - network
+      - create
+      - --internal
+      - --subnet
+      - "{{ route_proxy_network_subnets[route_network.item] }}"
+      - "{{ route_network.item }}"
+  loop: "{{ route_proxy_networks.results }}"
+  loop_control:
+    loop_var: route_network
+  when:
+    - route_network.rc != 0 or not ((route_network.stdout | from_json | first).internal | default((route_network.stdout | from_json | first).Internal | default(false)) | bool)
+    - route_network.item in route_proxy_network_subnets
+
+- name: Create internal route proxy networks
+  ansible.builtin.command:
+    argv:
+      - podman
+      - network
+      - create
+      - --internal
+      - "{{ route_network.item }}"
+  loop: "{{ route_proxy_networks.results }}"
+  loop_control:
+    loop_var: route_network
+  when:
+    - route_network.rc != 0 or not ((route_network.stdout | from_json | first).internal | default((route_network.stdout | from_json | first).Internal | default(false)) | bool)
+    - route_network.item not in route_proxy_network_subnets
 
 - name: Create traefik container path
   ansible.builtin.file:

@@ -16,10 +16,37 @@
       - podman
       - network
       - create
+      - --internal
       - --subnet
       - 172.16.1.24/29
       - navidrome_container_net
   when: navidrome_network.rc != 0
+
+- name: Remove non-internal navidrome proxy network
+  ansible.builtin.command:
+    argv:
+      - podman
+      - network
+      - rm
+      - --force
+      - --time
+      - "30"
+      - navidrome_container_net
+  when: navidrome_network.rc == 0
+    and not ((navidrome_network.stdout | from_json | first).internal | default((navidrome_network.stdout | from_json | first).Internal | default(false)) | bool)
+
+- name: Recreate navidrome proxy network as internal
+  ansible.builtin.command:
+    argv:
+      - podman
+      - network
+      - create
+      - --internal
+      - --subnet
+      - 172.16.1.24/29
+      - navidrome_container_net
+  when: navidrome_network.rc == 0
+    and not ((navidrome_network.stdout | from_json | first).internal | default((navidrome_network.stdout | from_json | first).Internal | default(false)) | bool)
 
 - name: Create Navidrome managed paths
   ansible.builtin.file:

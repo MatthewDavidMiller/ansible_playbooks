@@ -22,6 +22,7 @@ exec /usr/bin/podman run \
 --env TZ \
 --network semaphore_container_net \
 --network nextcloud_container_net \
+--network {{ semaphore_egress_network }} \
 --volume /etc/semaphore:/etc/semaphore:Z \
 --volume /var/lib/semaphore:/var/lib/semaphore:Z \
 --read-only \

@@ -129,7 +129,11 @@ cleanup_all_test_containers
 
 echo "=== Container Security Flag Tests ==="
 echo "Targets: ${SELECTED_TESTS[*]}"
-echo "Docker: $($DOCKER --version)"
+if command -v "$DOCKER" >/dev/null 2>&1; then
+  echo "Docker: $($DOCKER --version)"
+else
+  echo "Docker: not available (required only for runtime targets)"
+fi
 echo "User: $(id)"
 echo ""
 
@@ -137,9 +141,26 @@ if should_run static; then
 echo "--- TEST-00: Static hardening and network containment policy ---"
 assert_file_contains "--network=nextcloud_proxy_net" "Nextcloud: joins dedicated proxy network" roles/nextcloud/templates/nextcloud_container.sh.j2
 assert_file_contains "--network=paperless_proxy_net" "Paperless: joins dedicated proxy network" roles/paperless_ngx/templates/paperless_ngx.sh.j2
-assert_file_contains "nextcloud_proxy_net" "Inventory: Traefik reaches Nextcloud through proxy network" example_inventory.yml
-assert_file_contains "paperless_proxy_net" "Inventory: Traefik reaches Paperless through proxy network" example_inventory.yml
-assert_file_not_contains "- nextcloud_container_net" "Inventory: Traefik is not placed on database/cache backend network" example_inventory.yml
+assert_file_contains "proxy_network: \"nextcloud_proxy_net\"" "Inventory: Nextcloud route declares its proxy network" example_inventory.yml
+assert_file_contains "proxy_network: \"paperless_proxy_net\"" "Inventory: Paperless route declares its proxy network" example_inventory.yml
+assert_file_not_contains "traefik_networks:" "Inventory: Traefik networks are derived from route config" example_inventory.yml
+assert_file_contains "proxy_network" "reverse_proxy: route validation requires explicit proxy network metadata" roles/reverse_proxy/tasks/main.yml
+assert_file_contains "traefik_egress_network" "Traefik: uses a dedicated egress network for DNS-01/outbound traffic" roles/reverse_proxy/templates/traefik_container.sh.j2
+assert_file_contains "attribute='proxy_network'" "Traefik: app network membership is derived from routes" roles/reverse_proxy/templates/traefik_container.sh.j2
+assert_file_contains "--internal" "Nextcloud: backend/proxy networks are created as internal networks" roles/nextcloud/tasks/main.yml
+assert_file_contains "--internal" "Paperless: proxy network is created as an internal network" roles/paperless_ngx/tasks/main.yml
+assert_file_contains "--internal" "Navidrome: proxy network is created as an internal network" roles/navidrome/tasks/main.yml
+assert_file_contains "--internal" "Vaultwarden: proxy network is created as an internal network" roles/vaultwarden/tasks/main.yml
+assert_file_contains "--internal" "Semaphore: proxy network is created as an internal network" roles/semaphore/tasks/main.yml
+assert_file_contains "Create internal route proxy networks" "reverse_proxy: creates route proxy networks before service roles run" roles/reverse_proxy/tasks/main.yml
+assert_file_contains "Remove non-internal route proxy networks" "reverse_proxy: recreates legacy non-internal route networks" roles/reverse_proxy/tasks/main.yml
+assert_file_contains "--force" "reverse_proxy: force-removes attached legacy proxy networks before recreating them" roles/reverse_proxy/tasks/main.yml
+assert_file_not_contains "--network=nextcloud_container_net" "Traefik: is not placed on database/cache backend network" roles/reverse_proxy/templates/traefik_container.sh.j2
+assert_file_not_contains "-p " "Nextcloud: does not publish host ports" roles/nextcloud/templates/nextcloud_container.sh.j2
+assert_file_not_contains "-p " "Paperless: does not publish host ports" roles/paperless_ngx/templates/paperless_ngx.sh.j2
+assert_file_not_contains "-p " "Navidrome: does not publish host ports" roles/navidrome/templates/navidrome_container.sh.j2
+assert_file_not_contains "-p " "Vaultwarden: does not publish host ports" roles/vaultwarden/templates/vaultwarden.sh.j2
+assert_file_not_contains "-p " "Semaphore: does not publish host ports" roles/semaphore/templates/semaphore.sh.j2
 assert_file_contains "--read-only" "Traefik: read-only root filesystem is configured" roles/reverse_proxy/templates/traefik_container.sh.j2
 assert_file_contains "--read-only" "Postgres: read-only root filesystem is configured" roles/nextcloud/templates/postgres_container.sh.j2
 assert_file_contains "--mount type=tmpfs,destination=/var/run/postgresql,tmpfs-size=16M,tmpfs-mode=0750,U=true" "Postgres: socket directory uses a service-owned tmpfs mount" roles/nextcloud/templates/postgres_container.sh.j2

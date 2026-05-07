@@ -25,8 +25,61 @@
       - podman
       - network
       - create
+      - --internal
       - semaphore_container_net
   when: semaphore_network.rc != 0
+
+- name: Remove non-internal semaphore proxy network
+  ansible.builtin.command:
+    argv:
+      - podman
+      - network
+      - rm
+      - --force
+      - --time
+      - "30"
+      - semaphore_container_net
+  when: semaphore_network.rc == 0
+    and not ((semaphore_network.stdout | from_json | first).internal | default((semaphore_network.stdout | from_json | first).Internal | default(false)) | bool)
+
+- name: Recreate semaphore proxy network as internal
+  ansible.builtin.command:
+    argv:
+      - podman
+      - network
+      - create
+      - --internal
+      - semaphore_container_net
+  when: semaphore_network.rc == 0
+    and not ((semaphore_network.stdout | from_json | first).internal | default((semaphore_network.stdout | from_json | first).Internal | default(false)) | bool)
+
+- name: Validate Semaphore egress network
+  ansible.builtin.assert:
+    that:
+      - semaphore_egress_network is match('^[A-Za-z0-9_.-]+$')
+      - semaphore_egress_network != 'nextcloud_container_net'
+      - semaphore_egress_network != 'semaphore_container_net'
+    fail_msg: "semaphore_egress_network must be a safe dedicated non-backend network name."
+
+- name: Inspect semaphore egress network
+  ansible.builtin.command:
+    argv:
+      - podman
+      - network
+      - inspect
+      - "{{ semaphore_egress_network }}"
+  register: semaphore_egress_network_inspect
+  changed_when: false
+  failed_when: false
+
+- name: Create semaphore egress network
+  ansible.builtin.command:
+    argv:
+      - podman
+      - network
+      - create
+      - "{{ semaphore_egress_network }}"
+  when: semaphore_egress_network_inspect.rc != 0
 
 - name: Create semaphore secret directory
   ansible.builtin.file:

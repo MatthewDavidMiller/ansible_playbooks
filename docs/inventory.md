@@ -40,7 +40,7 @@ VM1 is the single maintained service host. It runs Traefik, PostgreSQL, Redis, N
 | `homelab_domain` | string | Root domain used by DDNS | `example.com` |
 | `homelab_subdomain` | string | DDNS subdomain for VM1 | `home` |
 | `traefik_path` | path | Traefik data directory | `/opt/traefik` |
-| `traefik_networks` | list | Proxy-facing Podman networks Traefik must join | `[nextcloud_proxy_net, paperless_proxy_net, navidrome_container_net, vaultwarden_container_net, semaphore_container_net]` |
+| `traefik_egress_network` | string | Non-internal Podman network Traefik uses for ACME DNS-01/outbound traffic | `traefik_egress_net` |
 | `traefik_dashboard_fqdn` | string | FQDN for the Traefik dashboard | `traefik.example.com` |
 | `traefik_dashboard_basic_auth_users` | list | htpasswd-style BasicAuth users for the Traefik dashboard | `["admin:$apr1$..."]` |
 | `traefik_acme_email` | string | ACME account email | `admin@example.com` |
@@ -115,11 +115,12 @@ VM2 is the SSH/tmux development VM for Codex and Claude Code. It inherits the sh
 | `ansible_host` | string | Hostname or IP | `192.168.1.121` |
 | `dev_vm_tmux_session` | string | Default tmux session name for the `devmux` helper | `dev` |
 | `dev_vm_npm_prefix` | path | User-local npm global prefix | `/home/example_user/.npm-global` |
+| `dev_vm_ansible_project_path` | path | VM2 checkout path used to install pinned Ansible collections | `/home/example_user/matt_dev/ansible_playbooks` |
 | `standard_ssh_allow_tcp_forwarding` | bool | SSH TCP forwarding override for editor remoting; VM2 playbook defaults to `true` | `true` |
 | `standard_ssh_max_sessions` | integer | SSH session channel limit; VM2 playbook defaults to `10` | `10` |
 | `vm2_selinux_extra_booleans` | list | VM2 SELinux booleans passed into `standard_selinux_extra_booleans` | `[{name: domain_can_mmap_files, state: true}]` |
 
-The `dev_vm` role uses `user_name` as the interactive SSH/dev user and installs user-local npm packages under `/home/{{ user_name }}/.npm-global`.
+The `dev_vm` role uses `user_name` as the interactive SSH/dev user, installs user-local npm packages under `/home/{{ user_name }}/.npm-global`, installs Python CLI validation tools under `/home/{{ user_name }}/.local`, and installs pinned Ansible collections from the checkout when `collections/requirements.yml` exists.
 
 ---
 
@@ -147,6 +148,7 @@ Each `proxy_config` entry renders one Traefik dynamic config file in `{{ traefik
 | `proxy_upstream_port` | string | Yes | Upstream container port | `80` |
 | `proxy_upstream_protocol` | string | Yes | Upstream protocol | `http` |
 | `container_destination` | string | Yes | Podman DNS backend name | `nextcloud.dns.podman` |
+| `proxy_network` | string | Yes | Internal Podman network shared by Traefik and this backend | `nextcloud_proxy_net` |
 | `proxy_allow_encoded_slash` | boolean | No | Enable encoded-slash forwarding when needed | `true` |
 | `proxy_management_only` | boolean | No | Restrict the route to the management network | `true` |
 
@@ -154,11 +156,13 @@ All entries use the generic `service_proxy.yml.j2` template.
 
 ---
 
-## `traefik_networks`
+## Route Proxy Networks
 
-`traefik_networks` lists every proxy-facing Podman network Traefik must join so it can reach proxied backends by Podman DNS name (`<container>.dns.podman`).
+Each `proxy_config` entry declares its `proxy_network`. The `reverse_proxy` role derives Traefik's app-facing network membership from those route entries and creates missing route proxy networks as internal Podman networks.
 
-Do not include backend-only database/cache networks such as `nextcloud_container_net`; Nextcloud and Paperless use dedicated proxy networks for ingress while remaining attached to the backend network for PostgreSQL and Redis.
+Do not use backend-only database/cache networks such as `nextcloud_container_net` as route proxy networks. Nextcloud and Paperless use dedicated proxy networks for ingress while remaining attached to the backend network for PostgreSQL and Redis.
+
+Container egress is denied by default through internal app/backend networks. Traefik uses `traefik_egress_network` for ACME DNS-01 and outbound proxy needs; Semaphore uses `semaphore_egress_network` for SSH automation.
 
 ## Traefik Dashboard BasicAuth
 

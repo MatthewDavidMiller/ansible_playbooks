@@ -33,3 +33,14 @@ dev_vm_packages:
 dev_vm_npm_global_packages:
   - '@openai/codex'
   - '@anthropic-ai/claude-code'
+
+# User-local Python CLI tools needed for validating this repository.
+dev_vm_python_user_base: "/home/{{ dev_vm_user }}/.local"
+dev_vm_python_user_packages:
+  - ansible-lint
+
+# Install repo-pinned collections when this checkout exists on the dev VM.
+dev_vm_install_project_collections: true
+dev_vm_ansible_project_path: "/home/{{ dev_vm_user }}/matt_dev/ansible_playbooks"
+dev_vm_ansible_collection_requirements: "{{ dev_vm_ansible_project_path }}/collections/requirements.yml"
+dev_vm_ansible_collection_path: "{{ dev_vm_ansible_project_path }}/collections"

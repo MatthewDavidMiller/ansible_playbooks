@@ -5,6 +5,7 @@ profile: moderate
 exclude_paths:
   - .git/
   - archive/
+  - collections/ansible_collections/
   - example_inventory.yml
   - reboot_vms.yml
   - standalone_tasks/
@@ -13,6 +14,7 @@ exclude_paths:
 skip_list:
   - yaml[line-length] # Long podman run commands are unavoidable
   - name[template] # Template expressions in task names are acceptable here
+  - var-naming[no-role-prefix] # Roles intentionally consume shared inventory variables
 
 # Warn-only rules (don't fail CI, just report)
 warn_list:

@@ -18,10 +18,37 @@
       - podman
       - network
       - create
+      - --internal
       - --subnet
       - 172.16.1.0/28
       - nextcloud_container_net
   when: nextcloud_network.rc != 0
+
+- name: Remove non-internal nextcloud backend network
+  ansible.builtin.command:
+    argv:
+      - podman
+      - network
+      - rm
+      - --force
+      - --time
+      - "30"
+      - nextcloud_container_net
+  when: nextcloud_network.rc == 0
+    and not ((nextcloud_network.stdout | from_json | first).internal | default((nextcloud_network.stdout | from_json | first).Internal | default(false)) | bool)
+
+- name: Recreate nextcloud backend network as internal
+  ansible.builtin.command:
+    argv:
+      - podman
+      - network
+      - create
+      - --internal
+      - --subnet
+      - 172.16.1.0/28
+      - nextcloud_container_net
+  when: nextcloud_network.rc == 0
+    and not ((nextcloud_network.stdout | from_json | first).internal | default((nextcloud_network.stdout | from_json | first).Internal | default(false)) | bool)
 
 - name: Inspect nextcloud proxy network
   ansible.builtin.command:
@@ -40,10 +67,37 @@
       - podman
       - network
       - create
+      - --internal
       - --subnet
       - 172.16.1.32/29
       - nextcloud_proxy_net
   when: nextcloud_proxy_network.rc != 0
+
+- name: Remove non-internal nextcloud proxy network
+  ansible.builtin.command:
+    argv:
+      - podman
+      - network
+      - rm
+      - --force
+      - --time
+      - "30"
+      - nextcloud_proxy_net
+  when: nextcloud_proxy_network.rc == 0
+    and not ((nextcloud_proxy_network.stdout | from_json | first).internal | default((nextcloud_proxy_network.stdout | from_json | first).Internal | default(false)) | bool)
+
+- name: Recreate nextcloud proxy network as internal
+  ansible.builtin.command:
+    argv:
+      - podman
+      - network
+      - create
+      - --internal
+      - --subnet
+      - 172.16.1.32/29
+      - nextcloud_proxy_net
+  when: nextcloud_proxy_network.rc == 0
+    and not ((nextcloud_proxy_network.stdout | from_json | first).internal | default((nextcloud_proxy_network.stdout | from_json | first).Internal | default(false)) | bool)
 
 - name: Create nextcloud secret directory
   ansible.builtin.file:

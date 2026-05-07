@@ -9,7 +9,7 @@ Primary risks:
 - Public HTTP(S) service compromise through an exposed application.
 - Credential leakage from inventory, rendered env files, logs, or backup scripts.
 - Accidental supply-chain drift from mutable container tags or unreviewed image pulls.
-- Lateral movement from Traefik or an application container into the database/cache network.
+- Lateral movement from Traefik or an application container into the database/cache network or outbound internet.
 - Backup damage or data exposure from permissive filesystem modes.
 
 Out of scope for the current low-disruption design:
@@ -25,7 +25,7 @@ Out of scope for the current low-disruption design:
 - SELinux remains enforcing on maintained VMs. VM2 enables `domain_can_mmap_files` for standard dev tooling; additional host-specific SELinux exceptions should be explicit variables, not ad hoc permissive mode.
 - Traefik is the only intended public ingress on ports `80` and `443`. Dashboard/admin routes require management-source allowlisting and BasicAuth.
 - Container images are resolved from `artifacts/containers.lock.yml`, deployed as immutable digest refs, pre-pulled by `standard_podman`, and launched with `--pull=never`.
-- Containers use explicit network placement, memory/PID limits, `no-new-privileges`, reduced capabilities, and read-only root filesystems where compatible.
+- Containers use explicit network placement, internal app/backend networks for deny-by-default egress, memory/PID limits, `no-new-privileges`, reduced capabilities, and read-only root filesystems where compatible.
 - Runtime secrets are rendered under `secret_env_dir` as root-owned `0600` env files. Secret-writing tasks use `no_log: true`.
 - Backups use root-owned scripts and restrictive file modes. Temporary backup handling should use private permissions and cleanup traps.
 
@@ -33,6 +33,7 @@ Out of scope for the current low-disruption design:
 
 - Do not add a public host port unless it is intentional ingress through Traefik.
 - Do not put Traefik on the backend database/cache network.
+- Do not add container egress by placing apps on non-internal networks unless the operational need is documented.
 - Do not use mutable image references in maintained deployment paths.
 - Do not remove `no_log` from secret rendering tasks.
 - Do not create service paths without explicit owner, group, and mode.

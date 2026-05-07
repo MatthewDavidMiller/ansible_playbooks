@@ -118,5 +118,8 @@ Configures VM2 as an SSH/tmux development host for Codex and Claude Code.
 | `dev_vm_tmux_session` | string | Default tmux session name for `devmux` | `dev` |
 | `dev_vm_packages` | list | Rocky package baseline for the dev VM | `[tmux, git, nodejs]` |
 | `dev_vm_npm_global_packages` | list | npm packages installed for the dev user | `["@openai/codex", "@anthropic-ai/claude-code"]` |
+| `dev_vm_python_user_packages` | list | pip `--user` CLI packages installed for validation tooling | `["ansible-lint"]` |
+| `dev_vm_ansible_project_path` | path | Checkout path used to find pinned collection requirements | `/home/example_user/matt_dev/ansible_playbooks` |
+| `dev_vm_install_project_collections` | boolean | Install repo-pinned Ansible collections when the checkout exists | `true` |
 
-**Key behavior:** installs heavy workstation packages, keeps npm global packages under the dev user's home directory, exposes that bin path through `/etc/profile.d/dev-vm-npm.sh`, and installs a `devmux` helper that attaches to or creates a persistent tmux session. Interactive SSH logins for the dev user show a short `devmux` usage hint, including `Ctrl-b`, then `d`, to detach from tmux. `vm2.yml` pairs this role with a VM2-only SELinux `domain_can_mmap_files` boolean for standard dev tooling.
+**Key behavior:** installs heavy workstation packages, keeps npm and Python CLI tools under the dev user's home directory, installs repo-pinned Ansible collections when the checkout exists, and installs a `devmux` helper that attaches to or creates a persistent tmux session. Interactive SSH logins for the dev user show a short `devmux` usage hint, including `Ctrl-b`, then `d`, to detach from tmux. `vm2.yml` pairs this role with a VM2-only SELinux `domain_can_mmap_files` boolean for standard dev tooling.

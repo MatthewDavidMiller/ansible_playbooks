@@ -8,7 +8,8 @@ set +a
 exec /usr/bin/podman run \
   --pull=never \
   --name=traefik \
-{% for net in traefik_networks %}
+  --network={{ traefik_egress_network }} \
+{% for net in traefik_app_networks | default(proxy_config | map(attribute='proxy_network') | list | unique, true) %}
   --network={{ net }} \
 {% endfor %}
   --env PORKBUN_API_KEY \

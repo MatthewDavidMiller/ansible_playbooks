@@ -1,4 +1,5 @@
 env/
+.ansible/
 .vscode
 homelab_inventory.yml
 .devcontainer
@@ -6,6 +7,7 @@ homelab_inventory.yml
 __pycache__/
 *.pyc
 logs/
+collections/ansible_collections/
 .trivyignore
 .trivyignore.yaml
 trivy-vex.json

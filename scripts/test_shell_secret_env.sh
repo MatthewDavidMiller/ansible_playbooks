@@ -96,15 +96,20 @@ semaphore_admin_password: 'sem;admin "quoted" \ slash & dollars \$HOME and ''sin
 semaphore_encryption_key: 'enc;key "quoted" \ slash & dollars \$HOME and ''single'''
 semaphore_backup_location: 'Nextcloud:semaphore_backup'
 traefik_image: 'docker.io/traefik@sha256:1111111111111111111111111111111111111111111111111111111111111111'
-traefik_networks:
-  - 'proxy_net'
-  - 'backend_net'
+traefik_egress_network: 'traefik_egress_net'
 traefik_dashboard_basic_auth_users:
   - 'admin:\$apr1\$example\$T2v8QdKqzJ8D7c4s1bYhZ/'
 traefik_dashboard_fqdn: 'traefik.example.com'
 management_network: '192.168.1.0/24'
 ip_ansible: '192.168.1.10/32'
 traefik_path: '/srv/traefik'
+proxy_config:
+  - name: 'nextcloud_proxy'
+    proxy_fqdn: 'cloud.example.com'
+    proxy_upstream_port: '80'
+    proxy_upstream_protocol: 'http'
+    container_destination: 'nextcloud.dns.podman'
+    proxy_network: 'nextcloud_proxy_net'
 postgres_image: 'docker.io/postgres@sha256:2222222222222222222222222222222222222222222222222222222222222222'
 postgres_path: '/srv/postgres'
 nextcloud_image: 'docker.io/nextcloud@sha256:4444444444444444444444444444444444444444444444444444444444444444'
@@ -117,6 +122,7 @@ paperless_export_path: '/srv/paperless/export'
 paperless_consume_path: '/srv/paperless/consume'
 backup_local: true
 semaphore_image: 'docker.io/semaphoreui/semaphore@sha256:8888888888888888888888888888888888888888888888888888888888888888'
+semaphore_egress_network: 'semaphore_egress_net'
 navidrome_path: '/srv/navidrome'
 navidrome_image: 'docker.io/deluan/navidrome@sha256:6666666666666666666666666666666666666666666666666666666666666666'
 navidrome_backup_location: 'Nextcloud:navidrome_backup'
@@ -287,6 +293,9 @@ assert_not_contains "$render_dir/traefik_container.sh" "--env-file" "traefik_con
 assert_contains "$render_dir/traefik_container.sh" '. "/etc/homelab/secrets/traefik.env"' "traefik_container.sh sources traefik.env"
 assert_contains "$render_dir/traefik_container.sh" "--env PORKBUN_API_KEY" "traefik_container.sh passes PORKBUN_API_KEY"
 assert_contains "$render_dir/traefik_container.sh" "--env PORKBUN_SECRET_API_KEY" "traefik_container.sh passes PORKBUN_SECRET_API_KEY"
+assert_contains "$render_dir/traefik_container.sh" "--network=traefik_egress_net" "traefik_container.sh joins dedicated egress network"
+assert_contains "$render_dir/traefik_container.sh" "--network=nextcloud_proxy_net" "traefik_container.sh joins route-declared proxy network"
+assert_not_contains "$render_dir/traefik_container.sh" "--network=nextcloud_container_net" "traefik_container.sh does not join backend network"
 assert_not_contains "$render_dir/traefik_container.sh" "podman pull" "traefik_container.sh no longer calls podman pull"
 assert_contains "$render_dir/traefik_container.sh" "--pull=never" "traefik_container.sh uses --pull=never"
 assert_contains "$render_dir/security.yml" "dashboard-basic-auth:" "security.yml defines dashboard BasicAuth middleware"

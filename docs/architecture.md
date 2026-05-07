@@ -44,7 +44,7 @@ VM1 runs all maintained services on a single Rocky Linux 10 host to reduce resou
 
 **Key design decisions:**
 
-- Traefik joins only proxy-facing container networks via `traefik_networks`; it is not a member of the backend database/cache network.
+- Traefik joins only route-declared proxy networks plus its dedicated egress network; it is not a member of the backend database/cache network.
 - SELinux stays enforcing.
 - PostgreSQL is shared across Nextcloud, Paperless, and Semaphore, but each application gets its own role and password.
 - Runtime secrets are rendered to root-only env files in `secret_env_dir`.
@@ -54,7 +54,7 @@ VM1 runs all maintained services on a single Rocky Linux 10 host to reduce resou
 
 ## Container Network Isolation
 
-Publicly proxied services have proxy-facing Podman networks, while PostgreSQL and Redis stay on a backend-only network. Traefik resolves backends through the proxy networks and does not join the database/cache network.
+Publicly proxied services have internal proxy-facing Podman networks, while PostgreSQL and Redis stay on an internal backend-only network. Traefik resolves backends through route-declared proxy networks and does not join the database/cache network. Container egress is denied by default except for dedicated egress networks assigned to Traefik and Semaphore.
 
 **VM1 networks:**
 
@@ -66,10 +66,12 @@ Publicly proxied services have proxy-facing Podman networks, while PostgreSQL an
 | `navidrome_container_net` | 172.16.1.24/29 | navidrome, traefik |
 | `vaultwarden_container_net` | 172.16.1.16/29 | vaultwarden, traefik |
 | `semaphore_container_net` | (auto) | semaphore, traefik |
+| `traefik_egress_net` | (auto) | traefik |
+| `semaphore_egress_net` | (auto) | semaphore |
 
-Traefik resolves backends via Podman DNS (`nextcloud.dns.podman`, etc.) and must be a member of every proxy-facing network it uses. On VM1 it uses the `traefik_networks` list in inventory.
+The app/backend networks are created with Podman's `--internal` flag. If an old non-internal app/backend network already exists, the playbook removes it and recreates it as internal. Traefik resolves backends via Podman DNS (`nextcloud.dns.podman`, etc.) and derives its app-facing network list from each `proxy_config[*].proxy_network` value.
 
-See [inventory.md — traefik_networks](inventory.md#traefik_networks) and [roles/services.md#reverse_proxy](roles/services.md#reverse_proxy).
+See [inventory.md — Route Proxy Networks](inventory.md#route-proxy-networks) and [roles/services.md#reverse_proxy](roles/services.md#reverse_proxy).
 
 ---
 

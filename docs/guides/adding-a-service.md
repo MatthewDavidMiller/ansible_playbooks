@@ -35,7 +35,7 @@ Use the existing active service roles as reference:
 
 - Add the role to `vm1.yml` in the correct order.
 - Add required variables to the `vm1` host entry in `inventory.yml`.
-- If Traefik must reach the service, add the service network to `traefik_networks`.
+- If Traefik must reach the service, add a dedicated internal proxy network and reference it with the route's `proxy_network`.
 - If the service depends on PostgreSQL or Redis, place it after `nextcloud`.
 - If the role changes live runtime behavior that VM1 stages until reboot, guard immediate-start behavior with `apply_runtime_changes_on_reboot`.
 

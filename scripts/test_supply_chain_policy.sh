@@ -101,6 +101,11 @@ assert_match "management_network != '0[.]0[.]0[.]0/0'" "reverse_proxy rejects br
 assert_match "ip_ansible != '0[.]0[.]0[.]0/0'" "reverse_proxy rejects broad Ansible CIDR" roles/reverse_proxy/tasks/main.yml
 assert_match "Validate reverse proxy route definitions" "reverse_proxy validates route definitions" roles/reverse_proxy/tasks/main.yml
 assert_match "Validate reverse proxy route names are unique" "reverse_proxy rejects duplicate route names and FQDNs" roles/reverse_proxy/tasks/main.yml
+assert_match "proxy_network" "reverse_proxy requires explicit route-owned proxy networks" roles/reverse_proxy/tasks/main.yml
+assert_match "Create internal route proxy networks" "reverse_proxy creates internal route proxy networks" roles/reverse_proxy/tasks/main.yml
+assert_match "Remove non-internal route proxy networks" "reverse_proxy recreates legacy non-internal route networks" roles/reverse_proxy/tasks/main.yml
+assert_match "traefik_egress_network" "Traefik uses a dedicated egress network" roles/reverse_proxy/templates/traefik_container.sh.j2
+assert_no_match "traefik_networks:" "maintained inventory does not use free-form Traefik network membership" example_inventory.yml
 assert_match "Validate firewalld ingress inputs" "firewalld validates ingress inputs before applying policy" roles/standard_firewalld/tasks/main.yml
 assert_match "management_network != '0[.]0[.]0[.]0/0'" "firewalld rejects broad management CIDR" roles/standard_firewalld/tasks/main.yml
 assert_match "ip_ansible != '0[.]0[.]0[.]0/0'" "firewalld rejects broad Ansible CIDR" roles/standard_firewalld/tasks/main.yml

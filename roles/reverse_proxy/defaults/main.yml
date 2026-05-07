@@ -5,10 +5,15 @@
 # Path to the Traefik container configuration directory
 traefik_path: ""
 
-# List of Podman network names Traefik joins to reach proxied containers.
-# Do not include backend-only database/cache networks.
-# e.g. [nextcloud_proxy_net, paperless_proxy_net, navidrome_container_net, ...]
-traefik_networks: []
+# Non-internal Podman network Traefik uses for ACME DNS-01 and outbound proxy needs.
+traefik_egress_network: traefik_egress_net
+
+# Optional deterministic subnets for internal route proxy networks.
+route_proxy_network_subnets:
+  nextcloud_proxy_net: 172.16.1.32/29
+  paperless_proxy_net: 172.16.1.40/29
+  navidrome_container_net: 172.16.1.24/29
+  vaultwarden_container_net: 172.16.1.16/29
 # Fully-qualified domain name for the Traefik dashboard
 traefik_dashboard_fqdn: ""
 
@@ -39,5 +44,5 @@ ip_ansible: ""
 
 # List of proxy config objects; each entry generates one Traefik dynamic config file.
 # Required keys per entry: name, proxy_fqdn, proxy_upstream_protocol,
-#                          container_destination, proxy_upstream_port
+#                          container_destination, proxy_upstream_port, proxy_network
 proxy_config: []
