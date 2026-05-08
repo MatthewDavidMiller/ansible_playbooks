@@ -20,7 +20,7 @@
       - create
       - --internal
       - --subnet
-      - 172.16.1.0/28
+      - "{{ nextcloud_backend_network_subnet }}"
       - nextcloud_container_net
   when: nextcloud_network.rc != 0
 
@@ -30,7 +30,7 @@
   vars:
     network_migration:
       name: nextcloud_container_net
-      subnet: 172.16.1.0/28
+      subnet: "{{ nextcloud_backend_network_subnet }}"
   when: nextcloud_network.rc == 0
     and apply_runtime_changes_on_reboot | default(false) | bool
     and not ((nextcloud_network.stdout | from_json | first).internal | default((nextcloud_network.stdout | from_json | first).Internal | default(false)) | bool)
@@ -57,7 +57,7 @@
       - create
       - --internal
       - --subnet
-      - 172.16.1.0/28
+      - "{{ nextcloud_backend_network_subnet }}"
       - nextcloud_container_net
   when: nextcloud_network.rc == 0
     and not (apply_runtime_changes_on_reboot | default(false) | bool)
@@ -82,7 +82,7 @@
       - create
       - --internal
       - --subnet
-      - 172.16.1.32/29
+      - "{{ route_proxy_network_subnets.nextcloud_proxy_net }}"
       - nextcloud_proxy_net
   when: nextcloud_proxy_network.rc != 0
 
@@ -92,7 +92,7 @@
   vars:
     network_migration:
       name: nextcloud_proxy_net
-      subnet: 172.16.1.32/29
+      subnet: "{{ route_proxy_network_subnets.nextcloud_proxy_net }}"
   when: nextcloud_proxy_network.rc == 0
     and apply_runtime_changes_on_reboot | default(false) | bool
     and not ((nextcloud_proxy_network.stdout | from_json | first).internal | default((nextcloud_proxy_network.stdout | from_json | first).Internal | default(false)) | bool)
@@ -119,7 +119,7 @@
       - create
       - --internal
       - --subnet
-      - 172.16.1.32/29
+      - "{{ route_proxy_network_subnets.nextcloud_proxy_net }}"
       - nextcloud_proxy_net
   when: nextcloud_proxy_network.rc == 0
     and not (apply_runtime_changes_on_reboot | default(false) | bool)

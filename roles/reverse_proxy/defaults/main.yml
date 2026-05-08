@@ -43,6 +43,18 @@ secret_env_dir: /etc/homelab/secrets
 # Traefik image reference resolved from the approved artifact lock in vm1.yml
 traefik_image: ""
 
+# Podman DNS aliases used on VM1 networks.
+container_dns:
+  domain: dns.podman
+  aliases:
+    nextcloud_proxy: nextcloud-proxy
+    paperless_proxy: paperless-proxy
+    navidrome_proxy: navidrome-proxy
+    vaultwarden_proxy: vaultwarden-proxy
+    semaphore_proxy: semaphore-proxy
+    traefik_proxy: traefik-proxy
+    traefik_egress: traefik-egress
+
 # Management network CIDR allowed to reach the Traefik dashboard (used in ip-allowlist middleware)
 management_network: ""
 

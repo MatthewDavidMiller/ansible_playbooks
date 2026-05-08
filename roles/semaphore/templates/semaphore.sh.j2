@@ -20,9 +20,9 @@ exec /usr/bin/podman run \
 --env SEMAPHORE_ACCESS_KEY_ENCRYPTION \
 --env ANSIBLE_SSH_ARGS \
 --env TZ \
---network semaphore_container_net \
---network nextcloud_container_net \
---network {{ semaphore_egress_network }} \
+--network=semaphore_container_net:alias={{ container_dns.aliases.semaphore_proxy }} \
+--network=nextcloud_container_net:alias={{ container_dns.aliases.semaphore_backend }} \
+--network={{ semaphore_egress_network }}:alias={{ container_dns.aliases.semaphore_egress }} \
 --volume /etc/semaphore:/etc/semaphore:Z \
 --volume /var/lib/semaphore:/var/lib/semaphore:Z \
 --read-only \

@@ -103,12 +103,31 @@ traefik_dashboard_fqdn: 'traefik.example.com'
 management_network: '192.168.1.0/24'
 ip_ansible: '192.168.1.10/32'
 traefik_path: '/srv/traefik'
+container_dns:
+  domain: 'test.dns.podman'
+  aliases:
+    postgres_backend: 'test-postgres-backend'
+    redis_backend: 'test-redis-backend'
+    nextcloud_backend: 'test-nextcloud-backend'
+    nextcloud_proxy: 'test-nextcloud-proxy'
+    paperless_backend: 'test-paperless-backend'
+    paperless_proxy: 'test-paperless-proxy'
+    semaphore_backend: 'test-semaphore-backend'
+    semaphore_proxy: 'test-semaphore-proxy'
+    semaphore_egress: 'test-semaphore-egress'
+    traefik_proxy: 'test-traefik-proxy'
+    traefik_egress: 'test-traefik-egress'
+route_proxy_network_subnets:
+  nextcloud_proxy_net: '172.16.1.32/29'
+  paperless_proxy_net: '172.16.1.40/29'
+  navidrome_container_net: '172.16.1.24/29'
+  vaultwarden_container_net: '172.16.1.16/29'
 proxy_config:
   - name: 'nextcloud_proxy'
     proxy_fqdn: 'cloud.example.com'
     proxy_upstream_port: '80'
     proxy_upstream_protocol: 'http'
-    container_destination: 'nextcloud.dns.podman'
+    container_destination: '{{ container_dns.aliases.nextcloud_proxy }}.{{ container_dns.domain }}'
     proxy_network: 'nextcloud_proxy_net'
 postgres_image: 'docker.io/postgres@sha256:2222222222222222222222222222222222222222222222222222222222222222'
 postgres_path: '/srv/postgres'
@@ -302,8 +321,13 @@ assert_sourced_var "$render_dir/postgres.env" "PAPERLESS_DB_PASSWORD" "$paperles
 assert_sourced_var "$render_dir/postgres.env" "SEMAPHORE_DB_PASSWORD" "$semaphore_db_password" "postgres.env preserves SEMAPHORE_DB_PASSWORD"
 assert_sourced_var "$render_dir/nextcloud.env" "NEXTCLOUD_ADMIN_PASSWORD" "$nextcloud_admin_password" "nextcloud.env preserves NEXTCLOUD_ADMIN_PASSWORD"
 assert_sourced_var "$render_dir/nextcloud.env" "NEXTCLOUD_TRUSTED_DOMAINS" "$nextcloud_trusted_domains" "nextcloud.env preserves NEXTCLOUD_TRUSTED_DOMAINS"
+assert_sourced_var "$render_dir/nextcloud.env" "POSTGRES_HOST" "test-postgres-backend.test.dns.podman" "nextcloud.env uses the backend Postgres alias"
+assert_sourced_var "$render_dir/nextcloud.env" "REDIS_HOST" "test-redis-backend.test.dns.podman" "nextcloud.env uses the backend Redis alias"
 assert_sourced_var "$render_dir/nextcloud.env" "TRUSTED_PROXIES" "172.16.1.32/29" "nextcloud.env trusts the proxy-facing network"
 assert_sourced_var "$render_dir/paperless.env" "PAPERLESS_DBPASS" "$paperless_db_password" "paperless.env preserves PAPERLESS_DBPASS"
+assert_sourced_var "$render_dir/paperless.env" "PAPERLESS_DBHOST" "test-postgres-backend.test.dns.podman" "paperless.env uses the backend Postgres alias"
+assert_sourced_var "$render_dir/paperless.env" "PAPERLESS_REDIS" "redis://test-redis-backend.test.dns.podman:6379" "paperless.env uses the backend Redis alias"
+assert_sourced_var "$render_dir/semaphore.env" "SEMAPHORE_DB_HOST" "test-postgres-backend.test.dns.podman" "semaphore.env uses the backend Postgres alias"
 assert_sourced_var "$render_dir/semaphore.env" "SEMAPHORE_ADMIN_PASSWORD" "$semaphore_admin_password" "semaphore.env preserves SEMAPHORE_ADMIN_PASSWORD"
 assert_sourced_var "$render_dir/semaphore.env" "SEMAPHORE_ACCESS_KEY_ENCRYPTION" "$semaphore_encryption_key" "semaphore.env preserves SEMAPHORE_ACCESS_KEY_ENCRYPTION"
 assert_sourced_var "$render_dir/semaphore.env" "ANSIBLE_SSH_ARGS" "$semaphore_ssh_args" "semaphore.env preserves ANSIBLE_SSH_ARGS"
@@ -312,8 +336,8 @@ assert_not_contains "$render_dir/traefik_container.sh" "--env-file" "traefik_con
 assert_contains "$render_dir/traefik_container.sh" '. "/etc/homelab/secrets/traefik.env"' "traefik_container.sh sources traefik.env"
 assert_contains "$render_dir/traefik_container.sh" "--env PORKBUN_API_KEY" "traefik_container.sh passes PORKBUN_API_KEY"
 assert_contains "$render_dir/traefik_container.sh" "--env PORKBUN_SECRET_API_KEY" "traefik_container.sh passes PORKBUN_SECRET_API_KEY"
-assert_contains "$render_dir/traefik_container.sh" "--network=traefik_egress_net" "traefik_container.sh joins dedicated egress network"
-assert_contains "$render_dir/traefik_container.sh" "--network=nextcloud_proxy_net" "traefik_container.sh joins route-declared proxy network"
+assert_contains "$render_dir/traefik_container.sh" "--network=traefik_egress_net:alias=test-traefik-egress" "traefik_container.sh joins dedicated egress network with an alias"
+assert_contains "$render_dir/traefik_container.sh" "--network=nextcloud_proxy_net:alias=test-traefik-proxy" "traefik_container.sh joins route-declared proxy network with an alias"
 assert_line_before "$render_dir/traefik_container.sh" "--network=nextcloud_proxy_net" "--network=traefik_egress_net" "traefik_container.sh attaches app networks before egress for Podman DNS"
 assert_not_contains "$render_dir/traefik_container.sh" "--network=nextcloud_container_net" "traefik_container.sh does not join backend network"
 assert_not_contains "$render_dir/traefik_container.sh" "podman pull" "traefik_container.sh no longer calls podman pull"
@@ -329,6 +353,7 @@ assert_contains "$render_dir/postgres_container.sh" "--env POSTGRES_PASSWORD" "p
 assert_contains "$render_dir/postgres_container.sh" "--env NEXTCLOUD_DB_PASSWORD" "postgres_container.sh passes NEXTCLOUD_DB_PASSWORD"
 assert_contains "$render_dir/postgres_container.sh" "--env PAPERLESS_DB_PASSWORD" "postgres_container.sh passes PAPERLESS_DB_PASSWORD"
 assert_contains "$render_dir/postgres_container.sh" "--env SEMAPHORE_DB_PASSWORD" "postgres_container.sh passes SEMAPHORE_DB_PASSWORD"
+assert_contains "$render_dir/postgres_container.sh" "--network=nextcloud_container_net:alias=test-postgres-backend" "postgres_container.sh joins backend network with an alias"
 assert_not_contains "$render_dir/postgres_container.sh" "podman pull" "postgres_container.sh no longer calls podman pull"
 assert_contains "$render_dir/postgres_container.sh" "--pull=never" "postgres_container.sh uses --pull=never"
 assert_contains "$render_dir/postgres_container.sh" "--mount type=tmpfs,destination=/var/run/postgresql,tmpfs-size=16M,tmpfs-mode=0750,U=true" "postgres_container.sh mounts service-owned socket tmpfs"
@@ -338,12 +363,15 @@ assert_not_contains "$render_dir/nextcloud_container.sh" "--env-file" "nextcloud
 assert_contains "$render_dir/nextcloud_container.sh" '. "/etc/homelab/secrets/nextcloud.env"' "nextcloud_container.sh sources nextcloud.env"
 assert_contains "$render_dir/nextcloud_container.sh" "--env NEXTCLOUD_ADMIN_PASSWORD" "nextcloud_container.sh passes NEXTCLOUD_ADMIN_PASSWORD"
 assert_contains "$render_dir/nextcloud_container.sh" "--env NEXTCLOUD_TRUSTED_DOMAINS" "nextcloud_container.sh passes NEXTCLOUD_TRUSTED_DOMAINS"
+assert_contains "$render_dir/nextcloud_container.sh" "--network=nextcloud_container_net:alias=test-nextcloud-backend" "nextcloud_container.sh joins backend network with an alias"
+assert_contains "$render_dir/nextcloud_container.sh" "--network=nextcloud_proxy_net:alias=test-nextcloud-proxy" "nextcloud_container.sh joins proxy network with an alias"
 assert_not_contains "$render_dir/nextcloud_container.sh" "podman pull" "nextcloud_container.sh no longer calls podman pull"
 assert_contains "$render_dir/nextcloud_container.sh" "--pull=never" "nextcloud_container.sh uses --pull=never"
 
 assert_not_contains "$render_dir/redis_container.sh" "--env-file" "redis_container.sh no longer uses --env-file"
 assert_contains "$render_dir/redis_container.sh" '. "/etc/homelab/secrets/redis.env"' "redis_container.sh sources redis.env"
 assert_contains "$render_dir/redis_container.sh" "--env TZ" "redis_container.sh passes TZ"
+assert_contains "$render_dir/redis_container.sh" "--network=nextcloud_container_net:alias=test-redis-backend" "redis_container.sh joins backend network with an alias"
 assert_not_contains "$render_dir/redis_container.sh" "podman pull" "redis_container.sh no longer calls podman pull"
 assert_contains "$render_dir/redis_container.sh" "--pull=never" "redis_container.sh uses --pull=never"
 
@@ -351,6 +379,8 @@ assert_not_contains "$render_dir/paperless_ngx.sh" "--env-file" "paperless_ngx.s
 assert_contains "$render_dir/paperless_ngx.sh" '. "/etc/homelab/secrets/paperless.env"' "paperless_ngx.sh sources paperless.env"
 assert_contains "$render_dir/paperless_ngx.sh" "--env PAPERLESS_DBPASS" "paperless_ngx.sh passes PAPERLESS_DBPASS"
 assert_contains "$render_dir/paperless_ngx.sh" "--env PAPERLESS_URL" "paperless_ngx.sh passes PAPERLESS_URL"
+assert_contains "$render_dir/paperless_ngx.sh" "--network=nextcloud_container_net:alias=test-paperless-backend" "paperless_ngx.sh joins backend network with an alias"
+assert_contains "$render_dir/paperless_ngx.sh" "--network=paperless_proxy_net:alias=test-paperless-proxy" "paperless_ngx.sh joins proxy network with an alias"
 assert_not_contains "$render_dir/paperless_ngx.sh" "podman pull" "paperless_ngx.sh no longer calls podman pull"
 assert_contains "$render_dir/paperless_ngx.sh" "--pull=never" "paperless_ngx.sh uses --pull=never"
 
@@ -359,6 +389,9 @@ assert_contains "$render_dir/semaphore.sh" '. "/etc/homelab/secrets/semaphore.en
 assert_contains "$render_dir/semaphore.sh" "--env SEMAPHORE_ADMIN_PASSWORD" "semaphore.sh passes SEMAPHORE_ADMIN_PASSWORD"
 assert_contains "$render_dir/semaphore.sh" "--env SEMAPHORE_ACCESS_KEY_ENCRYPTION" "semaphore.sh passes SEMAPHORE_ACCESS_KEY_ENCRYPTION"
 assert_contains "$render_dir/semaphore.sh" "--env ANSIBLE_SSH_ARGS" "semaphore.sh passes ANSIBLE_SSH_ARGS"
+assert_contains "$render_dir/semaphore.sh" "--network=semaphore_container_net:alias=test-semaphore-proxy" "semaphore.sh joins proxy network with an alias"
+assert_contains "$render_dir/semaphore.sh" "--network=nextcloud_container_net:alias=test-semaphore-backend" "semaphore.sh joins backend network with an alias"
+assert_contains "$render_dir/semaphore.sh" "--network=semaphore_egress_net:alias=test-semaphore-egress" "semaphore.sh joins egress network with an alias"
 assert_not_contains "$render_dir/semaphore.sh" "podman pull" "semaphore.sh no longer calls podman pull"
 assert_contains "$render_dir/semaphore.sh" "--pull=never" "semaphore.sh uses --pull=never"
 assert_contains "$render_dir/semaphore.sh" "--mount type=tmpfs,destination=/home/semaphore,tmpfs-size=32M,tmpfs-mode=0750,U=true" "semaphore.sh mounts service-owned home tmpfs"

@@ -34,5 +34,18 @@ user_name: ""
 # Root-only directory for runtime environment files
 secret_env_dir: /etc/homelab/secrets
 
+# Podman DNS aliases used on VM1 networks.
+container_dns:
+  domain: dns.podman
+  aliases:
+    postgres_backend: postgres-backend
+    redis_backend: redis-backend
+    paperless_backend: paperless-backend
+    paperless_proxy: paperless-proxy
+
+# Deterministic VM1 route proxy network subnet.
+route_proxy_network_subnets:
+  paperless_proxy_net: 172.16.1.40/29
+
 # Container image resolved from the approved artifact lock in vm1.yml
 paperless_image: ""

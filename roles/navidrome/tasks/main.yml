@@ -18,7 +18,7 @@
       - create
       - --internal
       - --subnet
-      - 172.16.1.24/29
+      - "{{ route_proxy_network_subnets.navidrome_container_net }}"
       - navidrome_container_net
   when: navidrome_network.rc != 0
 
@@ -28,7 +28,7 @@
   vars:
     network_migration:
       name: navidrome_container_net
-      subnet: 172.16.1.24/29
+      subnet: "{{ route_proxy_network_subnets.navidrome_container_net }}"
   when: navidrome_network.rc == 0
     and apply_runtime_changes_on_reboot | default(false) | bool
     and not ((navidrome_network.stdout | from_json | first).internal | default((navidrome_network.stdout | from_json | first).Internal | default(false)) | bool)
@@ -55,7 +55,7 @@
       - create
       - --internal
       - --subnet
-      - 172.16.1.24/29
+      - "{{ route_proxy_network_subnets.navidrome_container_net }}"
       - navidrome_container_net
   when: navidrome_network.rc == 0
     and not (apply_runtime_changes_on_reboot | default(false) | bool)

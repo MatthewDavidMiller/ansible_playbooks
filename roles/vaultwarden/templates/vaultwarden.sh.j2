@@ -4,7 +4,7 @@ set -euo pipefail
 /usr/bin/podman run \
 --pull=never \
 --name=vaultwarden \
---network=vaultwarden_container_net \
+--network=vaultwarden_container_net:alias={{ container_dns.aliases.vaultwarden_proxy }} \
 --volume {{ vaultwarden_path }}/vw-data:/data/:Z \
 --volume {{ vaultwarden_path }}/ssl_certs:/ssl_certs/:Z \
 --read-only \

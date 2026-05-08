@@ -51,5 +51,14 @@ semaphore_known_hosts: ""
 # Non-internal Podman network used only for Semaphore's outbound SSH automation.
 semaphore_egress_network: semaphore_egress_net
 
+# Podman DNS aliases used on VM1 networks.
+container_dns:
+  domain: dns.podman
+  aliases:
+    postgres_backend: postgres-backend
+    semaphore_backend: semaphore-backend
+    semaphore_proxy: semaphore-proxy
+    semaphore_egress: semaphore-egress
+
 # Container image resolved from the approved artifact lock in vm1.yml
 semaphore_image: ""

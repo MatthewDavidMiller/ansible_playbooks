@@ -140,9 +140,31 @@ echo ""
 if should_run static; then
 echo "--- TEST-00: Static hardening and network containment policy ---"
 assert_file_contains "--network=nextcloud_proxy_net" "Nextcloud: joins dedicated proxy network" roles/nextcloud/templates/nextcloud_container.sh.j2
+assert_file_contains "container_dns[.]aliases[.]nextcloud_backend" "Nextcloud: backend DNS alias is dictionary-driven" roles/nextcloud/templates/nextcloud_container.sh.j2
+assert_file_contains "container_dns[.]aliases[.]nextcloud_proxy" "Nextcloud: proxy DNS alias is dictionary-driven" roles/nextcloud/templates/nextcloud_container.sh.j2
 assert_file_contains "--network=paperless_proxy_net" "Paperless: joins dedicated proxy network" roles/paperless_ngx/templates/paperless_ngx.sh.j2
+assert_file_contains "container_dns[.]aliases[.]paperless_proxy" "Paperless: proxy DNS alias is dictionary-driven" roles/paperless_ngx/templates/paperless_ngx.sh.j2
+assert_file_contains "container_dns[.]aliases[.]paperless_backend" "Paperless: backend DNS alias is dictionary-driven" roles/paperless_ngx/templates/paperless_ngx.sh.j2
+assert_file_contains "container_dns[.]aliases[.]postgres_backend" "Postgres: backend DNS alias is dictionary-driven" roles/nextcloud/templates/postgres_container.sh.j2
+assert_file_contains "container_dns[.]aliases[.]redis_backend" "Redis: backend DNS alias is dictionary-driven" roles/nextcloud/templates/redis_container.sh.j2
+assert_file_contains "container_dns[.]aliases[.]navidrome_proxy" "Navidrome: proxy DNS alias is dictionary-driven" roles/navidrome/templates/navidrome_container.sh.j2
+assert_file_contains "container_dns[.]aliases[.]vaultwarden_proxy" "Vaultwarden: proxy DNS alias is dictionary-driven" roles/vaultwarden/templates/vaultwarden.sh.j2
+assert_file_contains "container_dns[.]aliases[.]semaphore_proxy" "Semaphore: proxy DNS alias is dictionary-driven" roles/semaphore/templates/semaphore.sh.j2
+assert_file_contains "container_dns[.]aliases[.]semaphore_backend" "Semaphore: backend DNS alias is dictionary-driven" roles/semaphore/templates/semaphore.sh.j2
+assert_file_contains "container_dns[.]aliases[.]traefik_proxy" "Traefik: proxy DNS alias is dictionary-driven" roles/reverse_proxy/templates/traefik_container.sh.j2
+assert_file_contains "container_dns[.]aliases[.]traefik_egress" "Traefik: egress DNS alias is dictionary-driven" roles/reverse_proxy/templates/traefik_container.sh.j2
+assert_file_contains "container_dns[.]aliases[.]postgres_backend.*container_dns[.]domain" "Nextcloud: uses backend Postgres DNS dictionary" roles/nextcloud/templates/nextcloud.env.j2
+assert_file_contains "container_dns[.]aliases[.]redis_backend.*container_dns[.]domain" "Nextcloud: uses backend Redis DNS dictionary" roles/nextcloud/templates/nextcloud.env.j2
+assert_file_contains "container_dns[.]aliases[.]postgres_backend.*container_dns[.]domain" "Paperless: uses backend Postgres DNS dictionary" roles/paperless_ngx/templates/paperless.env.j2
+assert_file_contains "redis://.*container_dns[.]aliases[.]redis_backend.*container_dns[.]domain" "Paperless: uses backend Redis DNS dictionary" roles/paperless_ngx/templates/paperless.env.j2
+assert_file_contains "container_dns[.]aliases[.]postgres_backend.*container_dns[.]domain" "Semaphore: uses backend Postgres DNS dictionary" roles/semaphore/templates/semaphore.env.j2
 assert_file_contains "proxy_network: \"nextcloud_proxy_net\"" "Inventory: Nextcloud route declares its proxy network" example_inventory.yml
+assert_file_contains "container_destination: \"\\{\\{ container_dns[.]aliases[.]nextcloud_proxy \\}\\}[.]\\{\\{ container_dns[.]domain \\}\\}\"" "Inventory: Nextcloud route targets the proxy-network DNS dictionary" example_inventory.yml
 assert_file_contains "proxy_network: \"paperless_proxy_net\"" "Inventory: Paperless route declares its proxy network" example_inventory.yml
+assert_file_contains "container_destination: \"\\{\\{ container_dns[.]aliases[.]paperless_proxy \\}\\}[.]\\{\\{ container_dns[.]domain \\}\\}\"" "Inventory: Paperless route targets the proxy-network DNS dictionary" example_inventory.yml
+assert_file_contains "container_destination: \"\\{\\{ container_dns[.]aliases[.]navidrome_proxy \\}\\}[.]\\{\\{ container_dns[.]domain \\}\\}\"" "Inventory: Navidrome route targets the proxy-network DNS dictionary" example_inventory.yml
+assert_file_contains "container_destination: \"\\{\\{ container_dns[.]aliases[.]vaultwarden_proxy \\}\\}[.]\\{\\{ container_dns[.]domain \\}\\}\"" "Inventory: Vaultwarden route targets the proxy-network DNS dictionary" example_inventory.yml
+assert_file_contains "container_destination: \"\\{\\{ container_dns[.]aliases[.]semaphore_proxy \\}\\}[.]\\{\\{ container_dns[.]domain \\}\\}\"" "Inventory: Semaphore route targets the proxy-network DNS dictionary" example_inventory.yml
 assert_file_not_contains "traefik_networks:" "Inventory: Traefik networks are derived from route config" example_inventory.yml
 assert_file_contains "proxy_network" "reverse_proxy: route validation requires explicit proxy network metadata" roles/reverse_proxy/tasks/main.yml
 assert_file_contains "traefik_egress_network" "Traefik: uses a dedicated egress network for DNS-01/outbound traffic" roles/reverse_proxy/templates/traefik_container.sh.j2

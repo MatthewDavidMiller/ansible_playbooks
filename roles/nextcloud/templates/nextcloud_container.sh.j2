@@ -8,8 +8,8 @@ set +a
 exec /usr/bin/podman run \
 --pull=never \
 --name=nextcloud \
---network=nextcloud_container_net \
---network=nextcloud_proxy_net \
+--network=nextcloud_container_net:alias={{ container_dns.aliases.nextcloud_backend }} \
+--network=nextcloud_proxy_net:alias={{ container_dns.aliases.nextcloud_proxy }} \
 --volume {{ nextcloud_path }}/base:/var/www/html/:Z \
 --volume {{ nextcloud_path }}/data:/var/www/html/data/:Z \
 --volume {{ nextcloud_path }}/config:/var/www/html/config/:Z \

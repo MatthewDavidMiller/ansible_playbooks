@@ -79,6 +79,20 @@ user_name: ""
 # Root-only directory for runtime environment files
 secret_env_dir: /etc/homelab/secrets
 
+# Podman DNS aliases used on VM1 networks.
+container_dns:
+  domain: dns.podman
+  aliases:
+    postgres_backend: postgres-backend
+    redis_backend: redis-backend
+    nextcloud_backend: nextcloud-backend
+    nextcloud_proxy: nextcloud-proxy
+
+# Deterministic VM1 container network subnets.
+nextcloud_backend_network_subnet: 172.16.1.0/28
+route_proxy_network_subnets:
+  nextcloud_proxy_net: 172.16.1.32/29
+
 # Container images are resolved from the approved artifact lock in vm1.yml
 postgres_image: ""
 redis_image: ""

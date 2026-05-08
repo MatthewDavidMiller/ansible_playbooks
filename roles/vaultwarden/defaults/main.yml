@@ -26,3 +26,13 @@ vaultwarden_signups_allowed: false
 
 # Container image resolved from the approved artifact lock in vm1.yml
 vaultwarden_image: ""
+
+# Podman DNS aliases used on VM1 networks.
+container_dns:
+  domain: dns.podman
+  aliases:
+    vaultwarden_proxy: vaultwarden-proxy
+
+# Deterministic VM1 route proxy network subnet.
+route_proxy_network_subnets:
+  vaultwarden_container_net: 172.16.1.16/29

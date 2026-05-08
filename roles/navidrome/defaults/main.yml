@@ -45,3 +45,13 @@ navidrome_gid: "33"
 
 # Container image resolved from the approved artifact lock in vm1.yml
 navidrome_image: ""
+
+# Podman DNS aliases used on VM1 networks.
+container_dns:
+  domain: dns.podman
+  aliases:
+    navidrome_proxy: navidrome-proxy
+
+# Deterministic VM1 route proxy network subnet.
+route_proxy_network_subnets:
+  navidrome_container_net: 172.16.1.24/29

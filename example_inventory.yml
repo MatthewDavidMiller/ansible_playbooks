@@ -14,6 +14,22 @@ all:
         porkbun_api_key: "example_api_key"
         porkbun_api_key_secret: "example_api_key_secret"
         top_domain: "example.com"
+        container_dns:
+          domain: dns.podman
+          aliases:
+            postgres_backend: postgres-backend
+            redis_backend: redis-backend
+            nextcloud_backend: nextcloud-backend
+            nextcloud_proxy: nextcloud-proxy
+            paperless_backend: paperless-backend
+            paperless_proxy: paperless-proxy
+            navidrome_proxy: navidrome-proxy
+            vaultwarden_proxy: vaultwarden-proxy
+            semaphore_backend: semaphore-backend
+            semaphore_proxy: semaphore-proxy
+            semaphore_egress: semaphore-egress
+            traefik_proxy: traefik-proxy
+            traefik_egress: traefik-egress
         nextcloud_dns_name: "example.nextcloud.com"
         nextcloud_rclone_user: "example_user"
         nextcloud_webdav_user: "example_user"
@@ -37,32 +53,32 @@ all:
               proxy_fqdn: "nextcloud.example.com"
               proxy_upstream_port: "80"
               proxy_upstream_protocol: "http"
-              container_destination: "nextcloud.dns.podman"
+              container_destination: "{{ container_dns.aliases.nextcloud_proxy }}.{{ container_dns.domain }}"
               proxy_network: "nextcloud_proxy_net"
               proxy_allow_encoded_slash: true
             - name: paperless_ngx_proxy
               proxy_fqdn: "paperless.example.com"
               proxy_upstream_port: "8000"
               proxy_upstream_protocol: "http"
-              container_destination: "paperless.dns.podman"
+              container_destination: "{{ container_dns.aliases.paperless_proxy }}.{{ container_dns.domain }}"
               proxy_network: "paperless_proxy_net"
             - name: navidrome_proxy
               proxy_fqdn: "navidrome.example.com"
               proxy_upstream_port: "4533"
               proxy_upstream_protocol: "http"
-              container_destination: "navidrome.dns.podman"
+              container_destination: "{{ container_dns.aliases.navidrome_proxy }}.{{ container_dns.domain }}"
               proxy_network: "navidrome_container_net"
             - name: vaultwarden_proxy
               proxy_fqdn: "vault.example.com"
               proxy_upstream_port: "80"
               proxy_upstream_protocol: "http"
-              container_destination: "vaultwarden.dns.podman"
+              container_destination: "{{ container_dns.aliases.vaultwarden_proxy }}.{{ container_dns.domain }}"
               proxy_network: "vaultwarden_container_net"
             - name: semaphore_proxy
               proxy_fqdn: "semaphore.example.com"
               proxy_upstream_port: "3000"
               proxy_upstream_protocol: "http"
-              container_destination: "semaphore.dns.podman"
+              container_destination: "{{ container_dns.aliases.semaphore_proxy }}.{{ container_dns.domain }}"
               proxy_network: "semaphore_container_net"
               proxy_management_only: true
 

@@ -8,8 +8,8 @@ set +a
 exec /usr/bin/podman run \
 --pull=never \
 --name=paperless \
---network=nextcloud_container_net \
---network=paperless_proxy_net \
+--network=nextcloud_container_net:alias={{ container_dns.aliases.paperless_backend }} \
+--network=paperless_proxy_net:alias={{ container_dns.aliases.paperless_proxy }} \
 --env PAPERLESS_REDIS \
 --env PAPERLESS_DBHOST \
 --env PAPERLESS_DBNAME \

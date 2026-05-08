@@ -147,7 +147,7 @@ Each `proxy_config` entry renders one Traefik dynamic config file in `{{ traefik
 | `proxy_fqdn` | string | Yes | Router `Host()` value | `nextcloud.example.com` |
 | `proxy_upstream_port` | string | Yes | Upstream container port | `80` |
 | `proxy_upstream_protocol` | string | Yes | Upstream protocol | `http` |
-| `container_destination` | string | Yes | Podman DNS backend name | `nextcloud.dns.podman` |
+| `container_destination` | string | Yes | Podman DNS backend name reachable from Traefik's route network | `{{ container_dns.aliases.nextcloud_proxy }}.{{ container_dns.domain }}` |
 | `proxy_network` | string | Yes | Internal Podman network shared by Traefik and this backend | `nextcloud_proxy_net` |
 | `proxy_allow_encoded_slash` | boolean | No | Enable encoded-slash forwarding when needed | `true` |
 | `proxy_management_only` | boolean | No | Restrict the route to the management network | `true` |
@@ -158,7 +158,9 @@ All entries use the generic `service_proxy.yml.j2` template.
 
 ## Route Proxy Networks
 
-Each `proxy_config` entry declares its `proxy_network`. The `reverse_proxy` role derives Traefik's app-facing network membership from those route entries and creates missing route proxy networks as internal Podman networks.
+Each `proxy_config` entry declares its `proxy_network`. The `reverse_proxy` role derives Traefik's app-facing network membership from those route entries and creates missing route proxy networks as internal Podman networks. Point `container_destination` at the service's proxy-network DNS entry from `container_dns`, such as `{{ container_dns.aliases.nextcloud_proxy }}.{{ container_dns.domain }}`, so Traefik does not resolve a backend-network address it cannot reach.
+
+The maintained roles define a `container_dns` dictionary with `domain` and `aliases` keys. Override that dictionary in inventory if you need different names.
 
 When `apply_runtime_changes_on_reboot` is true and a route proxy network already exists without Podman's `--internal` flag, the role queues that network for deferred replacement instead of removing it during the active Ansible connection. The final `semaphore` role writes and schedules a short-delay migration job so Semaphore can finish the play before its own container or route networks are interrupted.
 

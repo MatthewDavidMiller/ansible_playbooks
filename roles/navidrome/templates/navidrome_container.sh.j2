@@ -4,7 +4,7 @@ set -euo pipefail
 /usr/bin/podman run \
 --pull=never \
 --name navidrome \
---network=navidrome_container_net \
+--network=navidrome_container_net:alias={{ container_dns.aliases.navidrome_proxy }} \
 --user {{ navidrome_uid }}:{{ navidrome_gid }} \
 --volume {{ navidrome_local_music_path | default(navidrome_path + '/music', true) }}:/music:ro,z \
 --volume {{ navidrome_path }}/data:/data:Z \
