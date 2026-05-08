@@ -1,0 +1,11 @@
+[Unit]
+Description=Reconcile persistent Nextcloud config.php values
+After=nextcloud_container.service
+Requires=nextcloud_container.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/bash /usr/local/bin/nextcloud_configure.sh
+
+[Install]
+WantedBy=multi-user.target

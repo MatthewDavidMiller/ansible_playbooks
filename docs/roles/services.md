@@ -34,9 +34,9 @@ Deploys the shared PostgreSQL container, Redis container, and Nextcloud itself.
 
 **Required variables:** `postgres_image`, `redis_image`, `nextcloud_image`, `postgres_path`, `nextcloud_path`, `nextcloud_disk`, `postgres_admin_user`, `postgres_admin_password`, `nextcloud_database_name`, `nextcloud_db_user`, `nextcloud_db_password`, `nextcloud_admin_user`, `nextcloud_admin_password`, `nextcloud_trusted_domains`, `secret_env_dir`
 
-**Templates:** `postgres_container.sh.j2`, `postgres_container.service.j2`, `redis_container.sh.j2`, `redis_container.service.j2`, `nextcloud_container.sh.j2`, `nextcloud_container.service.j2`, `postgres.env.j2`, `nextcloud.env.j2`
+**Templates:** `postgres_container.sh.j2`, `postgres_container.service.j2`, `redis_container.sh.j2`, `redis_container.service.j2`, `nextcloud_container.sh.j2`, `nextcloud_container.service.j2`, `nextcloud_configure.sh.j2`, `nextcloud_configure.service.j2`, `postgres.env.j2`, `nextcloud.env.j2`
 
-**Key behavior:** owns the shared database layer for Nextcloud, Paperless, and Semaphore, creates missing internal backend/proxy networks, queues legacy non-internal Nextcloud networks for deferred replacement during staged VM1 runs, and must run before those consumers.
+**Key behavior:** owns the shared database layer for Nextcloud, Paperless, and Semaphore, creates missing internal backend/proxy networks, queues legacy non-internal Nextcloud networks for deferred replacement during staged VM1 runs, reconciles persistent `config.php` values after Nextcloud starts, and must run before those consumers.
 
 ---
 

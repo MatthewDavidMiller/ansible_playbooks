@@ -324,9 +324,20 @@
     src: nextcloud_container.service.j2
     dest: /etc/systemd/system/nextcloud_container.service
 
+- name: Nextcloud config reconciliation service
+  ansible.builtin.template:
+    src: nextcloud_configure.service.j2
+    dest: /etc/systemd/system/nextcloud_configure.service
+
 - name: Enable Nextcloud
   ansible.builtin.systemd:
     name: nextcloud_container.service
+    enabled: true
+    daemon_reload: true
+
+- name: Enable Nextcloud config reconciliation
+  ansible.builtin.systemd:
+    name: nextcloud_configure.service
     enabled: true
     daemon_reload: true
 
@@ -342,6 +353,14 @@
   ansible.builtin.template:
     src: nextcloud_container.sh.j2
     dest: /usr/local/bin/nextcloud_container.sh
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Nextcloud config reconciliation script
+  ansible.builtin.template:
+    src: nextcloud_configure.sh.j2
+    dest: /usr/local/bin/nextcloud_configure.sh
     owner: root
     group: root
     mode: "0700"
@@ -396,5 +415,11 @@
 - name: Start Nextcloud
   ansible.builtin.systemd:
     name: nextcloud_container.service
+    state: started
+  when: not (apply_runtime_changes_on_reboot | default(false) | bool)
+
+- name: Reconcile persistent Nextcloud config
+  ansible.builtin.systemd:
+    name: nextcloud_configure.service
     state: started
   when: not (apply_runtime_changes_on_reboot | default(false) | bool)

@@ -1,0 +1,46 @@
+#!/bin/bash
+set -euo pipefail
+
+trusted_domains=(
+{% set rendered_trusted_domains = ((nextcloud_trusted_domains | default('', true) | regex_replace(',', ' ')).split() + [nextcloud_dns_name | default('', true)]) | reject('equalto', '') | unique | list %}
+{% for trusted_domain in rendered_trusted_domains %}
+    {{ trusted_domain | quote }}
+{% endfor %}
+)
+trusted_proxies=(
+    {{ route_proxy_network_subnets.nextcloud_proxy_net | quote }}
+)
+postgres_host={{ (container_dns.aliases.postgres_backend ~ '.' ~ container_dns.domain) | quote }}
+redis_host={{ (container_dns.aliases.redis_backend ~ '.' ~ container_dns.domain) | quote }}
+overwrite_cli_url={{ ('https://' ~ nextcloud_dns_name) | quote }}
+overwrite_protocol={{ 'https' | quote }}
+
+occ() {
+    /usr/bin/podman exec --user {{ nextcloud_uid }}:{{ nextcloud_gid }} nextcloud php occ "$@"
+}
+
+for _ in {1..60}; do
+    if /usr/bin/podman container exists nextcloud \
+        && /usr/bin/podman exec nextcloud test -f /var/www/html/config/config.php \
+        && occ status >/dev/null 2>&1; then
+        break
+    fi
+    sleep 5
+done
+
+occ status >/dev/null
+
+occ config:system:delete trusted_domains >/dev/null 2>&1 || true
+for i in "${!trusted_domains[@]}"; do
+    occ config:system:set trusted_domains "$i" --value="${trusted_domains[$i]}" >/dev/null
+done
+
+occ config:system:delete trusted_proxies >/dev/null 2>&1 || true
+for i in "${!trusted_proxies[@]}"; do
+    occ config:system:set trusted_proxies "$i" --value="${trusted_proxies[$i]}" >/dev/null
+done
+
+occ config:system:set dbhost --value="$postgres_host" >/dev/null
+occ config:system:set redis host --value="$redis_host" >/dev/null
+occ config:system:set overwrite.cli.url --value="$overwrite_cli_url" >/dev/null
+occ config:system:set overwriteprotocol --value="$overwrite_protocol" >/dev/null

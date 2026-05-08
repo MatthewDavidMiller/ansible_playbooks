@@ -212,6 +212,11 @@ cat > "$tmpdir/render.yml" <<EOF
         src: ${repo_root}/roles/nextcloud/templates/nextcloud_container.sh.j2
         dest: ${render_dir}/nextcloud_container.sh
 
+    - name: Render nextcloud_configure.sh
+      ansible.builtin.template:
+        src: ${repo_root}/roles/nextcloud/templates/nextcloud_configure.sh.j2
+        dest: ${render_dir}/nextcloud_configure.sh
+
     - name: Render redis_container.sh
       ansible.builtin.template:
         src: ${repo_root}/roles/nextcloud/templates/redis_container.sh.j2
@@ -367,6 +372,11 @@ assert_contains "$render_dir/nextcloud_container.sh" "--network=nextcloud_contai
 assert_contains "$render_dir/nextcloud_container.sh" "--network=nextcloud_proxy_net:alias=test-nextcloud-proxy" "nextcloud_container.sh joins proxy network with an alias"
 assert_not_contains "$render_dir/nextcloud_container.sh" "podman pull" "nextcloud_container.sh no longer calls podman pull"
 assert_contains "$render_dir/nextcloud_container.sh" "--pull=never" "nextcloud_container.sh uses --pull=never"
+assert_contains "$render_dir/nextcloud_configure.sh" "cloud.example.com" "nextcloud_configure.sh reconciles configured trusted domains"
+assert_contains "$render_dir/nextcloud_configure.sh" "172.16.1.32/29" "nextcloud_configure.sh reconciles trusted proxy CIDR"
+assert_contains "$render_dir/nextcloud_configure.sh" "test-postgres-backend.test.dns.podman" "nextcloud_configure.sh reconciles persistent Postgres host"
+assert_contains "$render_dir/nextcloud_configure.sh" "test-redis-backend.test.dns.podman" "nextcloud_configure.sh reconciles persistent Redis host"
+assert_contains "$render_dir/nextcloud_configure.sh" "config:system:set overwrite.cli.url" "nextcloud_configure.sh reconciles overwrite CLI URL"
 
 assert_not_contains "$render_dir/redis_container.sh" "--env-file" "redis_container.sh no longer uses --env-file"
 assert_contains "$render_dir/redis_container.sh" '. "/etc/homelab/secrets/redis.env"' "redis_container.sh sources redis.env"
