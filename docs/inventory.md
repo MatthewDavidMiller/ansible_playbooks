@@ -90,7 +90,7 @@ VM1 is the single maintained service host. It runs Traefik, PostgreSQL, Redis, N
 | `vaultwarden_path` | path | Vaultwarden base directory | `/opt/vaultwarden` |
 | `vaultwarden_backup_location` | string | Vaultwarden backup destination label | `Nextcloud:vaultwarden_backup` |
 | `vaultwarden_signups_allowed` | boolean | Public signup toggle | `false` |
-| `container_service_names` | string | Space-separated units for Traefik `After=` | `postgres_container redis_container nextcloud_container paperless_ngx navidrome_container vaultwarden semaphore` |
+| `container_service_names` | string | Space-separated container service names used by Traefik ordering and deferred network migration restart order | `postgres_container redis_container nextcloud_container paperless_ngx navidrome_container vaultwarden semaphore` |
 | `backup_host` | string | Backup server IP in CIDR form | `192.168.1.50/32` |
 | `borg_backup_path` | path | Borg repository root on the backup disk | `/opt/borg_backup` |
 | `backup_disk` | string | UUID entry for the backup disk | `UUID=...` |
@@ -159,6 +159,8 @@ All entries use the generic `service_proxy.yml.j2` template.
 ## Route Proxy Networks
 
 Each `proxy_config` entry declares its `proxy_network`. The `reverse_proxy` role derives Traefik's app-facing network membership from those route entries and creates missing route proxy networks as internal Podman networks.
+
+When `apply_runtime_changes_on_reboot` is true and a route proxy network already exists without Podman's `--internal` flag, the role queues that network for deferred replacement instead of removing it during the active Ansible connection. The final `semaphore` role writes and schedules a short-delay migration job so Semaphore can finish the play before its own container or route networks are interrupted.
 
 Do not use backend-only database/cache networks such as `nextcloud_container_net` as route proxy networks. Nextcloud and Paperless use dedicated proxy networks for ingress while remaining attached to the backend network for PostgreSQL and Redis.
 

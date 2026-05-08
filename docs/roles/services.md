@@ -24,7 +24,7 @@ Deploys Traefik v3 for HTTPS termination and service routing on VM1.
 
 **Templates:** `traefik_container.sh.j2`, `traefik_container.service.j2`, `traefik.yml.j2`, `tls.yml.j2`, `security.yml.j2`, `dashboard.yml.j2`, `service_proxy.yml.j2`, `traefik.env.j2`
 
-**Key behavior:** publishes ports 80 and 443, requests per-FQDN certificates through Porkbun DNS-01, protects the dashboard with both management-source allowlisting and BasicAuth, renders dynamic route files from `proxy_config`, and runs only against pre-pulled approved digest refs.
+**Key behavior:** publishes ports 80 and 443, requests per-FQDN certificates through Porkbun DNS-01, protects the dashboard with both management-source allowlisting and BasicAuth, renders dynamic route files from `proxy_config`, derives Traefik app-network membership from route-owned `proxy_network` values, queues legacy non-internal route networks for deferred replacement during staged VM1 runs, and runs only against pre-pulled approved digest refs.
 
 ---
 
@@ -36,7 +36,7 @@ Deploys the shared PostgreSQL container, Redis container, and Nextcloud itself.
 
 **Templates:** `postgres_container.sh.j2`, `postgres_container.service.j2`, `redis_container.sh.j2`, `redis_container.service.j2`, `nextcloud_container.sh.j2`, `nextcloud_container.service.j2`, `postgres.env.j2`, `nextcloud.env.j2`
 
-**Key behavior:** owns the shared database layer for Nextcloud, Paperless, and Semaphore, and must run before those consumers.
+**Key behavior:** owns the shared database layer for Nextcloud, Paperless, and Semaphore, creates missing internal backend/proxy networks, queues legacy non-internal Nextcloud networks for deferred replacement during staged VM1 runs, and must run before those consumers.
 
 ---
 
@@ -48,6 +48,8 @@ Deploys Paperless NGX on top of the PostgreSQL and Redis containers created by `
 
 **Templates:** `paperless_ngx.sh.j2`, `paperless_ngx.service.j2`, `paperless.env.j2`
 
+**Key behavior:** creates the Paperless proxy network as internal, queues legacy non-internal proxy networks for deferred replacement during staged VM1 runs, and runs only after the shared database/cache containers are configured.
+
 ---
 
 ### `navidrome`
@@ -56,7 +58,7 @@ Deploys Navidrome with an explicit non-root runtime user and a local backup work
 
 **Required variables:** `navidrome_path`, `navidrome_backup_location`, `navidrome_uid`, `navidrome_gid`, `navidrome_image`
 
-**Key behavior:** either bind-mounts `navidrome_local_music_path` or falls back to the role's own music path.
+**Key behavior:** creates the Navidrome proxy network as internal, queues legacy non-internal proxy networks for deferred replacement during staged VM1 runs, and either bind-mounts `navidrome_local_music_path` or falls back to the role's own music path.
 
 ---
 
@@ -68,6 +70,8 @@ Deploys Vaultwarden and its SQLite-backed backup workflow.
 
 **Templates:** `vaultwarden.sh.j2`, `vaultwarden.service.j2`, `backup_db.j2`
 
+**Key behavior:** keeps public signup disabled, creates the Vaultwarden proxy network as internal, and queues legacy non-internal proxy networks for deferred replacement during staged VM1 runs.
+
 ---
 
 ### `semaphore`
@@ -76,7 +80,9 @@ Deploys Semaphore and backs up its PostgreSQL database into the local Nextcloud 
 
 **Required variables:** `semaphore_database_name`, `semaphore_db_user`, `semaphore_db_password`, `semaphore_admin_name`, `semaphore_admin_email`, `semaphore_admin_password`, `semaphore_encryption_key` (at least 32 characters), `semaphore_known_hosts`, `semaphore_backup_location`, `semaphore_image`, `secret_env_dir`
 
-**Templates:** `semaphore.sh.j2`, `semaphore.service.j2`, `semaphore.env.j2`, `backup_semaphore.sh.j2`, `ssh_known_hosts.j2`
+**Templates:** `semaphore.sh.j2`, `semaphore.service.j2`, `semaphore.env.j2`, `backup_semaphore.sh.j2`, `ssh_known_hosts.j2`, `migrate_container_networks.sh.j2`
+
+**Key behavior:** creates the Semaphore proxy and egress networks, queues legacy non-internal Semaphore proxy networks for deferred replacement during staged VM1 runs, and runs last in `vm1.yml` so it can schedule the delayed container-network migration after all service configuration has been rendered. The migration job stops Traefik and the configured `container_service_names`, replaces queued networks as internal networks, restarts services, and logs to `/var/log/homelab-container-network-migration.log`.
 
 ---
 

@@ -69,7 +69,9 @@ Publicly proxied services have internal proxy-facing Podman networks, while Post
 | `traefik_egress_net` | (auto) | traefik |
 | `semaphore_egress_net` | (auto) | semaphore |
 
-The app/backend networks are created with Podman's `--internal` flag. If an old non-internal app/backend network already exists, the playbook removes it and recreates it as internal. Traefik resolves backends via Podman DNS (`nextcloud.dns.podman`, etc.) and derives its app-facing network list from each `proxy_config[*].proxy_network` value.
+The app/backend networks are created with Podman's `--internal` flag. Missing internal networks are created inline. If an old non-internal app/backend network already exists, non-staged runs remove it and recreate it immediately; staged VM1 runs queue the replacement and let the final `semaphore` role schedule `/usr/local/bin/migrate_container_networks.sh` with `systemd-run --on-active=2min`. That delay lets playbooks launched from the Semaphore container finish before the job stops containers, replaces legacy networks, and starts services again. The job logs to `/var/log/homelab-container-network-migration.log`.
+
+Traefik resolves backends via Podman DNS (`nextcloud.dns.podman`, etc.) and derives its app-facing network list from each `proxy_config[*].proxy_network` value.
 
 See [inventory.md — Route Proxy Networks](inventory.md#route-proxy-networks) and [roles/services.md#reverse_proxy](roles/services.md#reverse_proxy).
 
