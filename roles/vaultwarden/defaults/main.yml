@@ -36,3 +36,7 @@ container_dns:
 # Deterministic VM1 route proxy network subnet.
 route_proxy_network_subnets:
   vaultwarden_container_net: 172.16.1.16/29
+
+# Static container IP used with Traefik /etc/hosts overrides.
+container_static_ips:
+  vaultwarden_proxy: 172.16.1.18

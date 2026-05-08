@@ -47,5 +47,13 @@ container_dns:
 route_proxy_network_subnets:
   paperless_proxy_net: 172.16.1.40/29
 
+# Static container IPs used with /etc/hosts overrides for latency-sensitive
+# service-to-service paths.
+container_static_ips:
+  postgres_backend: 172.16.1.2
+  redis_backend: 172.16.1.3
+  paperless_backend: 172.16.1.5
+  paperless_proxy: 172.16.1.42
+
 # Container image resolved from the approved artifact lock in vm1.yml
 paperless_image: ""

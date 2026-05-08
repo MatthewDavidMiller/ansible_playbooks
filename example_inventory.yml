@@ -30,6 +30,29 @@ all:
             semaphore_egress: semaphore-egress
             traefik_proxy: traefik-proxy
             traefik_egress: traefik-egress
+        route_proxy_network_subnets:
+          nextcloud_proxy_net: 172.16.1.32/29
+          paperless_proxy_net: 172.16.1.40/29
+          navidrome_container_net: 172.16.1.24/29
+          vaultwarden_container_net: 172.16.1.16/29
+          semaphore_container_net: 172.16.1.48/29
+        route_proxy_container_ips:
+          nextcloud_proxy_net: 172.16.1.34
+          paperless_proxy_net: 172.16.1.42
+          navidrome_container_net: 172.16.1.26
+          vaultwarden_container_net: 172.16.1.18
+          semaphore_container_net: 172.16.1.50
+        container_static_ips:
+          postgres_backend: 172.16.1.2
+          redis_backend: 172.16.1.3
+          nextcloud_backend: 172.16.1.4
+          paperless_backend: 172.16.1.5
+          semaphore_backend: 172.16.1.6
+          nextcloud_proxy: 172.16.1.34
+          paperless_proxy: 172.16.1.42
+          navidrome_proxy: 172.16.1.26
+          vaultwarden_proxy: 172.16.1.18
+          semaphore_proxy: 172.16.1.50
         nextcloud_dns_name: "example.nextcloud.com"
         nextcloud_rclone_user: "example_user"
         nextcloud_webdav_user: "example_user"

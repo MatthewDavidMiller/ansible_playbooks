@@ -122,6 +122,18 @@ route_proxy_network_subnets:
   paperless_proxy_net: '172.16.1.40/29'
   navidrome_container_net: '172.16.1.24/29'
   vaultwarden_container_net: '172.16.1.16/29'
+  semaphore_container_net: '172.16.1.48/29'
+container_static_ips:
+  postgres_backend: '172.16.1.2'
+  redis_backend: '172.16.1.3'
+  nextcloud_backend: '172.16.1.4'
+  nextcloud_proxy: '172.16.1.34'
+  paperless_backend: '172.16.1.5'
+  paperless_proxy: '172.16.1.42'
+  semaphore_backend: '172.16.1.6'
+  semaphore_proxy: '172.16.1.50'
+route_proxy_container_ips:
+  nextcloud_proxy_net: '172.16.1.34'
 proxy_config:
   - name: 'nextcloud_proxy'
     proxy_fqdn: 'cloud.example.com'
@@ -129,6 +141,7 @@ proxy_config:
     proxy_upstream_protocol: 'http'
     container_destination: '{{ container_dns.aliases.nextcloud_proxy }}.{{ container_dns.domain }}'
     proxy_network: 'nextcloud_proxy_net'
+container_service_names: 'postgres_container redis_container nextcloud_container paperless_ngx navidrome_container vaultwarden semaphore'
 postgres_image: 'docker.io/postgres@sha256:2222222222222222222222222222222222222222222222222222222222222222'
 postgres_path: '/srv/postgres'
 nextcloud_image: 'docker.io/nextcloud@sha256:4444444444444444444444444444444444444444444444444444444444444444'
@@ -191,6 +204,11 @@ cat > "$tmpdir/render.yml" <<EOF
       ansible.builtin.template:
         src: ${repo_root}/roles/reverse_proxy/templates/traefik_container.sh.j2
         dest: ${render_dir}/traefik_container.sh
+
+    - name: Render traefik_container.service
+      ansible.builtin.template:
+        src: ${repo_root}/roles/reverse_proxy/templates/traefik_container.service.j2
+        dest: ${render_dir}/traefik_container.service
 
     - name: Render Traefik security middleware
       ansible.builtin.template:
@@ -343,10 +361,12 @@ assert_contains "$render_dir/traefik_container.sh" "--env PORKBUN_API_KEY" "trae
 assert_contains "$render_dir/traefik_container.sh" "--env PORKBUN_SECRET_API_KEY" "traefik_container.sh passes PORKBUN_SECRET_API_KEY"
 assert_contains "$render_dir/traefik_container.sh" "--network=traefik_egress_net:alias=test-traefik-egress" "traefik_container.sh joins dedicated egress network with an alias"
 assert_contains "$render_dir/traefik_container.sh" "--network=nextcloud_proxy_net:alias=test-traefik-proxy" "traefik_container.sh joins route-declared proxy network with an alias"
+assert_contains "$render_dir/traefik_container.sh" "--add-host=test-nextcloud-proxy.test.dns.podman:172.16.1.34" "traefik_container.sh resolves Nextcloud proxy alias through /etc/hosts"
 assert_line_before "$render_dir/traefik_container.sh" "--network=nextcloud_proxy_net" "--network=traefik_egress_net" "traefik_container.sh attaches app networks before egress for Podman DNS"
 assert_not_contains "$render_dir/traefik_container.sh" "--network=nextcloud_container_net" "traefik_container.sh does not join backend network"
 assert_not_contains "$render_dir/traefik_container.sh" "podman pull" "traefik_container.sh no longer calls podman pull"
 assert_contains "$render_dir/traefik_container.sh" "--pull=never" "traefik_container.sh uses --pull=never"
+assert_contains "$render_dir/traefik_container.service" "After=network-online.target postgres_container.service redis_container.service nextcloud_container.service paperless_ngx.service navidrome_container.service vaultwarden.service semaphore.service" "traefik_container.service orders after rendered backend service units"
 assert_contains "$render_dir/security.yml" "dashboard-basic-auth:" "security.yml defines dashboard BasicAuth middleware"
 assert_contains "$render_dir/security.yml" "basicAuth:" "security.yml renders Traefik BasicAuth config"
 assert_contains "$render_dir/security.yml" 'admin:$apr1$example$T2v8QdKqzJ8D7c4s1bYhZ/' "security.yml renders configured dashboard user hash"
@@ -358,7 +378,7 @@ assert_contains "$render_dir/postgres_container.sh" "--env POSTGRES_PASSWORD" "p
 assert_contains "$render_dir/postgres_container.sh" "--env NEXTCLOUD_DB_PASSWORD" "postgres_container.sh passes NEXTCLOUD_DB_PASSWORD"
 assert_contains "$render_dir/postgres_container.sh" "--env PAPERLESS_DB_PASSWORD" "postgres_container.sh passes PAPERLESS_DB_PASSWORD"
 assert_contains "$render_dir/postgres_container.sh" "--env SEMAPHORE_DB_PASSWORD" "postgres_container.sh passes SEMAPHORE_DB_PASSWORD"
-assert_contains "$render_dir/postgres_container.sh" "--network=nextcloud_container_net:alias=test-postgres-backend" "postgres_container.sh joins backend network with an alias"
+assert_contains "$render_dir/postgres_container.sh" "--network=nextcloud_container_net:ip=172.16.1.2,alias=test-postgres-backend" "postgres_container.sh joins backend network with a static IP and alias"
 assert_not_contains "$render_dir/postgres_container.sh" "podman pull" "postgres_container.sh no longer calls podman pull"
 assert_contains "$render_dir/postgres_container.sh" "--pull=never" "postgres_container.sh uses --pull=never"
 assert_contains "$render_dir/postgres_container.sh" "--mount type=tmpfs,destination=/var/run/postgresql,tmpfs-size=16M,tmpfs-mode=0750,U=true" "postgres_container.sh mounts service-owned socket tmpfs"
@@ -368,8 +388,10 @@ assert_not_contains "$render_dir/nextcloud_container.sh" "--env-file" "nextcloud
 assert_contains "$render_dir/nextcloud_container.sh" '. "/etc/homelab/secrets/nextcloud.env"' "nextcloud_container.sh sources nextcloud.env"
 assert_contains "$render_dir/nextcloud_container.sh" "--env NEXTCLOUD_ADMIN_PASSWORD" "nextcloud_container.sh passes NEXTCLOUD_ADMIN_PASSWORD"
 assert_contains "$render_dir/nextcloud_container.sh" "--env NEXTCLOUD_TRUSTED_DOMAINS" "nextcloud_container.sh passes NEXTCLOUD_TRUSTED_DOMAINS"
-assert_contains "$render_dir/nextcloud_container.sh" "--network=nextcloud_container_net:alias=test-nextcloud-backend" "nextcloud_container.sh joins backend network with an alias"
-assert_contains "$render_dir/nextcloud_container.sh" "--network=nextcloud_proxy_net:alias=test-nextcloud-proxy" "nextcloud_container.sh joins proxy network with an alias"
+assert_contains "$render_dir/nextcloud_container.sh" "--network=nextcloud_container_net:ip=172.16.1.4,alias=test-nextcloud-backend" "nextcloud_container.sh joins backend network with a static IP and alias"
+assert_contains "$render_dir/nextcloud_container.sh" "--network=nextcloud_proxy_net:ip=172.16.1.34,alias=test-nextcloud-proxy" "nextcloud_container.sh joins proxy network with a static IP and alias"
+assert_contains "$render_dir/nextcloud_container.sh" "--add-host=test-postgres-backend.test.dns.podman:172.16.1.2" "nextcloud_container.sh resolves Postgres alias through /etc/hosts"
+assert_contains "$render_dir/nextcloud_container.sh" "--add-host=test-redis-backend.test.dns.podman:172.16.1.3" "nextcloud_container.sh resolves Redis alias through /etc/hosts"
 assert_not_contains "$render_dir/nextcloud_container.sh" "podman pull" "nextcloud_container.sh no longer calls podman pull"
 assert_contains "$render_dir/nextcloud_container.sh" "--pull=never" "nextcloud_container.sh uses --pull=never"
 assert_contains "$render_dir/nextcloud_configure.sh" "cloud.example.com" "nextcloud_configure.sh reconciles configured trusted domains"
@@ -381,7 +403,7 @@ assert_contains "$render_dir/nextcloud_configure.sh" "config:system:set overwrit
 assert_not_contains "$render_dir/redis_container.sh" "--env-file" "redis_container.sh no longer uses --env-file"
 assert_contains "$render_dir/redis_container.sh" '. "/etc/homelab/secrets/redis.env"' "redis_container.sh sources redis.env"
 assert_contains "$render_dir/redis_container.sh" "--env TZ" "redis_container.sh passes TZ"
-assert_contains "$render_dir/redis_container.sh" "--network=nextcloud_container_net:alias=test-redis-backend" "redis_container.sh joins backend network with an alias"
+assert_contains "$render_dir/redis_container.sh" "--network=nextcloud_container_net:ip=172.16.1.3,alias=test-redis-backend" "redis_container.sh joins backend network with a static IP and alias"
 assert_not_contains "$render_dir/redis_container.sh" "podman pull" "redis_container.sh no longer calls podman pull"
 assert_contains "$render_dir/redis_container.sh" "--pull=never" "redis_container.sh uses --pull=never"
 
@@ -389,8 +411,10 @@ assert_not_contains "$render_dir/paperless_ngx.sh" "--env-file" "paperless_ngx.s
 assert_contains "$render_dir/paperless_ngx.sh" '. "/etc/homelab/secrets/paperless.env"' "paperless_ngx.sh sources paperless.env"
 assert_contains "$render_dir/paperless_ngx.sh" "--env PAPERLESS_DBPASS" "paperless_ngx.sh passes PAPERLESS_DBPASS"
 assert_contains "$render_dir/paperless_ngx.sh" "--env PAPERLESS_URL" "paperless_ngx.sh passes PAPERLESS_URL"
-assert_contains "$render_dir/paperless_ngx.sh" "--network=nextcloud_container_net:alias=test-paperless-backend" "paperless_ngx.sh joins backend network with an alias"
-assert_contains "$render_dir/paperless_ngx.sh" "--network=paperless_proxy_net:alias=test-paperless-proxy" "paperless_ngx.sh joins proxy network with an alias"
+assert_contains "$render_dir/paperless_ngx.sh" "--network=nextcloud_container_net:ip=172.16.1.5,alias=test-paperless-backend" "paperless_ngx.sh joins backend network with a static IP and alias"
+assert_contains "$render_dir/paperless_ngx.sh" "--network=paperless_proxy_net:ip=172.16.1.42,alias=test-paperless-proxy" "paperless_ngx.sh joins proxy network with a static IP and alias"
+assert_contains "$render_dir/paperless_ngx.sh" "--add-host=test-postgres-backend.test.dns.podman:172.16.1.2" "paperless_ngx.sh resolves Postgres alias through /etc/hosts"
+assert_contains "$render_dir/paperless_ngx.sh" "--add-host=test-redis-backend.test.dns.podman:172.16.1.3" "paperless_ngx.sh resolves Redis alias through /etc/hosts"
 assert_not_contains "$render_dir/paperless_ngx.sh" "podman pull" "paperless_ngx.sh no longer calls podman pull"
 assert_contains "$render_dir/paperless_ngx.sh" "--pull=never" "paperless_ngx.sh uses --pull=never"
 
@@ -399,9 +423,12 @@ assert_contains "$render_dir/semaphore.sh" '. "/etc/homelab/secrets/semaphore.en
 assert_contains "$render_dir/semaphore.sh" "--env SEMAPHORE_ADMIN_PASSWORD" "semaphore.sh passes SEMAPHORE_ADMIN_PASSWORD"
 assert_contains "$render_dir/semaphore.sh" "--env SEMAPHORE_ACCESS_KEY_ENCRYPTION" "semaphore.sh passes SEMAPHORE_ACCESS_KEY_ENCRYPTION"
 assert_contains "$render_dir/semaphore.sh" "--env ANSIBLE_SSH_ARGS" "semaphore.sh passes ANSIBLE_SSH_ARGS"
-assert_contains "$render_dir/semaphore.sh" "--network=semaphore_container_net:alias=test-semaphore-proxy" "semaphore.sh joins proxy network with an alias"
-assert_contains "$render_dir/semaphore.sh" "--network=nextcloud_container_net:alias=test-semaphore-backend" "semaphore.sh joins backend network with an alias"
+assert_contains "$render_dir/semaphore.sh" "--network=semaphore_container_net:ip=172.16.1.50,alias=test-semaphore-proxy" "semaphore.sh joins proxy network with a static IP and alias"
+assert_contains "$render_dir/semaphore.sh" "--network=nextcloud_container_net:ip=172.16.1.6,alias=test-semaphore-backend" "semaphore.sh joins backend network with a static IP and alias"
 assert_contains "$render_dir/semaphore.sh" "--network=semaphore_egress_net:alias=test-semaphore-egress" "semaphore.sh joins egress network with an alias"
+assert_contains "$render_dir/semaphore.sh" "--add-host=test-postgres-backend.test.dns.podman:172.16.1.2" "semaphore.sh resolves Postgres alias through /etc/hosts"
+assert_line_before "$render_dir/semaphore.sh" "--network=nextcloud_container_net" "--network=semaphore_container_net" "semaphore.sh attaches backend network before proxy network"
+assert_line_before "$render_dir/semaphore.sh" "--network=nextcloud_container_net" "--network=semaphore_egress_net" "semaphore.sh attaches backend network before egress network"
 assert_not_contains "$render_dir/semaphore.sh" "podman pull" "semaphore.sh no longer calls podman pull"
 assert_contains "$render_dir/semaphore.sh" "--pull=never" "semaphore.sh uses --pull=never"
 assert_contains "$render_dir/semaphore.sh" "--mount type=tmpfs,destination=/home/semaphore,tmpfs-size=32M,tmpfs-mode=0750,U=true" "semaphore.sh mounts service-owned home tmpfs"

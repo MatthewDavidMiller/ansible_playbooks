@@ -8,7 +8,7 @@ set +a
 exec /usr/bin/podman run \
 --pull=never \
 --name=redis \
---network=nextcloud_container_net:alias={{ container_dns.aliases.redis_backend }} \
+--network=nextcloud_container_net:ip={{ container_static_ips.redis_backend }},alias={{ container_dns.aliases.redis_backend }} \
 --read-only \
 --tmpfs /tmp:rw,noexec,nosuid,nodev,size=16m \
 --tmpfs /data:rw,noexec,nosuid,nodev,size=64m \

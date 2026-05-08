@@ -14,6 +14,7 @@ route_proxy_network_subnets:
   paperless_proxy_net: 172.16.1.40/29
   navidrome_container_net: 172.16.1.24/29
   vaultwarden_container_net: 172.16.1.16/29
+  semaphore_container_net: 172.16.1.48/29
 
 # Route networks that can carry the Ansible control-plane container.
 # The reverse_proxy role may create these when absent, but destructive
@@ -54,6 +55,15 @@ container_dns:
     semaphore_proxy: semaphore-proxy
     traefik_proxy: traefik-proxy
     traefik_egress: traefik-egress
+
+# Static container IPs used by Traefik /etc/hosts entries for proxied
+# backends. Keys match proxy_config[*].proxy_network.
+route_proxy_container_ips:
+  nextcloud_proxy_net: 172.16.1.34
+  paperless_proxy_net: 172.16.1.42
+  navidrome_container_net: 172.16.1.26
+  vaultwarden_container_net: 172.16.1.18
+  semaphore_container_net: 172.16.1.50
 
 # Management network CIDR allowed to reach the Traefik dashboard (used in ip-allowlist middleware)
 management_network: ""

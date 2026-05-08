@@ -9,7 +9,7 @@ exec /usr/bin/podman run \
 --pull=never \
 --name=postgres \
 --user=999:999 \
---network=nextcloud_container_net:alias={{ container_dns.aliases.postgres_backend }} \
+--network=nextcloud_container_net:ip={{ container_static_ips.postgres_backend }},alias={{ container_dns.aliases.postgres_backend }} \
 --volume {{ postgres_path }}/pgdata:/var/lib/postgresql/data/:Z \
 --volume {{ postgres_path }}/custom-init:/custom-init/:Z \
 --read-only \

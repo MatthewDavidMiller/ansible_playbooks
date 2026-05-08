@@ -158,6 +158,12 @@ assert_file_contains "container_dns[.]aliases[.]redis_backend.*container_dns[.]d
 assert_file_contains "container_dns[.]aliases[.]postgres_backend.*container_dns[.]domain" "Paperless: uses backend Postgres DNS dictionary" roles/paperless_ngx/templates/paperless.env.j2
 assert_file_contains "redis://.*container_dns[.]aliases[.]redis_backend.*container_dns[.]domain" "Paperless: uses backend Redis DNS dictionary" roles/paperless_ngx/templates/paperless.env.j2
 assert_file_contains "container_dns[.]aliases[.]postgres_backend.*container_dns[.]domain" "Semaphore: uses backend Postgres DNS dictionary" roles/semaphore/templates/semaphore.env.j2
+assert_file_contains "--add-host=.*route_proxy_container_ips" "Traefik: resolves proxy route names through container hosts entries" roles/reverse_proxy/templates/traefik_container.sh.j2
+assert_file_contains "--add-host=.*container_dns[.]aliases[.]postgres_backend" "Nextcloud: resolves backend Postgres name through a container hosts entry" roles/nextcloud/templates/nextcloud_container.sh.j2
+assert_file_contains "--add-host=.*container_dns[.]aliases[.]redis_backend" "Nextcloud: resolves backend Redis name through a container hosts entry" roles/nextcloud/templates/nextcloud_container.sh.j2
+assert_file_contains "ip=\\{\\{ container_static_ips[.]postgres_backend \\}\\}" "Postgres: uses a deterministic backend IP" roles/nextcloud/templates/postgres_container.sh.j2
+assert_file_contains "ip=\\{\\{ container_static_ips[.]nextcloud_proxy \\}\\}" "Nextcloud: uses a deterministic proxy IP" roles/nextcloud/templates/nextcloud_container.sh.j2
+assert_file_contains "route_proxy_container_ips" "reverse_proxy: requires deterministic route backend IPs" roles/reverse_proxy/tasks/main.yml
 assert_file_contains "proxy_network: \"nextcloud_proxy_net\"" "Inventory: Nextcloud route declares its proxy network" example_inventory.yml
 assert_file_contains "container_destination: \"\\{\\{ container_dns[.]aliases[.]nextcloud_proxy \\}\\}[.]\\{\\{ container_dns[.]domain \\}\\}\"" "Inventory: Nextcloud route targets the proxy-network DNS dictionary" example_inventory.yml
 assert_file_contains "proxy_network: \"paperless_proxy_net\"" "Inventory: Paperless route declares its proxy network" example_inventory.yml

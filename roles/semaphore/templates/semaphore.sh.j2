@@ -20,9 +20,10 @@ exec /usr/bin/podman run \
 --env SEMAPHORE_ACCESS_KEY_ENCRYPTION \
 --env ANSIBLE_SSH_ARGS \
 --env TZ \
---network=semaphore_container_net:alias={{ container_dns.aliases.semaphore_proxy }} \
---network=nextcloud_container_net:alias={{ container_dns.aliases.semaphore_backend }} \
+--network=nextcloud_container_net:ip={{ container_static_ips.semaphore_backend }},alias={{ container_dns.aliases.semaphore_backend }} \
+--network=semaphore_container_net:ip={{ container_static_ips.semaphore_proxy }},alias={{ container_dns.aliases.semaphore_proxy }} \
 --network={{ semaphore_egress_network }}:alias={{ container_dns.aliases.semaphore_egress }} \
+--add-host={{ container_dns.aliases.postgres_backend }}.{{ container_dns.domain }}:{{ container_static_ips.postgres_backend }} \
 --volume /etc/semaphore:/etc/semaphore:Z \
 --volume /var/lib/semaphore:/var/lib/semaphore:Z \
 --read-only \

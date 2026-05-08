@@ -12,6 +12,11 @@ exec /usr/bin/podman run \
   --network={{ net }}:alias={{ container_dns.aliases.traefik_proxy }} \
 {% endfor %}
   --network={{ traefik_egress_network }}:alias={{ container_dns.aliases.traefik_egress }} \
+{% for config_name in proxy_config %}
+{% if route_proxy_container_ips[config_name.proxy_network] is defined %}
+  --add-host={{ config_name.container_destination }}:{{ route_proxy_container_ips[config_name.proxy_network] }} \
+{% endif %}
+{% endfor %}
   --env PORKBUN_API_KEY \
   --env PORKBUN_SECRET_API_KEY \
   -v {{ traefik_path }}/traefik.yml:/etc/traefik/traefik.yml:Z,ro \

@@ -51,6 +51,10 @@ semaphore_known_hosts: ""
 # Non-internal Podman network used only for Semaphore's outbound SSH automation.
 semaphore_egress_network: semaphore_egress_net
 
+# Deterministic VM1 route proxy network subnet.
+route_proxy_network_subnets:
+  semaphore_container_net: 172.16.1.48/29
+
 # Podman DNS aliases used on VM1 networks.
 container_dns:
   domain: dns.podman
@@ -59,6 +63,13 @@ container_dns:
     semaphore_backend: semaphore-backend
     semaphore_proxy: semaphore-proxy
     semaphore_egress: semaphore-egress
+
+# Static container IPs used with /etc/hosts overrides for latency-sensitive
+# service-to-service paths.
+container_static_ips:
+  postgres_backend: 172.16.1.2
+  semaphore_backend: 172.16.1.6
+  semaphore_proxy: 172.16.1.50
 
 # Container image resolved from the approved artifact lock in vm1.yml
 semaphore_image: ""

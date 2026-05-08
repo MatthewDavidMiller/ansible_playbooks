@@ -55,3 +55,7 @@ container_dns:
 # Deterministic VM1 route proxy network subnet.
 route_proxy_network_subnets:
   navidrome_container_net: 172.16.1.24/29
+
+# Static container IP used with Traefik /etc/hosts overrides.
+container_static_ips:
+  navidrome_proxy: 172.16.1.26

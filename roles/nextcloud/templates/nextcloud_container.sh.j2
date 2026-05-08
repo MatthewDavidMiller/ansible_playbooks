@@ -8,8 +8,10 @@ set +a
 exec /usr/bin/podman run \
 --pull=never \
 --name=nextcloud \
---network=nextcloud_container_net:alias={{ container_dns.aliases.nextcloud_backend }} \
---network=nextcloud_proxy_net:alias={{ container_dns.aliases.nextcloud_proxy }} \
+--network=nextcloud_container_net:ip={{ container_static_ips.nextcloud_backend }},alias={{ container_dns.aliases.nextcloud_backend }} \
+--network=nextcloud_proxy_net:ip={{ container_static_ips.nextcloud_proxy }},alias={{ container_dns.aliases.nextcloud_proxy }} \
+--add-host={{ container_dns.aliases.postgres_backend }}.{{ container_dns.domain }}:{{ container_static_ips.postgres_backend }} \
+--add-host={{ container_dns.aliases.redis_backend }}.{{ container_dns.domain }}:{{ container_static_ips.redis_backend }} \
 --volume {{ nextcloud_path }}/base:/var/www/html/:Z \
 --volume {{ nextcloud_path }}/data:/var/www/html/data/:Z \
 --volume {{ nextcloud_path }}/config:/var/www/html/config/:Z \

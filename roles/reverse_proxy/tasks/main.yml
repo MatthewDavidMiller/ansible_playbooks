@@ -30,7 +30,8 @@
       - config_name.proxy_network is defined
       - config_name.proxy_network is match('^[A-Za-z0-9_.-]+$')
       - config_name.proxy_network not in reverse_proxy_forbidden_networks
-    fail_msg: "Each proxy_config entry needs a safe name, FQDN, http/https upstream, valid port, and container destination."
+      - config_name.proxy_network in route_proxy_container_ips
+    fail_msg: "Each proxy_config entry needs a safe name, FQDN, http/https upstream, valid port, container destination, and route_proxy_container_ips entry."
   loop: "{{ proxy_config }}"
   loop_control:
     loop_var: config_name

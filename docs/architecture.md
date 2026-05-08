@@ -54,7 +54,7 @@ VM1 runs all maintained services on a single Rocky Linux 10 host to reduce resou
 
 ## Container Network Isolation
 
-Publicly proxied services have internal proxy-facing Podman networks, while PostgreSQL and Redis stay on an internal backend-only network. Traefik resolves backends through route-declared proxy networks and does not join the database/cache network. Container egress is denied by default except for dedicated egress networks assigned to Traefik and Semaphore.
+Publicly proxied services have internal proxy-facing Podman networks, while PostgreSQL and Redis stay on an internal backend-only network. Traefik resolves backends through route-declared proxy networks and does not join the database/cache network. Latency-sensitive service names are backed by static container IPs and `/etc/hosts` entries inside client containers, so hot-path database/cache/proxy traffic does not depend on Podman DNS lookup order across multiple networks. Container egress is denied by default except for dedicated egress networks assigned to Traefik and Semaphore.
 
 **VM1 networks:**
 
@@ -65,13 +65,13 @@ Publicly proxied services have internal proxy-facing Podman networks, while Post
 | `paperless_proxy_net` | 172.16.1.40/29 | paperless (`container_dns.aliases.paperless_proxy`), traefik (`container_dns.aliases.traefik_proxy`) |
 | `navidrome_container_net` | 172.16.1.24/29 | navidrome (`container_dns.aliases.navidrome_proxy`), traefik (`container_dns.aliases.traefik_proxy`) |
 | `vaultwarden_container_net` | 172.16.1.16/29 | vaultwarden (`container_dns.aliases.vaultwarden_proxy`), traefik (`container_dns.aliases.traefik_proxy`) |
-| `semaphore_container_net` | (auto) | semaphore (`container_dns.aliases.semaphore_proxy`), traefik (`container_dns.aliases.traefik_proxy`) |
+| `semaphore_container_net` | 172.16.1.48/29 | semaphore (`container_dns.aliases.semaphore_proxy`), traefik (`container_dns.aliases.traefik_proxy`) |
 | `traefik_egress_net` | (auto) | traefik (`container_dns.aliases.traefik_egress`) |
 | `semaphore_egress_net` | (auto) | semaphore (`container_dns.aliases.semaphore_egress`) |
 
 The app/backend networks are created with Podman's `--internal` flag. Missing internal networks are created inline. If an old non-internal app/backend network already exists, non-staged runs remove it and recreate it immediately; staged VM1 runs queue the replacement and let the final `semaphore` role schedule `/usr/local/bin/migrate_container_networks.sh` with `systemd-run --on-active=2min`. That delay lets playbooks launched from the Semaphore container finish before the job stops containers, replaces legacy networks, and starts services again. The job logs to `/var/log/homelab-container-network-migration.log`.
 
-Traefik resolves backends through route DNS entries derived from `container_dns.aliases.*` and `container_dns.domain`, and derives its app-facing network list from each `proxy_config[*].proxy_network` value. Services that also join backend-only networks use proxy-network-specific dictionary entries for Traefik routes and backend-specific dictionary entries for database/cache connections.
+Traefik route files still use backend names derived from `container_dns.aliases.*` and `container_dns.domain`, and Traefik derives its app-facing network list from each `proxy_config[*].proxy_network` value. The maintained launch scripts add host-file entries for those names using static IPs, avoiding multi-network DNS latency while preserving readable route targets. Services that also join backend-only networks use proxy-network-specific dictionary entries for Traefik routes and backend-specific dictionary entries for database/cache connections.
 
 See [inventory.md — Route Proxy Networks](inventory.md#route-proxy-networks) and [roles/services.md#reverse_proxy](roles/services.md#reverse_proxy).
 

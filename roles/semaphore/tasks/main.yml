@@ -26,6 +26,8 @@
       - network
       - create
       - --internal
+      - --subnet
+      - "{{ route_proxy_network_subnets.semaphore_container_net }}"
       - semaphore_container_net
   when: semaphore_network.rc != 0
 
@@ -35,10 +37,13 @@
   vars:
     network_migration:
       name: semaphore_container_net
-      subnet: ""
+      subnet: "{{ route_proxy_network_subnets.semaphore_container_net }}"
   when: semaphore_network.rc == 0
     and apply_runtime_changes_on_reboot | default(false) | bool
-    and not ((semaphore_network.stdout | from_json | first).internal | default((semaphore_network.stdout | from_json | first).Internal | default(false)) | bool)
+    and (
+      not ((semaphore_network.stdout | from_json | first).internal | default((semaphore_network.stdout | from_json | first).Internal | default(false)) | bool)
+      or route_proxy_network_subnets.semaphore_container_net not in semaphore_network.stdout
+    )
 
 - name: Remove non-internal semaphore proxy network
   ansible.builtin.command:
@@ -52,7 +57,10 @@
       - semaphore_container_net
   when: semaphore_network.rc == 0
     and not (apply_runtime_changes_on_reboot | default(false) | bool)
-    and not ((semaphore_network.stdout | from_json | first).internal | default((semaphore_network.stdout | from_json | first).Internal | default(false)) | bool)
+    and (
+      not ((semaphore_network.stdout | from_json | first).internal | default((semaphore_network.stdout | from_json | first).Internal | default(false)) | bool)
+      or route_proxy_network_subnets.semaphore_container_net not in semaphore_network.stdout
+    )
 
 - name: Recreate semaphore proxy network as internal
   ansible.builtin.command:
@@ -61,10 +69,15 @@
       - network
       - create
       - --internal
+      - --subnet
+      - "{{ route_proxy_network_subnets.semaphore_container_net }}"
       - semaphore_container_net
   when: semaphore_network.rc == 0
     and not (apply_runtime_changes_on_reboot | default(false) | bool)
-    and not ((semaphore_network.stdout | from_json | first).internal | default((semaphore_network.stdout | from_json | first).Internal | default(false)) | bool)
+    and (
+      not ((semaphore_network.stdout | from_json | first).internal | default((semaphore_network.stdout | from_json | first).Internal | default(false)) | bool)
+      or route_proxy_network_subnets.semaphore_container_net not in semaphore_network.stdout
+    )
 
 - name: Validate Semaphore egress network
   ansible.builtin.assert:

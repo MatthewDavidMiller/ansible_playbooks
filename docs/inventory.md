@@ -45,6 +45,8 @@ VM1 is the single maintained service host. It runs Traefik, PostgreSQL, Redis, N
 | `traefik_dashboard_basic_auth_users` | list | htpasswd-style BasicAuth users for the Traefik dashboard | `["admin:$apr1$..."]` |
 | `traefik_acme_email` | string | ACME account email | `admin@example.com` |
 | `proxy_config` | list | Traefik dynamic route definitions | — |
+| `route_proxy_container_ips` | dict | Static backend IP per Traefik route proxy network, used for `/etc/hosts` resolution inside Traefik | `{nextcloud_proxy_net: 172.16.1.34}` |
+| `container_static_ips` | dict | Static IPs for latency-sensitive container aliases on backend and proxy networks | `{postgres_backend: 172.16.1.2}` |
 | `postgres_path` | path | Shared PostgreSQL data directory | `/opt/postgres` |
 | `nextcloud_path` | path | Nextcloud base directory | `/opt/nextcloud` |
 | `nextcloud_disk` | string | UUID entry for the Nextcloud data disk | `UUID=...` |
@@ -159,6 +161,8 @@ All entries use the generic `service_proxy.yml.j2` template.
 ## Route Proxy Networks
 
 Each `proxy_config` entry declares its `proxy_network`. The `reverse_proxy` role derives Traefik's app-facing network membership from those route entries and creates missing route proxy networks as internal Podman networks. Point `container_destination` at the service's proxy-network DNS entry from `container_dns`, such as `{{ container_dns.aliases.nextcloud_proxy }}.{{ container_dns.domain }}`, so Traefik does not resolve a backend-network address it cannot reach.
+
+Latency-sensitive service names are also written into container `/etc/hosts` with static IPs from `container_static_ips` and `route_proxy_container_ips`. Podman DNS aliases remain present for observability and fallback, but normal database/cache/proxy traffic should resolve locally without depending on multi-network DNS order.
 
 The maintained roles define a `container_dns` dictionary with `domain` and `aliases` keys. Override that dictionary in inventory if you need different names.
 
