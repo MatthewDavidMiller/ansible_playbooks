@@ -154,6 +154,8 @@ assert_file_contains "--internal" "Vaultwarden: proxy network is created as an i
 assert_file_contains "--internal" "Semaphore: proxy network is created as an internal network" roles/semaphore/tasks/main.yml
 assert_file_contains "Create internal route proxy networks" "reverse_proxy: creates route proxy networks before service roles run" roles/reverse_proxy/tasks/main.yml
 assert_file_contains "Remove non-internal route proxy networks" "reverse_proxy: recreates legacy non-internal route networks" roles/reverse_proxy/tasks/main.yml
+assert_file_contains "reverse_proxy_deferred_route_networks" "reverse_proxy: defers destructive updates for control-plane route networks" roles/reverse_proxy/tasks/main.yml
+assert_file_contains "semaphore_container_net" "reverse_proxy defaults: defers Semaphore runtime network replacement" roles/reverse_proxy/defaults/main.yml
 assert_file_contains "--force" "reverse_proxy: force-removes attached legacy proxy networks before recreating them" roles/reverse_proxy/tasks/main.yml
 assert_file_not_contains "--network=nextcloud_container_net" "Traefik: is not placed on database/cache backend network" roles/reverse_proxy/templates/traefik_container.sh.j2
 assert_file_not_contains "-p " "Nextcloud: does not publish host ports" roles/nextcloud/templates/nextcloud_container.sh.j2

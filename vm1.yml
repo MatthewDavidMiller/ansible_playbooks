@@ -45,5 +45,5 @@
     - paperless_ngx
     - navidrome
     - vaultwarden
-    - semaphore
     - standard_cleanup
+    - semaphore

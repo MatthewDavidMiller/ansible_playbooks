@@ -14,6 +14,13 @@ route_proxy_network_subnets:
   paperless_proxy_net: 172.16.1.40/29
   navidrome_container_net: 172.16.1.24/29
   vaultwarden_container_net: 172.16.1.16/29
+
+# Route networks that can carry the Ansible control-plane container.
+# The reverse_proxy role may create these when absent, but destructive
+# replacement is deferred to the owning service role later in the play.
+reverse_proxy_deferred_route_networks:
+  - semaphore_container_net
+
 # Fully-qualified domain name for the Traefik dashboard
 traefik_dashboard_fqdn: ""
 

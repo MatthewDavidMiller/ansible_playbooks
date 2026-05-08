@@ -107,6 +107,7 @@
     loop_var: route_network
   when:
     - route_network.rc == 0
+    - route_network.route_proxy_network_name not in reverse_proxy_deferred_route_networks
     - not ((route_network.stdout | from_json | first).internal | default((route_network.stdout | from_json | first).Internal | default(false)) | bool)
 
 - name: Create internal route proxy networks with deterministic subnets
@@ -123,7 +124,12 @@
   loop_control:
     loop_var: route_network
   when:
-    - route_network.rc != 0 or not ((route_network.stdout | from_json | first).internal | default((route_network.stdout | from_json | first).Internal | default(false)) | bool)
+    - >-
+      route_network.rc != 0 or
+      (
+        route_network.route_proxy_network_name not in reverse_proxy_deferred_route_networks and
+        not ((route_network.stdout | from_json | first).internal | default((route_network.stdout | from_json | first).Internal | default(false)) | bool)
+      )
     - route_network.route_proxy_network_name in route_proxy_network_subnets
 
 - name: Create internal route proxy networks
@@ -138,7 +144,12 @@
   loop_control:
     loop_var: route_network
   when:
-    - route_network.rc != 0 or not ((route_network.stdout | from_json | first).internal | default((route_network.stdout | from_json | first).Internal | default(false)) | bool)
+    - >-
+      route_network.rc != 0 or
+      (
+        route_network.route_proxy_network_name not in reverse_proxy_deferred_route_networks and
+        not ((route_network.stdout | from_json | first).internal | default((route_network.stdout | from_json | first).Internal | default(false)) | bool)
+      )
     - route_network.route_proxy_network_name not in route_proxy_network_subnets
 
 - name: Create traefik container path
