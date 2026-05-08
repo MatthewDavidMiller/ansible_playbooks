@@ -261,6 +261,24 @@ assert_contains() {
   grep -Fq -- "$text" "$file" && pass "$label" || fail "$label"
 }
 
+assert_line_before() {
+  local file="$1"
+  local first_text="$2"
+  local second_text="$3"
+  local label="$4"
+  local first_line
+  local second_line
+
+  first_line=$(grep -n -F -- "$first_text" "$file" | head -n 1 | cut -d: -f1 || true)
+  second_line=$(grep -n -F -- "$second_text" "$file" | head -n 1 | cut -d: -f1 || true)
+
+  if [[ -n "$first_line" && -n "$second_line" && "$first_line" -lt "$second_line" ]]; then
+    pass "$label"
+  else
+    fail "$label"
+  fi
+}
+
 assert_not_contains() {
   local file="$1"
   local text="$2"
@@ -284,6 +302,7 @@ assert_sourced_var "$render_dir/postgres.env" "PAPERLESS_DB_PASSWORD" "$paperles
 assert_sourced_var "$render_dir/postgres.env" "SEMAPHORE_DB_PASSWORD" "$semaphore_db_password" "postgres.env preserves SEMAPHORE_DB_PASSWORD"
 assert_sourced_var "$render_dir/nextcloud.env" "NEXTCLOUD_ADMIN_PASSWORD" "$nextcloud_admin_password" "nextcloud.env preserves NEXTCLOUD_ADMIN_PASSWORD"
 assert_sourced_var "$render_dir/nextcloud.env" "NEXTCLOUD_TRUSTED_DOMAINS" "$nextcloud_trusted_domains" "nextcloud.env preserves NEXTCLOUD_TRUSTED_DOMAINS"
+assert_sourced_var "$render_dir/nextcloud.env" "TRUSTED_PROXIES" "172.16.1.32/29" "nextcloud.env trusts the proxy-facing network"
 assert_sourced_var "$render_dir/paperless.env" "PAPERLESS_DBPASS" "$paperless_db_password" "paperless.env preserves PAPERLESS_DBPASS"
 assert_sourced_var "$render_dir/semaphore.env" "SEMAPHORE_ADMIN_PASSWORD" "$semaphore_admin_password" "semaphore.env preserves SEMAPHORE_ADMIN_PASSWORD"
 assert_sourced_var "$render_dir/semaphore.env" "SEMAPHORE_ACCESS_KEY_ENCRYPTION" "$semaphore_encryption_key" "semaphore.env preserves SEMAPHORE_ACCESS_KEY_ENCRYPTION"
@@ -295,6 +314,7 @@ assert_contains "$render_dir/traefik_container.sh" "--env PORKBUN_API_KEY" "trae
 assert_contains "$render_dir/traefik_container.sh" "--env PORKBUN_SECRET_API_KEY" "traefik_container.sh passes PORKBUN_SECRET_API_KEY"
 assert_contains "$render_dir/traefik_container.sh" "--network=traefik_egress_net" "traefik_container.sh joins dedicated egress network"
 assert_contains "$render_dir/traefik_container.sh" "--network=nextcloud_proxy_net" "traefik_container.sh joins route-declared proxy network"
+assert_line_before "$render_dir/traefik_container.sh" "--network=nextcloud_proxy_net" "--network=traefik_egress_net" "traefik_container.sh attaches app networks before egress for Podman DNS"
 assert_not_contains "$render_dir/traefik_container.sh" "--network=nextcloud_container_net" "traefik_container.sh does not join backend network"
 assert_not_contains "$render_dir/traefik_container.sh" "podman pull" "traefik_container.sh no longer calls podman pull"
 assert_contains "$render_dir/traefik_container.sh" "--pull=never" "traefik_container.sh uses --pull=never"

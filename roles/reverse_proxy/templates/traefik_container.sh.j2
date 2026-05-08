@@ -8,10 +8,10 @@ set +a
 exec /usr/bin/podman run \
   --pull=never \
   --name=traefik \
-  --network={{ traefik_egress_network }} \
 {% for net in traefik_app_networks | default(proxy_config | map(attribute='proxy_network') | list | unique, true) %}
   --network={{ net }} \
 {% endfor %}
+  --network={{ traefik_egress_network }} \
   --env PORKBUN_API_KEY \
   --env PORKBUN_SECRET_API_KEY \
   -v {{ traefik_path }}/traefik.yml:/etc/traefik/traefik.yml:Z,ro \
