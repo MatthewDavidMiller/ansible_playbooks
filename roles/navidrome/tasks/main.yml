@@ -31,7 +31,10 @@
       subnet: "{{ route_proxy_network_subnets.navidrome_container_net }}"
   when: navidrome_network.rc == 0
     and apply_runtime_changes_on_reboot | default(false) | bool
-    and not ((navidrome_network.stdout | from_json | first).internal | default((navidrome_network.stdout | from_json | first).Internal | default(false)) | bool)
+    and (
+      not ((navidrome_network.stdout | from_json | first).internal | default((navidrome_network.stdout | from_json | first).Internal | default(false)) | bool)
+      or route_proxy_network_subnets.navidrome_container_net not in ((navidrome_network.stdout | from_json | first).subnets | default([]) | map(attribute='subnet') | list)
+    )
 
 - name: Remove non-internal navidrome proxy network
   ansible.builtin.command:
@@ -45,7 +48,10 @@
       - navidrome_container_net
   when: navidrome_network.rc == 0
     and not (apply_runtime_changes_on_reboot | default(false) | bool)
-    and not ((navidrome_network.stdout | from_json | first).internal | default((navidrome_network.stdout | from_json | first).Internal | default(false)) | bool)
+    and (
+      not ((navidrome_network.stdout | from_json | first).internal | default((navidrome_network.stdout | from_json | first).Internal | default(false)) | bool)
+      or route_proxy_network_subnets.navidrome_container_net not in ((navidrome_network.stdout | from_json | first).subnets | default([]) | map(attribute='subnet') | list)
+    )
 
 - name: Recreate navidrome proxy network as internal
   ansible.builtin.command:
@@ -59,7 +65,10 @@
       - navidrome_container_net
   when: navidrome_network.rc == 0
     and not (apply_runtime_changes_on_reboot | default(false) | bool)
-    and not ((navidrome_network.stdout | from_json | first).internal | default((navidrome_network.stdout | from_json | first).Internal | default(false)) | bool)
+    and (
+      not ((navidrome_network.stdout | from_json | first).internal | default((navidrome_network.stdout | from_json | first).Internal | default(false)) | bool)
+      or route_proxy_network_subnets.navidrome_container_net not in ((navidrome_network.stdout | from_json | first).subnets | default([]) | map(attribute='subnet') | list)
+    )
 
 - name: Create Navidrome managed paths
   ansible.builtin.file:

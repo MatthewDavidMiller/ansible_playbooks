@@ -42,7 +42,7 @@
     and apply_runtime_changes_on_reboot | default(false) | bool
     and (
       not ((semaphore_network.stdout | from_json | first).internal | default((semaphore_network.stdout | from_json | first).Internal | default(false)) | bool)
-      or route_proxy_network_subnets.semaphore_container_net not in semaphore_network.stdout
+      or route_proxy_network_subnets.semaphore_container_net not in ((semaphore_network.stdout | from_json | first).subnets | default([]) | map(attribute='subnet') | list)
     )
 
 - name: Remove non-internal semaphore proxy network
@@ -59,7 +59,7 @@
     and not (apply_runtime_changes_on_reboot | default(false) | bool)
     and (
       not ((semaphore_network.stdout | from_json | first).internal | default((semaphore_network.stdout | from_json | first).Internal | default(false)) | bool)
-      or route_proxy_network_subnets.semaphore_container_net not in semaphore_network.stdout
+      or route_proxy_network_subnets.semaphore_container_net not in ((semaphore_network.stdout | from_json | first).subnets | default([]) | map(attribute='subnet') | list)
     )
 
 - name: Recreate semaphore proxy network as internal
@@ -76,7 +76,7 @@
     and not (apply_runtime_changes_on_reboot | default(false) | bool)
     and (
       not ((semaphore_network.stdout | from_json | first).internal | default((semaphore_network.stdout | from_json | first).Internal | default(false)) | bool)
-      or route_proxy_network_subnets.semaphore_container_net not in semaphore_network.stdout
+      or route_proxy_network_subnets.semaphore_container_net not in ((semaphore_network.stdout | from_json | first).subnets | default([]) | map(attribute='subnet') | list)
     )
 
 - name: Validate Semaphore egress network

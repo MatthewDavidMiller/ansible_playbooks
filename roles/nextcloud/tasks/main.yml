@@ -33,7 +33,10 @@
       subnet: "{{ nextcloud_backend_network_subnet }}"
   when: nextcloud_network.rc == 0
     and apply_runtime_changes_on_reboot | default(false) | bool
-    and not ((nextcloud_network.stdout | from_json | first).internal | default((nextcloud_network.stdout | from_json | first).Internal | default(false)) | bool)
+    and (
+      not ((nextcloud_network.stdout | from_json | first).internal | default((nextcloud_network.stdout | from_json | first).Internal | default(false)) | bool)
+      or nextcloud_backend_network_subnet not in ((nextcloud_network.stdout | from_json | first).subnets | default([]) | map(attribute='subnet') | list)
+    )
 
 - name: Remove non-internal nextcloud backend network
   ansible.builtin.command:
@@ -47,7 +50,10 @@
       - nextcloud_container_net
   when: nextcloud_network.rc == 0
     and not (apply_runtime_changes_on_reboot | default(false) | bool)
-    and not ((nextcloud_network.stdout | from_json | first).internal | default((nextcloud_network.stdout | from_json | first).Internal | default(false)) | bool)
+    and (
+      not ((nextcloud_network.stdout | from_json | first).internal | default((nextcloud_network.stdout | from_json | first).Internal | default(false)) | bool)
+      or nextcloud_backend_network_subnet not in ((nextcloud_network.stdout | from_json | first).subnets | default([]) | map(attribute='subnet') | list)
+    )
 
 - name: Recreate nextcloud backend network as internal
   ansible.builtin.command:
@@ -61,7 +67,10 @@
       - nextcloud_container_net
   when: nextcloud_network.rc == 0
     and not (apply_runtime_changes_on_reboot | default(false) | bool)
-    and not ((nextcloud_network.stdout | from_json | first).internal | default((nextcloud_network.stdout | from_json | first).Internal | default(false)) | bool)
+    and (
+      not ((nextcloud_network.stdout | from_json | first).internal | default((nextcloud_network.stdout | from_json | first).Internal | default(false)) | bool)
+      or nextcloud_backend_network_subnet not in ((nextcloud_network.stdout | from_json | first).subnets | default([]) | map(attribute='subnet') | list)
+    )
 
 - name: Inspect nextcloud proxy network
   ansible.builtin.command:
@@ -95,7 +104,10 @@
       subnet: "{{ route_proxy_network_subnets.nextcloud_proxy_net }}"
   when: nextcloud_proxy_network.rc == 0
     and apply_runtime_changes_on_reboot | default(false) | bool
-    and not ((nextcloud_proxy_network.stdout | from_json | first).internal | default((nextcloud_proxy_network.stdout | from_json | first).Internal | default(false)) | bool)
+    and (
+      not ((nextcloud_proxy_network.stdout | from_json | first).internal | default((nextcloud_proxy_network.stdout | from_json | first).Internal | default(false)) | bool)
+      or route_proxy_network_subnets.nextcloud_proxy_net not in ((nextcloud_proxy_network.stdout | from_json | first).subnets | default([]) | map(attribute='subnet') | list)
+    )
 
 - name: Remove non-internal nextcloud proxy network
   ansible.builtin.command:
@@ -109,7 +121,10 @@
       - nextcloud_proxy_net
   when: nextcloud_proxy_network.rc == 0
     and not (apply_runtime_changes_on_reboot | default(false) | bool)
-    and not ((nextcloud_proxy_network.stdout | from_json | first).internal | default((nextcloud_proxy_network.stdout | from_json | first).Internal | default(false)) | bool)
+    and (
+      not ((nextcloud_proxy_network.stdout | from_json | first).internal | default((nextcloud_proxy_network.stdout | from_json | first).Internal | default(false)) | bool)
+      or route_proxy_network_subnets.nextcloud_proxy_net not in ((nextcloud_proxy_network.stdout | from_json | first).subnets | default([]) | map(attribute='subnet') | list)
+    )
 
 - name: Recreate nextcloud proxy network as internal
   ansible.builtin.command:
@@ -123,7 +138,10 @@
       - nextcloud_proxy_net
   when: nextcloud_proxy_network.rc == 0
     and not (apply_runtime_changes_on_reboot | default(false) | bool)
-    and not ((nextcloud_proxy_network.stdout | from_json | first).internal | default((nextcloud_proxy_network.stdout | from_json | first).Internal | default(false)) | bool)
+    and (
+      not ((nextcloud_proxy_network.stdout | from_json | first).internal | default((nextcloud_proxy_network.stdout | from_json | first).Internal | default(false)) | bool)
+      or route_proxy_network_subnets.nextcloud_proxy_net not in ((nextcloud_proxy_network.stdout | from_json | first).subnets | default([]) | map(attribute='subnet') | list)
+    )
 
 - name: Create nextcloud secret directory
   ansible.builtin.file:

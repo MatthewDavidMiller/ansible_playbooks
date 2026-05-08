@@ -109,6 +109,27 @@ assert_match "reverse_proxy_deferred_route_networks" "reverse_proxy defers destr
 assert_match "semaphore_container_net" "reverse_proxy defers Semaphore runtime network replacement by default" roles/reverse_proxy/defaults/main.yml
 assert_match "Schedule deferred container network migration" "semaphore schedules disruptive network replacement at the end of VM1 runs" roles/semaphore/tasks/main.yml
 assert_match "systemd-run" "semaphore uses a delayed background job for final network migration" roles/semaphore/tasks/main.yml
+assert_match "from_json.*first.*subnets.*map.*attribute.*subnet" \
+  "reverse_proxy checks subnet mismatch for deferred route network recreation" \
+  roles/reverse_proxy/tasks/main.yml
+assert_match "from_json.*first.*subnets.*map.*attribute.*subnet" \
+  "nextcloud checks subnet mismatch for deferred network recreation" \
+  roles/nextcloud/tasks/main.yml
+assert_match "from_json.*first.*subnets.*map.*attribute.*subnet" \
+  "navidrome checks subnet mismatch for deferred network recreation" \
+  roles/navidrome/tasks/main.yml
+assert_match "from_json.*first.*subnets.*map.*attribute.*subnet" \
+  "paperless_ngx checks subnet mismatch for deferred network recreation" \
+  roles/paperless_ngx/tasks/main.yml
+assert_match "from_json.*first.*subnets.*map.*attribute.*subnet" \
+  "vaultwarden checks subnet mismatch for deferred network recreation" \
+  roles/vaultwarden/tasks/main.yml
+assert_match "from_json.*first.*subnets.*map.*attribute.*subnet" \
+  "semaphore checks subnet mismatch via JSON-parsed subnets" \
+  roles/semaphore/tasks/main.yml
+assert_no_fixed_match "not in semaphore_network.stdout" \
+  "semaphore subnet check uses JSON parsing, not raw stdout search" \
+  roles/semaphore/tasks/main.yml
 assert_match "traefik_egress_network" "Traefik uses a dedicated egress network" roles/reverse_proxy/templates/traefik_container.sh.j2
 assert_no_match "traefik_networks:" "maintained inventory does not use free-form Traefik network membership" example_inventory.yml
 assert_match "Validate firewalld ingress inputs" "firewalld validates ingress inputs before applying policy" roles/standard_firewalld/tasks/main.yml

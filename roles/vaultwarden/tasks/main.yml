@@ -42,7 +42,10 @@
       subnet: "{{ route_proxy_network_subnets.vaultwarden_container_net }}"
   when: vaultwarden_network.rc == 0
     and apply_runtime_changes_on_reboot | default(false) | bool
-    and not ((vaultwarden_network.stdout | from_json | first).internal | default((vaultwarden_network.stdout | from_json | first).Internal | default(false)) | bool)
+    and (
+      not ((vaultwarden_network.stdout | from_json | first).internal | default((vaultwarden_network.stdout | from_json | first).Internal | default(false)) | bool)
+      or route_proxy_network_subnets.vaultwarden_container_net not in ((vaultwarden_network.stdout | from_json | first).subnets | default([]) | map(attribute='subnet') | list)
+    )
 
 - name: Remove non-internal vaultwarden proxy network
   ansible.builtin.command:
@@ -56,7 +59,10 @@
       - vaultwarden_container_net
   when: vaultwarden_network.rc == 0
     and not (apply_runtime_changes_on_reboot | default(false) | bool)
-    and not ((vaultwarden_network.stdout | from_json | first).internal | default((vaultwarden_network.stdout | from_json | first).Internal | default(false)) | bool)
+    and (
+      not ((vaultwarden_network.stdout | from_json | first).internal | default((vaultwarden_network.stdout | from_json | first).Internal | default(false)) | bool)
+      or route_proxy_network_subnets.vaultwarden_container_net not in ((vaultwarden_network.stdout | from_json | first).subnets | default([]) | map(attribute='subnet') | list)
+    )
 
 - name: Recreate vaultwarden proxy network as internal
   ansible.builtin.command:
@@ -70,7 +76,10 @@
       - vaultwarden_container_net
   when: vaultwarden_network.rc == 0
     and not (apply_runtime_changes_on_reboot | default(false) | bool)
-    and not ((vaultwarden_network.stdout | from_json | first).internal | default((vaultwarden_network.stdout | from_json | first).Internal | default(false)) | bool)
+    and (
+      not ((vaultwarden_network.stdout | from_json | first).internal | default((vaultwarden_network.stdout | from_json | first).Internal | default(false)) | bool)
+      or route_proxy_network_subnets.vaultwarden_container_net not in ((vaultwarden_network.stdout | from_json | first).subnets | default([]) | map(attribute='subnet') | list)
+    )
 
 - name: Create Vaultwarden container path
   ansible.builtin.file:
