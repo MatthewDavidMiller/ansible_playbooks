@@ -1,0 +1,54 @@
+#!/bin/bash
+set -euo pipefail
+
+LOG_FILE=/var/log/homelab-container-network-migration.log
+exec >> "$LOG_FILE" 2>&1
+
+echo "Starting deferred container network migration at $(date --iso-8601=seconds)"
+
+service_names=(
+{% for service_name in container_service_names.split() %}
+  {{ service_name | quote }}
+{% endfor %}
+)
+
+stop_services=(
+  traefik_container
+{% for service_name in container_service_names.split() %}
+  {{ service_name | quote }}
+{% endfor %}
+)
+
+for service_name in "${stop_services[@]}"; do
+  unit_name="${service_name%.service}.service"
+  echo "Stopping ${unit_name}"
+  /usr/bin/systemctl stop "$unit_name" || true
+done
+
+{% set migrations = container_network_migrations | default([]) | unique(attribute='name') | list %}
+{% for network in migrations %}
+echo "Replacing network {{ network.name }}"
+/usr/bin/podman network rm --force --time 30 {{ network.name | quote }} || true
+if ! /usr/bin/podman network inspect {{ network.name | quote }} >/dev/null 2>&1; then
+{% if network.subnet | default('') | length > 0 %}
+  /usr/bin/podman network create --internal --subnet {{ network.subnet | quote }} {{ network.name | quote }}
+{% else %}
+  /usr/bin/podman network create --internal {{ network.name | quote }}
+{% endif %}
+else
+  echo "Network {{ network.name }} still exists after removal attempt; leaving it unchanged"
+fi
+{% endfor %}
+
+/usr/bin/systemctl daemon-reload
+
+for service_name in "${service_names[@]}"; do
+  unit_name="${service_name%.service}.service"
+  echo "Starting ${unit_name}"
+  /usr/bin/systemctl start "$unit_name" || true
+done
+
+echo "Starting traefik_container.service"
+/usr/bin/systemctl start traefik_container.service || true
+
+echo "Completed deferred container network migration at $(date --iso-8601=seconds)"

@@ -92,6 +92,22 @@
   loop_control:
     loop_var: route_proxy_network_name
 
+- name: Queue legacy route proxy networks for deferred replacement
+  ansible.builtin.set_fact:
+    container_network_migrations: "{{ container_network_migrations | default([]) + [network_migration] }}"
+  loop: "{{ route_proxy_networks.results }}"
+  loop_control:
+    loop_var: route_network
+  vars:
+    network_migration:
+      name: "{{ route_network.route_proxy_network_name }}"
+      subnet: "{{ route_proxy_network_subnets[route_network.route_proxy_network_name] | default('') }}"
+  when:
+    - apply_runtime_changes_on_reboot | default(false) | bool
+    - route_network.rc == 0
+    - route_network.route_proxy_network_name not in reverse_proxy_deferred_route_networks
+    - not ((route_network.stdout | from_json | first).internal | default((route_network.stdout | from_json | first).Internal | default(false)) | bool)
+
 - name: Remove non-internal route proxy networks
   ansible.builtin.command:
     argv:
@@ -107,6 +123,7 @@
     loop_var: route_network
   when:
     - route_network.rc == 0
+    - not (apply_runtime_changes_on_reboot | default(false) | bool)
     - route_network.route_proxy_network_name not in reverse_proxy_deferred_route_networks
     - not ((route_network.stdout | from_json | first).internal | default((route_network.stdout | from_json | first).Internal | default(false)) | bool)
 
@@ -127,6 +144,7 @@
     - >-
       route_network.rc != 0 or
       (
+        not (apply_runtime_changes_on_reboot | default(false) | bool) and
         route_network.route_proxy_network_name not in reverse_proxy_deferred_route_networks and
         not ((route_network.stdout | from_json | first).internal | default((route_network.stdout | from_json | first).Internal | default(false)) | bool)
       )
@@ -147,6 +165,7 @@
     - >-
       route_network.rc != 0 or
       (
+        not (apply_runtime_changes_on_reboot | default(false) | bool) and
         route_network.route_proxy_network_name not in reverse_proxy_deferred_route_networks and
         not ((route_network.stdout | from_json | first).internal | default((route_network.stdout | from_json | first).Internal | default(false)) | bool)
       )

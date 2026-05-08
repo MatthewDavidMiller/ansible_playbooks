@@ -29,6 +29,17 @@
       - semaphore_container_net
   when: semaphore_network.rc != 0
 
+- name: Queue legacy semaphore proxy network for deferred replacement
+  ansible.builtin.set_fact:
+    container_network_migrations: "{{ container_network_migrations | default([]) + [network_migration] }}"
+  vars:
+    network_migration:
+      name: semaphore_container_net
+      subnet: ""
+  when: semaphore_network.rc == 0
+    and apply_runtime_changes_on_reboot | default(false) | bool
+    and not ((semaphore_network.stdout | from_json | first).internal | default((semaphore_network.stdout | from_json | first).Internal | default(false)) | bool)
+
 - name: Remove non-internal semaphore proxy network
   ansible.builtin.command:
     argv:
@@ -40,6 +51,7 @@
       - "30"
       - semaphore_container_net
   when: semaphore_network.rc == 0
+    and not (apply_runtime_changes_on_reboot | default(false) | bool)
     and not ((semaphore_network.stdout | from_json | first).internal | default((semaphore_network.stdout | from_json | first).Internal | default(false)) | bool)
 
 - name: Recreate semaphore proxy network as internal
@@ -51,6 +63,7 @@
       - --internal
       - semaphore_container_net
   when: semaphore_network.rc == 0
+    and not (apply_runtime_changes_on_reboot | default(false) | bool)
     and not ((semaphore_network.stdout | from_json | first).internal | default((semaphore_network.stdout | from_json | first).Internal | default(false)) | bool)
 
 - name: Validate Semaphore egress network
@@ -178,3 +191,28 @@
     name: semaphore.service
     state: started
   when: not (apply_runtime_changes_on_reboot | default(false) | bool)
+
+- name: Deferred container network migration script
+  ansible.builtin.template:
+    src: migrate_container_networks.sh.j2
+    dest: /usr/local/bin/migrate_container_networks.sh
+    owner: root
+    group: root
+    mode: "0700"
+  when:
+    - apply_runtime_changes_on_reboot | default(false) | bool
+    - container_network_migrations | default([]) | length > 0
+
+- name: Schedule deferred container network migration
+  ansible.builtin.command:
+    argv:
+      - systemd-run
+      - "--unit=homelab-container-network-migration-{{ ansible_date_time.epoch | default(lookup('pipe', 'date +%s')) }}"
+      - --collect
+      - --on-active=2min
+      - /usr/bin/bash
+      - /usr/local/bin/migrate_container_networks.sh
+  changed_when: true
+  when:
+    - apply_runtime_changes_on_reboot | default(false) | bool
+    - container_network_migrations | default([]) | length > 0

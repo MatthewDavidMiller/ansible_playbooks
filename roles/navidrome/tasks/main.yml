@@ -22,6 +22,17 @@
       - navidrome_container_net
   when: navidrome_network.rc != 0
 
+- name: Queue legacy navidrome proxy network for deferred replacement
+  ansible.builtin.set_fact:
+    container_network_migrations: "{{ container_network_migrations | default([]) + [network_migration] }}"
+  vars:
+    network_migration:
+      name: navidrome_container_net
+      subnet: 172.16.1.24/29
+  when: navidrome_network.rc == 0
+    and apply_runtime_changes_on_reboot | default(false) | bool
+    and not ((navidrome_network.stdout | from_json | first).internal | default((navidrome_network.stdout | from_json | first).Internal | default(false)) | bool)
+
 - name: Remove non-internal navidrome proxy network
   ansible.builtin.command:
     argv:
@@ -33,6 +44,7 @@
       - "30"
       - navidrome_container_net
   when: navidrome_network.rc == 0
+    and not (apply_runtime_changes_on_reboot | default(false) | bool)
     and not ((navidrome_network.stdout | from_json | first).internal | default((navidrome_network.stdout | from_json | first).Internal | default(false)) | bool)
 
 - name: Recreate navidrome proxy network as internal
@@ -46,6 +58,7 @@
       - 172.16.1.24/29
       - navidrome_container_net
   when: navidrome_network.rc == 0
+    and not (apply_runtime_changes_on_reboot | default(false) | bool)
     and not ((navidrome_network.stdout | from_json | first).internal | default((navidrome_network.stdout | from_json | first).Internal | default(false)) | bool)
 
 - name: Create Navidrome managed paths

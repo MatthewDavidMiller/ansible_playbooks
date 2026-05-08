@@ -33,6 +33,17 @@
       - vaultwarden_container_net
   when: vaultwarden_network.rc != 0
 
+- name: Queue legacy vaultwarden proxy network for deferred replacement
+  ansible.builtin.set_fact:
+    container_network_migrations: "{{ container_network_migrations | default([]) + [network_migration] }}"
+  vars:
+    network_migration:
+      name: vaultwarden_container_net
+      subnet: 172.16.1.16/29
+  when: vaultwarden_network.rc == 0
+    and apply_runtime_changes_on_reboot | default(false) | bool
+    and not ((vaultwarden_network.stdout | from_json | first).internal | default((vaultwarden_network.stdout | from_json | first).Internal | default(false)) | bool)
+
 - name: Remove non-internal vaultwarden proxy network
   ansible.builtin.command:
     argv:
@@ -44,6 +55,7 @@
       - "30"
       - vaultwarden_container_net
   when: vaultwarden_network.rc == 0
+    and not (apply_runtime_changes_on_reboot | default(false) | bool)
     and not ((vaultwarden_network.stdout | from_json | first).internal | default((vaultwarden_network.stdout | from_json | first).Internal | default(false)) | bool)
 
 - name: Recreate vaultwarden proxy network as internal
@@ -57,6 +69,7 @@
       - 172.16.1.16/29
       - vaultwarden_container_net
   when: vaultwarden_network.rc == 0
+    and not (apply_runtime_changes_on_reboot | default(false) | bool)
     and not ((vaultwarden_network.stdout | from_json | first).internal | default((vaultwarden_network.stdout | from_json | first).Internal | default(false)) | bool)
 
 - name: Create Vaultwarden container path

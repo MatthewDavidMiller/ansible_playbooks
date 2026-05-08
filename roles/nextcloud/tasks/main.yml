@@ -24,6 +24,17 @@
       - nextcloud_container_net
   when: nextcloud_network.rc != 0
 
+- name: Queue legacy nextcloud backend network for deferred replacement
+  ansible.builtin.set_fact:
+    container_network_migrations: "{{ container_network_migrations | default([]) + [network_migration] }}"
+  vars:
+    network_migration:
+      name: nextcloud_container_net
+      subnet: 172.16.1.0/28
+  when: nextcloud_network.rc == 0
+    and apply_runtime_changes_on_reboot | default(false) | bool
+    and not ((nextcloud_network.stdout | from_json | first).internal | default((nextcloud_network.stdout | from_json | first).Internal | default(false)) | bool)
+
 - name: Remove non-internal nextcloud backend network
   ansible.builtin.command:
     argv:
@@ -35,6 +46,7 @@
       - "30"
       - nextcloud_container_net
   when: nextcloud_network.rc == 0
+    and not (apply_runtime_changes_on_reboot | default(false) | bool)
     and not ((nextcloud_network.stdout | from_json | first).internal | default((nextcloud_network.stdout | from_json | first).Internal | default(false)) | bool)
 
 - name: Recreate nextcloud backend network as internal
@@ -48,6 +60,7 @@
       - 172.16.1.0/28
       - nextcloud_container_net
   when: nextcloud_network.rc == 0
+    and not (apply_runtime_changes_on_reboot | default(false) | bool)
     and not ((nextcloud_network.stdout | from_json | first).internal | default((nextcloud_network.stdout | from_json | first).Internal | default(false)) | bool)
 
 - name: Inspect nextcloud proxy network
@@ -73,6 +86,17 @@
       - nextcloud_proxy_net
   when: nextcloud_proxy_network.rc != 0
 
+- name: Queue legacy nextcloud proxy network for deferred replacement
+  ansible.builtin.set_fact:
+    container_network_migrations: "{{ container_network_migrations | default([]) + [network_migration] }}"
+  vars:
+    network_migration:
+      name: nextcloud_proxy_net
+      subnet: 172.16.1.32/29
+  when: nextcloud_proxy_network.rc == 0
+    and apply_runtime_changes_on_reboot | default(false) | bool
+    and not ((nextcloud_proxy_network.stdout | from_json | first).internal | default((nextcloud_proxy_network.stdout | from_json | first).Internal | default(false)) | bool)
+
 - name: Remove non-internal nextcloud proxy network
   ansible.builtin.command:
     argv:
@@ -84,6 +108,7 @@
       - "30"
       - nextcloud_proxy_net
   when: nextcloud_proxy_network.rc == 0
+    and not (apply_runtime_changes_on_reboot | default(false) | bool)
     and not ((nextcloud_proxy_network.stdout | from_json | first).internal | default((nextcloud_proxy_network.stdout | from_json | first).Internal | default(false)) | bool)
 
 - name: Recreate nextcloud proxy network as internal
@@ -97,6 +122,7 @@
       - 172.16.1.32/29
       - nextcloud_proxy_net
   when: nextcloud_proxy_network.rc == 0
+    and not (apply_runtime_changes_on_reboot | default(false) | bool)
     and not ((nextcloud_proxy_network.stdout | from_json | first).internal | default((nextcloud_proxy_network.stdout | from_json | first).Internal | default(false)) | bool)
 
 - name: Create nextcloud secret directory

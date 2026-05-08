@@ -39,6 +39,17 @@
       - paperless_proxy_net
   when: paperless_proxy_network.rc != 0
 
+- name: Queue legacy paperless proxy network for deferred replacement
+  ansible.builtin.set_fact:
+    container_network_migrations: "{{ container_network_migrations | default([]) + [network_migration] }}"
+  vars:
+    network_migration:
+      name: paperless_proxy_net
+      subnet: 172.16.1.40/29
+  when: paperless_proxy_network.rc == 0
+    and apply_runtime_changes_on_reboot | default(false) | bool
+    and not ((paperless_proxy_network.stdout | from_json | first).internal | default((paperless_proxy_network.stdout | from_json | first).Internal | default(false)) | bool)
+
 - name: Remove non-internal paperless proxy network
   ansible.builtin.command:
     argv:
@@ -50,6 +61,7 @@
       - "30"
       - paperless_proxy_net
   when: paperless_proxy_network.rc == 0
+    and not (apply_runtime_changes_on_reboot | default(false) | bool)
     and not ((paperless_proxy_network.stdout | from_json | first).internal | default((paperless_proxy_network.stdout | from_json | first).Internal | default(false)) | bool)
 
 - name: Recreate paperless proxy network as internal
@@ -63,6 +75,7 @@
       - 172.16.1.40/29
       - paperless_proxy_net
   when: paperless_proxy_network.rc == 0
+    and not (apply_runtime_changes_on_reboot | default(false) | bool)
     and not ((paperless_proxy_network.stdout | from_json | first).internal | default((paperless_proxy_network.stdout | from_json | first).Internal | default(false)) | bool)
 
 - name: Create paperless paths

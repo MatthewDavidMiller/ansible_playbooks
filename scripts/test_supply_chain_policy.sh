@@ -104,8 +104,11 @@ assert_match "Validate reverse proxy route names are unique" "reverse_proxy reje
 assert_match "proxy_network" "reverse_proxy requires explicit route-owned proxy networks" roles/reverse_proxy/tasks/main.yml
 assert_match "Create internal route proxy networks" "reverse_proxy creates internal route proxy networks" roles/reverse_proxy/tasks/main.yml
 assert_match "Remove non-internal route proxy networks" "reverse_proxy recreates legacy non-internal route networks" roles/reverse_proxy/tasks/main.yml
+assert_match "Queue legacy route proxy networks for deferred replacement" "reverse_proxy queues disruptive route network replacements" roles/reverse_proxy/tasks/main.yml
 assert_match "reverse_proxy_deferred_route_networks" "reverse_proxy defers destructive updates for control-plane route networks" roles/reverse_proxy/tasks/main.yml
 assert_match "semaphore_container_net" "reverse_proxy defers Semaphore runtime network replacement by default" roles/reverse_proxy/defaults/main.yml
+assert_match "Schedule deferred container network migration" "semaphore schedules disruptive network replacement at the end of VM1 runs" roles/semaphore/tasks/main.yml
+assert_match "systemd-run" "semaphore uses a delayed background job for final network migration" roles/semaphore/tasks/main.yml
 assert_match "traefik_egress_network" "Traefik uses a dedicated egress network" roles/reverse_proxy/templates/traefik_container.sh.j2
 assert_no_match "traefik_networks:" "maintained inventory does not use free-form Traefik network membership" example_inventory.yml
 assert_match "Validate firewalld ingress inputs" "firewalld validates ingress inputs before applying policy" roles/standard_firewalld/tasks/main.yml
