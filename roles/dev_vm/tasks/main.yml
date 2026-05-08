@@ -16,6 +16,37 @@
     name: "{{ dev_vm_packages }}"
     state: present
 
+- name: Remove Podman Docker compatibility shim before Docker Engine install
+  ansible.builtin.dnf:
+    name: podman-docker
+    state: absent
+
+- name: Configure Docker CE stable repository
+  ansible.builtin.yum_repository:
+    name: docker-ce-stable
+    description: Docker CE Stable - $basearch
+    baseurl: "https://download.docker.com/linux/rhel/$releasever/$basearch/stable"
+    enabled: true
+    gpgcheck: true
+    gpgkey: https://download.docker.com/linux/rhel/gpg
+
+- name: Install Docker Engine packages
+  ansible.builtin.dnf:
+    name: "{{ dev_vm_docker_packages }}"
+    state: present
+
+- name: Enable Docker service for local container validation
+  ansible.builtin.systemd:
+    name: docker.service
+    enabled: true
+    state: started
+
+- name: Allow dev user to run Docker validation commands
+  ansible.builtin.user:
+    name: "{{ dev_vm_user }}"
+    groups: docker
+    append: true
+
 - name: Ensure user-local npm directories exist
   ansible.builtin.file:
     path: "{{ item }}"

@@ -22,7 +22,7 @@ DEFAULT_TRIVY_VEX_FILE = REPO_ROOT / "logs" / "trivy-vex.json"
 TOOLING_GUIDE = REPO_ROOT / "docs" / "guides" / "container-image-updates.md"
 SCAN_SEVERITIES = "MEDIUM,HIGH,CRITICAL"
 FALLBACK_TOOL_IMAGES = {
-    "skopeo": "quay.io/skopeo/stable@sha256:a5a222322c25987ad9fcdf005306c90c5a84db66a3b3dcef98f5f9af4ea15d3f",
+    "skopeo": "quay.io/skopeo/stable@sha256:d848811ed378665463cf11bfa919a047beb7f2f20f907c137565aaba213ce6d7",
     "cosign": "ghcr.io/sigstore/cosign/cosign@sha256:774391ac9f0c137ee419ce56522df5fd3b1f52be90c5b77e97f7c053bdd67a67",
     "trivy": "public.ecr.aws/aquasecurity/trivy@sha256:bcc376de8d77cfe086a917230e818dc9f8528e3c852f7b1aff648949b6258d1c",
 }

@@ -84,13 +84,13 @@
       - podman
       - network
       - inspect
-      - "{{ route_network }}"
+      - "{{ route_proxy_network_name }}"
   register: route_proxy_networks
   changed_when: false
   failed_when: false
   loop: "{{ traefik_app_networks }}"
   loop_control:
-    loop_var: route_network
+    loop_var: route_proxy_network_name
 
 - name: Remove non-internal route proxy networks
   ansible.builtin.command:
@@ -101,7 +101,7 @@
       - --force
       - --time
       - "30"
-      - "{{ route_network.item }}"
+      - "{{ route_network.route_proxy_network_name }}"
   loop: "{{ route_proxy_networks.results }}"
   loop_control:
     loop_var: route_network
@@ -117,14 +117,14 @@
       - create
       - --internal
       - --subnet
-      - "{{ route_proxy_network_subnets[route_network.item] }}"
-      - "{{ route_network.item }}"
+      - "{{ route_proxy_network_subnets[route_network.route_proxy_network_name] }}"
+      - "{{ route_network.route_proxy_network_name }}"
   loop: "{{ route_proxy_networks.results }}"
   loop_control:
     loop_var: route_network
   when:
     - route_network.rc != 0 or not ((route_network.stdout | from_json | first).internal | default((route_network.stdout | from_json | first).Internal | default(false)) | bool)
-    - route_network.item in route_proxy_network_subnets
+    - route_network.route_proxy_network_name in route_proxy_network_subnets
 
 - name: Create internal route proxy networks
   ansible.builtin.command:
@@ -133,13 +133,13 @@
       - network
       - create
       - --internal
-      - "{{ route_network.item }}"
+      - "{{ route_network.route_proxy_network_name }}"
   loop: "{{ route_proxy_networks.results }}"
   loop_control:
     loop_var: route_network
   when:
     - route_network.rc != 0 or not ((route_network.stdout | from_json | first).internal | default((route_network.stdout | from_json | first).Internal | default(false)) | bool)
-    - route_network.item not in route_proxy_network_subnets
+    - route_network.route_proxy_network_name not in route_proxy_network_subnets
 
 - name: Create traefik container path
   ansible.builtin.file:

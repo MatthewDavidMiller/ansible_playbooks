@@ -30,6 +30,13 @@ dev_vm_packages:
   - cargo
   - ansible-core
 
+dev_vm_docker_packages:
+  - docker-ce
+  - docker-ce-cli
+  - containerd.io
+  - docker-buildx-plugin
+  - docker-compose-plugin
+
 dev_vm_npm_global_packages:
   - '@openai/codex'
   - '@anthropic-ai/claude-code'
