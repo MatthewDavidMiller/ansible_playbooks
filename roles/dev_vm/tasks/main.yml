@@ -169,6 +169,15 @@
       fi
       export PATH
 
+- name: Enable mouse scrolling in tmux for dev user
+  ansible.builtin.lineinfile:
+    path: "/home/{{ dev_vm_user }}/.tmux.conf"
+    regexp: "^set -g mouse"
+    line: "set -g mouse on"
+    create: true
+    owner: "{{ dev_vm_user }}"
+    mode: "0644"
+
 - name: Install tmux helper for long-running agent sessions
   ansible.builtin.copy:
     dest: /etc/profile.d/dev-vm-tmux.sh
