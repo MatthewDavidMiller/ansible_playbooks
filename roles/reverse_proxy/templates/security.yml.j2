@@ -15,7 +15,9 @@ http:
     ip-allowlist-mgmt:
       ipAllowList:
         sourceRange:
-          - "{{ management_network }}"
+{% for net in management_network %}
+          - "{{ net }}"
+{% endfor %}
           - "{{ ip_ansible }}"
 
     dashboard-basic-auth:

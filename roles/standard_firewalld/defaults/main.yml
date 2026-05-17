@@ -5,7 +5,7 @@
 default_interface: ""
 
 # Management network CIDR added as a trusted source to the homelab zone
-management_network: ""
+management_network: []
 
 # Ansible controller IP/CIDR added as a trusted source to the homelab zone.
 # Required so the role can fail closed instead of opening SSH broadly.

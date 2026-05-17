@@ -9,7 +9,8 @@ all:
         default_interface: "example_interface"
         secret_env_dir: "/etc/homelab/secrets"
         ip_ansible: "192.168.1.1/32"
-        management_network: "192.168.1.0/24"
+        management_network:
+          - "192.168.1.0/24"
         user_name: "example_user"
         porkbun_api_key: "example_api_key"
         porkbun_api_key_secret: "example_api_key_secret"

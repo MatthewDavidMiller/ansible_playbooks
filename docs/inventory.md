@@ -15,7 +15,7 @@ Applied to the maintained homelab inventory.
 | `default_interface` | string | Primary network interface name | `eth0` |
 | `secret_env_dir` | path | Root-only directory for runtime env files | `/etc/homelab/secrets` |
 | `ip_ansible` | string | Ansible controller IP in CIDR form | `192.168.1.1/32` |
-| `management_network` | string | Management network CIDR | `192.168.1.0/24` |
+| `management_network` | list | Management network CIDRs | `["192.168.1.0/24"]` |
 | `user_name` | string | Non-root SSH user on managed hosts | `ansible` |
 | `porkbun_api_key` | string | Porkbun API key for DDNS and DNS-01 | `pk1_...` |
 | `porkbun_api_key_secret` | string | Porkbun API secret | `sk1_...` |

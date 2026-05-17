@@ -3,11 +3,18 @@
   ansible.builtin.assert:
     that:
       - default_interface | length > 0
-      - management_network is match('^([0-9]{1,3}\\.){3}[0-9]{1,3}/[0-9]{1,2}$')
+      - management_network | length > 0
       - ip_ansible is match('^([0-9]{1,3}\\.){3}[0-9]{1,3}/[0-9]{1,2}$')
-      - management_network != '0.0.0.0/0'
       - ip_ansible != '0.0.0.0/0'
     fail_msg: "Set default_interface, management_network, and ip_ansible before applying firewall policy."
+
+- name: Validate management_network CIDRs
+  ansible.builtin.assert:
+    that:
+      - item is match('^([0-9]{1,3}\\.){3}[0-9]{1,3}/[0-9]{1,2}$')
+      - item != '0.0.0.0/0'
+    fail_msg: "Each management_network entry must be a valid CIDR and not 0.0.0.0/0."
+  loop: "{{ management_network }}"
 
 - name: Install firewalld
   ansible.builtin.dnf:
@@ -51,10 +58,13 @@
 - name: Set management source for zone
   ansible.posix.firewalld:
     zone: homelab
-    source: "{{ management_network }}"
+    source: "{{ mgmt_net }}"
     permanent: true
     immediate: "{{ not (apply_runtime_changes_on_reboot | default(false) | bool) }}"
     state: enabled
+  loop: "{{ management_network }}"
+  loop_control:
+    loop_var: mgmt_net
 
 - name: Set ansible source for zone
   ansible.posix.firewalld:
