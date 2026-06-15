@@ -845,7 +845,7 @@ fi
 
 # Test A: baseline
 $DOCKER run -d --name test_semaphore_base \
-  -e SEMAPHORE_DB_DIALECT=bolt \
+  -e SEMAPHORE_DB_DIALECT=sqlite \
   -e SEMAPHORE_ADMIN=admin \
   -e SEMAPHORE_ADMIN_PASSWORD=Admin1234! \
   -e SEMAPHORE_ADMIN_NAME=Admin \
@@ -869,7 +869,7 @@ $DOCKER run -d --name test_semaphore_caps \
   --pids-limit=300 \
   --volume "$TEST_SEM_DIR":/etc/semaphore \
   --volume "$TEST_SEM_STATE_DIR":/var/lib/semaphore \
-  -e SEMAPHORE_DB_DIALECT=bolt \
+  -e SEMAPHORE_DB_DIALECT=sqlite \
   -e SEMAPHORE_ADMIN=admin \
   -e SEMAPHORE_ADMIN_PASSWORD=Admin1234! \
   -e SEMAPHORE_ADMIN_NAME=Admin \

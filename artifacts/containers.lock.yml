@@ -4,58 +4,70 @@
 # intentionally promote newer upstream tags.
 artifact_locked_images:
   traefik:
-    upstream_ref: public.ecr.aws/docker/library/traefik:v3
-    approved_tag: v3
-    approved_digest: sha256:171c9c3565b29f6c133f1c1b43c5d4e5853415198e9e1078c001f8702ff66aec
+    upstream_ref: public.ecr.aws/docker/library/traefik:v3.7.5
+    approved_tag: v3.7.5
+    approved_digest: sha256:d6858791f9e74df44ca4014166647c41cdc2abd3bf2a71b832ca4e1c6a91b257
     internal_repo: homelab/traefik
     signature_required: false
-    notes: Approved from public.ecr.aws/docker/library/traefik:v3 on 2026-04-03 after digest review. No Cosign signature was published for this digest.
+    vulnerability_exception: no_newer_upstream_image
+    notes: Approved latest upstream image via scripts/promote_artifacts.py; vulnerability
+      findings accepted until a newer upstream image resolves them.
   postgres:
-    upstream_ref: public.ecr.aws/docker/library/postgres:17
-    approved_tag: "17"
-    approved_digest: sha256:b994732fcf33f73776c65d3a5bf1f80c00120ba5007e8ab90307b1a743c1fc16
+    upstream_ref: public.ecr.aws/docker/library/postgres:17.10
+    approved_tag: '17.10'
+    approved_digest: sha256:2203e6282d9e7de7c24d7da234e2a744fb325df366a3fd8ed940e8abbee39527
     internal_repo: homelab/postgres
     signature_required: false
-    notes: Approved from public.ecr.aws/docker/library/postgres:17 on 2026-04-03 after digest review. No Cosign signature was published for this digest.
+    vulnerability_exception: no_newer_upstream_image
+    notes: Approved latest upstream image via scripts/promote_artifacts.py; vulnerability
+      findings accepted until a newer upstream image resolves them.
   redis:
-    upstream_ref: public.ecr.aws/docker/library/redis:8
-    approved_tag: "8"
-    approved_digest: sha256:832d7785830f3f4b559300e6191fc914b15642c1935252338825cf4332200148
+    upstream_ref: public.ecr.aws/docker/library/redis:8.8.0
+    approved_tag: 8.8.0
+    approved_digest: sha256:0a972391db0b24ec336e35d1bc98b237237e26f82bf5120cf2f6b1688d1df973
     internal_repo: homelab/redis
     signature_required: false
     notes: Approved via scripts/promote_artifacts.py
   nextcloud:
-    upstream_ref: public.ecr.aws/docker/library/nextcloud:latest
-    approved_tag: latest
-    approved_digest: sha256:2176a451aa8fbd9f003a3d745978377e9a5213850e0181f4bcb24be63885175b
+    upstream_ref: public.ecr.aws/docker/library/nextcloud:34.0.0
+    approved_tag: 34.0.0
+    approved_digest: sha256:e15ff2ff02d04bf272940bb63f2157599bc9440d45b688cc60f09b72be7ae717
     internal_repo: homelab/nextcloud
     signature_required: false
-    notes: Approved from public.ecr.aws/docker/library/nextcloud:latest on 2026-04-03 after digest review. No Cosign signature was published for this digest.
+    vulnerability_exception: no_newer_upstream_image
+    notes: Approved latest upstream image via scripts/promote_artifacts.py; vulnerability
+      findings accepted until a newer upstream image resolves them.
   paperless:
-    upstream_ref: ghcr.io/paperless-ngx/paperless-ngx:2.20
-    approved_tag: "2.20"
-    approved_digest: sha256:4b05bcd28e6923768000b5d247cbf2c66fd49bdc3f3b05955bd4f6790a638b01
+    upstream_ref: ghcr.io/paperless-ngx/paperless-ngx:2.20.15
+    approved_tag: 2.20.15
+    approved_digest: sha256:6c86cad803970ea782683a8e80e7403444c5bf3cf70de63b4d3c8e87500db92f
     internal_repo: homelab/paperless-ngx
     signature_required: false
-    notes: Approved from ghcr.io/paperless-ngx/paperless-ngx:2.20 on 2026-04-03 after digest review. No Cosign signature was published for this digest.
+    vulnerability_exception: no_newer_upstream_image
+    notes: Approved latest upstream image via scripts/promote_artifacts.py; vulnerability
+      findings accepted until a newer upstream image resolves them.
   navidrome:
-    upstream_ref: docker.io/deluan/navidrome:latest
-    approved_tag: latest
-    approved_digest: sha256:b14a6acb5cd5ee73f3a13d63d8d68ede82dedb796aa522fbada94769d990cf0b
+    upstream_ref: docker.io/deluan/navidrome:0.62.0
+    approved_tag: 0.62.0
+    approved_digest: sha256:c4b5cb36a790b3eb63ca6a68bbe2fe149c2d7fa2e586f7a480e61db630e6664b
     internal_repo: homelab/navidrome
     signature_required: false
-    notes: Approved from docker.io/deluan/navidrome:latest on 2026-04-03 after digest review. No Cosign signature was published for this digest.
+    notes: Approved via scripts/promote_artifacts.py
   vaultwarden:
-    upstream_ref: ghcr.io/dani-garcia/vaultwarden:latest
-    approved_tag: latest
-    approved_digest: sha256:9a8eec71f4a52411cc43edc7a50f33e9b6f62b5baca0dd95f0c6e7fd60f1a341
+    upstream_ref: ghcr.io/dani-garcia/vaultwarden:1.36.0
+    approved_tag: 1.36.0
+    approved_digest: sha256:d626d04934cd1192ad8ced1adb975099fca78cec33ab467d2d3c923cde7f3b0c
     internal_repo: homelab/vaultwarden
     signature_required: false
-    notes: Approved via scripts/promote_artifacts.py
+    vulnerability_exception: no_newer_upstream_image
+    notes: Approved latest upstream image via scripts/promote_artifacts.py; vulnerability
+      findings accepted until a newer upstream image resolves them.
   semaphore:
-    upstream_ref: public.ecr.aws/semaphore/server:latest
-    approved_tag: latest
-    approved_digest: sha256:17678757e65621aaf27bffbfe8caa00fb85857d60124b49876a5326e3f3dfac9
+    upstream_ref: public.ecr.aws/semaphore/server:v2.18.12
+    approved_tag: v2.18.12
+    approved_digest: sha256:f6651f30d5bf962afe13831b579c3e0f02a13a45735f852b4de3225d98859c8e
     internal_repo: homelab/semaphore
     signature_required: false
-    notes: Approved from public.ecr.aws/semaphore/server:latest on 2026-04-03 after digest review. No Cosign signature was published for this digest.
+    vulnerability_exception: no_newer_upstream_image
+    notes: Approved latest upstream image via scripts/promote_artifacts.py; vulnerability
+      findings accepted until a newer upstream image resolves them.

@@ -67,14 +67,14 @@ bash scripts/test_container_security.sh postgres redis
 ```
 
 ```bash
-TRAEFIK_IMAGE=public.ecr.aws/docker/library/traefik@sha256:171c9c3565b29f6c133f1c1b43c5d4e5853415198e9e1078c001f8702ff66aec \
-POSTGRES_IMAGE=public.ecr.aws/docker/library/postgres@sha256:b994732fcf33f73776c65d3a5bf1f80c00120ba5007e8ab90307b1a743c1fc16 \
-REDIS_IMAGE=public.ecr.aws/docker/library/redis@sha256:009cc37796fbdbe1b631b4cc0582bed167e5e403ed8bcd06f77eb6cb5aeb6f93 \
-NEXTCLOUD_IMAGE=public.ecr.aws/docker/library/nextcloud@sha256:2176a451aa8fbd9f003a3d745978377e9a5213850e0181f4bcb24be63885175b \
-PAPERLESS_IMAGE=ghcr.io/paperless-ngx/paperless-ngx@sha256:4b05bcd28e6923768000b5d247cbf2c66fd49bdc3f3b05955bd4f6790a638b01 \
-NAVIDROME_IMAGE=docker.io/deluan/navidrome@sha256:b14a6acb5cd5ee73f3a13d63d8d68ede82dedb796aa522fbada94769d990cf0b \
-VAULTWARDEN_IMAGE=ghcr.io/dani-garcia/vaultwarden@sha256:43498a94b22f9563f2a94b53760ab3e710eefc0d0cac2efda4b12b9eb8690664 \
-SEMAPHORE_IMAGE=public.ecr.aws/semaphore/server@sha256:17678757e65621aaf27bffbfe8caa00fb85857d60124b49876a5326e3f3dfac9 \
+TRAEFIK_IMAGE=public.ecr.aws/docker/library/traefik@sha256:d6858791f9e74df44ca4014166647c41cdc2abd3bf2a71b832ca4e1c6a91b257 \
+POSTGRES_IMAGE=public.ecr.aws/docker/library/postgres@sha256:2203e6282d9e7de7c24d7da234e2a744fb325df366a3fd8ed940e8abbee39527 \
+REDIS_IMAGE=public.ecr.aws/docker/library/redis@sha256:0a972391db0b24ec336e35d1bc98b237237e26f82bf5120cf2f6b1688d1df973 \
+NEXTCLOUD_IMAGE=public.ecr.aws/docker/library/nextcloud@sha256:e15ff2ff02d04bf272940bb63f2157599bc9440d45b688cc60f09b72be7ae717 \
+PAPERLESS_IMAGE=ghcr.io/paperless-ngx/paperless-ngx@sha256:6c86cad803970ea782683a8e80e7403444c5bf3cf70de63b4d3c8e87500db92f \
+NAVIDROME_IMAGE=docker.io/deluan/navidrome@sha256:c4b5cb36a790b3eb63ca6a68bbe2fe149c2d7fa2e586f7a480e61db630e6664b \
+VAULTWARDEN_IMAGE=ghcr.io/dani-garcia/vaultwarden@sha256:d626d04934cd1192ad8ced1adb975099fca78cec33ab467d2d3c923cde7f3b0c \
+SEMAPHORE_IMAGE=public.ecr.aws/semaphore/server@sha256:f6651f30d5bf962afe13831b579c3e0f02a13a45735f852b4de3225d98859c8e \
 bash scripts/test_container_security.sh
 ```
 
@@ -84,7 +84,7 @@ bash scripts/test_container_security.sh
 
 1. Resolve each `upstream_ref` to a digest with `skopeo`.
 2. Verify signatures with `cosign` when `signature_required: true` and the lock entry includes pinned signer metadata.
-3. Scan for unfixed `MEDIUM`, `HIGH`, and `CRITICAL` findings with `trivy`.
+3. Scan for unfixed `MEDIUM`, `HIGH`, and `CRITICAL` findings with `trivy`, enforcing explicit lock-file exceptions when no newer upstream image is available.
 4. Optionally write the approved digest back to `artifacts/containers.lock.yml`.
 
 Trivy output is written to `logs/container-vulnerability-findings.log`; `logs/` is git ignored.

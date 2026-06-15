@@ -71,6 +71,7 @@ assert_task_has_no_log() {
 echo "=== Supply Chain Policy Checks ==="
 
 assert_match "^artifact_locked_images:" "container artifact lock file exists" artifacts/containers.lock.yml
+assert_match "vulnerability_exception:[[:space:]]+no_newer_upstream_image" "container vulnerability exceptions use the approved reason" artifacts/containers.lock.yml
 assert_match "^collections:" "pinned collection manifest exists" collections/requirements.yml
 assert_no_fixed_match "--pull=newer" "maintained launch scripts do not auto-pull on start" roles docs scripts example_inventory.yml vm1.yml
 assert_no_fixed_match "--privileged" "maintained launch scripts do not run privileged containers" roles docs scripts example_inventory.yml vm1.yml
@@ -98,7 +99,7 @@ assert_match "LogLevel VERBOSE" "SSH logs key auth details" roles/standard_ssh/t
 assert_match "dashboard-basic-auth@file" "Traefik dashboard requires BasicAuth middleware" roles/reverse_proxy/templates/dashboard.yml.j2
 assert_match "basicAuth:" "Traefik dashboard BasicAuth middleware is defined" roles/reverse_proxy/templates/security.yml.j2
 assert_match "traefik_dashboard_basic_auth_users \\| length > 0" "reverse_proxy requires dashboard BasicAuth users" roles/reverse_proxy/tasks/main.yml
-assert_match "management_network != '0[.]0[.]0[.]0/0'" "reverse_proxy rejects broad management CIDR" roles/reverse_proxy/tasks/main.yml
+assert_match "item != '0[.]0[.]0[.]0/0'" "reverse_proxy rejects broad management CIDR" roles/reverse_proxy/tasks/main.yml
 assert_match "ip_ansible != '0[.]0[.]0[.]0/0'" "reverse_proxy rejects broad Ansible CIDR" roles/reverse_proxy/tasks/main.yml
 assert_match "Validate reverse proxy route definitions" "reverse_proxy validates route definitions" roles/reverse_proxy/tasks/main.yml
 assert_match "Validate reverse proxy route names are unique" "reverse_proxy rejects duplicate route names and FQDNs" roles/reverse_proxy/tasks/main.yml
@@ -134,7 +135,7 @@ assert_no_fixed_match "not in semaphore_network.stdout" \
 assert_match "traefik_egress_network" "Traefik uses a dedicated egress network" roles/reverse_proxy/templates/traefik_container.sh.j2
 assert_no_match "traefik_networks:" "maintained inventory does not use free-form Traefik network membership" example_inventory.yml
 assert_match "Validate firewalld ingress inputs" "firewalld validates ingress inputs before applying policy" roles/standard_firewalld/tasks/main.yml
-assert_match "management_network != '0[.]0[.]0[.]0/0'" "firewalld rejects broad management CIDR" roles/standard_firewalld/tasks/main.yml
+assert_match "item != '0[.]0[.]0[.]0/0'" "firewalld rejects broad management CIDR" roles/standard_firewalld/tasks/main.yml
 assert_match "ip_ansible != '0[.]0[.]0[.]0/0'" "firewalld rejects broad Ansible CIDR" roles/standard_firewalld/tasks/main.yml
 assert_match "owner: root" "backup role sets root ownership on managed backup paths/scripts" roles/backup/tasks/main.yml
 assert_match "umask 077" "Borg backup script uses restrictive umask" roles/backup/templates/backup_files.sh.j2

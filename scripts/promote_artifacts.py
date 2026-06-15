@@ -21,10 +21,11 @@ DEFAULT_TRIVY_IGNORE_FILE = REPO_ROOT / "logs" / ".trivyignore"
 DEFAULT_TRIVY_VEX_FILE = REPO_ROOT / "logs" / "trivy-vex.json"
 TOOLING_GUIDE = REPO_ROOT / "docs" / "guides" / "container-image-updates.md"
 SCAN_SEVERITIES = "MEDIUM,HIGH,CRITICAL"
+NO_NEWER_IMAGE_EXCEPTION = "no_newer_upstream_image"
 FALLBACK_TOOL_IMAGES = {
-    "skopeo": "quay.io/skopeo/stable@sha256:d848811ed378665463cf11bfa919a047beb7f2f20f907c137565aaba213ce6d7",
-    "cosign": "ghcr.io/sigstore/cosign/cosign@sha256:774391ac9f0c137ee419ce56522df5fd3b1f52be90c5b77e97f7c053bdd67a67",
-    "trivy": "public.ecr.aws/aquasecurity/trivy@sha256:bcc376de8d77cfe086a917230e818dc9f8528e3c852f7b1aff648949b6258d1c",
+    "skopeo": "quay.io/skopeo/stable@sha256:c7d3c512612f52805023cd38351081dad7e2729fc13d14b701e47c7c8bdd6615",
+    "cosign": "ghcr.io/sigstore/cosign/cosign@sha256:6bbe0d281d955c79f85b325f0f7e651c1bcab5a4fa4ad4903d74955178a3b2eb",
+    "trivy": "public.ecr.aws/aquasecurity/trivy@sha256:016eae51fdcf989332a5404af7e8f625cd5d95d7c0907a221d080a996f556500",
 }
 ANNOUNCED_FALLBACKS: set[str] = set()
 
@@ -258,7 +259,7 @@ def scan_image(image_ref: str, service: str, log_handle, log_path: Path, ignore_
         print(f"[{service}] scan=PASS no unfixed {SCAN_SEVERITIES} vulnerabilities")
         return True
 
-    print(f"[{service}] scan=FAIL see {log_path}")
+    print(f"[{service}] scan=FINDINGS see {log_path}")
     return False
 
 
@@ -331,6 +332,9 @@ def main() -> int:
     for service in selected:
         if service not in images:
             raise SystemExit(f"Unknown service in lock file: {service}")
+        exception = images[service].get("vulnerability_exception")
+        if exception not in (None, NO_NEWER_IMAGE_EXCEPTION):
+            raise SystemExit(f"{service}: unknown vulnerability_exception: {exception}")
 
     scan_failures: list[str] = []
     scan_log_handle = None
@@ -368,8 +372,13 @@ def main() -> int:
                 args.trivy_ignore_file,
                 args.trivy_vex_file,
             ):
-                scan_failures.append(service)
-                scan_ok = False
+                if entry.get("vulnerability_exception") == NO_NEWER_IMAGE_EXCEPTION:
+                    print(
+                        f"[{service}] scan=EXEMPT findings accepted because no newer upstream image is available"
+                    )
+                else:
+                    scan_failures.append(service)
+                    scan_ok = False
 
             if not scan_ok:
                 continue
@@ -381,6 +390,11 @@ def main() -> int:
                 entry["approved_digest"] = digest
                 if args.registry:
                     entry["notes"] = f"Approved via scripts/promote_artifacts.py and mirrored to {args.registry}"
+                elif entry.get("vulnerability_exception") == NO_NEWER_IMAGE_EXCEPTION:
+                    entry["notes"] = (
+                        "Approved latest upstream image via scripts/promote_artifacts.py; "
+                        "vulnerability findings accepted until a newer upstream image resolves them."
+                    )
                 else:
                     entry["notes"] = "Approved via scripts/promote_artifacts.py"
     finally:

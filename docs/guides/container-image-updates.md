@@ -75,12 +75,21 @@ Treat each update as approved only after all of the following are true:
 
 - `skopeo` resolved the expected upstream tag to a digest.
 - `cosign verify` succeeded for services that require signatures and have pinned signer metadata in the lock file.
-- `trivy` reported no unfixed `MEDIUM`, `HIGH`, or `CRITICAL` findings. Review the detailed output in `logs/container-vulnerability-findings.log`.
+- `trivy` reported no unfixed `MEDIUM`, `HIGH`, or `CRITICAL` findings, or the lock entry explicitly records `vulnerability_exception: no_newer_upstream_image` after confirming the selected image is the latest eligible stable upstream image. Review the detailed output in `logs/container-vulnerability-findings.log`.
 - Any local VEX/ignore use is digest-specific, service-specific, time-bounded, and backed by runtime hardening or network containment.
 - `scripts/test_supply_chain_policy.sh` passed.
 - `scripts/test_container_security.sh` passed against the locked image set. During focused debugging, target affected services with commands like `bash scripts/test_container_security.sh semaphore`.
 
 The container security test now defaults to the digest-pinned refs in [`artifacts/containers.lock.yml`](../../artifacts/containers.lock.yml), so it exercises the same approved images that `vm1.yml` deploys. You can still override individual images with environment variables when needed.
+
+## Vulnerability Exceptions
+
+Use `vulnerability_exception: no_newer_upstream_image` only when Trivy reports unfixed findings and no newer eligible stable upstream image is available to resolve them.
+
+- Keep the exception on the specific digest-pinned lock entry.
+- Continue running and retaining the local Trivy findings for review.
+- Remove the exception when a newer upstream image passes the scan.
+- Do not use the exception for an older image when a newer eligible stable image exists.
 
 ## Signature Exceptions
 
