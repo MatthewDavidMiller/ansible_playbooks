@@ -99,7 +99,7 @@ Runs the post-deploy cleanup pass.
 
 ### `dev_vm`
 
-Configures VM2 as an SSH/tmux development host for Codex and Claude Code.
+Configures VM2 as an SSH/tmux development host for Codex, Claude Code, and Grok Build.
 
 **Distributions:** Rocky Linux 10
 
@@ -107,7 +107,7 @@ Configures VM2 as an SSH/tmux development host for Codex and Claude Code.
 
 | Variable | Type | Description | Example |
 |---|---|---|---|
-| `user_name` | string | Existing non-root SSH user that owns the agent CLIs | `example_user` |
+| `user_name` | string | Existing non-root SSH user that owns the dev agent tooling (npm CLIs + Grok Build) | `example_user` |
 
 **Optional variables:**
 
@@ -119,8 +119,9 @@ Configures VM2 as an SSH/tmux development host for Codex and Claude Code.
 | `dev_vm_packages` | list | Rocky package baseline for the dev VM, including Podman | `[tmux, git, nodejs, podman]` |
 | `dev_vm_docker_packages` | list | Docker Engine packages installed from Docker's official RHEL repository for local container validation | `[docker-ce, docker-ce-cli, containerd.io]` |
 | `dev_vm_npm_global_packages` | list | npm packages installed for the dev user | `["@openai/codex", "@anthropic-ai/claude-code"]` |
+| `dev_vm_grok_installer_url` | string | URL of the official Grok Build CLI installer script | `https://x.ai/cli/install.sh` |
 | `dev_vm_python_user_packages` | list | pip `--user` CLI packages installed for validation tooling | `["ansible-lint"]` |
 | `dev_vm_ansible_project_path` | path | Checkout path used to find pinned collection requirements | `/home/example_user/matt_dev/ansible_playbooks` |
 | `dev_vm_install_project_collections` | boolean | Install repo-pinned Ansible collections when the checkout exists | `true` |
 
-**Key behavior:** installs heavy workstation packages, installs and enables Docker Engine from Docker's official RHEL repository for local container validation, keeps npm and Python CLI tools under the dev user's home directory, installs repo-pinned Ansible collections when the checkout exists, manages `~/.tmux.conf` to enable mouse scrolling (`set -g mouse on`), and installs a `devmux` helper that attaches to or creates a persistent tmux session. Interactive SSH logins for the dev user show a short `devmux` usage hint, including `Ctrl-b`, then `d`, to detach from tmux. `vm2.yml` pairs this role with a VM2-only SELinux `domain_can_mmap_files` boolean for standard dev tooling.
+**Key behavior:** installs heavy workstation packages, installs and enables Docker Engine from Docker's official RHEL repository for local container validation, keeps npm and Python CLI tools under the dev user's home directory, installs the Grok Build TUI/CLI (and `agent` binary) for the dev user via the official xAI installer script plus a managed `/etc/profile.d/` entry to expose `~/.grok/bin` on PATH, installs repo-pinned Ansible collections when the checkout exists, manages `~/.tmux.conf` to enable mouse scrolling (`set -g mouse on`), and installs a `devmux` helper that attaches to or creates a persistent tmux session. Interactive SSH logins for the dev user show a short `devmux` usage hint, including `Ctrl-b`, then `d`, to detach from tmux. `vm2.yml` pairs this role with a VM2-only SELinux `domain_can_mmap_files` boolean for standard dev tooling.

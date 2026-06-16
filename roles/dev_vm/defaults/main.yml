@@ -41,6 +41,12 @@ dev_vm_npm_global_packages:
   - '@openai/codex'
   - '@anthropic-ai/claude-code'
 
+# Grok Build (xAI) CLI installer script. Matches the official one-liner at
+# https://docs.x.ai/build/overview. The task runs it under the dev user so the
+# resulting `grok` / `agent` binaries land in ~/.grok/bin (plus shell rc edits
+# and optional ~/.local/bin symlinks performed by the upstream script).
+dev_vm_grok_installer_url: "https://x.ai/cli/install.sh"
+
 # User-local Python CLI tools needed for validating this repository.
 dev_vm_python_user_base: "/home/{{ dev_vm_user }}/.local"
 dev_vm_python_user_packages:

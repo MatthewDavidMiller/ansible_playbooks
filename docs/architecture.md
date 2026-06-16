@@ -9,7 +9,7 @@ This document covers the maintained VM topology, container/runtime patterns, fir
 | VM ID | Name | OS | Services |
 |---|---|---|---|
 | 120 | VM1 | Rocky Linux 10 | Nextcloud, Paperless NGX, Navidrome, Vaultwarden, Semaphore, PostgreSQL 17, Redis, Traefik reverse proxy, Borg backup |
-| 121 | VM2 | Rocky Linux 10 | SSH/tmux dev VM for Codex, Claude Code, and local development tooling |
+| 121 | VM2 | Rocky Linux 10 | SSH/tmux dev VM for Codex, Claude Code, Grok Build, and local development tooling |
 
 Templates: VMID 400 (Debian 12 cloud-init), VMID 401 (Rocky Linux 10 cloud-init)
 
@@ -128,7 +128,7 @@ See [roles/standard.md#standard_selinux](roles/standard.md#standard_selinux).
 
 ## VM2 Dev VM
 
-VM2 is the interactive development host. Users connect over SSH, start or reattach to a tmux session with `devmux`, detach with `Ctrl-b`, then `d`, and run Codex or Claude Code from that persistent shell.
+VM2 is the interactive development host. Users connect over SSH, start or reattach to a tmux session with `devmux`, detach with `Ctrl-b`, then `d`, and run Codex, Claude Code, or Grok Build from that persistent shell.
 
 **Key design decisions:**
 

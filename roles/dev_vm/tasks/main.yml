@@ -79,6 +79,37 @@
     PATH: "{{ dev_vm_npm_prefix }}/bin:{{ ansible_env.PATH }}"
   loop: "{{ dev_vm_npm_global_packages }}"
 
+- name: Ensure user-local Grok downloads directory exists
+  ansible.builtin.file:
+    path: "/home/{{ dev_vm_user }}/.grok/downloads"
+    state: directory
+    owner: "{{ dev_vm_user }}"
+    mode: "0755"
+
+- name: Download Grok Build installer script for dev user
+  ansible.builtin.get_url:
+    url: "{{ dev_vm_grok_installer_url }}"
+    dest: "/home/{{ dev_vm_user }}/.grok/downloads/install.sh"
+    owner: "{{ dev_vm_user }}"
+    mode: "0700"
+  become: true
+  become_user: "{{ dev_vm_user }}"
+
+- name: Install Grok Build CLI for dev user
+  ansible.builtin.shell:
+    cmd: "bash /home/{{ dev_vm_user }}/.grok/downloads/install.sh"
+  args:
+    executable: /bin/bash
+    creates: "/home/{{ dev_vm_user }}/.grok/bin/grok"
+  become: true
+  become_user: "{{ dev_vm_user }}"
+  environment:
+    HOME: "/home/{{ dev_vm_user }}"
+  # The upstream installer is safe to re-run; the creates guard keeps repeated
+  # playbook applications clean. To force the latest release, remove the binary
+  # (or the whole ~/.grok tree) on the host and re-apply, or run `grok update`
+  # interactively inside the devmux session.
+
 - name: Ensure user-local Python directories exist
   ansible.builtin.file:
     path: "{{ item }}"
@@ -165,6 +196,22 @@
           case ":$PATH:" in
               *":{{ dev_vm_npm_prefix }}/bin:"*) ;;
               *) PATH="{{ dev_vm_npm_prefix }}/bin:$PATH" ;;
+          esac
+      fi
+      export PATH
+
+- name: Expose user-local Grok Build binary on login shells
+  ansible.builtin.copy:
+    dest: /etc/profile.d/dev-vm-grok.sh
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible.
+      if [ "$USER" = "{{ dev_vm_user }}" ] && [ -d "/home/{{ dev_vm_user }}/.grok/bin" ]; then
+          case ":$PATH:" in
+              *":/home/{{ dev_vm_user }}/.grok/bin:"*) ;;
+              *) PATH="/home/{{ dev_vm_user }}/.grok/bin:$PATH" ;;
           esac
       fi
       export PATH
