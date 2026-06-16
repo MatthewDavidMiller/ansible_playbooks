@@ -103,12 +103,24 @@ def _porkbun_post(endpoint: str, extra: dict, base: str = PORKBUN_BASE) -> dict:
         json=payload,
         timeout=TIMEOUT,
     )
-    resp.raise_for_status()
-    result = resp.json()
+    try:
+        result = resp.json()
+    except ValueError:
+        result = {}
+    if not resp.ok:
+        code = result.get("code", "")
+        message = result.get("message", resp.reason or "")
+        detail = f" ({code})" if code else ""
+        raise RuntimeError(
+            f"Porkbun {endpoint!r} HTTP {resp.status_code}{detail}: {message}"
+        )
     if result.get("status") != "SUCCESS":
+        code = result.get("code", "")
+        message = result.get("message", "")
+        detail = f" ({code})" if code else ""
         raise RuntimeError(
             f"Porkbun {endpoint!r} returned status "
-            f"{result.get('status')!r}: {result.get('message', '')}"
+            f"{result.get('status')!r}{detail}: {message}"
         )
     return result
 
@@ -132,12 +144,22 @@ def update_dns_record(record_id: str | None, new_ip: str) -> None:
     if record_id:
         _porkbun_post(
             f"dns/edit/{DOMAIN}/{record_id}",
-            {"content": new_ip, "ttl": "300"},
+            {
+                "name": SUBDOMAIN,
+                "type": "A",
+                "content": new_ip,
+                "ttl": 600,
+            },
         )
     else:
         _porkbun_post(
             f"dns/create/{DOMAIN}",
-            {"name": SUBDOMAIN, "type": "A", "content": new_ip, "ttl": "300"},
+            {
+                "name": SUBDOMAIN,
+                "type": "A",
+                "content": new_ip,
+                "ttl": 600,
+            },
         )
 
 
