@@ -34,7 +34,6 @@ dev_vm_packages:
   - ansible-core
   - tree
   - ShellCheck
-  - yamllint
   - gh
 
 dev_vm_docker_packages:
@@ -68,10 +67,14 @@ dev_vm_grok_installer_url: "https://x.ai/cli/install.sh"
 dev_vm_grok_update: false
 
 # User-local Python CLI tools needed for validating this repository.
+# Keep Python CLIs on pip --user for a consistent user-local PATH alongside
+# ansible-lint / pre-commit (not system RPMs). Guarded by
+# scripts/test_dev_vm_packages.sh (pre-commit).
 dev_vm_python_user_base: "/home/{{ dev_vm_user }}/.local"
 dev_vm_python_user_packages:
   - ansible-lint
   - pre-commit
+  - yamllint
 
 # Optional git identity for the dev user (no secrets). Empty = leave unset.
 dev_vm_git_user_name: ""

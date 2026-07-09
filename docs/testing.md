@@ -12,11 +12,18 @@ git config core.hooksPath hooks
 
 **What runs:**
 
-1. `ansible-lint`
-2. `scripts/test_supply_chain_policy.sh`
-3. `ansible-playbook --syntax-check` for the maintained playbooks
+1. `scripts/test_supply_chain_policy.sh`
+2. `scripts/test_dev_vm_packages.sh` (policy + Rocky 10 / EPEL dnf depsolve for `dev_vm`)
+3. `ansible-lint`
+4. `ansible-playbook --syntax-check` for the maintained playbooks (`vm1.yml`, `vm2.yml`, `homelab_vms.yml`, `update_homelab_vms.yml`, `reboot_vms.yml`)
 
 `scripts/test_container_security.sh` remains a manual validation step because it pulls container images and can take several minutes.
+
+Offline or no-container commits can skip the network depsolve only:
+
+```bash
+DEV_VM_PACKAGE_DEPSOLVE=0 git commit ...
+```
 
 ---
 
@@ -31,6 +38,7 @@ ANSIBLE_LOCAL_TEMP=/tmp/.ansible-local ANSIBLE_REMOTE_TEMP=/tmp/.ansible-remote 
 ANSIBLE_LOCAL_TEMP=/tmp/.ansible-local ANSIBLE_REMOTE_TEMP=/tmp/.ansible-remote ansible-playbook --syntax-check -i example_inventory.yml reboot_vms.yml
 bash scripts/test_shell_secret_env.sh
 bash scripts/test_supply_chain_policy.sh
+bash scripts/test_dev_vm_packages.sh
 python3 scripts/promote_artifacts.py --check-tools
 python3 scripts/promote_artifacts.py --service traefik
 bash scripts/test_container_security.sh 2>&1 | tee /tmp/container_test_results.txt
@@ -109,6 +117,29 @@ For the full workflow and install references, see [guides/container-image-update
 
 ---
 
+## dev_vm Package Resolution Testing
+
+`scripts/test_dev_vm_packages.sh` guards the VM2 workstation package baseline against the class of failure that breaks `dnf` depsolve on Rocky 10 + EPEL when CRB is missing (for example EPEL `yamllint` needing `python3.12dist(pathspec)` from CRB).
+
+Checks:
+
+1. **Policy:** pure-Python CLIs (`yamllint`, `ansible-lint`, `pre-commit`) must live in `dev_vm_python_user_packages` (pip `--user`), not `dev_vm_packages` (dnf).
+2. **Policy:** dnf and pip lists must not overlap; required baseline dnf packages remain present.
+3. **Regression:** with CRB disabled, EPEL `yamllint` must fail depsolve (original failure mode still exists upstream).
+4. **Regression:** with CRB enabled (matching `standard_update_packages`), EPEL `yamllint` must resolve.
+5. **Depsolve:** in a clean `rockylinux:10` container with EPEL + CRB, `dnf --assumeno install` must resolve `dev_vm_packages` and Docker CE packages from the same baseurl the role configures.
+
+Run it directly:
+
+```bash
+bash scripts/test_dev_vm_packages.sh
+DEV_VM_PACKAGE_DEPSOLVE=0 bash scripts/test_dev_vm_packages.sh   # policy only
+```
+
+Requires `podman` or `docker` for the depsolve step, plus network access to Rocky, EPEL, and Docker CE repositories.
+
+---
+
 ## Shell-Sourced Env Regression Testing
 
 `scripts/test_shell_secret_env.sh` renders the affected templates locally and checks the parser-specific invariants for the secret env migration:
@@ -134,6 +165,7 @@ bash scripts/test_shell_secret_env.sh
 - `scripts/test_shell_secret_env.sh` reports `PASS` for shell quoting and generated launch artifact checks.
 - `scripts/test_supply_chain_policy.sh` reports `PASS` for immutable image refs, approved collection installs, and pinned provisioning inputs.
 - `scripts/test_supply_chain_policy.sh` also enforces core SSH, firewall, proxy, backup, and secret-rendering guardrails.
+- `scripts/test_dev_vm_packages.sh` reports `PASS` for pip-vs-dnf package policy, the EPEL-without-CRB yamllint regression fixture, and Rocky 10 + EPEL + CRB dependency resolution of `dev_vm_packages` / `dev_vm_docker_packages`.
 - `python3 scripts/promote_artifacts.py --check-tools` reports either native binaries or the pinned container fallback for `skopeo`, `cosign`, and `trivy`.
 - VM1 container tests report `PASS` for PostgreSQL, Redis, Nextcloud, Traefik, Paperless, Vaultwarden, Semaphore, and Navidrome.
 
@@ -144,6 +176,7 @@ bash scripts/test_shell_secret_env.sh
 - Because VM1 now uses shell-sourced root-only env files under `secret_env_dir`, run `scripts/test_shell_secret_env.sh` after touching env templates or launch scripts so parser regressions are caught before deployment.
 - Run `python3 scripts/promote_artifacts.py --check-tools` after provisioning a new control node so missing native binaries or missing container-engine fallback are caught early.
 - Run `scripts/test_supply_chain_policy.sh` after changing image refs, bootstrap tooling, or dependency manifests.
+- Run `scripts/test_dev_vm_packages.sh` after changing `roles/dev_vm/defaults/main.yml` package lists, VM2 EPEL/CRB settings, or Docker CE repository configuration. The depsolve step uses a Rocky 10 container with EPEL + CRB to mirror `standard_update_packages` on VM2.
 - Run `scripts/test_supply_chain_policy.sh` and `bash scripts/test_container_security.sh static` after changing container-network tasks. These checks cover route-owned proxy networks and the deferred migration path used when staged VM1 runs would otherwise interrupt Semaphore.
 - Use `bash scripts/review_container_updates.sh --service <name>` when updating `artifacts/containers.lock.yml` so digest resolution, signature verification, scanning, and runtime hardening checks happen in one sequence.
 - Semaphore host verification depends on real `semaphore_known_hosts` content in inventory; the container security script validates the runtime SSH args shape, not your real host keys.

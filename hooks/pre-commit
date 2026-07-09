@@ -2,6 +2,9 @@
 # Pre-commit hook: runs ansible-lint and syntax checks for maintained playbooks.
 # Install: git config core.hooksPath hooks
 # Skip:    git commit --no-verify
+#
+# Offline / skip network depsolve for dev_vm packages:
+#   DEV_VM_PACKAGE_DEPSOLVE=0 git commit ...
 
 set -euo pipefail
 
@@ -13,13 +16,18 @@ bash scripts/test_supply_chain_policy.sh
 echo "PASS: supply-chain policy"
 
 echo ""
+echo "--- dev_vm Package Resolution ---"
+bash scripts/test_dev_vm_packages.sh
+echo "PASS: dev_vm packages"
+
+echo ""
 echo "--- Ansible Lint ---"
 ansible-lint
 echo "PASS: ansible-lint"
 
 echo ""
 echo "--- Ansible Syntax Check ---"
-for playbook in vm1.yml homelab_vms.yml update_homelab_vms.yml reboot_vms.yml; do
+for playbook in vm1.yml vm2.yml homelab_vms.yml update_homelab_vms.yml reboot_vms.yml; do
   [ -f "$playbook" ] || continue
   ansible-playbook --syntax-check -i example_inventory.yml "$playbook"
 done

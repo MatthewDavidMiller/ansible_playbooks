@@ -9,4 +9,6 @@ standard_update_apply_security_updates: true
 standard_update_apply_full_updates: false
 
 # Enable EPEL only when a maintained workflow explicitly requires it.
+# When true, the role also enables CRB (CodeReady Builder); many EPEL packages
+# depend on CRB provides and fail depsolve without it.
 standard_update_enable_epel: false

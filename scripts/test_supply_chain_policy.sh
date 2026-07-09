@@ -79,6 +79,8 @@ assert_no_match "[:=][[:space:]]*[^[:space:]'\"]+:latest\\b" "maintained configu
 assert_no_match "artifact_registry_(host|username|password)" "maintained path does not require registry inventory variables" example_inventory.yml roles docs scripts vm1.yml
 assert_no_match "state:[[:space:]]*latest" "maintained roles do not perform blanket latest-package convergence outside the update role" roles --glob '!roles/standard_update_packages/**'
 assert_match "security:[[:space:]]*true" "standard_update_packages applies security-only updates during normal convergence" roles/standard_update_packages/tasks/main.yml
+assert_match "crb enable" "standard_update_packages enables CRB when EPEL is enabled" roles/standard_update_packages/tasks/main.yml
+assert_match "standard_update_enable_epel" "CRB enable is gated on EPEL being enabled" roles/standard_update_packages/tasks/main.yml
 assert_match "ansible-galaxy collection install -r collections/requirements\\.yml" "control-node installs use the pinned collection manifest" scripts/desktop_local_ansible.sh docs/guides/getting-started.md
 assert_no_match "ansible-galaxy collection install (community|ansible\\.posix)" "collection installs must not bypass the pinned requirements file" scripts docs
 assert_no_match "\\.latest\\." "mutable cloud image URLs are not allowed" scripts/proxmox_initial_setup.py artifacts/cloud_images.lock.yml docs/guides/proxmox-setup.md

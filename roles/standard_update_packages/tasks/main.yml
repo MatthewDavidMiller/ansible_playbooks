@@ -5,6 +5,36 @@
     state: present
   when: standard_update_enable_epel | bool
 
+# Many EPEL packages pull build/runtime deps from CodeReady Builder (CRB).
+# Without CRB, depsolve fails with missing python3.XXdist(...) provides
+# (e.g. EPEL yamllint needing python3-pathspec from CRB).
+- name: Check CRB repository status
+  ansible.builtin.command:
+    cmd: /usr/bin/crb status
+  register: standard_update_crb_status
+  changed_when: false
+  failed_when: false
+  when: standard_update_enable_epel | bool
+
+- name: Enable CRB repository for EPEL dependencies
+  ansible.builtin.command:
+    cmd: /usr/bin/crb enable
+  register: standard_update_crb_enable
+  changed_when: >-
+    'disabled' in (standard_update_crb_status.stdout | default('') | lower)
+  when:
+    - standard_update_enable_epel | bool
+    - standard_update_crb_status.rc | default(1) == 0
+
+- name: Enable CRB via dnf when crb helper is unavailable
+  ansible.builtin.command:
+    cmd: dnf config-manager --set-enabled crb
+  register: standard_update_crb_dnf
+  changed_when: standard_update_crb_dnf.rc == 0
+  when:
+    - standard_update_enable_epel | bool
+    - standard_update_crb_status.rc | default(1) != 0
+
 - name: Apply security updates from approved repositories
   ansible.builtin.dnf:
     name: "*"
