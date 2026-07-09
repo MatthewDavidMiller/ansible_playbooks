@@ -23,6 +23,7 @@ Out of scope for the current low-disruption design:
 - SSH disables password auth, root login, X11 forwarding, and TCP forwarding by default. `standard_ssh_allow_users` can add an explicit login allowlist after inventory users are standardized.
 - Firewalld keeps a drop-by-default model and rejects `0.0.0.0/0` for management and Ansible source CIDRs.
 - SELinux remains enforcing on maintained VMs. VM2 enables `domain_can_mmap_files` for standard dev tooling; additional host-specific SELinux exceptions should be explicit variables, not ad hoc permissive mode.
+- On VM2, the interactive dev user is added to the `docker` group for local container validation. Docker group membership is effectively root-equivalent; accept this only because VM2 is a single-user development host, not a multi-tenant service host.
 - Traefik is the only intended public ingress on ports `80` and `443`. Dashboard/admin routes require management-source allowlisting and BasicAuth.
 - Container images are resolved from `artifacts/containers.lock.yml`, deployed as immutable digest refs, pre-pulled by `standard_podman`, and launched with `--pull=never`.
 - Containers use explicit network placement, internal app/backend networks for deny-by-default egress, memory/PID limits, `no-new-privileges`, reduced capabilities, and read-only root filesystems where compatible.

@@ -135,8 +135,14 @@ VM2 is the interactive development host. Users connect over SSH, start or reatta
 - VM2 uses the same Rocky Linux 10 baseline and SSH/firewall hardening as VM1.
 - The dev tooling is owned by the existing `user_name` account.
 - npm global packages install under `/home/{{ user_name }}/.npm-global` instead of a root-owned global prefix.
+- Grok Build installs via the official xAI installer into `~/.grok/bin`; upgrades are opt-in (`dev_vm_grok_update` or interactive `grok update`).
+- Agent CLI PATH is managed via `/etc/profile.d/dev-vm-path.sh` (login) and a user snippet sourced from interactive `~/.bashrc` so tmux and editor terminals see npm, Grok, and pip user bins.
+- Docker Engine and Podman both install for local validation; the Podman `docker` CLI shim is removed. Membership in the `docker` group is effectively root-equivalent and is intentional for a single-user dev VM.
+- Provider auth (API keys / OAuth) is interactive and not stored in Ansible inventory.
 - The playbook installs the `devmux` helper but does not automatically attach SSH logins to tmux, so Ansible, scp, and noninteractive SSH remain predictable.
 - Interactive SSH logins show the dev user how to run `devmux` and detach from the tmux session.
+
+**First login checklist:** SSH as `user_name` → `devmux` → complete Codex/Claude/Grok auth → `command -v codex claude grok`.
 
 ---
 

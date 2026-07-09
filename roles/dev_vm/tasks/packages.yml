@@ -1,0 +1,40 @@
+---
+- name: Install dev workstation packages
+  ansible.builtin.dnf:
+    name: "{{ dev_vm_packages }}"
+    state: present
+
+- name: Ensure user-local bin directory exists
+  ansible.builtin.file:
+    path: "{{ dev_vm_python_user_base }}/bin"
+    state: directory
+    owner: "{{ dev_vm_user }}"
+    mode: "0755"
+
+- name: Locate system fdfind binary
+  ansible.builtin.shell:
+    cmd: command -v fdfind
+  args:
+    executable: /bin/bash
+  register: fdfind_which
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Symlink fd when fdfind is installed
+  ansible.builtin.file:
+    src: "{{ fdfind_which.stdout }}"
+    dest: "{{ dev_vm_python_user_base }}/bin/fd"
+    state: link
+    owner: "{{ dev_vm_user }}"
+    force: true
+  when:
+    - fdfind_which.rc == 0
+    - fdfind_which.stdout | length > 0
+
+- name: Ensure workspace parent directory exists
+  ansible.builtin.file:
+    path: "{{ dev_vm_workspace_path }}"
+    state: directory
+    owner: "{{ dev_vm_user }}"
+    mode: "0755"

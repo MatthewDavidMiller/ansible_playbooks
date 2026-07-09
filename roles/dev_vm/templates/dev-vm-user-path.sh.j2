@@ -1,0 +1,11 @@
+# Managed by Ansible (dev_vm role).
+# Sourced from interactive bashrc and /etc/profile.d for the dev user.
+{% for entry in dev_vm_path_entries %}
+if [ -d "{{ entry }}" ]; then
+    case ":$PATH:" in
+        *":{{ entry }}:"*) ;;
+        *) PATH="{{ entry }}:$PATH" ;;
+    esac
+fi
+{% endfor %}
+export PATH

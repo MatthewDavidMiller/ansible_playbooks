@@ -116,12 +116,26 @@ Configures VM2 as an SSH/tmux development host for Codex, Claude Code, and Grok 
 | `dev_vm_user` | string | Dev user override; defaults to `user_name` | `example_user` |
 | `dev_vm_npm_prefix` | path | User-local npm global prefix | `/home/example_user/.npm-global` |
 | `dev_vm_tmux_session` | string | Default tmux session name for `devmux` | `dev` |
-| `dev_vm_packages` | list | Rocky package baseline for the dev VM, including Podman | `[tmux, git, nodejs, podman]` |
-| `dev_vm_docker_packages` | list | Docker Engine packages installed from Docker's official RHEL repository for local container validation | `[docker-ce, docker-ce-cli, containerd.io]` |
-| `dev_vm_npm_global_packages` | list | npm packages installed for the dev user | `["@openai/codex", "@anthropic-ai/claude-code"]` |
-| `dev_vm_grok_installer_url` | string | URL of the official Grok Build CLI installer script | `https://x.ai/cli/install.sh` |
-| `dev_vm_python_user_packages` | list | pip `--user` CLI packages installed for validation tooling | `["ansible-lint"]` |
+| `dev_vm_workspace_path` | path | Parent workspace directory created empty for the dev user (no auto clone) | `/home/example_user/matt_dev` |
+| `dev_vm_packages` | list | Rocky package baseline (tmux, git, nodejs, podman, go, rust, ripgrep, fd-find, bubblewrap, tree, ShellCheck, yamllint, gh, ansible-core, …) | see role defaults |
+| `dev_vm_docker_packages` | list | Docker Engine packages from Docker's official RHEL repository | `[docker-ce, docker-ce-cli, containerd.io, docker-buildx-plugin, docker-compose-plugin]` |
+| `dev_vm_docker_prune` | boolean | When true, run `docker system prune -f` on converge | `false` |
+| `dev_vm_npm_global_packages` | list | npm packages for the dev user; pin with `name@version` when desired | `["@openai/codex", "@anthropic-ai/claude-code"]` |
+| `dev_vm_npm_global_state` | string | npm module state: `present` (stable) or `latest` (refresh CLIs) | `present` |
+| `dev_vm_grok_installer_url` | string | URL of the official Grok Build CLI installer script (mutable latest) | `https://x.ai/cli/install.sh` |
+| `dev_vm_grok_update` | boolean | When true, re-download and re-run the Grok installer each converge | `false` |
+| `dev_vm_python_user_packages` | list | pip `--user` CLI packages | `["ansible-lint", "pre-commit"]` |
+| `dev_vm_git_user_name` | string | Optional global `git user.name` for the dev user; empty skips | `Example User` |
+| `dev_vm_git_user_email` | string | Optional global `git user.email` for the dev user; empty skips | `user@example.com` |
 | `dev_vm_ansible_project_path` | path | Checkout path used to find pinned collection requirements | `/home/example_user/matt_dev/ansible_playbooks` |
 | `dev_vm_install_project_collections` | boolean | Install repo-pinned Ansible collections when the checkout exists | `true` |
 
-**Key behavior:** installs heavy workstation packages, installs and enables Docker Engine from Docker's official RHEL repository for local container validation, keeps npm and Python CLI tools under the dev user's home directory, installs the Grok Build TUI/CLI (and `agent` binary) for the dev user via the official xAI installer script plus a managed `/etc/profile.d/` entry to expose `~/.grok/bin` on PATH, installs repo-pinned Ansible collections when the checkout exists, manages `~/.tmux.conf` to enable mouse scrolling (`set -g mouse on`), and installs a `devmux` helper that attaches to or creates a persistent tmux session. Interactive SSH logins for the dev user show a short `devmux` usage hint, including `Ctrl-b`, then `d`, to detach from tmux. `vm2.yml` pairs this role with a VM2-only SELinux `domain_can_mmap_files` boolean for standard dev tooling.
+**Key behavior:** installs the workstation package baseline (search tools, build toolchain, `gh`, ShellCheck, yamllint, Podman), installs and enables Docker Engine from Docker's official RHEL repository for local container validation, and adds the dev user to the `docker` group (effectively root-equivalent; intentional on a single-user dev VM). npm and Python CLIs install under the dev user's home; Grok Build installs via the official xAI installer into `~/.grok/bin`. A single `/etc/profile.d/dev-vm-path.sh` plus `~/.config/dev-vm/path.sh` (sourced from interactive `~/.bashrc`) expose npm, Grok, and pip user bins. Optional git identity is written only when name/email vars are non-empty. Repo-pinned Ansible collections install when the checkout exists; otherwise the role logs a clear skip warning. Manages `~/.tmux.conf` mouse scrolling and the `devmux` helper for persistent agent sessions (no auto-attach). Provider auth (Codex/Claude/Grok login) is interactive and not provisioned by Ansible.
+
+**First login (interactive):**
+
+1. SSH as `user_name`, then run `devmux`.
+2. Complete provider auth as needed (`codex login`, Claude Code login, Grok auth).
+3. Confirm CLIs resolve: `command -v codex claude grok ansible-lint gh`.
+
+**Grok upgrades:** leave `dev_vm_grok_update: false` for install-once behavior; set `true` on the next converge to refresh, or run `grok update` inside `devmux`. `vm2.yml` pairs this role with a VM2-only SELinux `domain_can_mmap_files` boolean for standard dev tooling.

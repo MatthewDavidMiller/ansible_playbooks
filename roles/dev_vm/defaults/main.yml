@@ -1,5 +1,5 @@
 ---
-# User that owns interactive Codex/Claude Code tooling.
+# User that owns interactive Codex/Claude Code/Grok tooling.
 dev_vm_user: "{{ user_name }}"
 
 # User-local npm prefix. Avoids sudo npm global installs.
@@ -7,6 +7,9 @@ dev_vm_npm_prefix: "/home/{{ dev_vm_user }}/.npm-global"
 
 # Named tmux session used by the devmux helper.
 dev_vm_tmux_session: dev
+
+# Parent workspace directory (created empty; no auto git clone).
+dev_vm_workspace_path: "/home/{{ dev_vm_user }}/matt_dev"
 
 dev_vm_packages:
   - tmux
@@ -29,6 +32,10 @@ dev_vm_packages:
   - rust
   - cargo
   - ansible-core
+  - tree
+  - ShellCheck
+  - yamllint
+  - gh
 
 dev_vm_docker_packages:
   - docker-ce
@@ -37,23 +44,47 @@ dev_vm_docker_packages:
   - docker-buildx-plugin
   - docker-compose-plugin
 
+# Opt-in prune of unused Docker data on converge (safe default: off).
+dev_vm_docker_prune: false
+
 dev_vm_npm_global_packages:
   - '@openai/codex'
   - '@anthropic-ai/claude-code'
+
+# npm module state for agent CLIs. Use "present" for stable converges; set to
+# "latest" when deliberately refreshing CLIs. Pin versions in the package list
+# with name@version syntax (e.g. @anthropic-ai/claude-code@1.2.3).
+dev_vm_npm_global_state: present
 
 # Grok Build (xAI) CLI installer script. Matches the official one-liner at
 # https://docs.x.ai/build/overview. The task runs it under the dev user so the
 # resulting `grok` / `agent` binaries land in ~/.grok/bin (plus shell rc edits
 # and optional ~/.local/bin symlinks performed by the upstream script).
+# The installer URL is mutable "latest"; download is kept under ~/.grok/downloads.
 dev_vm_grok_installer_url: "https://x.ai/cli/install.sh"
+
+# When false, install only if ~/.grok/bin/grok is missing. When true, re-run the
+# installer on each converge (or use interactive `grok update` inside devmux).
+dev_vm_grok_update: false
 
 # User-local Python CLI tools needed for validating this repository.
 dev_vm_python_user_base: "/home/{{ dev_vm_user }}/.local"
 dev_vm_python_user_packages:
   - ansible-lint
+  - pre-commit
+
+# Optional git identity for the dev user (no secrets). Empty = leave unset.
+dev_vm_git_user_name: ""
+dev_vm_git_user_email: ""
 
 # Install repo-pinned collections when this checkout exists on the dev VM.
 dev_vm_install_project_collections: true
 dev_vm_ansible_project_path: "/home/{{ dev_vm_user }}/matt_dev/ansible_playbooks"
 dev_vm_ansible_collection_requirements: "{{ dev_vm_ansible_project_path }}/collections/requirements.yml"
 dev_vm_ansible_collection_path: "{{ dev_vm_ansible_project_path }}/collections"
+
+# Managed PATH roots for agent CLIs (login profile.d + interactive bashrc).
+dev_vm_path_entries:
+  - "{{ dev_vm_npm_prefix }}/bin"
+  - "/home/{{ dev_vm_user }}/.grok/bin"
+  - "{{ dev_vm_python_user_base }}/bin"

@@ -1,0 +1,22 @@
+---
+- name: Configure git user.name for dev user
+  community.general.git_config:
+    name: user.name
+    scope: global
+    value: "{{ dev_vm_git_user_name }}"
+  become: true
+  become_user: "{{ dev_vm_user }}"
+  environment:
+    HOME: "/home/{{ dev_vm_user }}"
+  when: dev_vm_git_user_name | length > 0
+
+- name: Configure git user.email for dev user
+  community.general.git_config:
+    name: user.email
+    scope: global
+    value: "{{ dev_vm_git_user_email }}"
+  become: true
+  become_user: "{{ dev_vm_user }}"
+  environment:
+    HOME: "/home/{{ dev_vm_user }}"
+  when: dev_vm_git_user_email | length > 0

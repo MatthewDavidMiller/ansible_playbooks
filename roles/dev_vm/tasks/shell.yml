@@ -1,0 +1,62 @@
+---
+- name: Ensure user-local dev-vm config directory exists
+  ansible.builtin.file:
+    path: "/home/{{ dev_vm_user }}/.config/dev-vm"
+    state: directory
+    owner: "{{ dev_vm_user }}"
+    mode: "0755"
+
+- name: Install user-local PATH snippet for agent CLIs
+  ansible.builtin.template:
+    src: dev-vm-user-path.sh.j2
+    dest: "/home/{{ dev_vm_user }}/.config/dev-vm/path.sh"
+    owner: "{{ dev_vm_user }}"
+    mode: "0644"
+
+- name: Expose agent CLI paths on login shells
+  ansible.builtin.template:
+    src: dev-vm-path.sh.j2
+    dest: /etc/profile.d/dev-vm-path.sh
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Source PATH snippet from interactive bashrc
+  ansible.builtin.blockinfile:
+    path: "/home/{{ dev_vm_user }}/.bashrc"
+    create: true
+    owner: "{{ dev_vm_user }}"
+    mode: "0644"
+    marker: "# {mark} ANSIBLE MANAGED BLOCK dev_vm PATH"
+    block: |
+      # Managed by Ansible (dev_vm role). Agent CLI PATH for interactive shells.
+      if [ -f "$HOME/.config/dev-vm/path.sh" ]; then
+          # shellcheck source=/dev/null
+          . "$HOME/.config/dev-vm/path.sh"
+      fi
+
+- name: Remove legacy per-tool profile.d PATH hooks
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/profile.d/dev-vm-python.sh
+    - /etc/profile.d/dev-vm-npm.sh
+    - /etc/profile.d/dev-vm-grok.sh
+
+- name: Enable mouse scrolling in tmux for dev user
+  ansible.builtin.lineinfile:
+    path: "/home/{{ dev_vm_user }}/.tmux.conf"
+    regexp: "^set -g mouse"
+    line: "set -g mouse on"
+    create: true
+    owner: "{{ dev_vm_user }}"
+    mode: "0644"
+
+- name: Install tmux helper for long-running agent sessions
+  ansible.builtin.template:
+    src: dev-vm-tmux.sh.j2
+    dest: /etc/profile.d/dev-vm-tmux.sh
+    owner: root
+    group: root
+    mode: "0644"

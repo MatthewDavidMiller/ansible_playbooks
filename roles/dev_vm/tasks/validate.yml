@@ -1,0 +1,15 @@
+---
+- name: Validate dev VM user input
+  ansible.builtin.assert:
+    that:
+      - dev_vm_user | length > 0
+      - dev_vm_npm_prefix is match('^/home/[^/]+/.+')
+      - dev_vm_npm_global_state in ['present', 'latest']
+    fail_msg: >-
+      Set dev_vm_user and dev_vm_npm_prefix to a user-owned path under /home,
+      and set dev_vm_npm_global_state to present or latest.
+
+- name: Confirm dev VM user exists
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ dev_vm_user }}"

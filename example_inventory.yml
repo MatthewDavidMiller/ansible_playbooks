@@ -168,6 +168,15 @@ all:
           ansible_host: 192.168.1.121
           dev_vm_tmux_session: dev
           dev_vm_npm_prefix: /home/example_user/.npm-global
+          dev_vm_workspace_path: /home/example_user/matt_dev
+          dev_vm_ansible_project_path: /home/example_user/matt_dev/ansible_playbooks
+          # Optional git identity for the dev user (no secrets / tokens).
+          # dev_vm_git_user_name: Example User
+          # dev_vm_git_user_email: user@example.com
+          # Set true on a converge when you want Ansible to refresh Grok Build.
+          # dev_vm_grok_update: false
+          # dev_vm_npm_global_state: present
+          # dev_vm_docker_prune: false
           vm2_selinux_extra_booleans:
             - name: domain_can_mmap_files
               state: true

@@ -118,11 +118,17 @@ VM2 is the SSH/tmux development VM for Codex, Claude Code, and Grok Build. It in
 | `dev_vm_tmux_session` | string | Default tmux session name for the `devmux` helper | `dev` |
 | `dev_vm_npm_prefix` | path | User-local npm global prefix | `/home/example_user/.npm-global` |
 | `dev_vm_ansible_project_path` | path | VM2 checkout path used to install pinned Ansible collections | `/home/example_user/matt_dev/ansible_playbooks` |
+| `dev_vm_workspace_path` | path | Parent workspace directory created for the dev user | `/home/example_user/matt_dev` |
+| `dev_vm_git_user_name` | string | Optional global git `user.name` | `Example User` |
+| `dev_vm_git_user_email` | string | Optional global git `user.email` | `user@example.com` |
+| `dev_vm_grok_update` | bool | Re-run Grok installer on converge | `false` |
+| `dev_vm_npm_global_state` | string | npm agent CLI state (`present` or `latest`) | `present` |
+| `dev_vm_docker_prune` | bool | Prune unused Docker data on converge | `false` |
 | `standard_ssh_allow_tcp_forwarding` | bool | SSH TCP forwarding override for editor remoting; VM2 playbook defaults to `true` | `true` |
 | `standard_ssh_max_sessions` | integer | SSH session channel limit; VM2 playbook defaults to `10` | `10` |
 | `vm2_selinux_extra_booleans` | list | VM2 SELinux booleans passed into `standard_selinux_extra_booleans` | `[{name: domain_can_mmap_files, state: true}]` |
 
-The `dev_vm` role uses `user_name` as the interactive SSH/dev user, installs Podman and Docker Engine for local container validation, installs user-local npm packages under `/home/{{ user_name }}/.npm-global`, installs the Grok Build CLI via the official installer script under the dev user's home, installs Python CLI validation tools under `/home/{{ user_name }}/.local`, and installs pinned Ansible collections from the checkout when `collections/requirements.yml` exists.
+The `dev_vm` role uses `user_name` as the interactive SSH/dev user, installs Podman and Docker Engine for local container validation (Docker group membership is effectively root-equivalent), installs user-local npm packages under `/home/{{ user_name }}/.npm-global`, installs the Grok Build CLI via the official installer under the dev user's home, installs Python CLI tools under `/home/{{ user_name }}/.local`, and installs pinned Ansible collections from the checkout when `collections/requirements.yml` exists. Provider API keys and login are not provisioned; complete them interactively after first SSH.
 
 ---
 

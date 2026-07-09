@@ -1,0 +1,16 @@
+---
+galaxy_info:
+  author: homelab
+  role_name: dev_vm
+  description: SSH/tmux development host for Codex, Claude Code, and Grok Build
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: EL
+      versions:
+        - "10"
+
+collections:
+  - community.general
+
+dependencies: []

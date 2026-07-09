@@ -1,0 +1,32 @@
+---
+- name: Ensure user-local npm directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ dev_vm_user }}"
+    mode: "0755"
+  loop:
+    - "{{ dev_vm_npm_prefix }}"
+    - "{{ dev_vm_npm_prefix }}/bin"
+
+- name: Configure npm prefix for dev user
+  ansible.builtin.lineinfile:
+    path: "/home/{{ dev_vm_user }}/.npmrc"
+    regexp: "^prefix="
+    line: "prefix={{ dev_vm_npm_prefix }}"
+    create: true
+    owner: "{{ dev_vm_user }}"
+    mode: "0644"
+
+- name: Install Codex and Claude Code for dev user
+  community.general.npm:
+    name: "{{ item }}"
+    global: true
+    state: "{{ dev_vm_npm_global_state }}"
+  become: true
+  become_user: "{{ dev_vm_user }}"
+  environment:
+    HOME: "/home/{{ dev_vm_user }}"
+    NPM_CONFIG_PREFIX: "{{ dev_vm_npm_prefix }}"
+    PATH: "{{ dev_vm_npm_prefix }}/bin:{{ ansible_env.PATH }}"
+  loop: "{{ dev_vm_npm_global_packages }}"

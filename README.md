@@ -1,6 +1,6 @@
 # Ansible Playbooks
 
-Ansible repo for the maintained homelab VM workflow: VM1 runs Rocky Linux 10 Podman services under systemd, and VM2 is a Rocky Linux 10 SSH/tmux dev VM for Codex and Claude Code. Historical playbooks and roles are kept under `archive/` for reference and are not maintained.
+Ansible repo for the maintained homelab VM workflow: VM1 runs Rocky Linux 10 Podman services under systemd, and VM2 is a Rocky Linux 10 SSH/tmux dev VM for Codex, Claude Code, and Grok Build. Historical playbooks and roles are kept under `archive/` for reference and are not maintained.
 
 ## Documentation
 

@@ -1,0 +1,48 @@
+---
+- name: Check for repo-pinned Ansible collection requirements
+  ansible.builtin.stat:
+    path: "{{ dev_vm_ansible_collection_requirements }}"
+  register: dev_vm_collection_requirements
+  when: dev_vm_install_project_collections | bool
+
+- name: Warn when project collections checkout is missing
+  ansible.builtin.debug:
+    msg: >-
+      dev_vm_install_project_collections is true but
+      {{ dev_vm_ansible_collection_requirements }} was not found.
+      Clone the ansible_playbooks checkout to
+      {{ dev_vm_ansible_project_path }} (or set
+      dev_vm_ansible_project_path) and re-run to install pinned collections.
+  when:
+    - dev_vm_install_project_collections | bool
+    - not (dev_vm_collection_requirements.stat.exists | default(false))
+
+- name: Ensure repo Ansible collections path exists
+  ansible.builtin.file:
+    path: "{{ dev_vm_ansible_collection_path }}"
+    state: directory
+    owner: "{{ dev_vm_user }}"
+    mode: "0755"
+  when:
+    - dev_vm_install_project_collections | bool
+    - dev_vm_collection_requirements.stat.exists | default(false)
+
+- name: Install repo-pinned Ansible collections
+  ansible.builtin.command:
+    argv:
+      - ansible-galaxy
+      - collection
+      - install
+      - -r
+      - "{{ dev_vm_ansible_collection_requirements }}"
+      - -p
+      - "{{ dev_vm_ansible_collection_path }}"
+  become: true
+  become_user: "{{ dev_vm_user }}"
+  environment:
+    HOME: "/home/{{ dev_vm_user }}"
+  register: dev_vm_ansible_collection_install
+  changed_when: "'Nothing to do' not in dev_vm_ansible_collection_install.stdout"
+  when:
+    - dev_vm_install_project_collections | bool
+    - dev_vm_collection_requirements.stat.exists | default(false)
