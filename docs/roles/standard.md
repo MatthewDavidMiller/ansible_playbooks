@@ -16,7 +16,7 @@ Deploys the managed SSH hardening drop-in under `/etc/ssh/sshd_config.d/`.
 |---|---|---|---|
 | `standard_ssh_allow_users` | list | Optional account allowlist for SSH logins | `[example_user]` |
 | `standard_ssh_tcp_forwarding_mode` | string | OpenSSH forwarding mode (`no`, `local`, `remote`, or `yes`) | `local` |
-| `standard_ssh_allow_agent_forwarding` | bool | Enable agent forwarding; disabled by default | `false` |
+| `standard_ssh_allow_agent_forwarding` | bool | Enable agent forwarding; disabled by the role and enabled by the VM2 playbook | `true` |
 | `standard_ssh_streamlocal_forwarding_mode` | string | Unix-socket forwarding mode | `no` |
 | `standard_ssh_max_sessions` | integer | SSH session channel limit | `10` |
 

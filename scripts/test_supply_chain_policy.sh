@@ -103,6 +103,7 @@ assert_match "standard_ssh_tcp_forwarding_mode:.*ternary.*'no'" "SSH disables TC
 assert_match "AllowTcpForwarding .*standard_ssh_tcp_forwarding_mode" "SSH renders explicit TCP forwarding mode" roles/standard_ssh/templates/10-standard-hardening.conf.j2
 assert_match "standard_ssh_tcp_forwarding_mode:[[:space:]]*local" "VM2 allows local-only SSH TCP forwarding for editor remoting" vm2.yml
 assert_match "standard_ssh_allow_agent_forwarding:[[:space:]]*false" "SSH disables agent forwarding by default" roles/standard_ssh/defaults/main.yml
+assert_match "standard_ssh_allow_agent_forwarding:[[:space:]]*true" "VM2 allows SSH agent forwarding for development access" vm2.yml
 assert_match "standard_ssh_streamlocal_forwarding_mode:[[:space:]]*['\"]no['\"]" "SSH disables Unix-socket forwarding by default" roles/standard_ssh/defaults/main.yml
 assert_match "standard_ssh_allow_users" "maintained playbooks restrict SSH to the configured user" vm1.yml vm2.yml
 assert_match "set -g mouse on" "dev_vm enables tmux mouse scrolling" roles/dev_vm/tasks/shell.yml

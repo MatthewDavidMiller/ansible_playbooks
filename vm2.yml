@@ -7,6 +7,7 @@
     apply_runtime_changes_on_reboot: true
     standard_update_enable_epel: true
     standard_ssh_tcp_forwarding_mode: local
+    standard_ssh_allow_agent_forwarding: true
     standard_ssh_max_sessions: 10
     standard_selinux_extra_booleans: "{{ vm2_selinux_extra_booleans | default([{'name': 'domain_can_mmap_files', 'state': true}]) }}"
   module_defaults:

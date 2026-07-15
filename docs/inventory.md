@@ -126,6 +126,7 @@ VM2 is the SSH/tmux development VM for Codex and Claude Code. It inherits the sh
 | `dev_vm_rootless_subid_start` | integer | Start of a non-overlapping subordinate UID/GID range | `100000` |
 | `dev_vm_rootless_subid_count` | integer | Size of the subordinate UID/GID range | `65536` |
 | `standard_ssh_tcp_forwarding_mode` | string | SSH forwarding mode; VM2 permits local editor tunnels only | `local` |
+| `standard_ssh_allow_agent_forwarding` | boolean | SSH agent/key forwarding; enabled by the VM2 playbook | `true` |
 | `standard_ssh_max_sessions` | integer | SSH session channel limit; VM2 playbook defaults to `10` | `10` |
 | `vm2_selinux_extra_booleans` | list | VM2 SELinux booleans passed into `standard_selinux_extra_booleans` | `[{name: domain_can_mmap_files, state: true}]` |
 

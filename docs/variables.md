@@ -250,7 +250,8 @@ development environment:
 | `vm2_selinux_extra_booleans` | list | No | Extra SELinux boolean objects passed to the standard role. | `[{name: domain_can_mmap_files, state: true}]` |
 
 `vm2.yml` sets `standard_update_enable_epel: true`,
-`standard_ssh_tcp_forwarding_mode: local`, and
+`standard_ssh_tcp_forwarding_mode: local`,
+`standard_ssh_allow_agent_forwarding: true`, and
 `standard_ssh_max_sessions: 10`; inventory does not need to repeat them.
 
 ## Optional shared role overrides
