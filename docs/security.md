@@ -49,7 +49,7 @@ Before merging security-sensitive changes, run:
 bash scripts/test_supply_chain_policy.sh
 bash scripts/test_shell_secret_env.sh
 ANSIBLE_LOCAL_TEMP=/tmp/.ansible-local ANSIBLE_REMOTE_TEMP=/tmp/.ansible-remote XDG_CACHE_HOME=/tmp/.cache ansible-lint
-ANSIBLE_LOCAL_TEMP=/tmp/.ansible-local ANSIBLE_REMOTE_TEMP=/tmp/.ansible-remote XDG_CACHE_HOME=/tmp/.cache ansible-playbook --syntax-check -i example_inventory.yml vm1.yml
+ANSIBLE_LOCAL_TEMP=/tmp/.ansible-local ANSIBLE_REMOTE_TEMP=/tmp/.ansible-remote XDG_CACHE_HOME=/tmp/.cache ansible-playbook --syntax-check -i vm1,vm2,homelab, vm1.yml
 ```
 
 For container runtime changes, also run:

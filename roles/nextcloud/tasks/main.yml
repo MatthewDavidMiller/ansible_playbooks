@@ -16,8 +16,9 @@
       - container_static_ips.redis_backend | homelab_ip_in_subnet(nextcloud_backend_network_subnet)
       - container_static_ips.nextcloud_backend | homelab_ip_in_subnet(nextcloud_backend_network_subnet)
       - container_static_ips.nextcloud_proxy | homelab_ip_in_subnet(route_proxy_network_subnets.nextcloud_proxy_net)
-      - postgres_admin_password | length >= 16
-      - nextcloud_db_password | length >= 16
+      - password_minimum_length | int >= 1
+      - postgres_admin_password | length >= password_minimum_length | int
+      - nextcloud_db_password | length >= password_minimum_length | int
     fail_msg: Configure safe paths, immutable images, valid networks, and strong Nextcloud database secrets.
   no_log: true
 

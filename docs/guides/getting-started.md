@@ -27,19 +27,20 @@ The repo's `ansible.cfg` prefers `./collections`, so the control node uses the p
 
 ## Create Your Inventory
 
-Copy `example_inventory.yml` to a new file (do not commit real credentials):
+Create a local inventory file that is not committed:
 
 ```bash
-cp example_inventory.yml inventory.yml
+$EDITOR inventory.yml
 ```
 
-Fill in all placeholder values. Key things to configure:
+Use [variables.md](../variables.md) to define the required shared, VM1, and VM2
+values. Key things to configure include:
 
 - `management_network` and `ip_ansible` — your management network CIDR and Ansible controller IP; these become the firewalld allowlist
 - `porkbun_api_key` / `porkbun_api_key_secret` — required for DDNS and Traefik DNS-01 certificate issuance
 - `secret_env_dir` — where root-only runtime env files will be rendered on managed hosts
 - VM1 per-service DB credentials (`postgres_admin_user`, `nextcloud_db_user`, `paperless_db_user`, `semaphore_db_user`, and their passwords)
-- `top_domain` — your domain (e.g., `example.com`)
+- `homelab_domain` — your domain (e.g., `example.com`)
 - `vm1.ansible_host` — VM1's IP address or hostname
 
 Before the first production deploy, review and pin the current upstream image digests in `artifacts/containers.lock.yml`. The maintained workflow is documented in [container-image-updates.md](container-image-updates.md) and starts with:
@@ -49,7 +50,7 @@ python3 scripts/promote_artifacts.py --check-tools
 bash scripts/review_container_updates.sh
 ```
 
-For a complete variable reference see [inventory.md](../inventory.md).
+For inventory conventions and naming patterns, see [inventory.md](../inventory.md).
 
 ---
 

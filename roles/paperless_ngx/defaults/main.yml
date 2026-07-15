@@ -25,6 +25,9 @@ paperless_db_user: ""
 # Password for the Paperless NGX database user
 paperless_db_password: ""
 
+# Minimum length enforced for the application database password
+password_minimum_length: 16
+
 # Fully-qualified domain name for Paperless NGX (used in PAPERLESS_URL)
 paperless_dns_name: ""
 

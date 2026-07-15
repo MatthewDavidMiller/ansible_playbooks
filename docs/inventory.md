@@ -1,6 +1,6 @@
 # Inventory Variable Reference
 
-Use `example_inventory.yml` as the template for your real inventory. This document covers the maintained VM1 and VM2 workflow.
+Use [variables.md](variables.md) to create your real inventory. This document covers the maintained VM1 and VM2 workflow.
 
 ---
 
@@ -74,6 +74,7 @@ VM1 is the single maintained service host. It runs Traefik, PostgreSQL, Redis, N
 | `paperless_database_name` | string | Paperless database name | `paperless` |
 | `paperless_db_user` | string | Paperless DB role | `paperless_user` |
 | `paperless_db_password` | string | Paperless DB password | `secret` |
+| `password_minimum_length` | integer | Minimum length enforced for the PostgreSQL admin, Nextcloud DB, and Paperless DB passwords | `16` |
 | `paperless_dns_name` | string | Paperless public FQDN | `paperless.example.com` |
 | `semaphore_database_name` | string | Semaphore database name | `semaphore` |
 | `semaphore_db_user` | string | Semaphore DB role | `semaphore_user` |

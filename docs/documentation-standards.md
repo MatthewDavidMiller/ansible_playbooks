@@ -14,7 +14,7 @@ Primary document ownership:
 - `docs/architecture.md` — system design and execution-order rationale
 - `docs/playbooks.md` — playbook purpose, targets, and role composition
 - `docs/inventory.md` — inventory structure, variables, and naming conventions
-- `example_inventory.yml` — inventory shape and example values
+- `docs/variables.md` — variables that operators must define or may override
 - `AGENT.md` and `CLAUDE.md` — agent workflow instructions only, not project reference docs
 - Role task files — implementation truth for what a role actually does
 

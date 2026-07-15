@@ -76,14 +76,17 @@ assert_match "vulnerability_exception_reviewed_on:[[:space:]]+'[0-9]{4}-[0-9]{2}
 assert_match "vulnerability_exception_expires_on:[[:space:]]+'[0-9]{4}-[0-9]{2}-[0-9]{2}'" "vulnerability exceptions record an expiry date" artifacts/containers.lock.yml
 assert_no_match "test_locked_images:([[:space:]]|.)*image:[[:space:]]+[^[:space:]]+:[^@[:space:]]+$" "test helper images are immutable" artifacts/test_images.lock.yml
 assert_match "^collections:" "pinned collection manifest exists" collections/requirements.yml
-assert_no_fixed_match "--pull=newer" "maintained launch scripts do not auto-pull on start" roles docs scripts example_inventory.yml vm1.yml
-assert_no_fixed_match "--privileged" "maintained launch scripts do not run privileged containers" roles docs scripts example_inventory.yml vm1.yml
-assert_no_match "[:=][[:space:]]*[^[:space:]'\"]+:latest\\b" "maintained configuration does not use mutable latest tags" roles docs scripts example_inventory.yml vm1.yml
-assert_no_match "artifact_registry_(host|username|password)" "maintained path does not require registry inventory variables" example_inventory.yml roles docs scripts vm1.yml
+assert_no_fixed_match "--pull=newer" "maintained launch scripts do not auto-pull on start" roles docs scripts vm1.yml
+assert_no_fixed_match "--privileged" "maintained launch scripts do not run privileged containers" roles docs scripts vm1.yml
+assert_no_match "[:=][[:space:]]*[^[:space:]'\"]+:latest\\b" "maintained configuration does not use mutable latest tags" roles docs scripts vm1.yml
+assert_no_match "artifact_registry_(host|username|password)" "maintained path does not require registry inventory variables" roles docs scripts vm1.yml
 assert_no_match "state:[[:space:]]*latest" "maintained roles do not perform blanket latest-package convergence outside the update role" roles --glob '!roles/standard_update_packages/**'
 assert_match "security:[[:space:]]*true" "standard_update_packages applies security-only updates during normal convergence" roles/standard_update_packages/tasks/main.yml
 assert_match "crb enable" "standard_update_packages enables CRB when EPEL is enabled" roles/standard_update_packages/tasks/main.yml
 assert_match "standard_update_enable_epel" "CRB enable is gated on EPEL being enabled" roles/standard_update_packages/tasks/main.yml
+assert_match "^password_minimum_length:[[:space:]]+16$" "database password validation has a default minimum length" roles/nextcloud/defaults/main.yml roles/paperless_ngx/defaults/main.yml
+assert_match "password.*length >= password_minimum_length.*int" "database password validation uses the configurable minimum length" roles/nextcloud/tasks/main.yml roles/paperless_ngx/tasks/main.yml
+assert_no_match "password.*length >= 16" "database password validation does not hard-code the minimum length" roles/nextcloud/tasks/main.yml roles/paperless_ngx/tasks/main.yml
 assert_match "ansible-galaxy collection install -r collections/requirements\\.yml" "control-node installs use the pinned collection manifest" scripts/desktop_local_ansible.sh docs/guides/getting-started.md
 assert_no_match "ansible-galaxy collection install (community|ansible\\.posix)" "collection installs must not bypass the pinned requirements file" scripts docs
 assert_no_match "\\.latest\\." "mutable cloud image URLs are not allowed" scripts/proxmox_initial_setup.py artifacts/cloud_images.lock.yml docs/guides/proxmox-setup.md
@@ -140,11 +143,11 @@ assert_no_fixed_match "not in semaphore_network.stdout" \
   "semaphore subnet check uses JSON parsing, not raw stdout search" \
   roles/semaphore/tasks/main.yml
 assert_match "traefik_egress_network" "Traefik uses a dedicated egress network" roles/reverse_proxy/templates/traefik_container.sh.j2
-assert_no_match "traefik_networks:" "maintained inventory does not use free-form Traefik network membership" example_inventory.yml
+assert_no_match "traefik_networks:" "maintained configuration does not use free-form Traefik network membership" roles docs vm1.yml
 assert_match "Validate firewalld ingress inputs" "firewalld validates ingress inputs before applying policy" roles/standard_firewalld/tasks/main.yml
 assert_match "homelab_valid_ipv4_cidr" "firewalld uses semantic CIDR validation" roles/standard_firewalld/tasks/main.yml
 assert_match "Remove stale homelab source assignments" "firewalld reconciles removed source networks" roles/standard_firewalld/tasks/main.yml
-assert_no_match "\\bdev_vm_docker_packages\\b|\\bdev_vm_docker_prune\\b" "dev_vm no longer provisions Docker Engine" roles/dev_vm vm2.yml example_inventory.yml
+assert_no_match "\\bdev_vm_docker_packages\\b|\\bdev_vm_docker_prune\\b" "dev_vm no longer provisions Docker Engine" roles/dev_vm vm2.yml docs/variables.md
 assert_match "Purge legacy Grok installation and credentials" "dev_vm purges legacy Grok state" roles/dev_vm/tasks/remove_grok.yml
 assert_match "owner: root" "backup role sets root ownership on managed backup paths/scripts" roles/backup/tasks/main.yml
 assert_match "umask 077" "Borg backup script uses restrictive umask" roles/backup/templates/backup_files.sh.j2

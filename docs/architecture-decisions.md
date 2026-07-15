@@ -11,7 +11,7 @@ This document records explicit design decisions and rejected alternatives for th
 **Rationale:**
 
 - Real inventory with credentials is managed externally in Semaphore, not in this repo.
-- `example_inventory.yml` is a template and contains no live secrets.
+- Real inventory is injected by Semaphore and is not stored in this repository.
 - Vault would add coordination overhead without protecting an actual checked-in secret source.
 
 ---
@@ -23,7 +23,7 @@ This document records explicit design decisions and rejected alternatives for th
 **Rationale:**
 
 - Semaphore manages inventory injection as one unit.
-- A single inventory template is easier to document and easier to reason about.
+- A single externally managed inventory is easier to document and reason about.
 
 ---
 

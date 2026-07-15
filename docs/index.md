@@ -30,6 +30,7 @@ Start with [README.md](../README.md) for the project overview and quick start.
 | [architecture-decisions.md](architecture-decisions.md) | Rejected approaches and their rationale (Vault, host_vars/, dedicated patching playbook, etc.) |
 | [playbooks.md](playbooks.md) | All playbooks — target hosts, role order, usage notes |
 | [inventory.md](inventory.md) | Full inventory variable reference |
+| [variables.md](variables.md) | Required, conditional, and optional variables to define or override |
 | [roles/standard.md](roles/standard.md) | Standard infrastructure roles (`standard_ssh`, `standard_firewalld`, `standard_selinux`, etc.) |
 | [roles/services.md](roles/services.md) | Service roles (`nextcloud`, `vaultwarden`, `semaphore`, `reverse_proxy`, etc.) |
 | [archive.md](archive.md) | Archived playbooks, roles, and historical reference docs |

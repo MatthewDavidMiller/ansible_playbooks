@@ -34,6 +34,8 @@ Deploys the shared PostgreSQL container, Redis container, and Nextcloud itself.
 
 **Required variables:** `postgres_image`, `redis_image`, `nextcloud_image`, `postgres_path`, `nextcloud_path`, `nextcloud_disk`, `postgres_admin_user`, `postgres_admin_password`, `nextcloud_database_name`, `nextcloud_db_user`, `nextcloud_db_password`, `nextcloud_admin_user`, `nextcloud_admin_password`, `nextcloud_trusted_domains`, `secret_env_dir`
 
+**Optional variables:** `password_minimum_length` defaults to `16` and controls validation of the PostgreSQL admin and Nextcloud database passwords.
+
 **Templates:** `postgres_container.sh.j2`, `postgres_container.service.j2`, `redis_container.sh.j2`, `redis_container.service.j2`, `nextcloud_container.sh.j2`, `nextcloud_container.service.j2`, `nextcloud_configure.sh.j2`, `nextcloud_configure.service.j2`, `postgres.env.j2`, `nextcloud.env.j2`
 
 **Key behavior:** owns the shared database layer for Nextcloud, Paperless, and Semaphore, creates missing internal backend/proxy networks, queues legacy non-internal or wrong-subnet Nextcloud networks for deferred replacement during staged VM1 runs, reconciles persistent `config.php` values after Nextcloud starts, and must run before those consumers.
@@ -45,6 +47,8 @@ Deploys the shared PostgreSQL container, Redis container, and Nextcloud itself.
 Deploys Paperless NGX on top of the PostgreSQL and Redis containers created by `nextcloud`.
 
 **Required variables:** `paperless_path`, `paperless_data_path`, `paperless_media_path`, `paperless_export_path`, `paperless_consume_path`, `paperless_database_name`, `paperless_db_user`, `paperless_db_password`, `paperless_image`, `secret_env_dir`
+
+**Optional variables:** `password_minimum_length` defaults to `16` and controls validation of the Paperless database password.
 
 **Templates:** `paperless_ngx.sh.j2`, `paperless_ngx.service.j2`, `paperless.env.j2`
 

@@ -27,6 +27,9 @@ postgres_admin_user: ""
 # Password for the PostgreSQL admin user
 postgres_admin_password: ""
 
+# Minimum length enforced for PostgreSQL admin and application passwords
+password_minimum_length: 16
+
 # Optional legacy PostgreSQL superuser to use once during migrations from an
 # older cluster that was bootstrapped with a different admin role.
 postgres_legacy_bootstrap_user: ""

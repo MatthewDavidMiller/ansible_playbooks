@@ -191,14 +191,9 @@ assert_file_contains "--add-host=.*container_dns[.]aliases[.]redis_backend" "Nex
 assert_file_contains "ip=\\{\\{ container_static_ips[.]postgres_backend \\}\\}" "Postgres: uses a deterministic backend IP" roles/nextcloud/templates/postgres_container.sh.j2
 assert_file_contains "ip=\\{\\{ container_static_ips[.]nextcloud_proxy \\}\\}" "Nextcloud: uses a deterministic proxy IP" roles/nextcloud/templates/nextcloud_container.sh.j2
 assert_file_contains "route_proxy_container_ips" "reverse_proxy: requires deterministic route backend IPs" roles/reverse_proxy/tasks/main.yml
-assert_file_contains "proxy_network: \"nextcloud_proxy_net\"" "Inventory: Nextcloud route declares its proxy network" example_inventory.yml
-assert_file_contains "container_destination: \"\\{\\{ container_dns[.]aliases[.]nextcloud_proxy \\}\\}[.]\\{\\{ container_dns[.]domain \\}\\}\"" "Inventory: Nextcloud route targets the proxy-network DNS dictionary" example_inventory.yml
-assert_file_contains "proxy_network: \"paperless_proxy_net\"" "Inventory: Paperless route declares its proxy network" example_inventory.yml
-assert_file_contains "container_destination: \"\\{\\{ container_dns[.]aliases[.]paperless_proxy \\}\\}[.]\\{\\{ container_dns[.]domain \\}\\}\"" "Inventory: Paperless route targets the proxy-network DNS dictionary" example_inventory.yml
-assert_file_contains "container_destination: \"\\{\\{ container_dns[.]aliases[.]navidrome_proxy \\}\\}[.]\\{\\{ container_dns[.]domain \\}\\}\"" "Inventory: Navidrome route targets the proxy-network DNS dictionary" example_inventory.yml
-assert_file_contains "container_destination: \"\\{\\{ container_dns[.]aliases[.]vaultwarden_proxy \\}\\}[.]\\{\\{ container_dns[.]domain \\}\\}\"" "Inventory: Vaultwarden route targets the proxy-network DNS dictionary" example_inventory.yml
-assert_file_contains "container_destination: \"\\{\\{ container_dns[.]aliases[.]semaphore_proxy \\}\\}[.]\\{\\{ container_dns[.]domain \\}\\}\"" "Inventory: Semaphore route targets the proxy-network DNS dictionary" example_inventory.yml
-assert_file_not_contains "traefik_networks:" "Inventory: Traefik networks are derived from route config" example_inventory.yml
+assert_file_contains "proxy_network" "Variable reference: proxy routes declare their network" docs/variables.md
+assert_file_contains "container_destination" "Variable reference: proxy routes declare their container destination" docs/variables.md
+assert_file_not_contains "traefik_networks" "Variable reference: Traefik networks are derived from route config" docs/variables.md
 assert_file_contains "proxy_network" "reverse_proxy: route validation requires explicit proxy network metadata" roles/reverse_proxy/tasks/main.yml
 assert_file_contains "traefik_egress_network" "Traefik: uses a dedicated egress network for DNS-01/outbound traffic" roles/reverse_proxy/templates/traefik_container.sh.j2
 assert_file_contains "attribute='proxy_network'" "Traefik: app network membership is derived from routes" roles/reverse_proxy/templates/traefik_container.sh.j2

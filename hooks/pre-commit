@@ -66,7 +66,7 @@ echo ""
 echo "--- Ansible Syntax Check ---"
 for playbook in vm1.yml vm2.yml homelab_vms.yml update_homelab_vms.yml reboot_vms.yml; do
   [ -f "$playbook" ] || continue
-  ansible-playbook --syntax-check -i example_inventory.yml "$playbook"
+  ansible-playbook --syntax-check -i vm1,vm2,homelab, "$playbook"
 done
 echo "PASS: ansible syntax check"
 

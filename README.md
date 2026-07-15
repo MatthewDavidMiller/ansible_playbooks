@@ -8,9 +8,9 @@ Ansible repo for the maintained homelab VM workflow: VM1 runs Rocky Linux 10 Pod
 - [docs/architecture.md](docs/architecture.md) — active VM1 topology and runtime design
 - [docs/security.md](docs/security.md) — threat model, hardening baseline, and security change rules
 - [docs/guides/getting-started.md](docs/guides/getting-started.md) — setup from scratch
+- [docs/variables.md](docs/variables.md) — required, conditional, and optional inventory variables
 - [docs/guides/container-image-updates.md](docs/guides/container-image-updates.md) — secure image review and digest-pinning workflow
 - [docs/archive.md](docs/archive.md) — archived playbooks, roles, and historical notes
-- [example_inventory.yml](example_inventory.yml) — active inventory template for VM1
 
 ## Quick Start
 
