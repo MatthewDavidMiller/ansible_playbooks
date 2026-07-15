@@ -1,10 +1,9 @@
 ---
-- name: Install ansible-core and sshpass
+- name: Install host-side Ansible runtime
   ansible.builtin.dnf:
     name:
       - ansible-core
       - openssh-clients
-      - sshpass
     state: present
 
 - name: Install required ansible collections

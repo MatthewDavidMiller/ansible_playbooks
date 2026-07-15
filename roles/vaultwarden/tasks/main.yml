@@ -1,9 +1,15 @@
 ---
-- name: Validate Vaultwarden public signup policy
+- name: Validate Vaultwarden inputs before changing the host
   ansible.builtin.assert:
     that:
       - not (vaultwarden_signups_allowed | bool)
-    fail_msg: "vaultwarden_signups_allowed must remain false for the hardened VM1 deployment."
+      - vaultwarden_path | homelab_safe_absolute_path
+      - vaultwarden_image | homelab_immutable_digest_ref
+      - route_proxy_network_subnets.vaultwarden_container_net | homelab_valid_ipv4_cidr
+      - container_static_ips.vaultwarden_proxy | homelab_ip_in_subnet(route_proxy_network_subnets.vaultwarden_container_net)
+      - not (backup_local | bool) or nextcloud_path | homelab_safe_absolute_path
+      - not (backup_local | bool) or nextcloud_homelab_user | homelab_safe_name
+    fail_msg: Configure hardened signup policy, safe paths, an immutable image, and a valid Vaultwarden network.
 
 - name: Install sqlite3
   ansible.builtin.dnf:

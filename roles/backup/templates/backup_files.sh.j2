@@ -1,26 +1,30 @@
 #!/bin/bash
 set -euo pipefail
 umask 077
+archive={{ borg_backup_path | quote }}"::nextcloud_backup-$(/usr/bin/date +%m_%d_%Y)"
 
 {% if backup_local | default(false) %}
 # Local backup — Nextcloud runs on this host
-/usr/bin/borg create "{{ borg_backup_path }}::nextcloud_backup-$(date +%m_%d_%Y)" \
-    "{{ nextcloud_path }}"
+/usr/bin/borg create "$archive" \
+    {{ nextcloud_path | quote }}
 {% else %}
 # Remote backup — SSHFS mount Nextcloud from {{ nextcloud_host }}
 cleanup() {
-    fusermount -u {{ ssh_mount_path }} >/dev/null 2>&1 || true
+    /usr/bin/fusermount -u {{ ssh_mount_path | quote }} >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
-sshfs {{ user_name }}@{{ nextcloud_host }}:{{ nextcloud_backup_path }} {{ ssh_mount_path }}
-/usr/bin/borg create "{{ borg_backup_path }}::nextcloud_backup-$(date +%m_%d_%Y)" \
-    {{ ssh_mount_path }}
+/usr/bin/sshfs {{ (user_name ~ '@' ~ nextcloud_host ~ ':' ~ nextcloud_backup_path) | quote }} \
+    {{ ssh_mount_path | quote }} \
+    -o StrictHostKeyChecking=yes \
+    -o UserKnownHostsFile=/etc/homelab/backup_known_hosts
+/usr/bin/borg create "$archive" \
+    {{ ssh_mount_path | quote }}
 {% endif %}
 
 # Prune Nextcloud Backups
 /usr/bin/borg prune \
     --keep-daily 7 --keep-weekly 4 --keep-monthly 3 \
-    --glob-archives 'nextcloud_backup-' "{{ borg_backup_path }}"
+    --glob-archives 'nextcloud_backup-*' {{ borg_backup_path | quote }}
 
 # Free disk space
-/usr/bin/borg compact "{{ borg_backup_path }}"
+/usr/bin/borg compact {{ borg_backup_path | quote }}

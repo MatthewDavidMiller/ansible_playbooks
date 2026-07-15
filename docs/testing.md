@@ -12,12 +12,14 @@ git config core.hooksPath hooks
 
 **What runs:**
 
-1. `scripts/test_supply_chain_policy.sh`
-2. `scripts/test_dev_vm_packages.sh` (policy + Rocky 10 / EPEL dnf depsolve for `dev_vm`)
-3. `ansible-lint`
-4. `ansible-playbook --syntax-check` for the maintained playbooks (`vm1.yml`, `vm2.yml`, `homelab_vms.yml`, `update_homelab_vms.yml`, `reboot_vms.yml`)
+1. Supply-chain and static container policy checks
+2. Python unit tests and bytecode compilation
+3. ShellCheck and yamllint
+4. Secret-template rendering regression tests
+5. `dev_vm` policy plus Rocky 10/EPEL dependency resolution using a digest-pinned test image
+6. `ansible-lint` and syntax checks for every maintained playbook
 
-`scripts/test_container_security.sh` remains a manual validation step because it pulls container images and can take several minutes.
+The static portion of `scripts/test_container_security.sh` runs in the hook. Runtime container tests remain manual because they pull images and can take several minutes.
 
 Offline or no-container commits can skip the network depsolve only:
 
@@ -38,6 +40,8 @@ ANSIBLE_LOCAL_TEMP=/tmp/.ansible-local ANSIBLE_REMOTE_TEMP=/tmp/.ansible-remote 
 ANSIBLE_LOCAL_TEMP=/tmp/.ansible-local ANSIBLE_REMOTE_TEMP=/tmp/.ansible-remote ansible-playbook --syntax-check -i example_inventory.yml reboot_vms.yml
 bash scripts/test_shell_secret_env.sh
 bash scripts/test_supply_chain_policy.sh
+python3 -m unittest discover -s tests -p 'test_*.py'
+python3 scripts/promote_artifacts.py --validate-policy
 bash scripts/test_dev_vm_packages.sh
 python3 scripts/promote_artifacts.py --check-tools
 python3 scripts/promote_artifacts.py --service traefik
@@ -92,13 +96,14 @@ bash scripts/test_container_security.sh
 
 1. Resolve each `upstream_ref` to a digest with `skopeo`.
 2. Verify signatures with `cosign` when `signature_required: true` and the lock entry includes pinned signer metadata.
-3. Scan for unfixed `MEDIUM`, `HIGH`, and `CRITICAL` findings with `trivy`, enforcing explicit lock-file exceptions when no newer upstream image is available.
-4. Optionally write the approved digest back to `artifacts/containers.lock.yml`.
+3. Scan for fix-available `MEDIUM`, `HIGH`, and `CRITICAL` findings with `trivy`. Scanner/tool errors fail closed.
+4. Require a reviewed, maximum-30-day public exception for non-Critical findings and an exact local service/digest/CVE acceptance for every Critical finding.
+5. Optionally write the approved digest back to `artifacts/containers.lock.yml`.
 
 Trivy output is written to `logs/container-vulnerability-findings.log`; `logs/` is git ignored.
-If present, local files at `logs/.trivyignore` and `logs/trivy-vex.json` are passed to Trivy for private accepted-risk review. Real ignore/VEX content must stay out of the public repo.
+Critical findings cannot be hidden by a broad Trivy ignore or VEX file. Use `logs/vulnerability-acceptance.yml` for exact Critical acceptances; real acceptance data must stay out of the public repo. `artifacts/vulnerability-acceptance.example.yml` is the schema reference.
 
-The script prefers native `skopeo`, `cosign`, and `trivy` binaries. If one is missing, it falls back to a pinned official container image for that tool via `podman` or `docker`.
+The script prefers native `skopeo`, `cosign`, and `trivy` binaries. If one is missing, it falls back to a pinned, capability-dropped, read-only container via Podman or Docker.
 
 Check the current tool path selection:
 
@@ -127,7 +132,7 @@ Checks:
 2. **Policy:** dnf and pip lists must not overlap; required baseline dnf packages remain present.
 3. **Regression:** with CRB disabled, EPEL `yamllint` must fail depsolve (original failure mode still exists upstream).
 4. **Regression:** with CRB enabled (matching `standard_update_packages`), EPEL `yamllint` must resolve.
-5. **Depsolve:** in a clean `rockylinux:10` container with EPEL + CRB, `dnf --assumeno install` must resolve `dev_vm_packages` and Docker CE packages from the same baseurl the role configures.
+5. **Depsolve:** in the digest-pinned Rocky Linux 10 test image with EPEL + CRB, `dnf --assumeno install` must resolve the rootless-Podman `dev_vm_packages` baseline.
 
 Run it directly:
 
@@ -136,7 +141,7 @@ bash scripts/test_dev_vm_packages.sh
 DEV_VM_PACKAGE_DEPSOLVE=0 bash scripts/test_dev_vm_packages.sh   # policy only
 ```
 
-Requires `podman` or `docker` for the depsolve step, plus network access to Rocky, EPEL, and Docker CE repositories.
+Requires a working Podman or Docker engine for the depsolve step, plus network access to Rocky and EPEL repositories. VM2 itself provisions only rootless Podman.
 
 ---
 
@@ -165,7 +170,7 @@ bash scripts/test_shell_secret_env.sh
 - `scripts/test_shell_secret_env.sh` reports `PASS` for shell quoting and generated launch artifact checks.
 - `scripts/test_supply_chain_policy.sh` reports `PASS` for immutable image refs, approved collection installs, and pinned provisioning inputs.
 - `scripts/test_supply_chain_policy.sh` also enforces core SSH, firewall, proxy, backup, and secret-rendering guardrails.
-- `scripts/test_dev_vm_packages.sh` reports `PASS` for pip-vs-dnf package policy, the EPEL-without-CRB yamllint regression fixture, and Rocky 10 + EPEL + CRB dependency resolution of `dev_vm_packages` / `dev_vm_docker_packages`.
+- `scripts/test_dev_vm_packages.sh` reports `PASS` for pinned-validator package policy, the EPEL-without-CRB regression fixture, and Rocky 10 + EPEL + CRB resolution of the rootless-Podman package baseline.
 - `python3 scripts/promote_artifacts.py --check-tools` reports either native binaries or the pinned container fallback for `skopeo`, `cosign`, and `trivy`.
 - VM1 container tests report `PASS` for PostgreSQL, Redis, Nextcloud, Traefik, Paperless, Vaultwarden, Semaphore, and Navidrome.
 
@@ -176,7 +181,7 @@ bash scripts/test_shell_secret_env.sh
 - Because VM1 now uses shell-sourced root-only env files under `secret_env_dir`, run `scripts/test_shell_secret_env.sh` after touching env templates or launch scripts so parser regressions are caught before deployment.
 - Run `python3 scripts/promote_artifacts.py --check-tools` after provisioning a new control node so missing native binaries or missing container-engine fallback are caught early.
 - Run `scripts/test_supply_chain_policy.sh` after changing image refs, bootstrap tooling, or dependency manifests.
-- Run `scripts/test_dev_vm_packages.sh` after changing `roles/dev_vm/defaults/main.yml` package lists, VM2 EPEL/CRB settings, or Docker CE repository configuration. The depsolve step uses a Rocky 10 container with EPEL + CRB to mirror `standard_update_packages` on VM2.
+- Run `scripts/test_dev_vm_packages.sh` after changing `roles/dev_vm/defaults/main.yml` package lists or VM2 EPEL/CRB settings. The depsolve step uses the immutable Rocky test image with EPEL + CRB to mirror `standard_update_packages` on VM2.
 - Run `scripts/test_supply_chain_policy.sh` and `bash scripts/test_container_security.sh static` after changing container-network tasks. These checks cover route-owned proxy networks and the deferred migration path used when staged VM1 runs would otherwise interrupt Semaphore.
 - Use `bash scripts/review_container_updates.sh --service <name>` when updating `artifacts/containers.lock.yml` so digest resolution, signature verification, scanning, and runtime hardening checks happen in one sequence.
 - Semaphore host verification depends on real `semaphore_known_hosts` content in inventory; the container security script validates the runtime SSH args shape, not your real host keys.

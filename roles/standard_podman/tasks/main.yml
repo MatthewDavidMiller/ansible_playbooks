@@ -1,4 +1,10 @@
 ---
+- name: Validate Podman role paths before changing the host
+  ansible.builtin.assert:
+    that:
+      - secret_env_dir | homelab_safe_absolute_path
+    fail_msg: secret_env_dir must be an absolute, non-root path without traversal components.
+
 - name: Install podman and image tooling
   ansible.builtin.dnf:
     name:
@@ -23,7 +29,7 @@
 - name: Enforce approved digest references
   ansible.builtin.assert:
     that:
-      - item is match("^\\S+@sha256:[0-9a-f]{64}$")
+      - item | homelab_immutable_digest_ref
     fail_msg: "Unapproved image reference '{{ item }}'. Use an immutable digest reference of the form <registry>/<repo>@sha256:<digest>."
   loop: "{{ approved_container_images | unique }}"
 

@@ -13,7 +13,6 @@ from pathlib import Path
 BOOTSTRAP_PACKAGES = [
     "ansible-core",
     "openssh-clients",
-    "sshpass",
     "ansible-collection-ansible-posix",
     "ansible-collection-community-general",
 ]

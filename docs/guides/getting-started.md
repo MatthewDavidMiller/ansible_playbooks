@@ -11,7 +11,7 @@ Install the following on your control machine:
 - **Ansible** — via your package manager or in a virtualenv
 - **ansible-lint** — `pip install ansible-lint`
 - **Python 3** — required by Ansible
-- **One of `podman` or `docker`** — required for local container security testing and for the pinned containerized fallback used by the image review tooling when `cosign`, `trivy`, or `skopeo` are not installed natively
+- **Podman or Docker on the control node** — required for local container tests, package depsolve testing, and pinned image-review tooling fallbacks; VM2 itself provisions only rootless Podman
 
 ---
 
@@ -74,7 +74,7 @@ ansible-playbook -i inventory.yml standalone_tasks/generate_ssh_key.yml -e key_n
 New VMs provisioned from the Rocky Linux 10 cloud-init template (VMID 401) need one-time bootstrapping before Ansible can connect as a non-root user.
 
 Run `scripts/setup.py` on the VM (or equivalent manual steps) to:
-- Install `ansible-core`, `openssh-clients`, `sshpass`, and the distro-packaged collections used by the maintained playbooks
+- Install `ansible-core`, `openssh-clients`, and the distro-packaged collections used by the maintained playbooks
 - Create the `/ansible_configs` directory
 
 For VM provisioning itself see [guides/proxmox-setup.md](proxmox-setup.md).

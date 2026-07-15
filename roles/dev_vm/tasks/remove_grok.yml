@@ -1,0 +1,50 @@
+---
+- name: Inspect legacy Grok convenience symlinks
+  ansible.builtin.stat:
+    path: "/home/{{ dev_vm_user }}/.local/bin/{{ item }}"
+    follow: false
+  loop:
+    - grok
+    - agent
+  register: dev_vm_grok_symlinks
+
+- name: Remove legacy Grok convenience symlinks owned by the Grok install
+  ansible.builtin.file:
+    path: "/home/{{ dev_vm_user }}/.local/bin/{{ item.item }}"
+    state: absent
+  loop: "{{ dev_vm_grok_symlinks.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when:
+    - item.stat.islnk | default(false)
+    - item.stat.lnk_source | default('') is match('^/home/' ~ dev_vm_user ~ '/[.]grok/')
+
+- name: Inspect shell files that may contain the upstream Grok installer block
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "/home/{{ dev_vm_user }}/.bashrc"
+    - "/home/{{ dev_vm_user }}/.zshrc"
+    - "/home/{{ dev_vm_user }}/.config/fish/config.fish"
+  register: dev_vm_grok_shell_files
+
+- name: Remove upstream Grok installer shell blocks
+  ansible.builtin.replace:
+    path: "{{ item.item }}"
+    regexp: '(?ms)^# >>> grok installer >>>\n.*?^# <<< grok installer <<<\n?'
+    replace: ''
+    owner: "{{ dev_vm_user }}"
+  loop: "{{ dev_vm_grok_shell_files.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: item.stat.exists | default(false)
+
+- name: Remove legacy Grok Fish completion
+  ansible.builtin.file:
+    path: "/home/{{ dev_vm_user }}/.config/fish/completions/grok.fish"
+    state: absent
+
+- name: Purge legacy Grok installation and credentials
+  ansible.builtin.file:
+    path: "/home/{{ dev_vm_user }}/.grok"
+    state: absent

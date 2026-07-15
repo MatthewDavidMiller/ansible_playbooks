@@ -7,5 +7,11 @@ standard_ssh_allow_users: []
 # Keep forwarding disabled by default. Hosts that need editor remoting can opt in.
 standard_ssh_allow_tcp_forwarding: false
 
+# Explicit OpenSSH mode. The boolean above remains as a compatibility shim for
+# older inventory; new callers should set this to no/local/remote/yes.
+standard_ssh_tcp_forwarding_mode: "{{ standard_ssh_allow_tcp_forwarding | bool | ternary('yes', 'no') }}"
+standard_ssh_allow_agent_forwarding: false
+standard_ssh_streamlocal_forwarding_mode: "no"
+
 # Keep the hardened default low; VS Code Remote SSH needs more concurrent sessions.
 standard_ssh_max_sessions: 2

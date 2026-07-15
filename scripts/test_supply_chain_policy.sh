@@ -72,6 +72,9 @@ echo "=== Supply Chain Policy Checks ==="
 
 assert_match "^artifact_locked_images:" "container artifact lock file exists" artifacts/containers.lock.yml
 assert_match "vulnerability_exception:[[:space:]]+no_newer_upstream_image" "container vulnerability exceptions use the approved reason" artifacts/containers.lock.yml
+assert_match "vulnerability_exception_reviewed_on:[[:space:]]+'[0-9]{4}-[0-9]{2}-[0-9]{2}'" "vulnerability exceptions record a review date" artifacts/containers.lock.yml
+assert_match "vulnerability_exception_expires_on:[[:space:]]+'[0-9]{4}-[0-9]{2}-[0-9]{2}'" "vulnerability exceptions record an expiry date" artifacts/containers.lock.yml
+assert_no_match "test_locked_images:([[:space:]]|.)*image:[[:space:]]+[^[:space:]]+:[^@[:space:]]+$" "test helper images are immutable" artifacts/test_images.lock.yml
 assert_match "^collections:" "pinned collection manifest exists" collections/requirements.yml
 assert_no_fixed_match "--pull=newer" "maintained launch scripts do not auto-pull on start" roles docs scripts example_inventory.yml vm1.yml
 assert_no_fixed_match "--privileged" "maintained launch scripts do not run privileged containers" roles docs scripts example_inventory.yml vm1.yml
@@ -93,16 +96,18 @@ assert_no_fixed_match "UsePAM no" "SSH keeps PAM session/account controls availa
 assert_match "PasswordAuthentication no" "SSH disables password authentication" roles/standard_ssh/templates/10-standard-hardening.conf.j2
 assert_match "PermitRootLogin no" "SSH disables root login" roles/standard_ssh/templates/10-standard-hardening.conf.j2
 assert_match "X11Forwarding no" "SSH disables X11 forwarding" roles/standard_ssh/templates/10-standard-hardening.conf.j2
-assert_match "standard_ssh_allow_tcp_forwarding:[[:space:]]*false" "SSH disables TCP forwarding by default" roles/standard_ssh/defaults/main.yml
-assert_match "AllowTcpForwarding .*standard_ssh_allow_tcp_forwarding" "SSH renders TCP forwarding from the role default or host override" roles/standard_ssh/templates/10-standard-hardening.conf.j2
-assert_match "standard_ssh_allow_tcp_forwarding:[[:space:]]*true" "VM2 explicitly allows SSH TCP forwarding for editor remoting" vm2.yml
+assert_match "standard_ssh_tcp_forwarding_mode:.*ternary.*'no'" "SSH disables TCP forwarding by default" roles/standard_ssh/defaults/main.yml
+assert_match "AllowTcpForwarding .*standard_ssh_tcp_forwarding_mode" "SSH renders explicit TCP forwarding mode" roles/standard_ssh/templates/10-standard-hardening.conf.j2
+assert_match "standard_ssh_tcp_forwarding_mode:[[:space:]]*local" "VM2 allows local-only SSH TCP forwarding for editor remoting" vm2.yml
+assert_match "standard_ssh_allow_agent_forwarding:[[:space:]]*false" "SSH disables agent forwarding by default" roles/standard_ssh/defaults/main.yml
+assert_match "standard_ssh_streamlocal_forwarding_mode:[[:space:]]*['\"]no['\"]" "SSH disables Unix-socket forwarding by default" roles/standard_ssh/defaults/main.yml
+assert_match "standard_ssh_allow_users" "maintained playbooks restrict SSH to the configured user" vm1.yml vm2.yml
 assert_match "set -g mouse on" "dev_vm enables tmux mouse scrolling" roles/dev_vm/tasks/shell.yml
 assert_match "LogLevel VERBOSE" "SSH logs key auth details" roles/standard_ssh/templates/10-standard-hardening.conf.j2
 assert_match "dashboard-basic-auth@file" "Traefik dashboard requires BasicAuth middleware" roles/reverse_proxy/templates/dashboard.yml.j2
 assert_match "basicAuth:" "Traefik dashboard BasicAuth middleware is defined" roles/reverse_proxy/templates/security.yml.j2
 assert_match "traefik_dashboard_basic_auth_users \\| length > 0" "reverse_proxy requires dashboard BasicAuth users" roles/reverse_proxy/tasks/main.yml
-assert_match "item != '0[.]0[.]0[.]0/0'" "reverse_proxy rejects broad management CIDR" roles/reverse_proxy/tasks/main.yml
-assert_match "ip_ansible != '0[.]0[.]0[.]0/0'" "reverse_proxy rejects broad Ansible CIDR" roles/reverse_proxy/tasks/main.yml
+assert_match "homelab_valid_ipv4_cidr" "reverse_proxy uses semantic CIDR validation" roles/reverse_proxy/tasks/main.yml
 assert_match "Validate reverse proxy route definitions" "reverse_proxy validates route definitions" roles/reverse_proxy/tasks/main.yml
 assert_match "Validate reverse proxy route names are unique" "reverse_proxy rejects duplicate route names and FQDNs" roles/reverse_proxy/tasks/main.yml
 assert_match "proxy_network" "reverse_proxy requires explicit route-owned proxy networks" roles/reverse_proxy/tasks/main.yml
@@ -137,8 +142,10 @@ assert_no_fixed_match "not in semaphore_network.stdout" \
 assert_match "traefik_egress_network" "Traefik uses a dedicated egress network" roles/reverse_proxy/templates/traefik_container.sh.j2
 assert_no_match "traefik_networks:" "maintained inventory does not use free-form Traefik network membership" example_inventory.yml
 assert_match "Validate firewalld ingress inputs" "firewalld validates ingress inputs before applying policy" roles/standard_firewalld/tasks/main.yml
-assert_match "item != '0[.]0[.]0[.]0/0'" "firewalld rejects broad management CIDR" roles/standard_firewalld/tasks/main.yml
-assert_match "ip_ansible != '0[.]0[.]0[.]0/0'" "firewalld rejects broad Ansible CIDR" roles/standard_firewalld/tasks/main.yml
+assert_match "homelab_valid_ipv4_cidr" "firewalld uses semantic CIDR validation" roles/standard_firewalld/tasks/main.yml
+assert_match "Remove stale homelab source assignments" "firewalld reconciles removed source networks" roles/standard_firewalld/tasks/main.yml
+assert_no_match "\\bdev_vm_docker_packages\\b|\\bdev_vm_docker_prune\\b" "dev_vm no longer provisions Docker Engine" roles/dev_vm vm2.yml example_inventory.yml
+assert_match "Purge legacy Grok installation and credentials" "dev_vm purges legacy Grok state" roles/dev_vm/tasks/remove_grok.yml
 assert_match "owner: root" "backup role sets root ownership on managed backup paths/scripts" roles/backup/tasks/main.yml
 assert_match "umask 077" "Borg backup script uses restrictive umask" roles/backup/templates/backup_files.sh.j2
 assert_match "trap cleanup EXIT" "remote Borg backup unmounts through cleanup trap" roles/backup/templates/backup_files.sh.j2

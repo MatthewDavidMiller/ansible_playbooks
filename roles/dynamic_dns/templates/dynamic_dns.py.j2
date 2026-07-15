@@ -14,6 +14,7 @@ import logging
 import logging.handlers
 import os
 import sys
+import tempfile
 from pathlib import Path
 
 import requests
@@ -90,6 +91,26 @@ def get_cached_ip() -> str | None:
         return None
 
 
+def write_cached_ip(ip_address: str) -> None:
+    """Atomically replace the cache with owner-only permissions."""
+    IP_CACHE.parent.mkdir(parents=True, exist_ok=True)
+    fd, temporary_name = tempfile.mkstemp(prefix=f".{IP_CACHE.name}.", dir=IP_CACHE.parent)
+    try:
+        os.fchmod(fd, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(ip_address)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary_name, IP_CACHE)
+    except Exception:
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+        Path(temporary_name).unlink(missing_ok=True)
+        raise
+
+
 # ── Porkbun ───────────────────────────────────────────────────────────────────
 
 def _porkbun_post(endpoint: str, extra: dict, base: str = PORKBUN_BASE) -> dict:
@@ -136,6 +157,8 @@ def get_dns_record() -> tuple[str | None, str | None]:
     records = result.get("records", [])
     if not records:
         return None, None
+    if len(records) > 1:
+        raise RuntimeError(f"Expected one {SUBDOMAIN}.{DOMAIN} A record, found {len(records)}")
     return records[0].get("content"), records[0].get("id")
 
 
@@ -183,7 +206,7 @@ def main() -> int:
         return 1
 
     if wan_ip == current_ip:
-        IP_CACHE.write_text(wan_ip)
+        write_cached_ip(wan_ip)
         return 0
 
     try:
@@ -192,7 +215,7 @@ def main() -> int:
         log.error("Failed to update DNS record: %s", exc)
         return 1
 
-    IP_CACHE.write_text(wan_ip)
+    write_cached_ip(wan_ip)
     log.info(
         "Updated %s.%s → %s (was %s)",
         SUBDOMAIN, DOMAIN, wan_ip, current_ip or "none",

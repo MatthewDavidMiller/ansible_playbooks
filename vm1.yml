@@ -4,6 +4,8 @@
   vars_files:
     - artifacts/containers.lock.yml
   vars:
+    standard_ssh_allow_users:
+      - "{{ user_name }}"
     nextcloud_uid: "33"
     nextcloud_gid: "33"
     apply_runtime_changes_on_reboot: true

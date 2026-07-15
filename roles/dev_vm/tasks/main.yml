@@ -5,14 +5,14 @@
 - name: Include dev_vm package tasks
   ansible.builtin.import_tasks: packages.yml
 
-- name: Include dev_vm Docker tasks
-  ansible.builtin.import_tasks: docker.yml
+- name: Include dev_vm rootless Podman and Docker removal tasks
+  ansible.builtin.import_tasks: rootless_podman.yml
 
 - name: Include dev_vm npm agent CLI tasks
   ansible.builtin.import_tasks: npm_agents.yml
 
-- name: Include dev_vm Grok Build tasks
-  ansible.builtin.import_tasks: grok.yml
+- name: Include dev_vm Grok Build removal tasks
+  ansible.builtin.import_tasks: remove_grok.yml
 
 - name: Include dev_vm Python CLI tasks
   ansible.builtin.import_tasks: python.yml

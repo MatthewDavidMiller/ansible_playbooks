@@ -25,3 +25,7 @@ nextcloud_backup_path: ""
 
 # Username for SSHFS connection to the remote Nextcloud host
 user_name: ""
+
+# Required for remote SSHFS backups. Provide one or more complete known_hosts
+# lines for nextcloud_host; host key discovery is deliberately not automatic.
+backup_ssh_known_hosts: ""

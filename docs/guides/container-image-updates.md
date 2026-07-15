@@ -9,7 +9,7 @@ The deploy path stays pinned to immutable digests in [`artifacts/containers.lock
 1. Change the intended upstream tag in the lock file.
 2. Resolve the exact digest with `skopeo`.
 3. Verify the image signature with `cosign` when `signature_required: true` and the lock entry pins the expected signer metadata.
-4. Scan the image with `trivy` for unfixed `MEDIUM`, `HIGH`, and `CRITICAL` vulnerabilities.
+4. Scan the image with `trivy` for fix-available `MEDIUM`, `HIGH`, and `CRITICAL` vulnerabilities.
 5. Run the repo's policy and container-hardening tests before deployment.
 
 ## Tooling
@@ -75,7 +75,7 @@ Treat each update as approved only after all of the following are true:
 
 - `skopeo` resolved the expected upstream tag to a digest.
 - `cosign verify` succeeded for services that require signatures and have pinned signer metadata in the lock file.
-- `trivy` reported no unfixed `MEDIUM`, `HIGH`, or `CRITICAL` findings, or the lock entry explicitly records `vulnerability_exception: no_newer_upstream_image` after confirming the selected image is the latest eligible stable upstream image. Review the detailed output in `logs/container-vulnerability-findings.log`.
+- `trivy` reported no fix-available `MEDIUM`, `HIGH`, or `CRITICAL` findings. A maximum-30-day `no_newer_upstream_image` exception may cover non-Critical findings only; each Critical CVE needs an exact local acceptance. Review `logs/container-vulnerability-findings.log`.
 - Any local VEX/ignore use is digest-specific, service-specific, time-bounded, and backed by runtime hardening or network containment.
 - `scripts/test_supply_chain_policy.sh` passed.
 - `scripts/test_container_security.sh` passed against the locked image set. During focused debugging, target affected services with commands like `bash scripts/test_container_security.sh semaphore`.
@@ -84,12 +84,13 @@ The container security test now defaults to the digest-pinned refs in [`artifact
 
 ## Vulnerability Exceptions
 
-Use `vulnerability_exception: no_newer_upstream_image` only when Trivy reports unfixed findings and no newer eligible stable upstream image is available to resolve them.
+Use `vulnerability_exception: no_newer_upstream_image` only when Trivy reports fix-available non-Critical findings and no newer eligible stable upstream image is available. Record `vulnerability_exception_reviewed_on` and an expiry no more than 30 days later.
 
 - Keep the exception on the specific digest-pinned lock entry.
 - Continue running and retaining the local Trivy findings for review.
 - Remove the exception when a newer upstream image passes the scan.
 - Do not use the exception for an older image when a newer eligible stable image exists.
+- Do not use this public exception for Critical findings; use the untracked exact-acceptance schema instead.
 
 ## Signature Exceptions
 

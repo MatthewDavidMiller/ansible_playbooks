@@ -4,15 +4,13 @@
     that:
       - default_interface | length > 0
       - management_network | length > 0
-      - ip_ansible is match('^([0-9]{1,3}\\.){3}[0-9]{1,3}/[0-9]{1,2}$')
-      - ip_ansible != '0.0.0.0/0'
+      - ip_ansible | homelab_valid_ipv4_cidr
     fail_msg: "Set default_interface, management_network, and ip_ansible before applying firewall policy."
 
 - name: Validate management_network CIDRs
   ansible.builtin.assert:
     that:
-      - item is match('^([0-9]{1,3}\\.){3}[0-9]{1,3}/[0-9]{1,2}$')
-      - item != '0.0.0.0/0'
+      - item | homelab_valid_ipv4_cidr
     fail_msg: "Each management_network entry must be a valid CIDR and not 0.0.0.0/0."
   loop: "{{ management_network }}"
 
@@ -54,6 +52,47 @@
     permanent: true
     immediate: "{{ not (apply_runtime_changes_on_reboot | default(false) | bool) }}"
     state: present
+
+- name: Read permanent homelab sources while staging offline changes
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/firewall-offline-cmd
+      - --zone=homelab
+      - --list-sources
+  register: standard_firewalld_offline_homelab_sources
+  changed_when: false
+  when: apply_runtime_changes_on_reboot | default(false) | bool
+
+- name: Read permanent homelab sources from running firewalld
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/firewall-cmd
+      - --permanent
+      - --zone=homelab
+      - --list-sources
+  register: standard_firewalld_online_homelab_sources
+  changed_when: false
+  when: not (apply_runtime_changes_on_reboot | default(false) | bool)
+
+- name: Select current permanent homelab sources
+  ansible.builtin.set_fact:
+    standard_firewalld_homelab_sources: >-
+      {{ (standard_firewalld_offline_homelab_sources.stdout
+          if apply_runtime_changes_on_reboot | default(false) | bool
+          else standard_firewalld_online_homelab_sources.stdout).split() }}
+
+- name: Remove stale homelab source assignments
+  ansible.posix.firewalld:
+    zone: homelab
+    source: "{{ stale_source }}"
+    permanent: true
+    immediate: "{{ not (apply_runtime_changes_on_reboot | default(false) | bool) }}"
+    state: disabled
+  loop: >-
+    {{ standard_firewalld_homelab_sources
+       | difference((management_network + [ip_ansible]) | unique) }}
+  loop_control:
+    loop_var: stale_source
 
 - name: Set management source for zone
   ansible.posix.firewalld:

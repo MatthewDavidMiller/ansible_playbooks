@@ -1,5 +1,6 @@
 ---
 # standard_cleanup role defaults
-# This role runs dnf cleanup, orphan removal, journal vacuum, and Podman prune.
-# It uses no role-level variables.
-# This file is present so ansible-lint can confirm there are no undefined variables.
+# Destructive Podman cleanup is opt-in. Volumes and networks are never pruned by
+# this role because an unused-looking object can still contain recovery data.
+standard_cleanup_prune_podman_images: false
+standard_cleanup_prune_podman_containers: false

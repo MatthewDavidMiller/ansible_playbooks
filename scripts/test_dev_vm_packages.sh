@@ -9,9 +9,9 @@
 # Usage:
 #   bash scripts/test_dev_vm_packages.sh
 #   DEV_VM_PACKAGE_DEPSOLVE=0 bash scripts/test_dev_vm_packages.sh   # policy only
-#   DEV_VM_PACKAGE_IMAGE=docker.io/rockylinux/rockylinux:10 bash scripts/test_dev_vm_packages.sh
+#   DEV_VM_PACKAGE_IMAGE=<immutable-rocky-digest-ref> bash scripts/test_dev_vm_packages.sh
 #
-# Requires: python3 + PyYAML (provided by ansible), and for depsolve: podman or docker.
+# Requires: python3 + PyYAML (provided by ansible), and Podman or Docker for depsolve.
 
 set -euo pipefail
 
@@ -31,7 +31,9 @@ pip_preferred_packages=(
 )
 
 DEV_VM_PACKAGE_DEPSOLVE="${DEV_VM_PACKAGE_DEPSOLVE:-1}"
-DEV_VM_PACKAGE_IMAGE="${DEV_VM_PACKAGE_IMAGE:-docker.io/rockylinux/rockylinux:10}"
+DEV_VM_PACKAGE_IMAGE="${DEV_VM_PACKAGE_IMAGE:-$(python3 -c 'import yaml; print(yaml.safe_load(open("artifacts/test_images.lock.yml"))["test_locked_images"]["rocky_linux_10"]["image"])')}"
+
+[[ "$DEV_VM_PACKAGE_IMAGE" =~ @sha256:[0-9a-f]{64}$ ]] || fail "DEV_VM_PACKAGE_IMAGE must be an immutable digest reference"
 
 command -v python3 >/dev/null 2>&1 || fail "python3 is required"
 
@@ -52,7 +54,7 @@ if not isinstance(data, dict):
     sys.stderr.write(f"{path}: expected a YAML mapping\n")
     sys.exit(2)
 
-for key in ("dev_vm_packages", "dev_vm_python_user_packages", "dev_vm_docker_packages"):
+for key in ("dev_vm_packages", "dev_vm_python_user_packages"):
     value = data.get(key)
     if not isinstance(value, list) or not value:
         sys.stderr.write(f"{path}: {key} must be a non-empty list\n")
@@ -71,11 +73,10 @@ mapfile -t _raw_lists < <(extract_lists)
 
 dev_vm_packages=()
 dev_vm_python_user_packages=()
-dev_vm_docker_packages=()
 current=""
 for line in "${_raw_lists[@]}"; do
   case "$line" in
-    dev_vm_packages|dev_vm_python_user_packages|dev_vm_docker_packages)
+    dev_vm_packages|dev_vm_python_user_packages)
       current="$line"
       continue
       ;;
@@ -87,7 +88,6 @@ for line in "${_raw_lists[@]}"; do
   case "$current" in
     dev_vm_packages) dev_vm_packages+=("$line") ;;
     dev_vm_python_user_packages) dev_vm_python_user_packages+=("$line") ;;
-    dev_vm_docker_packages) dev_vm_docker_packages+=("$line") ;;
     *) fail "unexpected package list parse state for line: $line" ;;
   esac
 done
@@ -108,14 +108,13 @@ echo "=== dev_vm package policy checks ==="
 
 [[ ${#dev_vm_packages[@]} -gt 0 ]] || fail "dev_vm_packages is empty"
 [[ ${#dev_vm_python_user_packages[@]} -gt 0 ]] || fail "dev_vm_python_user_packages is empty"
-[[ ${#dev_vm_docker_packages[@]} -gt 0 ]] || fail "dev_vm_docker_packages is empty"
-pass "package lists are non-empty (${#dev_vm_packages[@]} dnf, ${#dev_vm_python_user_packages[@]} pip, ${#dev_vm_docker_packages[@]} docker)"
+pass "package lists are non-empty (${#dev_vm_packages[@]} dnf, ${#dev_vm_python_user_packages[@]} pip)"
 
 for pkg in "${pip_preferred_packages[@]}"; do
   if list_contains "$pkg" "${dev_vm_packages[@]}"; then
     fail "$pkg must not be installed via dnf (EPEL EL10 python dist provides are fragile); use dev_vm_python_user_packages"
   fi
-  if ! list_contains "$pkg" "${dev_vm_python_user_packages[@]}"; then
+  if ! printf '%s\n' "${dev_vm_python_user_packages[@]}" | sed 's/[<>=!~].*$//' | rg -qx "$pkg"; then
     fail "$pkg must be installed via pip --user in dev_vm_python_user_packages"
   fi
   pass "$pkg is pip-delivered (not dnf)"
@@ -137,6 +136,9 @@ required_dnf=(
   python3-pip
   ansible-core
   podman
+  fuse-overlayfs
+  passt
+  shadow-utils
   ShellCheck
   gh
 )
@@ -154,27 +156,24 @@ if [[ "$DEV_VM_PACKAGE_DEPSOLVE" != "1" ]]; then
 fi
 
 container_engine=""
-if command -v podman >/dev/null 2>&1; then
+if command -v podman >/dev/null 2>&1 && podman info >/dev/null 2>&1; then
   container_engine=podman
 elif command -v docker >/dev/null 2>&1; then
   container_engine=docker
 else
-  fail "podman or docker is required for package depsolve (or set DEV_VM_PACKAGE_DEPSOLVE=0)"
+  fail "a working Podman or Docker engine is required for package depsolve (or set DEV_VM_PACKAGE_DEPSOLVE=0)"
 fi
 
 base_pkgs_file=$(mktemp)
-docker_pkgs_file=$(mktemp)
 container_script=$(mktemp)
-trap 'rm -f "$base_pkgs_file" "$docker_pkgs_file" "$container_script"' EXIT
+trap 'rm -f "$base_pkgs_file" "$container_script"' EXIT
 
 printf '%s\n' "${dev_vm_packages[@]}" >"$base_pkgs_file"
-printf '%s\n' "${dev_vm_docker_packages[@]}" >"$docker_pkgs_file"
 
 cat >"$container_script" <<'EOS'
 set -euo pipefail
 
 mapfile -t base_pkgs < /tmp/dev_vm_base_pkgs.txt
-mapfile -t docker_pkgs < /tmp/dev_vm_docker_pkgs.txt
 
 dnf_resolve() {
   local label="$1"
@@ -244,20 +243,6 @@ dnf_resolve "yamllint (EPEL + CRB smoke)" yamllint
 
 dnf_resolve "dev_vm_packages" "${base_pkgs[@]}"
 
-echo "Adding Docker CE stable repository (matches roles/dev_vm/tasks/docker.yml)..."
-# Mirror the role's yum_repository baseurl so CI and converge use the same channel.
-cat >/etc/yum.repos.d/docker-ce-stable.repo <<'REPO'
-[docker-ce-stable]
-name=Docker CE Stable - $basearch
-baseurl=https://download.docker.com/linux/rhel/$releasever/$basearch/stable
-enabled=1
-gpgcheck=1
-gpgkey=https://download.docker.com/linux/rhel/gpg
-REPO
-dnf -y -q makecache
-
-dnf_resolve "dev_vm_docker_packages" "${docker_pkgs[@]}"
-
 echo "All dnf package sets resolved successfully"
 EOS
 
@@ -266,10 +251,9 @@ echo "Running depsolve in $container_engine ($DEV_VM_PACKAGE_IMAGE)..."
 # Package lists are copied in as ordinary read-only data files.
 "$container_engine" run --rm -i \
   -v "$base_pkgs_file:/tmp/dev_vm_base_pkgs.txt:ro,Z" \
-  -v "$docker_pkgs_file:/tmp/dev_vm_docker_pkgs.txt:ro,Z" \
   "$DEV_VM_PACKAGE_IMAGE" \
   bash -s <"$container_script"
 
-pass "Rocky 10 + EPEL + CRB (+ Docker CE) dnf depsolve for dev_vm package lists"
+pass "Rocky 10 + EPEL + CRB dnf depsolve for the rootless-Podman dev_vm package list"
 
 echo "=== dev_vm package checks passed ==="

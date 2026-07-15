@@ -5,9 +5,12 @@
       - dev_vm_user | length > 0
       - dev_vm_npm_prefix is match('^/home/[^/]+/.+')
       - dev_vm_npm_global_state in ['present', 'latest']
+      - dev_vm_rootless_subid_start | int >= 65536
+      - dev_vm_rootless_subid_count | int >= 65536
     fail_msg: >-
       Set dev_vm_user and dev_vm_npm_prefix to a user-owned path under /home,
-      and set dev_vm_npm_global_state to present or latest.
+      set dev_vm_npm_global_state to present or latest, and reserve a valid
+      subordinate-ID range for rootless Podman.
 
 - name: Confirm dev VM user exists
   ansible.builtin.getent:

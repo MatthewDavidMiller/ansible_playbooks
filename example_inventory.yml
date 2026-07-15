@@ -173,10 +173,10 @@ all:
           # Optional git identity for the dev user (no secrets / tokens).
           # dev_vm_git_user_name: Example User
           # dev_vm_git_user_email: user@example.com
-          # Set true on a converge when you want Ansible to refresh Grok Build.
-          # dev_vm_grok_update: false
           # dev_vm_npm_global_state: present
-          # dev_vm_docker_prune: false
+          # Optional subordinate-ID range used by rootless Podman.
+          # dev_vm_rootless_subid_start: 100000
+          # dev_vm_rootless_subid_count: 65536
           vm2_selinux_extra_booleans:
             - name: domain_can_mmap_files
               state: true

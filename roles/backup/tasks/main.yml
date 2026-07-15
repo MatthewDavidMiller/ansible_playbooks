@@ -1,9 +1,24 @@
 ---
 # https://borgbackup.readthedocs.io/en/stable/quickstart.html
 
-- name: Install Borg Backup
+- name: Validate backup inputs before changing the host
+  ansible.builtin.assert:
+    that:
+      - borg_backup_path | homelab_safe_absolute_path
+      - backup_disk | length > 0
+      - (backup_local | bool and nextcloud_path | homelab_safe_absolute_path) or
+        (not (backup_local | bool) and ssh_mount_path | homelab_safe_absolute_path)
+      - backup_local | bool or nextcloud_host | length > 0
+      - backup_local | bool or nextcloud_backup_path | homelab_safe_absolute_path
+      - backup_local | bool or user_name | homelab_safe_name
+      - backup_local | bool or backup_ssh_known_hosts | trim | length > 0
+    fail_msg: >-
+      Configure safe backup paths and disk settings. Remote backups also require
+      a user, host, remote path, and pinned backup_ssh_known_hosts content.
+
+- name: Install backup packages
   ansible.builtin.dnf:
-    name: borgbackup
+    name: "{{ ['borgbackup'] + (['fuse-sshfs'] if not (backup_local | bool) else []) }}"
     state: present
 
 - name: Create Borg Backup directory
@@ -12,7 +27,7 @@
     state: directory
     owner: root
     group: root
-    mode: "0740"
+    mode: "0700"
 
 - name: Create SSH FS directory
   ansible.builtin.file:
@@ -20,7 +35,7 @@
     state: directory
     owner: root
     group: root
-    mode: "0740"
+    mode: "0700"
   when: not (backup_local | default(false))
 
 - name: Mount Disk for backups
@@ -28,8 +43,26 @@
     path: "{{ borg_backup_path }}"
     src: "{{ backup_disk }}"
     fstype: ext4
-    opts: rw,auto
+    opts: rw,auto,nodev,nosuid,noexec
     state: mounted
+
+- name: Create remote backup SSH policy directory
+  ansible.builtin.file:
+    path: /etc/homelab
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  when: not (backup_local | bool)
+
+- name: Install pinned SSH host keys for remote backups
+  ansible.builtin.copy:
+    dest: /etc/homelab/backup_known_hosts
+    content: "{{ backup_ssh_known_hosts | trim }}\n"
+    owner: root
+    group: root
+    mode: "0600"
+  when: not (backup_local | bool)
 
 - name: Init backup repo Script
   ansible.builtin.template:

@@ -5,7 +5,15 @@
       - semaphore_encryption_key | length >= 32
       - semaphore_admin_password | length > 0
       - semaphore_db_password | length > 0
-    fail_msg: "Set non-empty Semaphore passwords and a semaphore_encryption_key that is at least 32 characters."
+      - secret_env_dir | homelab_safe_absolute_path
+      - semaphore_image | homelab_immutable_digest_ref
+      - route_proxy_network_subnets.semaphore_container_net | homelab_valid_ipv4_cidr
+      - container_static_ips.semaphore_proxy | homelab_ip_in_subnet(route_proxy_network_subnets.semaphore_container_net)
+      - semaphore_egress_network | homelab_safe_name
+      - semaphore_known_hosts | trim | length > 0
+      - semaphore_admin_email is match('^[^@\\s]+@[^@\\s]+[.][^@\\s]+$')
+      - not (backup_local | bool) or nextcloud_path | homelab_safe_absolute_path
+    fail_msg: Configure strong Semaphore secrets, pinned SSH hosts, safe paths, an immutable image, and valid networks.
   no_log: true
 
 - name: Inspect semaphore container network

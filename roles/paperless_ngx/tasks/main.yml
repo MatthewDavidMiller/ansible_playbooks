@@ -1,4 +1,20 @@
 ---
+- name: Validate Paperless inputs before changing the host
+  ansible.builtin.assert:
+    that:
+      - secret_env_dir | homelab_safe_absolute_path
+      - paperless_path | homelab_safe_absolute_path
+      - paperless_data_path | homelab_safe_absolute_path
+      - paperless_media_path | homelab_safe_absolute_path
+      - paperless_export_path | homelab_safe_absolute_path
+      - paperless_consume_path | homelab_safe_absolute_path
+      - paperless_image | homelab_immutable_digest_ref
+      - route_proxy_network_subnets.paperless_proxy_net | homelab_valid_ipv4_cidr
+      - container_static_ips.paperless_proxy | homelab_ip_in_subnet(route_proxy_network_subnets.paperless_proxy_net)
+      - paperless_db_password | length >= 16
+    fail_msg: Configure safe paths, an immutable image, a valid network, and a strong Paperless database secret.
+  no_log: true
+
 - name: Create paperless secret directory
   ansible.builtin.file:
     path: "{{ secret_env_dir }}"

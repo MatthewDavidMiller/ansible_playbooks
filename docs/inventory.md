@@ -110,7 +110,7 @@ Maintained container images are resolved in `vm1.yml` from `artifacts/containers
 
 ## `vm2` Host
 
-VM2 is the SSH/tmux development VM for Codex, Claude Code, and Grok Build. It inherits the shared `homelab` variables and needs only its connection target by default.
+VM2 is the SSH/tmux development VM for Codex and Claude Code. It inherits the shared `homelab` variables and needs only its connection target by default.
 
 | Variable | Type | Description | Example |
 |---|---|---|---|
@@ -121,14 +121,14 @@ VM2 is the SSH/tmux development VM for Codex, Claude Code, and Grok Build. It in
 | `dev_vm_workspace_path` | path | Parent workspace directory created for the dev user | `/home/example_user/matt_dev` |
 | `dev_vm_git_user_name` | string | Optional global git `user.name` | `Example User` |
 | `dev_vm_git_user_email` | string | Optional global git `user.email` | `user@example.com` |
-| `dev_vm_grok_update` | bool | Re-run Grok installer on converge | `false` |
 | `dev_vm_npm_global_state` | string | npm agent CLI state (`present` or `latest`) | `present` |
-| `dev_vm_docker_prune` | bool | Prune unused Docker data on converge | `false` |
-| `standard_ssh_allow_tcp_forwarding` | bool | SSH TCP forwarding override for editor remoting; VM2 playbook defaults to `true` | `true` |
+| `dev_vm_rootless_subid_start` | integer | Start of a non-overlapping subordinate UID/GID range | `100000` |
+| `dev_vm_rootless_subid_count` | integer | Size of the subordinate UID/GID range | `65536` |
+| `standard_ssh_tcp_forwarding_mode` | string | SSH forwarding mode; VM2 permits local editor tunnels only | `local` |
 | `standard_ssh_max_sessions` | integer | SSH session channel limit; VM2 playbook defaults to `10` | `10` |
 | `vm2_selinux_extra_booleans` | list | VM2 SELinux booleans passed into `standard_selinux_extra_booleans` | `[{name: domain_can_mmap_files, state: true}]` |
 
-The `dev_vm` role uses `user_name` as the interactive SSH/dev user, installs Podman and Docker Engine for local container validation (Docker group membership is effectively root-equivalent), installs user-local npm packages under `/home/{{ user_name }}/.npm-global`, installs the Grok Build CLI via the official installer under the dev user's home, installs Python CLI tools under `/home/{{ user_name }}/.local`, and installs pinned Ansible collections from the checkout when `collections/requirements.yml` exists. Provider API keys and login are not provisioned; complete them interactively after first SSH.
+The `dev_vm` role uses `user_name` as the interactive SSH/dev user, installs rootless Podman with subordinate IDs, installs user-local npm packages under `/home/{{ user_name }}/.npm-global`, pins Python validator CLIs under `/home/{{ user_name }}/.local`, and installs pinned Ansible collections from the checkout. It removes Docker Engine packages, services, repository, and group membership without deleting `/var/lib/docker`. Provider API keys and login are not provisioned; complete them interactively after first SSH.
 
 ---
 

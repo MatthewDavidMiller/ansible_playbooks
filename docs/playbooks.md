@@ -22,9 +22,9 @@ This document covers the maintained playbooks only. Legacy playbooks live under 
 
 **Roles (in order):** `standard_ssh` → `standard_qemu_guest_agent` → `standard_update_packages` → `configure_timezone` → `standard_cron` → `standard_firewalld` → `dev_vm` → `standard_selinux` → `standard_cleanup`
 
-**Usage:** Configures VM2 as a Rocky Linux 10 SSH/tmux development VM for Codex, Claude Code, and Grok Build.
+**Usage:** Configures VM2 as a Rocky Linux 10 SSH/tmux development VM for Codex and Claude Code.
 
-**Notes:** `vm2.yml` enables EPEL and CRB for the dev workstation package set, allows SSH TCP forwarding and raises `MaxSessions` for VS Code Remote SSH, installs agent CLIs (Codex, Claude Code) through user-local npm under `user_name` and the Grok Build TUI/CLI via the official xAI installer script, manages a unified PATH for npm/Grok/pip user bins on login and interactive shells, exposes the `devmux` helper for persistent tmux sessions, shows interactive SSH users how to run `devmux` and detach with `Ctrl-b`, then `d`, and maps `vm2_selinux_extra_booleans` into `standard_selinux_extra_booleans`. By default, VM2 enables `domain_can_mmap_files` for standard dev tooling. Provider login for agent CLIs remains interactive.
+**Notes:** `vm2.yml` enables EPEL and CRB for the dev workstation package set, permits local-only SSH TCP forwarding and raises `MaxSessions` for VS Code Remote SSH, installs Codex and Claude Code through user-local npm, and configures rootless Podman. Convergence removes Docker Engine and the root-equivalent `docker` group membership while preserving `/var/lib/docker`, and purges legacy Grok installation and credential state. Provider login remains interactive.
 
 ---
 

@@ -49,12 +49,61 @@
   register: semodule_list
   changed_when: false
 
-- name: Allow systemd to run Podman BPF programs (netavark network stack)
-  ansible.builtin.shell: |
-    printf 'module podman_bpf 1.0;\nrequire {\n    type init_t;\n    type container_runtime_t;\n    class bpf { prog_run };\n}\nallow init_t container_runtime_t:bpf { prog_run };\n' > /tmp/podman_bpf.te
-    checkmodule -M -m -o /tmp/podman_bpf.mod /tmp/podman_bpf.te
-    semodule_package -o /tmp/podman_bpf.pp -m /tmp/podman_bpf.mod
-    semodule -i /tmp/podman_bpf.pp
-  changed_when: true
-  when:
-    - "'podman_bpf' not in semodule_list.stdout"
+- name: Install Podman BPF SELinux policy from private temporary files
+  when: semodule_list.stdout_lines | select('match', '^podman_bpf(\\s|$)') | list | length == 0
+  block:
+    - name: Create private SELinux policy build directory
+      ansible.builtin.tempfile:
+        state: directory
+        prefix: ansible-podman-bpf-
+      register: standard_selinux_policy_tmp
+
+    - name: Write Podman BPF SELinux policy source
+      ansible.builtin.copy:
+        dest: "{{ standard_selinux_policy_tmp.path }}/podman_bpf.te"
+        content: |
+          module podman_bpf 1.0;
+          require {
+              type init_t;
+              type container_runtime_t;
+              class bpf { prog_run };
+          }
+          allow init_t container_runtime_t:bpf { prog_run };
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: Compile Podman BPF SELinux policy
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/checkmodule
+          - -M
+          - -m
+          - -o
+          - "{{ standard_selinux_policy_tmp.path }}/podman_bpf.mod"
+          - "{{ standard_selinux_policy_tmp.path }}/podman_bpf.te"
+      changed_when: false
+
+    - name: Package Podman BPF SELinux policy
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/semodule_package
+          - -o
+          - "{{ standard_selinux_policy_tmp.path }}/podman_bpf.pp"
+          - -m
+          - "{{ standard_selinux_policy_tmp.path }}/podman_bpf.mod"
+      changed_when: false
+
+    - name: Install Podman BPF SELinux policy
+      ansible.builtin.command:
+        argv:
+          - /usr/sbin/semodule
+          - -i
+          - "{{ standard_selinux_policy_tmp.path }}/podman_bpf.pp"
+      changed_when: true
+  always:
+    - name: Remove private SELinux policy build directory
+      ansible.builtin.file:
+        path: "{{ standard_selinux_policy_tmp.path | default('') }}"
+        state: absent
+      when: standard_selinux_policy_tmp.path | default('') | length > 0

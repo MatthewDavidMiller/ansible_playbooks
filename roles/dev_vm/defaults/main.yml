@@ -1,5 +1,5 @@
 ---
-# User that owns interactive Codex/Claude Code/Grok tooling.
+# User that owns interactive Codex/Claude Code tooling.
 dev_vm_user: "{{ user_name }}"
 
 # User-local npm prefix. Avoids sudo npm global installs.
@@ -28,6 +28,9 @@ dev_vm_packages:
   - fd-find
   - bubblewrap
   - podman
+  - fuse-overlayfs
+  - passt
+  - shadow-utils
   - golang
   - rust
   - cargo
@@ -36,15 +39,20 @@ dev_vm_packages:
   - ShellCheck
   - gh
 
-dev_vm_docker_packages:
+# Docker Engine is intentionally removed from VM2. Keep the package list here
+# only as the declarative removal set for hosts converged from older revisions.
+dev_vm_removed_docker_packages:
   - docker-ce
   - docker-ce-cli
   - containerd.io
   - docker-buildx-plugin
   - docker-compose-plugin
+  - docker-ce-rootless-extras
 
-# Opt-in prune of unused Docker data on converge (safe default: off).
-dev_vm_docker_prune: false
+# Rootless Podman subordinate-ID range used only when the existing dev user has
+# no entry in /etc/subuid or /etc/subgid. VM2 is a single-user development host.
+dev_vm_rootless_subid_start: 100000
+dev_vm_rootless_subid_count: 65536
 
 dev_vm_npm_global_packages:
   - '@openai/codex'
@@ -55,26 +63,15 @@ dev_vm_npm_global_packages:
 # with name@version syntax (e.g. @anthropic-ai/claude-code@1.2.3).
 dev_vm_npm_global_state: present
 
-# Grok Build (xAI) CLI installer script. Matches the official one-liner at
-# https://docs.x.ai/build/overview. The task runs it under the dev user so the
-# resulting `grok` / `agent` binaries land in ~/.grok/bin (plus shell rc edits
-# and optional ~/.local/bin symlinks performed by the upstream script).
-# The installer URL is mutable "latest"; download is kept under ~/.grok/downloads.
-dev_vm_grok_installer_url: "https://x.ai/cli/install.sh"
-
-# When false, install only if ~/.grok/bin/grok is missing. When true, re-run the
-# installer on each converge (or use interactive `grok update` inside devmux).
-dev_vm_grok_update: false
-
 # User-local Python CLI tools needed for validating this repository.
 # Keep Python CLIs on pip --user for a consistent user-local PATH alongside
 # ansible-lint / pre-commit (not system RPMs). Guarded by
 # scripts/test_dev_vm_packages.sh (pre-commit).
 dev_vm_python_user_base: "/home/{{ dev_vm_user }}/.local"
 dev_vm_python_user_packages:
-  - ansible-lint
-  - pre-commit
-  - yamllint
+  - ansible-lint==26.4.0
+  - pre-commit==4.6.0
+  - yamllint==1.38.0
 
 # Optional git identity for the dev user (no secrets). Empty = leave unset.
 dev_vm_git_user_name: ""
@@ -89,5 +86,4 @@ dev_vm_ansible_collection_path: "{{ dev_vm_ansible_project_path }}/collections"
 # Managed PATH roots for agent CLIs (login profile.d + interactive bashrc).
 dev_vm_path_entries:
   - "{{ dev_vm_npm_prefix }}/bin"
-  - "/home/{{ dev_vm_user }}/.grok/bin"
   - "{{ dev_vm_python_user_base }}/bin"

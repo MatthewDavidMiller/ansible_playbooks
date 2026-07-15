@@ -1,6 +1,26 @@
 ---
 # https://docs.linuxserver.io/general/swag
 
+- name: Validate Nextcloud inputs before changing the host
+  ansible.builtin.assert:
+    that:
+      - secret_env_dir | homelab_safe_absolute_path
+      - nextcloud_path | homelab_safe_absolute_path
+      - nextcloud_borg_backup_path | homelab_safe_absolute_path
+      - postgres_image | homelab_immutable_digest_ref
+      - redis_image | homelab_immutable_digest_ref
+      - nextcloud_image | homelab_immutable_digest_ref
+      - nextcloud_backend_network_subnet | homelab_valid_ipv4_cidr
+      - route_proxy_network_subnets.nextcloud_proxy_net | homelab_valid_ipv4_cidr
+      - container_static_ips.postgres_backend | homelab_ip_in_subnet(nextcloud_backend_network_subnet)
+      - container_static_ips.redis_backend | homelab_ip_in_subnet(nextcloud_backend_network_subnet)
+      - container_static_ips.nextcloud_backend | homelab_ip_in_subnet(nextcloud_backend_network_subnet)
+      - container_static_ips.nextcloud_proxy | homelab_ip_in_subnet(route_proxy_network_subnets.nextcloud_proxy_net)
+      - postgres_admin_password | length >= 16
+      - nextcloud_db_password | length >= 16
+    fail_msg: Configure safe paths, immutable images, valid networks, and strong Nextcloud database secrets.
+  no_log: true
+
 - name: Inspect nextcloud container network
   ansible.builtin.command:
     argv:

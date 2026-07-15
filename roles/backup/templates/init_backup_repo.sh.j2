@@ -1,1 +1,7 @@
-borg init --encryption none {{ borg_backup_path }}
+#!/bin/bash
+set -euo pipefail
+umask 077
+
+if ! /usr/bin/borg info {{ borg_backup_path | quote }} >/dev/null 2>&1; then
+    /usr/bin/borg init --encryption none {{ borg_backup_path | quote }}
+fi

@@ -15,7 +15,9 @@ Deploys the managed SSH hardening drop-in under `/etc/ssh/sshd_config.d/`.
 | Variable | Type | Description | Example |
 |---|---|---|---|
 | `standard_ssh_allow_users` | list | Optional account allowlist for SSH logins | `[example_user]` |
-| `standard_ssh_allow_tcp_forwarding` | bool | Enable SSH TCP forwarding for hosts that need editor remoting | `true` |
+| `standard_ssh_tcp_forwarding_mode` | string | OpenSSH forwarding mode (`no`, `local`, `remote`, or `yes`) | `local` |
+| `standard_ssh_allow_agent_forwarding` | bool | Enable agent forwarding; disabled by default | `false` |
+| `standard_ssh_streamlocal_forwarding_mode` | string | Unix-socket forwarding mode | `no` |
 | `standard_ssh_max_sessions` | integer | SSH session channel limit | `10` |
 
 ---
@@ -52,7 +54,7 @@ Builds the restrictive `homelab` firewalld model used by VM1.
 
 **Required variables:** `management_network`, `ip_ansible`, `default_interface`
 
-**Key behavior:** creates a DROP-by-default `homelab` zone, whitelists the management network and Ansible controller, allows SSH and ping, and keeps the public interface bound to `public`.
+**Key behavior:** creates a DROP-by-default `homelab` zone, semantically validates and reconciles the management/controller CIDRs, allows SSH and ping, and keeps the public interface bound to `public`.
 
 ---
 
@@ -93,13 +95,13 @@ Keeps SELinux enforcing on Rocky Linux 10 and sets the booleans required by the 
 
 Runs the post-deploy cleanup pass.
 
-**Key behavior:** clears caches, prunes stale logs, vacuums the journal, and prunes stopped or unused Podman artifacts after service deployment completes.
+**Key behavior:** clears package caches and vacuums the journal. Destructive container/image pruning is opt-in; volumes and networks are never pruned automatically.
 
 ---
 
 ### `dev_vm`
 
-Configures VM2 as an SSH/tmux development host for Codex, Claude Code, and Grok Build.
+Configures VM2 as an SSH/tmux development host for Codex and Claude Code.
 
 **Distributions:** Rocky Linux 10
 
@@ -107,7 +109,7 @@ Configures VM2 as an SSH/tmux development host for Codex, Claude Code, and Grok 
 
 | Variable | Type | Description | Example |
 |---|---|---|---|
-| `user_name` | string | Existing non-root SSH user that owns the dev agent tooling (npm CLIs + Grok Build) | `example_user` |
+| `user_name` | string | Existing non-root SSH user that owns the dev agent tooling | `example_user` |
 
 **Optional variables:**
 
@@ -118,24 +120,20 @@ Configures VM2 as an SSH/tmux development host for Codex, Claude Code, and Grok 
 | `dev_vm_tmux_session` | string | Default tmux session name for `devmux` | `dev` |
 | `dev_vm_workspace_path` | path | Parent workspace directory created empty for the dev user (no auto clone) | `/home/example_user/matt_dev` |
 | `dev_vm_packages` | list | Rocky package baseline (tmux, git, nodejs, podman, go, rust, ripgrep, fd-find, bubblewrap, tree, ShellCheck, gh, ansible-core, …) | see role defaults |
-| `dev_vm_docker_packages` | list | Docker Engine packages from Docker's official RHEL repository | `[docker-ce, docker-ce-cli, containerd.io, docker-buildx-plugin, docker-compose-plugin]` |
-| `dev_vm_docker_prune` | boolean | When true, run `docker system prune -f` on converge | `false` |
 | `dev_vm_npm_global_packages` | list | npm packages for the dev user; pin with `name@version` when desired | `["@openai/codex", "@anthropic-ai/claude-code"]` |
 | `dev_vm_npm_global_state` | string | npm module state: `present` (stable) or `latest` (refresh CLIs) | `present` |
-| `dev_vm_grok_installer_url` | string | URL of the official Grok Build CLI installer script (mutable latest) | `https://x.ai/cli/install.sh` |
-| `dev_vm_grok_update` | boolean | When true, re-download and re-run the Grok installer each converge | `false` |
-| `dev_vm_python_user_packages` | list | pip `--user` CLI packages | `["ansible-lint", "pre-commit", "yamllint"]` |
+| `dev_vm_python_user_packages` | list | Version-pinned pip `--user` validator packages | see role defaults |
+| `dev_vm_rootless_subid_start` | integer | Start of the subordinate UID/GID allocation | `100000` |
+| `dev_vm_rootless_subid_count` | integer | Size of the subordinate UID/GID allocation | `65536` |
 | `dev_vm_git_user_name` | string | Optional global `git user.name` for the dev user; empty skips | `Example User` |
 | `dev_vm_git_user_email` | string | Optional global `git user.email` for the dev user; empty skips | `user@example.com` |
 | `dev_vm_ansible_project_path` | path | Checkout path used to find pinned collection requirements | `/home/example_user/matt_dev/ansible_playbooks` |
 | `dev_vm_install_project_collections` | boolean | Install repo-pinned Ansible collections when the checkout exists | `true` |
 
-**Key behavior:** installs the workstation package baseline (search tools, build toolchain, `gh`, ShellCheck, Podman), installs and enables Docker Engine from Docker's official RHEL repository for local container validation, and adds the dev user to the `docker` group (effectively root-equivalent; intentional on a single-user dev VM). npm and Python CLIs (`ansible-lint`, `pre-commit`, `yamllint`) install under the dev user's home; Grok Build installs via the official xAI installer into `~/.grok/bin`. A single `/etc/profile.d/dev-vm-path.sh` plus `~/.config/dev-vm/path.sh` (sourced from interactive `~/.bashrc`) expose npm, Grok, and pip user bins. Optional git identity is written only when name/email vars are non-empty. Repo-pinned Ansible collections install when the checkout exists; otherwise the role logs a clear skip warning. Manages `~/.tmux.conf` mouse scrolling and the `devmux` helper for persistent agent sessions (no auto-attach). Provider auth (Codex/Claude/Grok login) is interactive and not provisioned by Ansible.
+**Key behavior:** installs the workstation package baseline and rootless Podman, allocates a non-overlapping subordinate-ID range, and verifies Podman runs rootless. Docker services, packages, repository, and group membership are removed without deleting `/var/lib/docker`. Legacy Grok shell blocks, completions, symlinks, configuration, credentials, and `~/.grok` are purged. npm agent CLIs remain intentionally unpinned; validator CLIs are version pinned. PATH, tmux, optional Git identity, and repository-pinned Ansible collections are managed for the dev user.
 
 **First login (interactive):**
 
 1. SSH as `user_name`, then run `devmux`.
-2. Complete provider auth as needed (`codex login`, Claude Code login, Grok auth).
-3. Confirm CLIs resolve: `command -v codex claude grok ansible-lint gh`.
-
-**Grok upgrades:** leave `dev_vm_grok_update: false` for install-once behavior; set `true` on the next converge to refresh, or run `grok update` inside `devmux`. `vm2.yml` pairs this role with a VM2-only SELinux `domain_can_mmap_files` boolean for standard dev tooling.
+2. Complete provider auth as needed (`codex login` and Claude Code login).
+3. Confirm CLIs resolve: `command -v codex claude podman ansible-lint gh`.

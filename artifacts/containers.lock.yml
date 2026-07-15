@@ -10,6 +10,8 @@ artifact_locked_images:
     internal_repo: homelab/traefik
     signature_required: false
     vulnerability_exception: no_newer_upstream_image
+    vulnerability_exception_reviewed_on: '2026-07-14'
+    vulnerability_exception_expires_on: '2026-08-13'
     notes: Approved latest upstream image via scripts/promote_artifacts.py; vulnerability
       findings accepted until a newer upstream image resolves them.
   postgres:
@@ -19,6 +21,8 @@ artifact_locked_images:
     internal_repo: homelab/postgres
     signature_required: false
     vulnerability_exception: no_newer_upstream_image
+    vulnerability_exception_reviewed_on: '2026-07-14'
+    vulnerability_exception_expires_on: '2026-08-13'
     notes: Approved latest upstream image via scripts/promote_artifacts.py; vulnerability
       findings accepted until a newer upstream image resolves them.
   redis:
@@ -35,6 +39,8 @@ artifact_locked_images:
     internal_repo: homelab/nextcloud
     signature_required: false
     vulnerability_exception: no_newer_upstream_image
+    vulnerability_exception_reviewed_on: '2026-07-14'
+    vulnerability_exception_expires_on: '2026-08-13'
     notes: Approved latest upstream image via scripts/promote_artifacts.py; vulnerability
       findings accepted until a newer upstream image resolves them.
   paperless:
@@ -44,6 +50,8 @@ artifact_locked_images:
     internal_repo: homelab/paperless-ngx
     signature_required: false
     vulnerability_exception: no_newer_upstream_image
+    vulnerability_exception_reviewed_on: '2026-07-14'
+    vulnerability_exception_expires_on: '2026-08-13'
     notes: Approved latest upstream image via scripts/promote_artifacts.py; vulnerability
       findings accepted until a newer upstream image resolves them.
   navidrome:
@@ -60,6 +68,8 @@ artifact_locked_images:
     internal_repo: homelab/vaultwarden
     signature_required: false
     vulnerability_exception: no_newer_upstream_image
+    vulnerability_exception_reviewed_on: '2026-07-14'
+    vulnerability_exception_expires_on: '2026-08-13'
     notes: Approved latest upstream image via scripts/promote_artifacts.py; vulnerability
       findings accepted until a newer upstream image resolves them.
   semaphore:
@@ -69,5 +79,7 @@ artifact_locked_images:
     internal_repo: homelab/semaphore
     signature_required: false
     vulnerability_exception: no_newer_upstream_image
+    vulnerability_exception_reviewed_on: '2026-07-14'
+    vulnerability_exception_expires_on: '2026-08-13'
     notes: Approved latest upstream image via scripts/promote_artifacts.py; vulnerability
       findings accepted until a newer upstream image resolves them.

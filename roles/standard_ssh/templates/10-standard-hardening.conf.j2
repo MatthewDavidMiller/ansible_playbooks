@@ -1,12 +1,19 @@
 Subsystem sftp /usr/lib/openssh/sftp-server
 AuthorizedKeysFile .ssh/authorized_keys
 ChallengeResponseAuthentication no
+KbdInteractiveAuthentication no
 PasswordAuthentication no
 PermitEmptyPasswords no
 GSSAPIAuthentication no
+HostbasedAuthentication no
 PermitRootLogin no
 X11Forwarding no
-AllowTcpForwarding {{ standard_ssh_allow_tcp_forwarding | bool | ternary('yes', 'no') }}
+AllowTcpForwarding {{ standard_ssh_tcp_forwarding_mode }}
+AllowAgentForwarding {{ standard_ssh_allow_agent_forwarding | bool | ternary('yes', 'no') }}
+AllowStreamLocalForwarding {{ standard_ssh_streamlocal_forwarding_mode }}
+GatewayPorts no
+PermitTunnel no
+PermitUserEnvironment no
 MaxAuthTries 3
 MaxSessions {{ standard_ssh_max_sessions | int }}
 LoginGraceTime 30

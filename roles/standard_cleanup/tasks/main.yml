@@ -9,11 +9,6 @@
     autoremove: true
   become: true
 
-- name: Remove log files older than 30 days
-  ansible.builtin.command: find /var/log -name "*.log" -type f -mtime +30 -delete
-  become: true
-  changed_when: false
-
 - name: Vacuum systemd journal logs (keep last 2 weeks)
   ansible.builtin.command: journalctl --vacuum-time=2weeks
   become: true
@@ -23,31 +18,17 @@
 - name: Prune unused Podman images
   ansible.builtin.command: podman image prune -f
   become: true
-  ignore_errors: true
   register: podman_image_prune
   changed_when: podman_image_prune.stdout | length > 0
-  when: not (apply_runtime_changes_on_reboot | default(false) | bool)
+  when:
+    - standard_cleanup_prune_podman_images | bool
+    - not (apply_runtime_changes_on_reboot | default(false) | bool)
 
 - name: Prune stopped Podman containers
   ansible.builtin.command: podman container prune -f
   become: true
-  ignore_errors: true
   register: podman_container_prune
   changed_when: podman_container_prune.stdout | length > 0
-  when: not (apply_runtime_changes_on_reboot | default(false) | bool)
-
-- name: Prune unused Podman volumes
-  ansible.builtin.command: podman volume prune -f
-  become: true
-  ignore_errors: true
-  register: podman_volume_prune
-  changed_when: podman_volume_prune.stdout | length > 0
-  when: not (apply_runtime_changes_on_reboot | default(false) | bool)
-
-- name: Prune unused Podman networks
-  ansible.builtin.command: podman network prune -f
-  become: true
-  ignore_errors: true
-  register: podman_network_prune
-  changed_when: podman_network_prune.stdout | length > 0
-  when: not (apply_runtime_changes_on_reboot | default(false) | bool)
+  when:
+    - standard_cleanup_prune_podman_containers | bool
+    - not (apply_runtime_changes_on_reboot | default(false) | bool)

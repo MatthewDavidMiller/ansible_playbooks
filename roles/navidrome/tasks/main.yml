@@ -1,4 +1,17 @@
 ---
+- name: Validate Navidrome inputs before changing the host
+  ansible.builtin.assert:
+    that:
+      - navidrome_path | homelab_safe_absolute_path
+      - navidrome_image | homelab_immutable_digest_ref
+      - route_proxy_network_subnets.navidrome_container_net | homelab_valid_ipv4_cidr
+      - container_static_ips.navidrome_proxy | homelab_ip_in_subnet(route_proxy_network_subnets.navidrome_container_net)
+      - not (backup_local | bool) or nextcloud_path | homelab_safe_absolute_path
+      - not (backup_local | bool) or nextcloud_homelab_user | homelab_safe_name
+      - (navidrome_uid | string) is match('^[0-9]+$')
+      - (navidrome_gid | string) is match('^[0-9]+$')
+    fail_msg: Configure safe paths, an immutable image, a valid network, and numeric Navidrome IDs.
+
 - name: Inspect navidrome container network
   ansible.builtin.command:
     argv:

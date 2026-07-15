@@ -11,6 +11,7 @@ set -euo pipefail
 
 REPO_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 LOCK_FILE=${LOCK_FILE:-"$REPO_ROOT/artifacts/containers.lock.yml"}
+TEST_LOCK_FILE=${TEST_LOCK_FILE:-"$REPO_ROOT/artifacts/test_images.lock.yml"}
 DOCKER=${DOCKER:-docker}
 usage() {
   sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'
@@ -64,6 +65,16 @@ else:
 print(f"{image_name}@{digest}")
 PY
 }
+test_image_ref() {
+  python3 - "$TEST_LOCK_FILE" "$1" <<'PY'
+from pathlib import Path
+import sys
+import yaml
+
+data = yaml.safe_load(Path(sys.argv[1]).read_text(encoding="utf-8"))
+print(data["test_locked_images"][sys.argv[2]]["image"])
+PY
+}
 
 POSTGRES_IMAGE=${POSTGRES_IMAGE:-$(lock_image_ref postgres)}
 REDIS_IMAGE=${REDIS_IMAGE:-$(lock_image_ref redis)}
@@ -73,12 +84,17 @@ PAPERLESS_IMAGE=${PAPERLESS_IMAGE:-$(lock_image_ref paperless)}
 VAULTWARDEN_IMAGE=${VAULTWARDEN_IMAGE:-$(lock_image_ref vaultwarden)}
 SEMAPHORE_IMAGE=${SEMAPHORE_IMAGE:-$(lock_image_ref semaphore)}
 NAVIDROME_IMAGE=${NAVIDROME_IMAGE:-$(lock_image_ref navidrome)}
+TEST_HELPER_IMAGE=${TEST_HELPER_IMAGE:-$(test_image_ref alpine)}
+[[ "$TEST_HELPER_IMAGE" =~ @sha256:[0-9a-f]{64}$ ]] || {
+  echo "TEST_HELPER_IMAGE must be an immutable digest reference" >&2
+  exit 2
+}
 
 cleanup()     { $DOCKER rm -f "$1" >/dev/null 2>&1 || true; }
 cleanup_dir() {
   # Restore ownership to current user via docker so rm -rf works without sudo
   $DOCKER run --rm -v "$(dirname "$1")":/mnt \
-    alpine chown -R "$(id -u):$(id -g)" "/mnt/$(basename "$1")"
+    "$TEST_HELPER_IMAGE" chown -R "$(id -u):$(id -g)" "/mnt/$(basename "$1")"
   rm -rf "$1"
 }
 cleanup_all_test_containers() {
@@ -111,17 +127,28 @@ pass() { echo "PASS: $1"; }
 fail() { echo "FAIL: $1"; exit 1; }
 assert_file_contains() {
   local pattern="$1" label="$2" file="$3"
-  rg -q -- "$pattern" "$file" && pass "$label" || fail "$label"
+  if rg -q -- "$pattern" "$file"; then
+    pass "$label"
+  else
+    fail "$label"
+  fi
 }
 assert_file_not_contains() {
   local pattern="$1" label="$2" file="$3"
-  rg -q -- "$pattern" "$file" && fail "$label" || pass "$label"
+  if rg -q -- "$pattern" "$file"; then
+    fail "$label"
+  else
+    pass "$label"
+  fi
 }
 check_running() {
   local name="$1" label="$2"
   sleep 5
-  $DOCKER inspect --format='{{.State.Status}}' "$name" 2>/dev/null \
-    | grep -q running && pass "$label" || fail "$label"
+  if $DOCKER inspect --format='{{.State.Status}}' "$name" 2>/dev/null | grep -q running; then
+    pass "$label"
+  else
+    fail "$label"
+  fi
 }
 
 trap cleanup_all_test_containers EXIT
@@ -227,7 +254,7 @@ if [[ "$DOCKER" == *podman* ]]; then
 fi
 TEST_PG_DIR=$(mktemp -d)
 chmod 0750 "$TEST_PG_DIR"
-$DOCKER run --rm -v "$TEST_PG_DIR":/target alpine chown 999:999 /target
+$DOCKER run --rm -v "$TEST_PG_DIR":/target "$TEST_HELPER_IMAGE" chown 999:999 /target
 
 $DOCKER run -d --name test_postgres \
   --user 999:999 \
@@ -298,8 +325,8 @@ mkdir -p "$TEST_PG_MIG_DATA" "$TEST_PG_MIG_INIT"
 chmod 0750 "$TEST_PG_MIG_DATA" "$TEST_PG_MIG_INIT"
 install -m 0755 "$REPO_ROOT/roles/nextcloud/files/db_wrapper.sh" \
   "$TEST_PG_MIG_INIT/db_wrapper.sh"
-$DOCKER run --rm -v "$TEST_PG_MIG_DATA":/target alpine chown 999:999 /target
-$DOCKER run --rm -v "$TEST_PG_MIG_INIT":/target alpine chown -R 999:999 /target
+$DOCKER run --rm -v "$TEST_PG_MIG_DATA":/target "$TEST_HELPER_IMAGE" chown 999:999 /target
+$DOCKER run --rm -v "$TEST_PG_MIG_INIT":/target "$TEST_HELPER_IMAGE" chown -R 999:999 /target
 
 $DOCKER run -d --name test_postgres_migration_seed \
   --user 999:999 \
@@ -390,8 +417,8 @@ mkdir -p "$TEST_PG_LEGACY_DATA" "$TEST_PG_LEGACY_INIT"
 chmod 0750 "$TEST_PG_LEGACY_DATA" "$TEST_PG_LEGACY_INIT"
 install -m 0755 "$REPO_ROOT/roles/nextcloud/files/db_wrapper.sh" \
   "$TEST_PG_LEGACY_INIT/db_wrapper.sh"
-$DOCKER run --rm -v "$TEST_PG_LEGACY_DATA":/target alpine chown 999:999 /target
-$DOCKER run --rm -v "$TEST_PG_LEGACY_INIT":/target alpine chown -R 999:999 /target
+$DOCKER run --rm -v "$TEST_PG_LEGACY_DATA":/target "$TEST_HELPER_IMAGE" chown 999:999 /target
+$DOCKER run --rm -v "$TEST_PG_LEGACY_INIT":/target "$TEST_HELPER_IMAGE" chown -R 999:999 /target
 
 $DOCKER run -d --name test_postgres_legacy_seed \
   --user 999:999 \
@@ -481,8 +508,8 @@ mkdir -p "$TEST_PG_CUSTOM_DATA" "$TEST_PG_CUSTOM_INIT"
 chmod 0750 "$TEST_PG_CUSTOM_DATA" "$TEST_PG_CUSTOM_INIT"
 install -m 0755 "$REPO_ROOT/roles/nextcloud/files/db_wrapper.sh" \
   "$TEST_PG_CUSTOM_INIT/db_wrapper.sh"
-$DOCKER run --rm -v "$TEST_PG_CUSTOM_DATA":/target alpine chown 999:999 /target
-$DOCKER run --rm -v "$TEST_PG_CUSTOM_INIT":/target alpine chown -R 999:999 /target
+$DOCKER run --rm -v "$TEST_PG_CUSTOM_DATA":/target "$TEST_HELPER_IMAGE" chown 999:999 /target
+$DOCKER run --rm -v "$TEST_PG_CUSTOM_INIT":/target "$TEST_HELPER_IMAGE" chown -R 999:999 /target
 
 $DOCKER run -d --name test_postgres_custom_seed \
   --user 999:999 \
@@ -575,8 +602,8 @@ mkdir -p "$TEST_PG_MIXED_DATA" "$TEST_PG_MIXED_INIT"
 chmod 0750 "$TEST_PG_MIXED_DATA" "$TEST_PG_MIXED_INIT"
 install -m 0755 "$REPO_ROOT/roles/nextcloud/files/db_wrapper.sh" \
   "$TEST_PG_MIXED_INIT/db_wrapper.sh"
-$DOCKER run --rm -v "$TEST_PG_MIXED_DATA":/target alpine chown 999:999 /target
-$DOCKER run --rm -v "$TEST_PG_MIXED_INIT":/target alpine chown -R 999:999 /target
+$DOCKER run --rm -v "$TEST_PG_MIXED_DATA":/target "$TEST_HELPER_IMAGE" chown 999:999 /target
+$DOCKER run --rm -v "$TEST_PG_MIXED_INIT":/target "$TEST_HELPER_IMAGE" chown -R 999:999 /target
 
 $DOCKER run -d --name test_postgres_mixed_seed \
   --user 999:999 \
@@ -693,7 +720,7 @@ echo "--- TEST-04: Nextcloud ---"
 # --security-opt=no-new-privileges:true only (no --cap-drop=ALL).
 TEST_NC_DIR=$(mktemp -d)
 chmod 0770 "$TEST_NC_DIR"
-$DOCKER run --rm -v "$TEST_NC_DIR":/target alpine chown 33:33 /target
+$DOCKER run --rm -v "$TEST_NC_DIR":/target "$TEST_HELPER_IMAGE" chown 33:33 /target
 
 $DOCKER run -d --name test_nextcloud \
   --security-opt=no-new-privileges:true \
@@ -767,7 +794,7 @@ TEST_PL_CONSUME=$(mktemp -d)
 $DOCKER run --rm \
   -v "$TEST_PL_DATA":/d1 -v "$TEST_PL_MEDIA":/d2 \
   -v "$TEST_PL_EXPORT":/d3 -v "$TEST_PL_CONSUME":/d4 \
-  alpine chown 1000:1000 /d1 /d2 /d3 /d4
+  "$TEST_HELPER_IMAGE" chown 1000:1000 /d1 /d2 /d3 /d4
 
 $DOCKER run -d --name test_paperless \
   --cap-drop=ALL \
@@ -776,7 +803,9 @@ $DOCKER run -d --name test_paperless \
   --cap-add=SETGID \
   --cap-add=FOWNER \
   --cap-add=DAC_OVERRIDE \
+  --security-opt=no-new-privileges:true \
   --memory=2g --memory-swap=2g \
+  --pids-limit=500 \
   -e USERMAP_UID=1000 \
   -e USERMAP_GID=1000 \
   -e PAPERLESS_REDIS=redis://nonexistent:6379 \
@@ -788,9 +817,12 @@ $DOCKER run -d --name test_paperless \
   "$PAPERLESS_IMAGE"
 sleep 10
 echo "Paperless status: $($DOCKER inspect --format='{{.State.Status}}' test_paperless 2>/dev/null)"
-$DOCKER logs test_paperless 2>&1 | grep -qi "gosu\|permission denied\|operation not permitted" \
-  && fail "Paperless: startup shows privilege errors with required caps" \
-  || pass "Paperless: starts without privilege errors using CHOWN/SETUID/SETGID/FOWNER/DAC_OVERRIDE"
+check_running test_paperless "Paperless: remains running with reduced capabilities and no-new-privileges"
+if $DOCKER logs test_paperless 2>&1 | grep -qi "gosu\|permission denied\|operation not permitted"; then
+  fail "Paperless: startup shows privilege errors with required caps"
+else
+  pass "Paperless: starts without privilege errors using CHOWN/SETUID/SETGID/FOWNER/DAC_OVERRIDE"
+fi
 cleanup test_paperless
 
 cleanup_dir "$TEST_PL_DATA"
@@ -833,8 +865,8 @@ TEST_SEM_STATE_DIR=$(mktemp -d)
 cat > "$TEST_SEM_DIR/ssh_known_hosts" <<'EOF'
 127.0.0.1 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestOnlyPlaceholderKnownHostKey
 EOF
-$DOCKER run --rm -v "$TEST_SEM_DIR":/target alpine chown -R 1001:0 /target
-$DOCKER run --rm -v "$TEST_SEM_STATE_DIR":/target alpine chown -R 1001:0 /target
+$DOCKER run --rm -v "$TEST_SEM_DIR":/target "$TEST_HELPER_IMAGE" chown -R 1001:0 /target
+$DOCKER run --rm -v "$TEST_SEM_STATE_DIR":/target "$TEST_HELPER_IMAGE" chown -R 1001:0 /target
 
 SEMAPHORE_PROJECT_TMP_MOUNT=(--tmpfs /tmp/semaphore:rw,nosuid,nodev,size=64m,mode=0750,uid=1001,gid=0)
 SEMAPHORE_HOME_TMP_MOUNT=(--tmpfs /home/semaphore:rw,nosuid,nodev,size=32m,mode=0750,uid=1001,gid=0)
@@ -904,7 +936,7 @@ echo "--- TEST-09: Navidrome ---"
 TEST_ND_DATA=$(mktemp -d)
 TEST_ND_MUSIC=$(mktemp -d)
 chmod 0770 "$TEST_ND_DATA"
-$DOCKER run --rm -v "$TEST_ND_DATA":/target alpine chown 33:33 /target
+$DOCKER run --rm -v "$TEST_ND_DATA":/target "$TEST_HELPER_IMAGE" chown 33:33 /target
 
 $DOCKER run -d --name test_navidrome \
   --user "33:33" \

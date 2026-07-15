@@ -1,5 +1,5 @@
 #!/bin/bash
-# Pre-commit hook: runs ansible-lint and syntax checks for maintained playbooks.
+# Pre-commit hook: runs the complete maintained local validation gate.
 # Install: git config core.hooksPath hooks
 # Skip:    git commit --no-verify
 #
@@ -8,12 +8,49 @@
 
 set -euo pipefail
 
+# Keep validator caches out of the repository and work in restricted shells.
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/ansible-playbooks-cache}"
+export ANSIBLE_LOCAL_TEMP="${ANSIBLE_LOCAL_TEMP:-/tmp/ansible-playbooks-local}"
+export ANSIBLE_REMOTE_TEMP="${ANSIBLE_REMOTE_TEMP:-/tmp/ansible-playbooks-remote}"
+
 echo "=== Pre-commit checks ==="
 
 echo ""
 echo "--- Supply Chain Policy ---"
 bash scripts/test_supply_chain_policy.sh
+python3 scripts/promote_artifacts.py --validate-policy
 echo "PASS: supply-chain policy"
+
+echo ""
+echo "--- Python Unit Tests ---"
+python3 -m unittest discover -s tests -p 'test_*.py'
+python3 -m py_compile scripts/*.py filter_plugins/*.py
+echo "PASS: Python tests and compilation"
+
+echo ""
+echo "--- ShellCheck ---"
+shellcheck -e SC2015,SC2016,SC2054 hooks/pre-commit scripts/*.sh roles/nextcloud/files/db_wrapper.sh
+echo "PASS: ShellCheck"
+
+echo ""
+echo "--- YAML Lint ---"
+mapfile -t yaml_files < <(
+  git ls-files --cached --others --exclude-standard '*.yml' '*.yaml' \
+    | rg -v '^archive/' \
+    | while IFS= read -r path; do [[ -f "$path" ]] && echo "$path"; done
+)
+yamllint -c .yamllint.yml "${yaml_files[@]}"
+echo "PASS: YAML lint"
+
+echo ""
+echo "--- Secret Rendering ---"
+bash scripts/test_shell_secret_env.sh
+echo "PASS: secret rendering"
+
+echo ""
+echo "--- Container Static Policy ---"
+bash scripts/test_container_security.sh static
+echo "PASS: container static policy"
 
 echo ""
 echo "--- dev_vm Package Resolution ---"

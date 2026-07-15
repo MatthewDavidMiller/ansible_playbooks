@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+from dataclasses import dataclass
+from datetime import date
 import json
 import os
 import shutil
@@ -19,15 +21,23 @@ DEFAULT_LOCK_FILE = REPO_ROOT / "artifacts" / "containers.lock.yml"
 DEFAULT_SCAN_LOG = REPO_ROOT / "logs" / "container-vulnerability-findings.log"
 DEFAULT_TRIVY_IGNORE_FILE = REPO_ROOT / "logs" / ".trivyignore"
 DEFAULT_TRIVY_VEX_FILE = REPO_ROOT / "logs" / "trivy-vex.json"
+DEFAULT_CRITICAL_ACCEPTANCE_FILE = REPO_ROOT / "logs" / "vulnerability-acceptance.yml"
 TOOLING_GUIDE = REPO_ROOT / "docs" / "guides" / "container-image-updates.md"
 SCAN_SEVERITIES = "MEDIUM,HIGH,CRITICAL"
 NO_NEWER_IMAGE_EXCEPTION = "no_newer_upstream_image"
+MAX_EXCEPTION_DAYS = 30
 FALLBACK_TOOL_IMAGES = {
     "skopeo": "quay.io/skopeo/stable@sha256:c7d3c512612f52805023cd38351081dad7e2729fc13d14b701e47c7c8bdd6615",
     "cosign": "ghcr.io/sigstore/cosign/cosign@sha256:6bbe0d281d955c79f85b325f0f7e651c1bcab5a4fa4ad4903d74955178a3b2eb",
     "trivy": "public.ecr.aws/aquasecurity/trivy@sha256:016eae51fdcf989332a5404af7e8f625cd5d95d7c0907a221d080a996f556500",
 }
 ANNOUNCED_FALLBACKS: set[str] = set()
+
+
+@dataclass(frozen=True)
+class ScanResult:
+    finding_count: int
+    critical_ids: frozenset[str]
 
 
 def run(argv: list[str], *, capture_output: bool = True) -> subprocess.CompletedProcess[str]:
@@ -76,7 +86,18 @@ def resolve_tool_command(name: str) -> tuple[list[str], str]:
             f"for the pinned container fallback. See {TOOLING_GUIDE}."
         )
 
-    argv = [engine, "run", "--rm"]
+    argv = [
+        engine,
+        "run",
+        "--rm",
+        "--cap-drop=ALL",
+        "--security-opt=no-new-privileges:true",
+        "--read-only",
+        "--tmpfs",
+        "/tmp:rw,noexec,nosuid,nodev,size=64m",
+    ]
+    if name != "trivy":
+        argv.extend(["--tmpfs", "/root/.cache:rw,noexec,nosuid,nodev,size=128m"])
     if engine == "podman":
         argv.extend(["--security-opt", "label=disable"])
 
@@ -124,6 +145,66 @@ def load_lock_file(path: Path) -> dict:
     if not isinstance(data, dict) or "artifact_locked_images" not in data:
         raise SystemExit(f"Invalid lock file format: {path}")
     return data
+
+
+def parse_policy_date(value: object, field: str, service: str) -> date:
+    if not isinstance(value, str):
+        raise SystemExit(f"{service}: {field} must be an ISO date (YYYY-MM-DD)")
+    try:
+        return date.fromisoformat(value)
+    except ValueError as exc:
+        raise SystemExit(f"{service}: {field} must be an ISO date (YYYY-MM-DD)") from exc
+
+
+def validate_exception_metadata(entry: dict, service: str, *, today: date | None = None) -> None:
+    exception = entry.get("vulnerability_exception")
+    if exception is None:
+        return
+    if exception != NO_NEWER_IMAGE_EXCEPTION:
+        raise SystemExit(f"{service}: unknown vulnerability_exception: {exception}")
+
+    current_date = today or date.today()
+    reviewed = parse_policy_date(entry.get("vulnerability_exception_reviewed_on"), "vulnerability_exception_reviewed_on", service)
+    expires = parse_policy_date(entry.get("vulnerability_exception_expires_on"), "vulnerability_exception_expires_on", service)
+    if reviewed > current_date:
+        raise SystemExit(f"{service}: vulnerability exception review date is in the future")
+    if expires < current_date:
+        raise SystemExit(f"{service}: vulnerability exception expired on {expires.isoformat()}")
+    if expires < reviewed or (expires - reviewed).days > MAX_EXCEPTION_DAYS:
+        raise SystemExit(f"{service}: vulnerability exception may cover at most {MAX_EXCEPTION_DAYS} days")
+
+
+def load_critical_acceptances(path: Path, *, today: date | None = None) -> set[tuple[str, str, str]]:
+    if not path.exists():
+        return set()
+    with path.open("r", encoding="utf-8") as handle:
+        data = yaml.safe_load(handle)
+    records = data.get("accepted_critical_vulnerabilities") if isinstance(data, dict) else None
+    if not isinstance(records, list):
+        raise SystemExit(f"Invalid critical vulnerability acceptance file: {path}")
+
+    current_date = today or date.today()
+    accepted: set[tuple[str, str, str]] = set()
+    for index, record in enumerate(records, start=1):
+        label = f"{path}: entry {index}"
+        if not isinstance(record, dict):
+            raise SystemExit(f"{label} must be a mapping")
+        required = ("service", "image_digest", "vulnerability_id", "reason", "compensating_controls", "expires_on")
+        missing = [field for field in required if not record.get(field)]
+        if missing:
+            raise SystemExit(f"{label} is missing required fields: {', '.join(missing)}")
+        if not isinstance(record["compensating_controls"], list) or not all(
+            isinstance(control, str) and control.strip() for control in record["compensating_controls"]
+        ):
+            raise SystemExit(f"{label}: compensating_controls must be a non-empty list of strings")
+        expires = parse_policy_date(record["expires_on"], "expires_on", label)
+        if expires < current_date or (expires - current_date).days > MAX_EXCEPTION_DAYS:
+            raise SystemExit(f"{label}: expires_on must be within the next {MAX_EXCEPTION_DAYS} days")
+        digest = record["image_digest"]
+        if not isinstance(digest, str) or not digest.startswith("sha256:") or len(digest) != 71:
+            raise SystemExit(f"{label}: image_digest must be a full sha256 digest")
+        accepted.add((str(record["service"]), digest, str(record["vulnerability_id"])))
+    return accepted
 
 
 def resolve_digest(upstream_ref: str) -> str:
@@ -206,16 +287,25 @@ def verify_signature(image_ref: str, entry: dict, service: str) -> None:
     )
 
 
-def local_trivy_policy_args(ignore_file: Path, vex_file: Path) -> list[str]:
-    argv: list[str] = []
-    if ignore_file.exists():
-        argv.extend(["--ignorefile", str(ignore_file)])
-    if vex_file.exists():
-        argv.extend(["--vex", str(vex_file)])
-    return argv
+def parse_trivy_result(output: str, service: str) -> ScanResult:
+    try:
+        report = json.loads(output)
+    except json.JSONDecodeError as exc:
+        raise SystemExit(f"{service}: Trivy returned invalid JSON") from exc
+    vulnerabilities = [
+        vulnerability
+        for result in report.get("Results", [])
+        for vulnerability in (result.get("Vulnerabilities") or [])
+    ]
+    critical_ids = frozenset(
+        str(vulnerability.get("VulnerabilityID"))
+        for vulnerability in vulnerabilities
+        if vulnerability.get("Severity") == "CRITICAL" and vulnerability.get("VulnerabilityID")
+    )
+    return ScanResult(len(vulnerabilities), critical_ids)
 
 
-def scan_image(image_ref: str, service: str, log_handle, log_path: Path, ignore_file: Path, vex_file: Path) -> bool:
+def scan_image(image_ref: str, service: str, log_handle, log_path: Path, ignore_file: Path, vex_file: Path) -> ScanResult:
     argv = [
         *tool_command("trivy"),
         "image",
@@ -226,9 +316,10 @@ def scan_image(image_ref: str, service: str, log_handle, log_path: Path, ignore_
         "--ignore-unfixed",
         "--severity",
         SCAN_SEVERITIES,
+        "--format",
+        "json",
         "--exit-code",
-        "1",
-        *local_trivy_policy_args(ignore_file, vex_file),
+        "0",
         image_ref,
     ]
     result = subprocess.run(
@@ -241,9 +332,9 @@ def scan_image(image_ref: str, service: str, log_handle, log_path: Path, ignore_
     log_handle.write(f"image: {image_ref}\n")
     log_handle.write(f"severity threshold: {SCAN_SEVERITIES}\n")
     if ignore_file.exists():
-        log_handle.write(f"local_ignore_file: {ignore_file}\n")
+        log_handle.write(f"local_ignore_file_not_applied: {ignore_file}\n")
     if vex_file.exists():
-        log_handle.write(f"local_vex_file: {vex_file}\n")
+        log_handle.write(f"local_vex_file_not_applied: {vex_file}\n")
     log_handle.write(f"exit_code: {result.returncode}\n\n")
     if result.stdout:
         log_handle.write(result.stdout)
@@ -255,12 +346,14 @@ def scan_image(image_ref: str, service: str, log_handle, log_path: Path, ignore_
     log_handle.write("\n")
     log_handle.flush()
 
-    if result.returncode == 0:
-        print(f"[{service}] scan=PASS no unfixed {SCAN_SEVERITIES} vulnerabilities")
-        return True
-
-    print(f"[{service}] scan=FINDINGS see {log_path}")
-    return False
+    if result.returncode != 0:
+        raise SystemExit(f"{service}: Trivy failed with exit code {result.returncode}; see {log_path}")
+    scan_result = parse_trivy_result(result.stdout, service)
+    if scan_result.finding_count == 0:
+        print(f"[{service}] scan=PASS no fix-available {SCAN_SEVERITIES} vulnerabilities")
+    else:
+        print(f"[{service}] scan=FINDINGS count={scan_result.finding_count} see {log_path}")
+    return scan_result
 
 
 def mirror_image(upstream_ref: str, internal_ref: str, digest: str) -> None:
@@ -287,6 +380,11 @@ def main() -> int:
         "--check-tools",
         action="store_true",
         help="Only report whether the required tools are available locally or via the pinned container fallback",
+    )
+    parser.add_argument(
+        "--validate-policy",
+        action="store_true",
+        help="Validate lock exception dates and local Critical acceptances without contacting registries",
     )
     parser.add_argument(
         "--skip-signature-verify",
@@ -316,14 +414,20 @@ def main() -> int:
         default=DEFAULT_TRIVY_VEX_FILE,
         help=f"Optional local Trivy VEX file (default: {DEFAULT_TRIVY_VEX_FILE.relative_to(REPO_ROOT)})",
     )
+    parser.add_argument(
+        "--critical-acceptance-file",
+        type=Path,
+        default=DEFAULT_CRITICAL_ACCEPTANCE_FILE,
+        help=(
+            "Optional untracked, digest- and CVE-specific Critical vulnerability acceptance file "
+            f"(default: {DEFAULT_CRITICAL_ACCEPTANCE_FILE.relative_to(REPO_ROOT)})"
+        ),
+    )
     args = parser.parse_args()
 
     if args.check_tools:
         print_tool_status(skip_signature_verify=args.skip_signature_verify, skip_scan=args.skip_scan)
         return 0
-
-    for tool_name in required_tools(skip_signature_verify=args.skip_signature_verify, skip_scan=args.skip_scan):
-        resolve_tool_command(tool_name)
 
     lock_data = load_lock_file(args.lock_file)
     images = lock_data["artifact_locked_images"]
@@ -332,9 +436,15 @@ def main() -> int:
     for service in selected:
         if service not in images:
             raise SystemExit(f"Unknown service in lock file: {service}")
-        exception = images[service].get("vulnerability_exception")
-        if exception not in (None, NO_NEWER_IMAGE_EXCEPTION):
-            raise SystemExit(f"{service}: unknown vulnerability_exception: {exception}")
+        validate_exception_metadata(images[service], service)
+
+    critical_acceptances = load_critical_acceptances(args.critical_acceptance_file)
+    if args.validate_policy:
+        print(f"Policy valid for {len(selected)} service(s); {len(critical_acceptances)} Critical acceptance(s) loaded")
+        return 0
+
+    for tool_name in required_tools(skip_signature_verify=args.skip_signature_verify, skip_scan=args.skip_scan):
+        resolve_tool_command(tool_name)
 
     scan_failures: list[str] = []
     scan_log_handle = None
@@ -364,19 +474,30 @@ def main() -> int:
                 verify_signature(digest_ref, entry, service)
 
             scan_ok = True
-            if scan_log_handle is not None and not scan_image(
-                digest_ref,
-                service,
-                scan_log_handle,
-                args.scan_log,
-                args.trivy_ignore_file,
-                args.trivy_vex_file,
-            ):
-                if entry.get("vulnerability_exception") == NO_NEWER_IMAGE_EXCEPTION:
+            if scan_log_handle is not None:
+                scan_result = scan_image(
+                    digest_ref,
+                    service,
+                    scan_log_handle,
+                    args.scan_log,
+                    args.trivy_ignore_file,
+                    args.trivy_vex_file,
+                )
+                unaccepted_critical = sorted(
+                    vulnerability_id
+                    for vulnerability_id in scan_result.critical_ids
+                    if (service, digest, vulnerability_id) not in critical_acceptances
+                )
+                if unaccepted_critical:
                     print(
-                        f"[{service}] scan=EXEMPT findings accepted because no newer upstream image is available"
+                        f"[{service}] scan=FAIL unaccepted Critical findings: "
+                        f"{', '.join(unaccepted_critical)}"
                     )
-                else:
+                    scan_failures.append(service)
+                    scan_ok = False
+                elif scan_result.finding_count and entry.get("vulnerability_exception") == NO_NEWER_IMAGE_EXCEPTION:
+                    print(f"[{service}] scan=EXEMPT time-bounded non-Critical findings accepted")
+                elif scan_result.finding_count:
                     scan_failures.append(service)
                     scan_ok = False
 
@@ -393,7 +514,8 @@ def main() -> int:
                 elif entry.get("vulnerability_exception") == NO_NEWER_IMAGE_EXCEPTION:
                     entry["notes"] = (
                         "Approved latest upstream image via scripts/promote_artifacts.py; "
-                        "vulnerability findings accepted until a newer upstream image resolves them."
+                        f"non-Critical vulnerability findings accepted through "
+                        f"{entry['vulnerability_exception_expires_on']}."
                     )
                 else:
                     entry["notes"] = "Approved via scripts/promote_artifacts.py"
