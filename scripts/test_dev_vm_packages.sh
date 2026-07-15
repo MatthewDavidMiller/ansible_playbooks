@@ -147,6 +147,11 @@ for pkg in "${required_dnf[@]}"; do
 done
 pass "required dnf baseline packages are present"
 
+if ! printf '%s\n' "${dev_vm_packages[@]}" | rg -q '^c-ares[[:space:]]*>=[[:space:]]*1[.]34[.]6'; then
+  fail "dev_vm_packages must require c-ares >= 1.34.6 for the Node.js 22 ares_query_dnsrec ABI"
+fi
+pass "Node.js c-ares ABI compatibility floor is present"
+
 echo "=== dev_vm dnf dependency resolution (Rocky 10 + EPEL) ==="
 
 if [[ "$DEV_VM_PACKAGE_DEPSOLVE" != "1" ]]; then

@@ -232,7 +232,7 @@ development environment:
 | `dev_vm_npm_prefix` | path | No | User-owned npm global prefix under `/home`. | `/home/{{ dev_vm_user }}/.npm-global` |
 | `dev_vm_tmux_session` | string | No | Session opened by the `devmux` helper. | `dev` |
 | `dev_vm_workspace_path` | path | No | Workspace directory created for the user. | `/home/{{ dev_vm_user }}/matt_dev` |
-| `dev_vm_packages` | list | No | DNF packages and package groups installed on VM2. | See role defaults |
+| `dev_vm_packages` | list | No | DNF packages and package groups installed on VM2, including the Rocky 10 c-ares ABI floor required by Node.js 22. | See role defaults |
 | `dev_vm_removed_docker_packages` | list | No | Docker packages declaratively removed. | See role defaults |
 | `dev_vm_rootless_subid_start` | integer | No | Start of rootless Podman's subordinate UID/GID range; at least `65536`. | `100000` |
 | `dev_vm_rootless_subid_count` | integer | No | Size of subordinate UID/GID range; at least `65536`. | `65536` |

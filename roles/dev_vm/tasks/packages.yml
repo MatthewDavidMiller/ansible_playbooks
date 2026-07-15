@@ -4,6 +4,11 @@
     name: "{{ dev_vm_packages }}"
     state: present
 
+- name: Verify Node.js runtime dependencies are compatible
+  ansible.builtin.command:
+    cmd: /usr/bin/node --version
+  changed_when: false
+
 - name: Ensure user-local bin directory exists
   ansible.builtin.file:
     path: "{{ dev_vm_python_user_base }}/bin"

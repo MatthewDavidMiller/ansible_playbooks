@@ -119,7 +119,7 @@ Configures VM2 as an SSH/tmux development host for Codex and Claude Code.
 | `dev_vm_npm_prefix` | path | User-local npm global prefix | `/home/example_user/.npm-global` |
 | `dev_vm_tmux_session` | string | Default tmux session name for `devmux` | `dev` |
 | `dev_vm_workspace_path` | path | Parent workspace directory created empty for the dev user (no auto clone) | `/home/example_user/matt_dev` |
-| `dev_vm_packages` | list | Rocky package baseline (tmux, git, nodejs, podman, go, rust, ripgrep, fd-find, bubblewrap, tree, ShellCheck, gh, ansible-core, …) | see role defaults |
+| `dev_vm_packages` | list | Rocky package baseline (tmux, git, nodejs, a Node-compatible c-ares floor, podman, go, rust, ripgrep, fd-find, bubblewrap, tree, ShellCheck, gh, ansible-core, …) | see role defaults |
 | `dev_vm_npm_global_packages` | list | npm packages for the dev user; pin with `name@version` when desired | `["@openai/codex", "@anthropic-ai/claude-code"]` |
 | `dev_vm_npm_global_state` | string | npm module state: `present` (stable) or `latest` (refresh CLIs) | `present` |
 | `dev_vm_python_user_packages` | list | Version-pinned pip `--user` validator packages | see role defaults |
