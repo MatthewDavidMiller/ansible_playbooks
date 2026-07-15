@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 import json
 import os
 import shutil
@@ -26,6 +26,7 @@ TOOLING_GUIDE = REPO_ROOT / "docs" / "guides" / "container-image-updates.md"
 SCAN_SEVERITIES = "MEDIUM,HIGH,CRITICAL"
 NO_NEWER_IMAGE_EXCEPTION = "no_newer_upstream_image"
 MAX_EXCEPTION_DAYS = 30
+MINIMUM_IMAGE_AGE_HOURS = 48
 FALLBACK_TOOL_IMAGES = {
     "skopeo": "quay.io/skopeo/stable@sha256:c7d3c512612f52805023cd38351081dad7e2729fc13d14b701e47c7c8bdd6615",
     "cosign": "ghcr.io/sigstore/cosign/cosign@sha256:6bbe0d281d955c79f85b325f0f7e651c1bcab5a4fa4ad4903d74955178a3b2eb",
@@ -37,6 +38,7 @@ ANNOUNCED_FALLBACKS: set[str] = set()
 @dataclass(frozen=True)
 class ScanResult:
     finding_count: int
+    non_critical_count: int
     critical_ids: frozenset[str]
 
 
@@ -94,7 +96,7 @@ def resolve_tool_command(name: str) -> tuple[list[str], str]:
         "--security-opt=no-new-privileges:true",
         "--read-only",
         "--tmpfs",
-        "/tmp:rw,noexec,nosuid,nodev,size=64m",
+        "/tmp:rw,noexec,nosuid,nodev,size=256m",
     ]
     if name != "trivy":
         argv.extend(["--tmpfs", "/root/.cache:rw,noexec,nosuid,nodev,size=128m"])
@@ -223,6 +225,41 @@ def resolve_digest(upstream_ref: str) -> str:
     return digest
 
 
+def inspect_image_created(upstream_ref: str) -> datetime:
+    result = run([*tool_command("skopeo"), "inspect", f"docker://{upstream_ref}"])
+    try:
+        created_value = json.loads(result.stdout)["Created"]
+        created = datetime.fromisoformat(str(created_value).replace("Z", "+00:00"))
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise SystemExit(f"Failed to read image creation time for {upstream_ref}") from exc
+    if created.tzinfo is None:
+        raise SystemExit(f"Image creation time for {upstream_ref} has no timezone")
+    return created.astimezone(timezone.utc)
+
+
+def validate_minimum_image_age(
+    created: datetime,
+    service: str,
+    *,
+    now: datetime | None = None,
+) -> None:
+    current_time = now or datetime.now(timezone.utc)
+    minimum_age = timedelta(hours=MINIMUM_IMAGE_AGE_HOURS)
+    if current_time - created < minimum_age:
+        eligible_at = created + minimum_age
+        raise SystemExit(
+            f"{service}: image is younger than {MINIMUM_IMAGE_AGE_HOURS} hours; "
+            f"eligible after {eligible_at.isoformat()}"
+        )
+
+
+def critical_findings_are_preexisting(
+    candidate_ids: list[str],
+    currently_approved: ScanResult | None,
+) -> bool:
+    return bool(currently_approved) and set(candidate_ids).issubset(currently_approved.critical_ids)
+
+
 def to_digest_ref(image_ref: str, digest: str) -> str:
     if "@" in image_ref:
         image_name = image_ref.rsplit("@", 1)[0]
@@ -302,7 +339,10 @@ def parse_trivy_result(output: str, service: str) -> ScanResult:
         for vulnerability in vulnerabilities
         if vulnerability.get("Severity") == "CRITICAL" and vulnerability.get("VulnerabilityID")
     )
-    return ScanResult(len(vulnerabilities), critical_ids)
+    non_critical_count = sum(
+        1 for vulnerability in vulnerabilities if vulnerability.get("Severity") != "CRITICAL"
+    )
+    return ScanResult(len(vulnerabilities), non_critical_count, critical_ids)
 
 
 def scan_image(image_ref: str, service: str, log_handle, log_path: Path, ignore_file: Path, vex_file: Path) -> ScanResult:
@@ -466,6 +506,12 @@ def main() -> int:
             digest_ref = to_digest_ref(upstream_ref, digest)
             print(f"[{service}] approved={digest_ref}")
 
+            current_digest = entry.get("approved_digest")
+            if current_digest and digest != current_digest:
+                created = inspect_image_created(upstream_ref)
+                validate_minimum_image_age(created, service)
+                print(f"[{service}] created={created.isoformat()} age=PASS")
+
             if args.registry:
                 internal_ref = f"{args.registry}/{entry['internal_repo']}"
                 print(f"[{service}] mirror={internal_ref}@{digest}")
@@ -474,6 +520,7 @@ def main() -> int:
                 verify_signature(digest_ref, entry, service)
 
             scan_ok = True
+            critical_no_regression = False
             if scan_log_handle is not None:
                 scan_result = scan_image(
                     digest_ref,
@@ -489,17 +536,36 @@ def main() -> int:
                     if (service, digest, vulnerability_id) not in critical_acceptances
                 )
                 if unaccepted_critical:
-                    print(
-                        f"[{service}] scan=FAIL unaccepted Critical findings: "
-                        f"{', '.join(unaccepted_critical)}"
-                    )
-                    scan_failures.append(service)
-                    scan_ok = False
-                elif scan_result.finding_count and entry.get("vulnerability_exception") == NO_NEWER_IMAGE_EXCEPTION:
-                    print(f"[{service}] scan=EXEMPT time-bounded non-Critical findings accepted")
-                elif scan_result.finding_count:
-                    scan_failures.append(service)
-                    scan_ok = False
+                    currently_approved_result = None
+                    if current_digest and current_digest != digest:
+                        current_ref = to_digest_ref(upstream_ref, current_digest)
+                        currently_approved_result = scan_image(
+                            current_ref,
+                            f"{service} (currently approved)",
+                            scan_log_handle,
+                            args.scan_log,
+                            args.trivy_ignore_file,
+                            args.trivy_vex_file,
+                        )
+                    if critical_findings_are_preexisting(unaccepted_critical, currently_approved_result):
+                        critical_no_regression = True
+                        print(
+                            f"[{service}] scan=NO-REGRESSION Critical findings are already "
+                            "present in the currently approved image"
+                        )
+                    else:
+                        print(
+                            f"[{service}] scan=FAIL unaccepted Critical findings: "
+                            f"{', '.join(unaccepted_critical)}"
+                        )
+                        scan_failures.append(service)
+                        scan_ok = False
+                if scan_ok and scan_result.non_critical_count:
+                    if entry.get("vulnerability_exception") == NO_NEWER_IMAGE_EXCEPTION:
+                        print(f"[{service}] scan=EXEMPT time-bounded non-Critical findings accepted")
+                    else:
+                        scan_failures.append(service)
+                        scan_ok = False
 
             if not scan_ok:
                 continue
@@ -512,10 +578,22 @@ def main() -> int:
                 if args.registry:
                     entry["notes"] = f"Approved via scripts/promote_artifacts.py and mirrored to {args.registry}"
                 elif entry.get("vulnerability_exception") == NO_NEWER_IMAGE_EXCEPTION:
+                    if critical_no_regression:
+                        entry["notes"] = (
+                            "Approved newer no-regression image via scripts/promote_artifacts.py; "
+                            "Critical findings were also present in the previous digest and non-Critical "
+                            f"findings are accepted through {entry['vulnerability_exception_expires_on']}."
+                        )
+                    else:
+                        entry["notes"] = (
+                            "Approved latest upstream image via scripts/promote_artifacts.py; "
+                            f"non-Critical vulnerability findings accepted through "
+                            f"{entry['vulnerability_exception_expires_on']}."
+                        )
+                elif critical_no_regression:
                     entry["notes"] = (
-                        "Approved latest upstream image via scripts/promote_artifacts.py; "
-                        f"non-Critical vulnerability findings accepted through "
-                        f"{entry['vulnerability_exception_expires_on']}."
+                        "Approved newer no-regression image via scripts/promote_artifacts.py; "
+                        "Critical findings were also present in the previous digest."
                     )
                 else:
                     entry["notes"] = "Approved via scripts/promote_artifacts.py"

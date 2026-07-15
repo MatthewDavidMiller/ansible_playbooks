@@ -96,9 +96,10 @@ bash scripts/test_container_security.sh
 
 1. Resolve each `upstream_ref` to a digest with `skopeo`.
 2. Verify signatures with `cosign` when `signature_required: true` and the lock entry includes pinned signer metadata.
-3. Scan for fix-available `MEDIUM`, `HIGH`, and `CRITICAL` findings with `trivy`. Scanner/tool errors fail closed.
-4. Require a reviewed, maximum-30-day public exception for non-Critical findings and an exact local service/digest/CVE acceptance for every Critical finding.
-5. Optionally write the approved digest back to `artifacts/containers.lock.yml`.
+3. Require a changed image's recorded creation time to be at least 48 hours old.
+4. Scan for fix-available `MEDIUM`, `HIGH`, and `CRITICAL` findings with `trivy`. Scanner/tool errors fail closed.
+5. Require a reviewed, maximum-30-day public exception for non-Critical findings. Critical findings require an exact local service/digest/CVE acceptance unless every candidate Critical finding is already present in the currently approved digest; that no-regression case promotes the eligible newer image.
+6. Optionally write the approved digest back to `artifacts/containers.lock.yml`.
 
 Trivy output is written to `logs/container-vulnerability-findings.log`; `logs/` is git ignored.
 Critical findings cannot be hidden by a broad Trivy ignore or VEX file. Use `logs/vulnerability-acceptance.yml` for exact Critical acceptances; real acceptance data must stay out of the public repo. `artifacts/vulnerability-acceptance.example.yml` is the schema reference.

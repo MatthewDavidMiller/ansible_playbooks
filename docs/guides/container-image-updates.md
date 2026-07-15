@@ -8,9 +8,10 @@ The deploy path stays pinned to immutable digests in [`artifacts/containers.lock
 
 1. Change the intended upstream tag in the lock file.
 2. Resolve the exact digest with `skopeo`.
-3. Verify the image signature with `cosign` when `signature_required: true` and the lock entry pins the expected signer metadata.
-4. Scan the image with `trivy` for fix-available `MEDIUM`, `HIGH`, and `CRITICAL` vulnerabilities.
-5. Run the repo's policy and container-hardening tests before deployment.
+3. Require the image's recorded creation time to be at least 48 hours old.
+4. Verify the image signature with `cosign` when `signature_required: true` and the lock entry pins the expected signer metadata.
+5. Scan the image with `trivy` for fix-available `MEDIUM`, `HIGH`, and `CRITICAL` vulnerabilities.
+6. Run the repo's policy and container-hardening tests before deployment.
 
 ## Tooling
 
@@ -74,8 +75,9 @@ python3 scripts/promote_artifacts.py --write --service traefik
 Treat each update as approved only after all of the following are true:
 
 - `skopeo` resolved the expected upstream tag to a digest.
+- The candidate image's recorded creation time is at least 48 hours old. Younger images are not eligible for promotion.
 - `cosign verify` succeeded for services that require signatures and have pinned signer metadata in the lock file.
-- `trivy` reported no fix-available `MEDIUM`, `HIGH`, or `CRITICAL` findings. A maximum-30-day `no_newer_upstream_image` exception may cover non-Critical findings only; each Critical CVE needs an exact local acceptance. Review `logs/container-vulnerability-findings.log`.
+- `trivy` reported no fix-available `MEDIUM`, `HIGH`, or `CRITICAL` findings. A maximum-30-day `no_newer_upstream_image` exception may cover non-Critical findings. A Critical finding needs an exact local acceptance unless the same Critical finding is already present in the currently approved image; in that no-regression case, prefer the eligible newer image. Review `logs/container-vulnerability-findings.log`.
 - Any local VEX/ignore use is digest-specific, service-specific, time-bounded, and backed by runtime hardening or network containment.
 - `scripts/test_supply_chain_policy.sh` passed.
 - `scripts/test_container_security.sh` passed against the locked image set. During focused debugging, target affected services with commands like `bash scripts/test_container_security.sh semaphore`.
@@ -90,7 +92,13 @@ Use `vulnerability_exception: no_newer_upstream_image` only when Trivy reports f
 - Continue running and retaining the local Trivy findings for review.
 - Remove the exception when a newer upstream image passes the scan.
 - Do not use the exception for an older image when a newer eligible stable image exists.
-- Do not use this public exception for Critical findings; use the untracked exact-acceptance schema instead.
+- Do not use this public exception to accept a new Critical finding; use the untracked exact-acceptance schema instead.
+
+## Pre-existing Critical Findings
+
+Do not retain an older image solely because an eligible newer image contains the same Critical findings. When a candidate is at least 48 hours old, the promotion tool scans both digests. It may promote the candidate without a new Critical acceptance only when every unaccepted Critical finding in the candidate is also present in the currently approved image. Any new Critical finding still fails closed and requires exact local acceptance.
+
+The `no_newer_upstream_image` exception is still required when the candidate also has fix-available non-Critical findings. This no-regression rule does not hide findings or treat them as remediated; it prevents known inherited findings from blocking an otherwise newer image.
 
 ## Signature Exceptions
 

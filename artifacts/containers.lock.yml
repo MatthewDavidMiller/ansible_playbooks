@@ -4,16 +4,12 @@
 # intentionally promote newer upstream tags.
 artifact_locked_images:
   traefik:
-    upstream_ref: public.ecr.aws/docker/library/traefik:v3.7.5
-    approved_tag: v3.7.5
-    approved_digest: sha256:d6858791f9e74df44ca4014166647c41cdc2abd3bf2a71b832ca4e1c6a91b257
+    upstream_ref: public.ecr.aws/docker/library/traefik:v3.7.7
+    approved_tag: v3.7.7
+    approved_digest: sha256:1cb3845d7a05e1473c9086351426597e911db49db382b6e4769f9b0744962ac8
     internal_repo: homelab/traefik
     signature_required: false
-    vulnerability_exception: no_newer_upstream_image
-    vulnerability_exception_reviewed_on: '2026-07-14'
-    vulnerability_exception_expires_on: '2026-08-13'
-    notes: Approved latest upstream image via scripts/promote_artifacts.py; vulnerability
-      findings accepted until a newer upstream image resolves them.
+    notes: Approved via scripts/promote_artifacts.py
   postgres:
     upstream_ref: public.ecr.aws/docker/library/postgres:17.10
     approved_tag: '17.10'
@@ -33,16 +29,16 @@ artifact_locked_images:
     signature_required: false
     notes: Approved via scripts/promote_artifacts.py
   nextcloud:
-    upstream_ref: public.ecr.aws/docker/library/nextcloud:34.0.0
-    approved_tag: 34.0.0
-    approved_digest: sha256:e15ff2ff02d04bf272940bb63f2157599bc9440d45b688cc60f09b72be7ae717
+    upstream_ref: public.ecr.aws/docker/library/nextcloud:34.0.1
+    approved_tag: 34.0.1
+    approved_digest: sha256:e15c14f83a90484e497dabc7d01248370f69e1de353c072b8aa15dbd19d5fd9b
     internal_repo: homelab/nextcloud
     signature_required: false
     vulnerability_exception: no_newer_upstream_image
     vulnerability_exception_reviewed_on: '2026-07-14'
     vulnerability_exception_expires_on: '2026-08-13'
-    notes: Approved latest upstream image via scripts/promote_artifacts.py; vulnerability
-      findings accepted until a newer upstream image resolves them.
+    notes: Approved latest upstream image via scripts/promote_artifacts.py; non-Critical
+      vulnerability findings accepted through 2026-08-13.
   paperless:
     upstream_ref: ghcr.io/paperless-ngx/paperless-ngx:2.20.15
     approved_tag: 2.20.15
@@ -55,9 +51,9 @@ artifact_locked_images:
     notes: Approved latest upstream image via scripts/promote_artifacts.py; vulnerability
       findings accepted until a newer upstream image resolves them.
   navidrome:
-    upstream_ref: docker.io/deluan/navidrome:0.62.0
-    approved_tag: 0.62.0
-    approved_digest: sha256:c4b5cb36a790b3eb63ca6a68bbe2fe149c2d7fa2e586f7a480e61db630e6664b
+    upstream_ref: docker.io/deluan/navidrome:0.63.2
+    approved_tag: 0.63.2
+    approved_digest: sha256:9012939114fbb1bb641b81cf96dec5ded15f0aafefe8d47a511d7cb919658e40
     internal_repo: homelab/navidrome
     signature_required: false
     notes: Approved via scripts/promote_artifacts.py

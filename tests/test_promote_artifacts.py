@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 import importlib.util
 import json
 from pathlib import Path
@@ -45,7 +45,28 @@ class PromotionPolicyTests(unittest.TestCase):
         }
         result = promote.parse_trivy_result(json.dumps(report), "service")
         self.assertEqual(result.finding_count, 2)
+        self.assertEqual(result.non_critical_count, 1)
         self.assertEqual(result.critical_ids, frozenset({"CVE-2"}))
+
+    def test_changed_image_must_be_at_least_48_hours_old(self):
+        created = datetime(2026, 7, 13, 6, 52, tzinfo=timezone.utc)
+        promote.validate_minimum_image_age(
+            created,
+            "service",
+            now=created + timedelta(hours=promote.MINIMUM_IMAGE_AGE_HOURS),
+        )
+        with self.assertRaises(SystemExit):
+            promote.validate_minimum_image_age(
+                created,
+                "service",
+                now=created + timedelta(hours=promote.MINIMUM_IMAGE_AGE_HOURS, seconds=-1),
+            )
+
+    def test_preexisting_critical_findings_are_not_a_regression(self):
+        current = promote.ScanResult(3, 1, frozenset({"CVE-1", "CVE-2"}))
+        self.assertTrue(promote.critical_findings_are_preexisting(["CVE-1", "CVE-2"], current))
+        self.assertFalse(promote.critical_findings_are_preexisting(["CVE-1", "CVE-3"], current))
+        self.assertFalse(promote.critical_findings_are_preexisting(["CVE-1"], None))
 
     def test_critical_acceptance_is_exact_and_expires_within_30_days(self):
         with tempfile.TemporaryDirectory() as directory:
