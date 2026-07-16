@@ -153,7 +153,6 @@ assert_match "import_tasks: privacy[.]yml" "dev_vm includes managed agent privac
 assert_match "/etc/codex/managed_config[.]toml" "dev_vm installs Codex managed privacy defaults" roles/dev_vm/tasks/privacy.yml
 assert_match "/etc/codex/requirements[.]toml" "dev_vm enforces Codex privacy requirements" roles/dev_vm/tasks/privacy.yml
 assert_match "/etc/claude-code/managed-settings[.]json" "dev_vm installs Claude Code managed privacy settings" roles/dev_vm/tasks/privacy.yml
-assert_match "Purge legacy Grok installation and credentials" "dev_vm purges legacy Grok state" roles/dev_vm/tasks/remove_grok.yml
 assert_match "owner: root" "backup role sets root ownership on managed backup paths/scripts" roles/backup/tasks/main.yml
 assert_match "umask 077" "Borg backup script uses restrictive umask" roles/backup/templates/backup_files.sh.j2
 assert_match "trap cleanup EXIT" "remote Borg backup unmounts through cleanup trap" roles/backup/templates/backup_files.sh.j2

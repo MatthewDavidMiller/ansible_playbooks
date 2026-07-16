@@ -135,7 +135,6 @@ VM2 is the interactive development host. Users connect over SSH, start or reatta
 - VM2 uses the same Rocky Linux 10 baseline and SSH/firewall hardening as VM1.
 - The dev tooling is owned by the existing `user_name` account.
 - npm global packages install under `/home/{{ user_name }}/.npm-global` instead of a root-owned global prefix.
-- Legacy Grok binaries, completions, shell blocks, credentials, and configuration under `~/.grok` are purged during convergence.
 - Agent CLI PATH is managed via `/etc/profile.d/dev-vm-path.sh` (login) and a user snippet sourced from interactive `~/.bashrc` so tmux and editor terminals see npm and pip user bins.
 - Root-owned Codex and Claude Code managed policies disable Codex analytics, optional telemetry exporters, feedback, error reporting, publishing, and device remote control. Connectors, automatic updates, Claude Code feature-flag retrieval, local resumable history, memory, prompt caching, and ordinary model/web requests remain available. Claude Code's application telemetry cannot be disabled independently of feature-flag retrieval, so that coupled channel remains enabled to preserve capability.
 - Rootless Podman is the only container engine. Docker Engine and root-equivalent `docker` group membership are removed while `/var/lib/docker` is preserved.

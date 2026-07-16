@@ -42,7 +42,6 @@
   loop:
     - /etc/profile.d/dev-vm-python.sh
     - /etc/profile.d/dev-vm-npm.sh
-    - /etc/profile.d/dev-vm-grok.sh
 
 - name: Enable mouse scrolling in tmux for dev user
   ansible.builtin.lineinfile:
