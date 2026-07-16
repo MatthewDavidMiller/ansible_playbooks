@@ -24,7 +24,7 @@ This document covers the maintained playbooks only. Legacy playbooks live under 
 
 **Usage:** Configures VM2 as a Rocky Linux 10 SSH/tmux development VM for Codex and Claude Code.
 
-**Notes:** `vm2.yml` enables EPEL and CRB for the dev workstation package set, permits local-only SSH TCP forwarding and raises `MaxSessions` for VS Code Remote SSH, installs Codex and Claude Code through user-local npm, and configures rootless Podman. Convergence removes Docker Engine and the root-equivalent `docker` group membership while preserving `/var/lib/docker`, and purges legacy Grok installation and credential state. Provider login remains interactive.
+**Notes:** `vm2.yml` enables EPEL and CRB for the dev workstation package set, permits local-only SSH TCP forwarding and raises `MaxSessions` for VS Code Remote SSH, installs Codex and Claude Code through user-local npm, and configures rootless Podman. Machine-managed policy disables Codex telemetry, optional telemetry exporters, feedback, error reporting, publishing, and remote-control features while retaining connectors, automatic updates, Claude Code feature-flag retrieval, local session history, and memory. Convergence removes Docker Engine and the root-equivalent `docker` group membership while preserving `/var/lib/docker`, and purges legacy Grok installation and credential state. Provider login remains interactive.
 
 ---
 

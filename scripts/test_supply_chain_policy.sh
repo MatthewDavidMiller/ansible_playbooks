@@ -149,6 +149,10 @@ assert_match "Validate firewalld ingress inputs" "firewalld validates ingress in
 assert_match "homelab_valid_ipv4_cidr" "firewalld uses semantic CIDR validation" roles/standard_firewalld/tasks/main.yml
 assert_match "Remove stale homelab source assignments" "firewalld reconciles removed source networks" roles/standard_firewalld/tasks/main.yml
 assert_no_match "\\bdev_vm_docker_packages\\b|\\bdev_vm_docker_prune\\b" "dev_vm no longer provisions Docker Engine" roles/dev_vm vm2.yml docs/variables.md
+assert_match "import_tasks: privacy[.]yml" "dev_vm includes managed agent privacy tasks" roles/dev_vm/tasks/main.yml
+assert_match "/etc/codex/managed_config[.]toml" "dev_vm installs Codex managed privacy defaults" roles/dev_vm/tasks/privacy.yml
+assert_match "/etc/codex/requirements[.]toml" "dev_vm enforces Codex privacy requirements" roles/dev_vm/tasks/privacy.yml
+assert_match "/etc/claude-code/managed-settings[.]json" "dev_vm installs Claude Code managed privacy settings" roles/dev_vm/tasks/privacy.yml
 assert_match "Purge legacy Grok installation and credentials" "dev_vm purges legacy Grok state" roles/dev_vm/tasks/remove_grok.yml
 assert_match "owner: root" "backup role sets root ownership on managed backup paths/scripts" roles/backup/tasks/main.yml
 assert_match "umask 077" "Borg backup script uses restrictive umask" roles/backup/templates/backup_files.sh.j2

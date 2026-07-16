@@ -130,7 +130,7 @@ Configures VM2 as an SSH/tmux development host for Codex and Claude Code.
 | `dev_vm_ansible_project_path` | path | Checkout path used to find pinned collection requirements | `/home/example_user/matt_dev/ansible_playbooks` |
 | `dev_vm_install_project_collections` | boolean | Install repo-pinned Ansible collections when the checkout exists | `true` |
 
-**Key behavior:** installs the workstation package baseline and rootless Podman, allocates a non-overlapping subordinate-ID range, and verifies Podman runs rootless. Docker services, packages, repository, and group membership are removed without deleting `/var/lib/docker`. Legacy Grok shell blocks, completions, symlinks, configuration, credentials, and `~/.grok` are purged. npm agent CLIs remain intentionally unpinned; validator CLIs are version pinned. PATH, tmux, optional Git identity, and repository-pinned Ansible collections are managed for the dev user.
+**Key behavior:** installs the workstation package baseline and rootless Podman, allocates a non-overlapping subordinate-ID range, and verifies Podman runs rootless. Docker services, packages, repository, and group membership are removed without deleting `/var/lib/docker`. Legacy Grok shell blocks, completions, symlinks, configuration, credentials, and `~/.grok` are purged. Root-owned managed policy disables Codex telemetry, optional telemetry exporters, feedback, publishing, and remote control without removing connectors, automatic updates, Claude Code feature-flag retrieval, local resumable history, or memory. npm agent CLIs remain intentionally unpinned; validator CLIs are version pinned. PATH, tmux, optional Git identity, and repository-pinned Ansible collections are managed for the dev user.
 
 **First login (interactive):**
 

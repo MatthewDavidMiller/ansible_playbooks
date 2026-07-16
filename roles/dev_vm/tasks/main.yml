@@ -11,6 +11,9 @@
 - name: Include dev_vm npm agent CLI tasks
   ansible.builtin.import_tasks: npm_agents.yml
 
+- name: Include dev_vm agent privacy policy tasks
+  ansible.builtin.import_tasks: privacy.yml
+
 - name: Include dev_vm Grok Build removal tasks
   ansible.builtin.import_tasks: remove_grok.yml
 

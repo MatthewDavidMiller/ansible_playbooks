@@ -1,0 +1,5 @@
+# Managed by Ansible (dev_vm role).
+# Disable cloud-sharing surfaces that do not affect model capability.
+
+allow_appshots = false
+allow_remote_control = false

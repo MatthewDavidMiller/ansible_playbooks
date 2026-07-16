@@ -1,0 +1,28 @@
+---
+- name: Ensure managed agent configuration directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - /etc/codex
+    - /etc/claude-code
+
+- name: Install managed Codex and Claude Code privacy policies
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - src: codex-managed-config.toml
+      dest: /etc/codex/managed_config.toml
+    - src: codex-requirements.toml
+      dest: /etc/codex/requirements.toml
+    - src: claude-managed-settings.json
+      dest: /etc/claude-code/managed-settings.json
+  loop_control:
+    label: "{{ item.dest }}"
