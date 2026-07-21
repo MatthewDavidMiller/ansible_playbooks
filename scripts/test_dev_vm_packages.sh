@@ -141,6 +141,7 @@ required_dnf=(
   shadow-utils
   ShellCheck
   gh
+  trivy
 )
 for pkg in "${required_dnf[@]}"; do
   list_contains "$pkg" "${dev_vm_packages[@]}" || fail "required dnf package missing from dev_vm_packages: $pkg"
@@ -219,6 +220,18 @@ else
   exit 1
 fi
 dnf -y -q makecache
+
+# Match roles/dev_vm/tasks/packages.yml by enabling Aqua Security's official
+# RPM repository before resolving the package list that includes Trivy.
+cat >/etc/yum.repos.d/trivy.repo <<'EOF'
+[trivy]
+name=Trivy repository
+baseurl=https://aquasecurity.github.io/trivy-repo/rpm/releases/$basearch/
+enabled=1
+gpgcheck=1
+gpgkey=https://aquasecurity.github.io/trivy-repo/rpm/public.key
+EOF
+dnf -y -q makecache --repo trivy
 
 # Regression fixture: without CRB, EPEL yamllint fails with the original error.
 # Prove the broken mode still exists upstream so we never drop the CRB enable step.

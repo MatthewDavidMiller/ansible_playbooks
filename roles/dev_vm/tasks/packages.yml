@@ -1,4 +1,13 @@
 ---
+- name: Configure official Trivy RPM repository
+  ansible.builtin.yum_repository:
+    name: trivy
+    description: Trivy repository
+    baseurl: "{{ dev_vm_trivy_repo_baseurl }}"
+    gpgcheck: true
+    gpgkey: "{{ dev_vm_trivy_repo_gpgkey }}"
+    enabled: true
+
 - name: Install dev workstation packages
   ansible.builtin.dnf:
     name: "{{ dev_vm_packages }}"

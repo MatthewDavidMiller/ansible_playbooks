@@ -11,6 +11,10 @@ dev_vm_tmux_session: dev
 # Parent workspace directory (created empty; no auto git clone).
 dev_vm_workspace_path: "/home/{{ dev_vm_user }}/matt_dev"
 
+# Official Aqua Security RPM repository used to install Trivy.
+dev_vm_trivy_repo_baseurl: "https://aquasecurity.github.io/trivy-repo/rpm/releases/$basearch/"
+dev_vm_trivy_repo_gpgkey: "https://aquasecurity.github.io/trivy-repo/rpm/public.key"
+
 dev_vm_packages:
   - tmux
   - git
@@ -42,6 +46,7 @@ dev_vm_packages:
   - tree
   - ShellCheck
   - gh
+  - trivy
 
 # Docker Engine is intentionally removed from VM2. Keep the package list here
 # only as the declarative removal set for hosts converged from older revisions.
