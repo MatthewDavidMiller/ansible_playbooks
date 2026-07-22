@@ -55,7 +55,8 @@ def homelab_immutable_image(value: object) -> bool:
 
 
 def homelab_safe_name(value: object) -> bool:
-    return bool(_SAFE_NAME.fullmatch(str(value)))
+    text = str(value)
+    return text not in {".", ".."} and bool(_SAFE_NAME.fullmatch(text))
 
 
 class FilterModule:

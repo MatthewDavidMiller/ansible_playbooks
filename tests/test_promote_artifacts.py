@@ -1,10 +1,13 @@
 from datetime import date, datetime, timedelta, timezone
+from contextlib import redirect_stdout
 import importlib.util
+import io
 import json
 from pathlib import Path
 import tempfile
 import sys
 import unittest
+from unittest import mock
 
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "scripts" / "promote_artifacts.py"
@@ -16,6 +19,27 @@ SPEC.loader.exec_module(promote)
 
 
 class PromotionPolicyTests(unittest.TestCase):
+    def test_digest_validation_requires_lowercase_hex(self):
+        digest = "sha256:" + "a" * 64
+        self.assertEqual(promote.validate_digest(digest, "digest"), digest)
+        for invalid in ("sha256:" + "g" * 64, "sha256:" + "A" * 64, "sha256:abc", 1):
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(SystemExit):
+                    promote.validate_digest(invalid, "digest")
+
+    def test_lock_entry_requires_expected_shape(self):
+        valid = {
+            "upstream_ref": "registry.example/app:1",
+            "internal_repo": "homelab/app",
+            "approved_digest": "sha256:" + "a" * 64,
+            "signature_required": False,
+        }
+        self.assertIs(promote.validate_lock_entry(valid, "app"), valid)
+        for invalid in (None, {}, {**valid, "approved_digest": "sha256:bad"}, {**valid, "signature_required": "false"}):
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(SystemExit):
+                    promote.validate_lock_entry(invalid, "app")
+
     def test_exception_metadata_is_time_bounded(self):
         entry = {
             "vulnerability_exception": promote.NO_NEWER_IMAGE_EXCEPTION,
@@ -84,6 +108,102 @@ class PromotionPolicyTests(unittest.TestCase):
             )
             accepted = promote.load_critical_acceptances(path, today=date(2026, 7, 14))
             self.assertIn(("app", "sha256:" + "a" * 64, "CVE-1"), accepted)
+
+            path.write_text(path.read_text(encoding="utf-8").replace("a" * 64, "g" * 64), encoding="utf-8")
+            with self.assertRaises(SystemExit):
+                promote.load_critical_acceptances(path, today=date(2026, 7, 14))
+
+    def test_image_inspection_parses_digest_and_utc_creation_time(self):
+        result = mock.Mock(stdout=json.dumps({
+            "Digest": "sha256:" + "a" * 64,
+            "Created": "2026-07-01T12:00:00-04:00",
+        }))
+        with (
+            mock.patch.object(promote, "run", return_value=result),
+            mock.patch.object(promote, "tool_command", return_value=["skopeo"]),
+        ):
+            inspection = promote.inspect_image("registry.example/app:1")
+        self.assertEqual(inspection.digest, "sha256:" + "a" * 64)
+        self.assertEqual(inspection.created, datetime(2026, 7, 1, 16, tzinfo=timezone.utc))
+
+    def test_image_inspection_rejects_malformed_metadata(self):
+        for output in ("not-json", "[]", json.dumps({"Digest": "sha256:bad"})):
+            with self.subTest(output=output):
+                with (
+                    mock.patch.object(promote, "run", return_value=mock.Mock(stdout=output)),
+                    mock.patch.object(promote, "tool_command", return_value=["skopeo"]),
+                ):
+                    with self.assertRaises(SystemExit):
+                        promote.inspect_image("registry.example/app:1")
+
+    def test_trivy_json_rejects_malformed_report_shapes(self):
+        for report in ([], {"Results": {}}, {"Results": [None]}, {"Results": [{"Vulnerabilities": {}}]}):
+            with self.subTest(report=report):
+                with self.assertRaises(SystemExit):
+                    promote.parse_trivy_result(json.dumps(report), "service")
+
+    def test_signature_arguments_require_one_identity_and_issuer(self):
+        entry = {
+            "signature_identity": "https://example.test/workflow",
+            "signature_oidc_issuer": "https://issuer.test",
+        }
+        self.assertEqual(
+            promote.signature_verification_args(entry, "app"),
+            [
+                "--certificate-identity",
+                entry["signature_identity"],
+                "--certificate-oidc-issuer",
+                entry["signature_oidc_issuer"],
+            ],
+        )
+        with self.assertRaises(SystemExit):
+            promote.signature_verification_args({}, "app")
+        with self.assertRaises(SystemExit):
+            promote.signature_verification_args(
+                {**entry, "signature_identity_regexp": ".*"}, "app"
+            )
+
+    def test_digest_reference_replaces_tag_or_existing_digest(self):
+        digest = "sha256:" + "b" * 64
+        self.assertEqual(
+            promote.to_digest_ref("registry.example:5000/app:1.2", digest),
+            f"registry.example:5000/app@{digest}",
+        )
+        self.assertEqual(
+            promote.to_digest_ref("registry.example/app@sha256:" + "a" * 64, digest),
+            f"registry.example/app@{digest}",
+        )
+
+    def test_main_inspects_each_selected_image_once(self):
+        with tempfile.TemporaryDirectory() as directory:
+            lock_file = Path(directory) / "lock.yml"
+            lock_file.write_text(
+                "artifact_locked_images:\n"
+                "  app:\n"
+                "    upstream_ref: registry.example/app:1\n"
+                "    internal_repo: homelab/app\n"
+                f"    approved_digest: sha256:{'a' * 64}\n"
+                "    signature_required: false\n",
+                encoding="utf-8",
+            )
+            inspection = promote.ImageInspection("sha256:" + "a" * 64, None)
+            argv = [
+                "promote_artifacts.py",
+                "--lock-file",
+                str(lock_file),
+                "--service",
+                "app",
+                "--skip-scan",
+                "--skip-signature-verify",
+            ]
+            with (
+                mock.patch.object(sys, "argv", argv),
+                mock.patch.object(promote, "resolve_tool_command", return_value=(["skopeo"], "local")),
+                mock.patch.object(promote, "inspect_image", return_value=inspection) as inspect,
+                redirect_stdout(io.StringIO()),
+            ):
+                self.assertEqual(promote.main(), 0)
+            inspect.assert_called_once_with("registry.example/app:1")
 
 
 if __name__ == "__main__":

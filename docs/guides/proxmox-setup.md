@@ -41,8 +41,10 @@ the Proxmox host as `/root/proxmox_initial_setup.py`, either copy the lock file 
 PROXMOX_CLOUD_IMAGE_LOCK=/path/to/cloud_images.lock.yml python3 /root/proxmox_initial_setup.py
 ```
 
-The script is idempotent for the maintained VMIDs. If the Rocky template or a maintained VM already exists, the script skips the create/clone step and reapplies safe settings such as name, CPU, and memory. It only adds an EFI disk when one is missing and only grows a managed root disk when the current size is smaller than the requested size. If a maintained VMID exists with the wrong type, such as VMID 401 not being a template, the script exits instead of overwriting it.
+The script is idempotent for the maintained VMIDs. If the Rocky template or a maintained VM already exists with the expected name and type, the script skips the create/clone step and reapplies safe settings such as CPU and memory. It only adds an EFI disk when one is missing and only grows a managed root disk when the current size is smaller than the requested size. If a maintained VMID has the wrong type or name, the script exits instead of modifying a potentially unrelated guest.
 When the script has to create, clone, resize, or correct drift, it prints `CHANGE:` lines for the operations that completed. A fully converged run exits without change output.
+
+The cloud-image lock is also validated before provisioning: the URL must use HTTPS, the filename must be a basename without path components, and the checksum must contain exactly 64 lowercase hexadecimal characters. Downloads time out after 60 seconds, use a temporary `.part` file, and remove that partial file after failures.
 
 ---
 

@@ -36,7 +36,7 @@
       - (config_name.proxy_upstream_port | int) <= 65535
       - config_name.container_destination | length > 0
       - config_name.proxy_network is defined
-      - config_name.proxy_network is match('^[A-Za-z0-9_.-]+$')
+      - config_name.proxy_network | homelab_safe_name
       - config_name.proxy_network not in reverse_proxy_forbidden_networks
       - config_name.proxy_network in route_proxy_container_ips
     fail_msg: "Each proxy_config entry needs a safe name, FQDN, http/https upstream, valid port, container destination, and route_proxy_container_ips entry."
@@ -62,7 +62,7 @@
 - name: Validate Traefik egress network
   ansible.builtin.assert:
     that:
-      - traefik_egress_network is match('^[A-Za-z0-9_.-]+$')
+      - traefik_egress_network | homelab_safe_name
       - traefik_egress_network not in traefik_app_networks
       - traefik_egress_network != 'nextcloud_container_net'
     fail_msg: "traefik_egress_network must be a safe dedicated non-backend network name."

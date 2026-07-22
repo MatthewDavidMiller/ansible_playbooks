@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -27,6 +28,7 @@ SCAN_SEVERITIES = "MEDIUM,HIGH,CRITICAL"
 NO_NEWER_IMAGE_EXCEPTION = "no_newer_upstream_image"
 MAX_EXCEPTION_DAYS = 30
 MINIMUM_IMAGE_AGE_HOURS = 48
+SHA256_DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
 FALLBACK_TOOL_IMAGES = {
     "skopeo": "quay.io/skopeo/stable@sha256:c7d3c512612f52805023cd38351081dad7e2729fc13d14b701e47c7c8bdd6615",
     "cosign": "ghcr.io/sigstore/cosign/cosign@sha256:6bbe0d281d955c79f85b325f0f7e651c1bcab5a4fa4ad4903d74955178a3b2eb",
@@ -40,6 +42,12 @@ class ScanResult:
     finding_count: int
     non_critical_count: int
     critical_ids: frozenset[str]
+
+
+@dataclass(frozen=True)
+class ImageInspection:
+    digest: str
+    created: datetime | None
 
 
 def run(argv: list[str], *, capture_output: bool = True) -> subprocess.CompletedProcess[str]:
@@ -144,9 +152,30 @@ def print_tool_status(*, skip_signature_verify: bool, skip_scan: bool) -> None:
 def load_lock_file(path: Path) -> dict:
     with path.open("r", encoding="utf-8") as handle:
         data = yaml.safe_load(handle)
-    if not isinstance(data, dict) or "artifact_locked_images" not in data:
+    if not isinstance(data, dict) or not isinstance(data.get("artifact_locked_images"), dict):
         raise SystemExit(f"Invalid lock file format: {path}")
     return data
+
+
+def validate_digest(value: object, label: str) -> str:
+    if not isinstance(value, str) or not SHA256_DIGEST.fullmatch(value):
+        raise SystemExit(f"{label} must be a full lowercase sha256 digest")
+    return value
+
+
+def validate_lock_entry(entry: object, service: str) -> dict:
+    if not isinstance(entry, dict):
+        raise SystemExit(f"{service}: lock entry must be a mapping")
+    for field in ("upstream_ref", "internal_repo"):
+        if not isinstance(entry.get(field), str) or not entry[field].strip():
+            raise SystemExit(f"{service}: {field} must be a non-empty string")
+    if "approved_digest" in entry:
+        validate_digest(entry["approved_digest"], f"{service}: approved_digest")
+    if not isinstance(entry.get("signature_required", False), bool):
+        raise SystemExit(f"{service}: signature_required must be a boolean")
+    if entry.get("signature_required"):
+        signature_verification_args(entry, service)
+    return entry
 
 
 def parse_policy_date(value: object, field: str, service: str) -> date:
@@ -202,39 +231,47 @@ def load_critical_acceptances(path: Path, *, today: date | None = None) -> set[t
         expires = parse_policy_date(record["expires_on"], "expires_on", label)
         if expires < current_date or (expires - current_date).days > MAX_EXCEPTION_DAYS:
             raise SystemExit(f"{label}: expires_on must be within the next {MAX_EXCEPTION_DAYS} days")
-        digest = record["image_digest"]
-        if not isinstance(digest, str) or not digest.startswith("sha256:") or len(digest) != 71:
-            raise SystemExit(f"{label}: image_digest must be a full sha256 digest")
+        for field in ("service", "vulnerability_id", "reason"):
+            if not isinstance(record[field], str) or not record[field].strip():
+                raise SystemExit(f"{label}: {field} must be a non-empty string")
+        digest = validate_digest(record["image_digest"], f"{label}: image_digest")
         accepted.add((str(record["service"]), digest, str(record["vulnerability_id"])))
     return accepted
 
 
+def inspect_image(upstream_ref: str) -> ImageInspection:
+    result = run([*tool_command("skopeo"), "inspect", f"docker://{upstream_ref}"])
+    try:
+        data = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        raise SystemExit(f"Failed to inspect image metadata for {upstream_ref}") from exc
+    if not isinstance(data, dict):
+        raise SystemExit(f"Failed to inspect image metadata for {upstream_ref}")
+
+    digest = validate_digest(data.get("Digest"), f"{upstream_ref}: resolved digest")
+    created_value = data.get("Created")
+    if created_value is None:
+        created = None
+    else:
+        try:
+            created = datetime.fromisoformat(str(created_value).replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise SystemExit(f"Failed to read image creation time for {upstream_ref}") from exc
+        if created.tzinfo is None:
+            raise SystemExit(f"Image creation time for {upstream_ref} has no timezone")
+        created = created.astimezone(timezone.utc)
+    return ImageInspection(digest=digest, created=created)
+
+
 def resolve_digest(upstream_ref: str) -> str:
-    result = run(
-        [
-            *tool_command("skopeo"),
-            "inspect",
-            "--format",
-            "{{.Digest}}",
-            f"docker://{upstream_ref}",
-        ]
-    )
-    digest = result.stdout.strip()
-    if not digest.startswith("sha256:"):
-        raise SystemExit(f"Failed to resolve digest for {upstream_ref}: {digest!r}")
-    return digest
+    return inspect_image(upstream_ref).digest
 
 
 def inspect_image_created(upstream_ref: str) -> datetime:
-    result = run([*tool_command("skopeo"), "inspect", f"docker://{upstream_ref}"])
-    try:
-        created_value = json.loads(result.stdout)["Created"]
-        created = datetime.fromisoformat(str(created_value).replace("Z", "+00:00"))
-    except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
-        raise SystemExit(f"Failed to read image creation time for {upstream_ref}") from exc
-    if created.tzinfo is None:
-        raise SystemExit(f"Image creation time for {upstream_ref} has no timezone")
-    return created.astimezone(timezone.utc)
+    created = inspect_image(upstream_ref).created
+    if created is None:
+        raise SystemExit(f"Failed to read image creation time for {upstream_ref}")
+    return created
 
 
 def validate_minimum_image_age(
@@ -329,11 +366,20 @@ def parse_trivy_result(output: str, service: str) -> ScanResult:
         report = json.loads(output)
     except json.JSONDecodeError as exc:
         raise SystemExit(f"{service}: Trivy returned invalid JSON") from exc
-    vulnerabilities = [
-        vulnerability
-        for result in report.get("Results", [])
-        for vulnerability in (result.get("Vulnerabilities") or [])
-    ]
+    if not isinstance(report, dict) or not isinstance(report.get("Results", []), list):
+        raise SystemExit(f"{service}: Trivy returned an invalid report structure")
+    vulnerabilities = []
+    for result in report.get("Results", []):
+        if not isinstance(result, dict):
+            raise SystemExit(f"{service}: Trivy returned an invalid report structure")
+        result_vulnerabilities = result.get("Vulnerabilities")
+        if result_vulnerabilities is None:
+            result_vulnerabilities = []
+        if not isinstance(result_vulnerabilities, list) or not all(
+            isinstance(vulnerability, dict) for vulnerability in result_vulnerabilities
+        ):
+            raise SystemExit(f"{service}: Trivy returned an invalid report structure")
+        vulnerabilities.extend(result_vulnerabilities)
     critical_ids = frozenset(
         str(vulnerability.get("VulnerabilityID"))
         for vulnerability in vulnerabilities
@@ -476,6 +522,7 @@ def main() -> int:
     for service in selected:
         if service not in images:
             raise SystemExit(f"Unknown service in lock file: {service}")
+        validate_lock_entry(images[service], service)
         validate_exception_metadata(images[service], service)
 
     critical_acceptances = load_critical_acceptances(args.critical_acceptance_file)
@@ -500,7 +547,8 @@ def main() -> int:
         for service in selected:
             entry = images[service]
             upstream_ref = entry["upstream_ref"]
-            digest = resolve_digest(upstream_ref)
+            inspection = inspect_image(upstream_ref)
+            digest = inspection.digest
             print(f"[{service}] upstream={upstream_ref}")
             print(f"[{service}] digest={digest}")
             digest_ref = to_digest_ref(upstream_ref, digest)
@@ -508,7 +556,9 @@ def main() -> int:
 
             current_digest = entry.get("approved_digest")
             if current_digest and digest != current_digest:
-                created = inspect_image_created(upstream_ref)
+                created = inspection.created
+                if created is None:
+                    raise SystemExit(f"Failed to read image creation time for {upstream_ref}")
                 validate_minimum_image_age(created, service)
                 print(f"[{service}] created={created.isoformat()} age=PASS")
 

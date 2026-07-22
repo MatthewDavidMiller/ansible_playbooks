@@ -128,6 +128,8 @@ def _porkbun_post(endpoint: str, extra: dict, base: str = PORKBUN_BASE) -> dict:
         result = resp.json()
     except ValueError:
         result = {}
+    if not isinstance(result, dict):
+        result = {}
     if not resp.ok:
         code = result.get("code", "")
         message = result.get("message", resp.reason or "")
@@ -155,6 +157,8 @@ def get_dns_record() -> tuple[str | None, str | None]:
         f"dns/retrieveByNameType/{DOMAIN}/A/{SUBDOMAIN}", {}
     )
     records = result.get("records", [])
+    if not isinstance(records, list) or not all(isinstance(record, dict) for record in records):
+        raise RuntimeError("Porkbun DNS response contained an invalid records list")
     if not records:
         return None, None
     if len(records) > 1:

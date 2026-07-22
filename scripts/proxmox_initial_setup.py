@@ -6,9 +6,11 @@ from __future__ import annotations
 import hashlib
 import os
 import re
+import shutil
 import subprocess
 import urllib.request
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import yaml
 
@@ -20,6 +22,8 @@ DOWNLOAD_DIR = Path("/var/lib/vz/template")
 ROCKY_TEMPLATE_ID = "401"
 ROCKY_TEMPLATE_NAME = "RockyLinuxCloudInitTemplate"
 VM_STORAGE = "local-lvm"
+DOWNLOAD_TIMEOUT = 60
+SHA256_HEX = re.compile(r"^[0-9a-f]{64}$")
 
 ROCKY_VMS = [
     {
@@ -65,6 +69,20 @@ def parse_qm_config(config: str) -> dict[str, str]:
         if separator:
             parsed[key] = value
     return parsed
+
+
+def require_managed_identity(
+    parsed: dict[str, str],
+    vmid: str,
+    expected_name: str,
+    expected_type: str,
+) -> None:
+    actual_name = parsed.get("name")
+    if actual_name != expected_name:
+        raise SystemExit(
+            f"VMID {vmid} is not the managed {expected_type}: expected name "
+            f"{expected_name!r}, found {actual_name!r}. Refusing to modify it."
+        )
 
 
 def parse_size_bytes(size: str) -> int:
@@ -140,13 +158,28 @@ def load_rocky_image_lock() -> dict:
     lock_file = resolve_lock_file()
     with lock_file.open("r", encoding="utf-8") as handle:
         data = yaml.safe_load(handle)
-    image = data["cloud_image_lock"]["rocky_linux_10_x86_64"]
+    try:
+        image = data["cloud_image_lock"]["rocky_linux_10_x86_64"]
+    except (KeyError, TypeError) as exc:
+        raise SystemExit(f"Invalid Rocky cloud image lock format: {lock_file}") from exc
+    if not isinstance(image, dict):
+        raise SystemExit(f"Invalid Rocky cloud image lock format: {lock_file}")
     for key in ("url", "filename", "sha256"):
-        value = image[key]
+        value = image.get(key)
+        if not isinstance(value, str) or not value:
+            raise SystemExit(f"{lock_file}: {key} must be a non-empty string")
         if value.startswith("REPLACE_WITH_"):
             raise SystemExit(
                 f"{lock_file} still contains placeholder {key}; pin the official Rocky image first."
             )
+    parsed_url = urlsplit(image["url"])
+    if parsed_url.scheme != "https" or not parsed_url.netloc:
+        raise SystemExit(f"{lock_file}: Rocky cloud image URL must use HTTPS")
+    filename = image["filename"]
+    if Path(filename).name != filename or filename in {".", ".."}:
+        raise SystemExit(f"{lock_file}: filename must be a safe basename")
+    if not SHA256_HEX.fullmatch(image["sha256"]):
+        raise SystemExit(f"{lock_file}: sha256 must contain exactly 64 lowercase hexadecimal characters")
     return image
 
 
@@ -165,16 +198,25 @@ def download_verified_image(url: str, filename: str, expected_sha256: str) -> Pa
 
     destination.parent.mkdir(parents=True, exist_ok=True)
     partial = destination.with_suffix(destination.suffix + ".part")
-    urllib.request.urlretrieve(url, partial)
-
-    actual_sha256 = sha256sum(partial)
-    if actual_sha256 != expected_sha256:
+    try:
+        with urllib.request.urlopen(url, timeout=DOWNLOAD_TIMEOUT) as response:
+            with partial.open("wb") as handle:
+                shutil.copyfileobj(response, handle, length=1024 * 1024)
+    except (Exception, KeyboardInterrupt):
         partial.unlink(missing_ok=True)
-        raise SystemExit(
-            f"Checksum mismatch for {url}: expected {expected_sha256}, got {actual_sha256}"
-        )
+        raise
 
-    partial.replace(destination)
+    try:
+        actual_sha256 = sha256sum(partial)
+        if actual_sha256 != expected_sha256:
+            raise SystemExit(
+                f"Checksum mismatch for {url}: expected {expected_sha256}, got {actual_sha256}"
+            )
+        partial.replace(destination)
+    except (Exception, KeyboardInterrupt, SystemExit):
+        partial.unlink(missing_ok=True)
+        raise
+
     print(f"CHANGE: Download cloud image {url} to {destination}", flush=True)
     return destination
 
@@ -187,6 +229,12 @@ def create_rocky_template() -> None:
             raise SystemExit(
                 f"VMID {ROCKY_TEMPLATE_ID} already exists but is not a template."
             )
+        require_managed_identity(
+            parsed,
+            ROCKY_TEMPLATE_ID,
+            ROCKY_TEMPLATE_NAME,
+            "Rocky template",
+        )
         configure_rocky_template(parsed)
         return
 
@@ -229,7 +277,16 @@ def create_rocky_template() -> None:
         f"Attach cloud-init disk to VMID {ROCKY_TEMPLATE_ID}",
         ["qm", "set", ROCKY_TEMPLATE_ID, "--scsi1", f"{VM_STORAGE}:cloudinit"],
     )
-    parsed = parse_qm_config(qm_config(ROCKY_TEMPLATE_ID) or "")
+    configured_template = qm_config(ROCKY_TEMPLATE_ID)
+    if configured_template is None:
+        raise SystemExit(f"Unable to read config for template VMID {ROCKY_TEMPLATE_ID}.")
+    parsed = parse_qm_config(configured_template)
+    require_managed_identity(
+        parsed,
+        ROCKY_TEMPLATE_ID,
+        ROCKY_TEMPLATE_NAME,
+        "Rocky template",
+    )
     configure_rocky_template(parsed)
     run_change(
         f"Mark VMID {ROCKY_TEMPLATE_ID} as a template",
@@ -264,6 +321,7 @@ def clone_rocky_vm(vm: dict[str, str]) -> None:
         parsed = parse_qm_config(config)
         if parsed.get("template") == "1":
             raise SystemExit(f"VMID {vmid} already exists as a template.")
+        require_managed_identity(parsed, vmid, vm["name"], "VM")
     else:
         run_change(
             f"Clone Rocky template VMID {ROCKY_TEMPLATE_ID} to VMID {vmid}",
@@ -274,6 +332,7 @@ def clone_rocky_vm(vm: dict[str, str]) -> None:
             raise SystemExit(f"Unable to read config for cloned VMID {vmid}.")
 
     parsed = parse_qm_config(config)
+    require_managed_identity(parsed, vmid, vm["name"], "VM")
     if "efidisk0" not in parsed:
         run_change(
             f"Add EFI disk to VMID {vmid}",

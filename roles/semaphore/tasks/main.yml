@@ -90,7 +90,7 @@
 - name: Validate Semaphore egress network
   ansible.builtin.assert:
     that:
-      - semaphore_egress_network is match('^[A-Za-z0-9_.-]+$')
+      - semaphore_egress_network | homelab_safe_name
       - semaphore_egress_network != 'nextcloud_container_net'
       - semaphore_egress_network != 'semaphore_container_net'
     fail_msg: "semaphore_egress_network must be a safe dedicated non-backend network name."

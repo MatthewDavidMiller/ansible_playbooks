@@ -12,7 +12,21 @@ set -euo pipefail
 REPO_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 LOCK_FILE=${LOCK_FILE:-"$REPO_ROOT/artifacts/containers.lock.yml"}
 TEST_LOCK_FILE=${TEST_LOCK_FILE:-"$REPO_ROOT/artifacts/test_images.lock.yml"}
-DOCKER=${DOCKER:-docker}
+DOCKER=${DOCKER:-}
+if [[ -z "$DOCKER" ]]; then
+  if command -v docker >/dev/null 2>&1; then
+    DOCKER=docker
+  elif command -v podman >/dev/null 2>&1; then
+    DOCKER=podman
+  else
+    DOCKER=docker
+  fi
+fi
+ENGINE_RUN=("$DOCKER" run)
+if [[ "$DOCKER" == *podman* ]]; then
+  # Runtime tests use disposable bind mounts; avoid relabeling host paths.
+  ENGINE_RUN+=(--security-opt label=disable)
+fi
 usage() {
   sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'
 }
@@ -91,10 +105,23 @@ TEST_HELPER_IMAGE=${TEST_HELPER_IMAGE:-$(test_image_ref alpine)}
 }
 
 cleanup()     { $DOCKER rm -f "$1" >/dev/null 2>&1 || true; }
+chown_test_path() {
+  local owner="$1" path="$2"
+  shift 2
+  if [[ "$DOCKER" == *podman* ]]; then
+    $DOCKER unshare chown "$@" "$owner" "$path"
+  else
+    "${ENGINE_RUN[@]}" --rm -v "$path":/target "$TEST_HELPER_IMAGE" chown "$@" "$owner" /target
+  fi
+}
 cleanup_dir() {
-  # Restore ownership to current user via docker so rm -rf works without sudo
-  $DOCKER run --rm -v "$(dirname "$1")":/mnt \
-    "$TEST_HELPER_IMAGE" chown -R "$(id -u):$(id -g)" "/mnt/$(basename "$1")"
+  # Restore ownership to the current user through the selected container engine.
+  if [[ "$DOCKER" == *podman* ]]; then
+    $DOCKER unshare chown -R 0:0 "$1"
+  else
+    "${ENGINE_RUN[@]}" --rm -v "$(dirname "$1")":/mnt \
+      "$TEST_HELPER_IMAGE" chown -R "$(id -u):$(id -g)" "/mnt/$(basename "$1")"
+  fi
   rm -rf "$1"
 }
 cleanup_all_test_containers() {
@@ -156,10 +183,10 @@ cleanup_all_test_containers
 
 echo "=== Container Security Flag Tests ==="
 echo "Targets: ${SELECTED_TESTS[*]}"
-if command -v "$DOCKER" >/dev/null 2>&1; then
-  echo "Docker: $($DOCKER --version)"
+if container_engine_version=$($DOCKER --version 2>/dev/null); then
+  echo "Container engine: $container_engine_version"
 else
-  echo "Docker: not available (required only for runtime targets)"
+  echo "Container engine: not available (required only for runtime targets)"
 fi
 echo "User: $(id)"
 echo ""
@@ -249,9 +276,9 @@ if [[ "$DOCKER" == *podman* ]]; then
 fi
 TEST_PG_DIR=$(mktemp -d)
 chmod 0750 "$TEST_PG_DIR"
-$DOCKER run --rm -v "$TEST_PG_DIR":/target "$TEST_HELPER_IMAGE" chown 999:999 /target
+chown_test_path 999:999 "$TEST_PG_DIR"
 
-$DOCKER run -d --name test_postgres \
+"${ENGINE_RUN[@]}" -d --name test_postgres \
   --user 999:999 \
   --cap-drop=ALL \
   --security-opt=no-new-privileges:true \
@@ -281,7 +308,7 @@ echo ""
 
 # ---------------------------------------------------------------------------
 echo "--- TEST-02: PostgreSQL Role Isolation ---"
-$DOCKER run -d --name test_postgres_roles \
+"${ENGINE_RUN[@]}" -d --name test_postgres_roles \
   --user 999:999 \
   --cap-drop=ALL \
   --security-opt=no-new-privileges:true \
@@ -320,10 +347,10 @@ mkdir -p "$TEST_PG_MIG_DATA" "$TEST_PG_MIG_INIT"
 chmod 0750 "$TEST_PG_MIG_DATA" "$TEST_PG_MIG_INIT"
 install -m 0755 "$REPO_ROOT/roles/nextcloud/files/db_wrapper.sh" \
   "$TEST_PG_MIG_INIT/db_wrapper.sh"
-$DOCKER run --rm -v "$TEST_PG_MIG_DATA":/target "$TEST_HELPER_IMAGE" chown 999:999 /target
-$DOCKER run --rm -v "$TEST_PG_MIG_INIT":/target "$TEST_HELPER_IMAGE" chown -R 999:999 /target
+chown_test_path 999:999 "$TEST_PG_MIG_DATA"
+chown_test_path 999:999 "$TEST_PG_MIG_INIT" -R
 
-$DOCKER run -d --name test_postgres_migration_seed \
+"${ENGINE_RUN[@]}" -d --name test_postgres_migration_seed \
   --user 999:999 \
   --cap-drop=ALL \
   --security-opt=no-new-privileges:true \
@@ -352,7 +379,7 @@ $DOCKER exec test_postgres_migration_seed env PGPASSWORD=oldsharedpass \
 
 cleanup test_postgres_migration_seed
 
-$DOCKER run -d --name test_postgres_migration \
+"${ENGINE_RUN[@]}" -d --name test_postgres_migration \
   --user 999:999 \
   --cap-drop=ALL \
   --security-opt=no-new-privileges:true \
@@ -412,10 +439,10 @@ mkdir -p "$TEST_PG_LEGACY_DATA" "$TEST_PG_LEGACY_INIT"
 chmod 0750 "$TEST_PG_LEGACY_DATA" "$TEST_PG_LEGACY_INIT"
 install -m 0755 "$REPO_ROOT/roles/nextcloud/files/db_wrapper.sh" \
   "$TEST_PG_LEGACY_INIT/db_wrapper.sh"
-$DOCKER run --rm -v "$TEST_PG_LEGACY_DATA":/target "$TEST_HELPER_IMAGE" chown 999:999 /target
-$DOCKER run --rm -v "$TEST_PG_LEGACY_INIT":/target "$TEST_HELPER_IMAGE" chown -R 999:999 /target
+chown_test_path 999:999 "$TEST_PG_LEGACY_DATA"
+chown_test_path 999:999 "$TEST_PG_LEGACY_INIT" -R
 
-$DOCKER run -d --name test_postgres_legacy_seed \
+"${ENGINE_RUN[@]}" -d --name test_postgres_legacy_seed \
   --user 999:999 \
   --cap-drop=ALL \
   --security-opt=no-new-privileges:true \
@@ -440,7 +467,7 @@ $DOCKER exec test_postgres_legacy_seed env PGPASSWORD=legacysecret \
 
 cleanup test_postgres_legacy_seed
 
-$DOCKER run -d --name test_postgres_legacy_migration \
+"${ENGINE_RUN[@]}" -d --name test_postgres_legacy_migration \
   --user 999:999 \
   --cap-drop=ALL \
   --security-opt=no-new-privileges:true \
@@ -503,10 +530,10 @@ mkdir -p "$TEST_PG_CUSTOM_DATA" "$TEST_PG_CUSTOM_INIT"
 chmod 0750 "$TEST_PG_CUSTOM_DATA" "$TEST_PG_CUSTOM_INIT"
 install -m 0755 "$REPO_ROOT/roles/nextcloud/files/db_wrapper.sh" \
   "$TEST_PG_CUSTOM_INIT/db_wrapper.sh"
-$DOCKER run --rm -v "$TEST_PG_CUSTOM_DATA":/target "$TEST_HELPER_IMAGE" chown 999:999 /target
-$DOCKER run --rm -v "$TEST_PG_CUSTOM_INIT":/target "$TEST_HELPER_IMAGE" chown -R 999:999 /target
+chown_test_path 999:999 "$TEST_PG_CUSTOM_DATA"
+chown_test_path 999:999 "$TEST_PG_CUSTOM_INIT" -R
 
-$DOCKER run -d --name test_postgres_custom_seed \
+"${ENGINE_RUN[@]}" -d --name test_postgres_custom_seed \
   --user 999:999 \
   --cap-drop=ALL \
   --security-opt=no-new-privileges:true \
@@ -532,7 +559,7 @@ $DOCKER exec test_postgres_custom_seed env PGPASSWORD=legacysecret \
 
 cleanup test_postgres_custom_seed
 
-$DOCKER run -d --name test_postgres_custom_migration \
+"${ENGINE_RUN[@]}" -d --name test_postgres_custom_migration \
   --user 999:999 \
   --cap-drop=ALL \
   --security-opt=no-new-privileges:true \
@@ -597,10 +624,10 @@ mkdir -p "$TEST_PG_MIXED_DATA" "$TEST_PG_MIXED_INIT"
 chmod 0750 "$TEST_PG_MIXED_DATA" "$TEST_PG_MIXED_INIT"
 install -m 0755 "$REPO_ROOT/roles/nextcloud/files/db_wrapper.sh" \
   "$TEST_PG_MIXED_INIT/db_wrapper.sh"
-$DOCKER run --rm -v "$TEST_PG_MIXED_DATA":/target "$TEST_HELPER_IMAGE" chown 999:999 /target
-$DOCKER run --rm -v "$TEST_PG_MIXED_INIT":/target "$TEST_HELPER_IMAGE" chown -R 999:999 /target
+chown_test_path 999:999 "$TEST_PG_MIXED_DATA"
+chown_test_path 999:999 "$TEST_PG_MIXED_INIT" -R
 
-$DOCKER run -d --name test_postgres_mixed_seed \
+"${ENGINE_RUN[@]}" -d --name test_postgres_mixed_seed \
   --user 999:999 \
   --cap-drop=ALL \
   --security-opt=no-new-privileges:true \
@@ -638,7 +665,7 @@ $DOCKER exec test_postgres_mixed_seed env PGPASSWORD=adminpass \
 
 cleanup test_postgres_mixed_seed
 
-$DOCKER run -d --name test_postgres_mixed_migration \
+"${ENGINE_RUN[@]}" -d --name test_postgres_mixed_migration \
   --user 999:999 \
   --cap-drop=ALL \
   --security-opt=no-new-privileges:true \
@@ -685,7 +712,7 @@ fi
 # ---------------------------------------------------------------------------
 if should_run redis; then
 echo "--- TEST-03: Redis ---"
-$DOCKER run -d --name test_redis \
+"${ENGINE_RUN[@]}" -d --name test_redis \
   --cap-drop=ALL \
   --cap-add=CHOWN \
   --cap-add=FOWNER \
@@ -715,9 +742,9 @@ echo "--- TEST-04: Nextcloud ---"
 # --security-opt=no-new-privileges:true only (no --cap-drop=ALL).
 TEST_NC_DIR=$(mktemp -d)
 chmod 0770 "$TEST_NC_DIR"
-$DOCKER run --rm -v "$TEST_NC_DIR":/target "$TEST_HELPER_IMAGE" chown 33:33 /target
+chown_test_path 33:33 "$TEST_NC_DIR"
 
-$DOCKER run -d --name test_nextcloud \
+"${ENGINE_RUN[@]}" -d --name test_nextcloud \
   --security-opt=no-new-privileges:true \
   --memory=4g --memory-swap=4g \
   --volume "$TEST_NC_DIR":/var/www/html \
@@ -748,7 +775,7 @@ entryPoints:
 EOF
 
 # Test A: without NET_BIND_SERVICE (informational)
-$DOCKER run -d --name test_traefik_nocap \
+"${ENGINE_RUN[@]}" -d --name test_traefik_nocap \
   --cap-drop=ALL \
   --volume "$TEST_TRAEFIK_DIR/traefik.yml":/etc/traefik/traefik.yml:ro \
   -p 18080:80 \
@@ -761,7 +788,7 @@ $DOCKER inspect --format='{{.State.Status}}' test_traefik_nocap 2>/dev/null \
 cleanup test_traefik_nocap
 
 # Test B: with NET_BIND_SERVICE (must pass)
-$DOCKER run -d --name test_traefik_cap \
+"${ENGINE_RUN[@]}" -d --name test_traefik_cap \
   --cap-drop=ALL \
   --cap-add=NET_BIND_SERVICE \
   --security-opt=no-new-privileges:true \
@@ -786,12 +813,12 @@ TEST_PL_DATA=$(mktemp -d)
 TEST_PL_MEDIA=$(mktemp -d)
 TEST_PL_EXPORT=$(mktemp -d)
 TEST_PL_CONSUME=$(mktemp -d)
-$DOCKER run --rm \
+"${ENGINE_RUN[@]}" --rm \
   -v "$TEST_PL_DATA":/d1 -v "$TEST_PL_MEDIA":/d2 \
   -v "$TEST_PL_EXPORT":/d3 -v "$TEST_PL_CONSUME":/d4 \
   "$TEST_HELPER_IMAGE" chown 1000:1000 /d1 /d2 /d3 /d4
 
-$DOCKER run -d --name test_paperless \
+"${ENGINE_RUN[@]}" -d --name test_paperless \
   --cap-drop=ALL \
   --cap-add=CHOWN \
   --cap-add=SETUID \
@@ -833,7 +860,7 @@ echo "--- TEST-07: Vaultwarden ---"
 TEST_VW_DIR=$(mktemp -d)
 chmod 0777 "$TEST_VW_DIR"
 
-$DOCKER run -d --name test_vaultwarden \
+"${ENGINE_RUN[@]}" -d --name test_vaultwarden \
   --cap-drop=ALL \
   --cap-add=NET_BIND_SERVICE \
   --security-opt=no-new-privileges:true \
@@ -860,8 +887,8 @@ TEST_SEM_STATE_DIR=$(mktemp -d)
 cat > "$TEST_SEM_DIR/ssh_known_hosts" <<'EOF'
 127.0.0.1 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestOnlyPlaceholderKnownHostKey
 EOF
-$DOCKER run --rm -v "$TEST_SEM_DIR":/target "$TEST_HELPER_IMAGE" chown -R 1001:0 /target
-$DOCKER run --rm -v "$TEST_SEM_STATE_DIR":/target "$TEST_HELPER_IMAGE" chown -R 1001:0 /target
+chown_test_path 1001:0 "$TEST_SEM_DIR" -R
+chown_test_path 1001:0 "$TEST_SEM_STATE_DIR" -R
 
 SEMAPHORE_PROJECT_TMP_MOUNT=(--tmpfs /tmp/semaphore:rw,nosuid,nodev,size=64m,mode=0750,uid=1001,gid=0)
 SEMAPHORE_HOME_TMP_MOUNT=(--tmpfs /home/semaphore:rw,nosuid,nodev,size=32m,mode=0750,uid=1001,gid=0)
@@ -871,7 +898,7 @@ if [[ "$DOCKER" == *podman* ]]; then
 fi
 
 # Test A: baseline
-$DOCKER run -d --name test_semaphore_base \
+"${ENGINE_RUN[@]}" -d --name test_semaphore_base \
   -e SEMAPHORE_DB_DIALECT=sqlite \
   -e SEMAPHORE_ADMIN=admin \
   -e SEMAPHORE_ADMIN_PASSWORD=Admin1234! \
@@ -885,7 +912,7 @@ $DOCKER inspect --format='{{.State.Status}}' test_semaphore_base \
 cleanup test_semaphore_base
 
 # Test B: with cap-drop=ALL
-$DOCKER run -d --name test_semaphore_caps \
+"${ENGINE_RUN[@]}" -d --name test_semaphore_caps \
   --cap-drop=ALL \
   --security-opt=no-new-privileges:true \
   --read-only \
@@ -931,9 +958,9 @@ echo "--- TEST-09: Navidrome ---"
 TEST_ND_DATA=$(mktemp -d)
 TEST_ND_MUSIC=$(mktemp -d)
 chmod 0770 "$TEST_ND_DATA"
-$DOCKER run --rm -v "$TEST_ND_DATA":/target "$TEST_HELPER_IMAGE" chown 33:33 /target
+chown_test_path 33:33 "$TEST_ND_DATA"
 
-$DOCKER run -d --name test_navidrome \
+"${ENGINE_RUN[@]}" -d --name test_navidrome \
   --user "33:33" \
   --cap-drop=ALL \
   --security-opt=no-new-privileges:true \
