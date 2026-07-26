@@ -13,9 +13,8 @@ BACKUP_FILE="$TMP_DIR/vaultwarden_db-$(date +%m_%d_%Y).sqlite3"
 DEST="{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/{{ vaultwarden_backup_location | replace('Nextcloud:', '') }}"
 /usr/bin/install -d -o {{ nextcloud_uid }} -g {{ nextcloud_gid }} -m {{ nextcloud_user_files_directory_mode | default('0770') }} "$DEST"
 /usr/bin/install -o {{ nextcloud_uid }} -g {{ nextcloud_gid }} -m {{ nextcloud_user_files_file_mode | default('0660') }} "$BACKUP_FILE" "$DEST/"
-# occ refuses to run as root; it must run as the owner of config/config.php.
-if ! /usr/bin/podman exec --user {{ nextcloud_uid }}:{{ nextcloud_gid }} nextcloud php occ files:scan \
-    --path="{{ nextcloud_homelab_user }}/files/{{ vaultwarden_backup_location | replace('Nextcloud:', '') }}" \
+if ! /usr/local/bin/nextcloud_scan_path.sh \
+    "{{ nextcloud_homelab_user }}/files/{{ vaultwarden_backup_location | replace('Nextcloud:', '') }}" \
     >> /var/log/vaultwarden_backup.log 2>&1; then
     echo "[$(date)] ERROR: occ files:scan failed. The backup file is on disk but Nextcloud has not indexed it." \
         >> /var/log/vaultwarden_backup.log

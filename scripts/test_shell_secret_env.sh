@@ -246,6 +246,11 @@ cat > "$tmpdir/render.yml" <<EOF
         src: ${repo_root}/roles/nextcloud/templates/nextcloud_configure.sh.j2
         dest: ${render_dir}/nextcloud_configure.sh
 
+    - name: Render nextcloud_scan_path.sh
+      ansible.builtin.template:
+        src: ${repo_root}/roles/nextcloud/templates/nextcloud_scan_path.sh.j2
+        dest: ${render_dir}/nextcloud_scan_path.sh
+
     - name: Render redis_container.sh
       ansible.builtin.template:
         src: ${repo_root}/roles/nextcloud/templates/redis_container.sh.j2
@@ -289,6 +294,9 @@ ansible-playbook -i localhost, "$tmpdir/render.yml" -e @"$tmpdir/vars.yml" >/dev
 
 shellcheck "$render_dir/migrate_container_networks.sh"
 pass "migrate_container_networks.sh passes ShellCheck after rendering"
+
+shellcheck "$render_dir/nextcloud_scan_path.sh"
+pass "nextcloud_scan_path.sh passes ShellCheck after rendering"
 
 get_sourced_var() {
   local file="$1"
@@ -426,6 +434,12 @@ assert_contains "$render_dir/nextcloud_configure.sh" "172.16.1.32/29" "nextcloud
 assert_contains "$render_dir/nextcloud_configure.sh" "test-postgres-backend.test.dns.podman" "nextcloud_configure.sh reconciles persistent Postgres host"
 assert_contains "$render_dir/nextcloud_configure.sh" "test-redis-backend.test.dns.podman" "nextcloud_configure.sh reconciles persistent Redis host"
 assert_contains "$render_dir/nextcloud_configure.sh" "config:system:set overwrite.cli.url" "nextcloud_configure.sh reconciles overwrite CLI URL"
+assert_contains "$render_dir/nextcloud_scan_path.sh" "--user 33:33" "nextcloud_scan_path.sh runs occ as the Nextcloud file owner"
+assert_contains "$render_dir/nextcloud_scan_path.sh" "--workdir /var/www/html" "nextcloud_scan_path.sh sets an explicit Nextcloud working directory"
+assert_contains "$render_dir/nextcloud_scan_path.sh" "php /var/www/html/occ files:scan" "nextcloud_scan_path.sh uses the absolute occ path"
+assert_contains "$render_dir/nextcloud_scan_path.sh" "/usr/bin/flock --wait 300" "nextcloud_scan_path.sh serializes simultaneous daily scans"
+assert_contains "$render_dir/nextcloud_scan_path.sh" "max_attempts=12" "nextcloud_scan_path.sh retries transient scan failures"
+assert_contains "$render_dir/nextcloud_scan_path.sh" "Unknown user" "nextcloud_scan_path.sh detects semantic occ failures"
 
 assert_not_contains "$render_dir/redis_container.sh" "--env-file" "redis_container.sh no longer uses --env-file"
 assert_contains "$render_dir/redis_container.sh" '. "/etc/homelab/secrets/redis.env"' "redis_container.sh sources redis.env"
@@ -477,20 +491,14 @@ assert_contains "$render_dir/backup_semaphore.sh" '/usr/bin/install -d -o 33 -g 
 assert_contains "$render_dir/backup_semaphore.sh" '/usr/bin/install -o 33 -g 33 -m 0660 "$DUMP_FILE" "$DEST/"' "backup_semaphore.sh installs backups with the normalized Nextcloud file mode"
 assert_not_contains "$render_dir/backup_semaphore.sh" '/usr/bin/cp "$DUMP_FILE" "$DEST/"' "backup_semaphore.sh no longer copies backups as root"
 
-# occ refuses to run as root, so a scan without --user silently fails behind
-# `|| true` and the backup never becomes visible in Nextcloud until the next
-# playbook run reconciles the tree.
 for backup_script in backup_navidrome.sh backup_vaultwarden.sh backup_semaphore.sh; do
   assert_contains "$render_dir/$backup_script" \
-    '/usr/bin/podman exec --user 33:33 nextcloud php occ files:scan' \
-    "$backup_script runs occ files:scan as the Nextcloud file owner"
-  assert_not_contains "$render_dir/$backup_script" \
-    '/usr/bin/podman exec nextcloud php occ' \
-    "$backup_script never runs occ as root"
-  if grep -n 'occ files:scan' "$render_dir/$backup_script" | grep -q '|| true'; then
-    fail "$backup_script must not discard occ files:scan failures"
+    '/usr/local/bin/nextcloud_scan_path.sh' \
+    "$backup_script uses the managed Nextcloud scan helper"
+  if grep -n 'nextcloud_scan_path.sh' "$render_dir/$backup_script" | grep -q '|| true'; then
+    fail "$backup_script must not discard targeted scan failures"
   else
-    pass "$backup_script reports occ files:scan failures instead of discarding them"
+    pass "$backup_script reports targeted scan failures instead of discarding them"
   fi
 done
 

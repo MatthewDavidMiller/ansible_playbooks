@@ -106,13 +106,15 @@ Manages the local Borg backup disk and the daily backup scripts for VM1.
 
 ### Indexing local backups into Nextcloud
 
-With `backup_local: true`, the `navidrome`, `vaultwarden`, and `semaphore` backup scripts write their dumps directly into `{{ nextcloud_path }}/data/<nextcloud_homelab_user>/files/...` as `nextcloud_uid:nextcloud_gid`. A file placed there is invisible to Nextcloud clients until it is added to the file cache, so each script finishes with `occ files:scan --path=...`.
+With `backup_local: true`, the `navidrome`, `vaultwarden`, and `semaphore` backup scripts write their dumps directly into `{{ nextcloud_path }}/data/<nextcloud_homelab_user>/files/...` as `nextcloud_uid:nextcloud_gid`. A file placed there is invisible to Nextcloud clients until it is added to the file cache, so each script passes its destination to `/usr/local/bin/nextcloud_scan_path.sh`.
 
-`occ` refuses to run as root — it must run as the owner of `config/config.php` — so the scan must be invoked as `podman exec --user {{ nextcloud_uid }}:{{ nextcloud_gid }} nextcloud php occ`, the same form used by `nextcloud_configure.sh`. A scan failure is logged to the service's backup log and does not fail the run, because the dump itself is already safely on disk.
+The `nextcloud` role owns that helper so every service uses the same `occ files:scan` invocation. It serializes scans from the daily cron jobs with `flock`, waits for a usable Nextcloud container, and retries transient failures. It also recognizes error text from `files:scan`: that command can print an unknown user, lock contention, or a scan exception while still exiting with status zero, so checking the process status alone is insufficient. The helper uses an explicit working directory and absolute `occ` path and runs as `nextcloud_uid:nextcloud_gid`.
+
+After the retry budget is exhausted, the helper returns failure and the calling service records the failure in its backup log. The service backup remains non-fatal because the dump itself is already safely on disk.
 
 Dumps are installed with `nextcloud_user_files_directory_mode` and `nextcloud_user_files_file_mode` rather than literal modes. The `nextcloud` role normalizes every file under `data/<user>/files` to those modes on each run, so a script that writes a different mode leaves each backup wrong until the next playbook run silently corrects it. For the same reason the per-service "Repair … ownership" tasks set ownership only: a recursive `mode` would also rewrite the backup files themselves.
 
-Both properties are covered by `tests/test_ansible_regressions.py` and by the rendered-script assertions in `scripts/test_shell_secret_env.sh`.
+The scan-helper and file-mode properties are covered by `tests/test_ansible_regressions.py` and by the rendered-script assertions in `scripts/test_shell_secret_env.sh`.
 
 ---
 

@@ -281,6 +281,14 @@
     group: root
     mode: "0700"
 
+- name: Nextcloud targeted file scan helper
+  ansible.builtin.template:
+    src: nextcloud_scan_path.sh.j2
+    dest: /usr/local/bin/nextcloud_scan_path.sh
+    owner: root
+    group: root
+    mode: "0700"
+
 - name: Postgres script
   ansible.builtin.template:
     src: postgres_container.sh.j2

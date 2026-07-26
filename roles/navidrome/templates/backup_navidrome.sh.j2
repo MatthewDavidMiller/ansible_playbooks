@@ -30,9 +30,8 @@ for backup_file in "$LOCAL_BACKUP_DIR"/*.db; do
     [ -e "$backup_file" ] || break
     /usr/bin/install -o {{ nextcloud_uid }} -g {{ nextcloud_gid }} -m {{ nextcloud_user_files_file_mode | default('0660') }} "$backup_file" "$DEST/"
 done
-# occ refuses to run as root; it must run as the owner of config/config.php.
-if ! /usr/bin/podman exec --user {{ nextcloud_uid }}:{{ nextcloud_gid }} nextcloud php occ files:scan \
-    --path="{{ nextcloud_homelab_user }}/files/{{ navidrome_backup_location | replace('Nextcloud:', '') }}" \
+if ! /usr/local/bin/nextcloud_scan_path.sh \
+    "{{ nextcloud_homelab_user }}/files/{{ navidrome_backup_location | replace('Nextcloud:', '') }}" \
     >> "$BACKUP_LOG" 2>&1; then
     /usr/bin/echo "[$(date)] ERROR: occ files:scan failed. Backups are on disk but Nextcloud has not indexed them." \
         >> "$BACKUP_LOG"

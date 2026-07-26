@@ -41,7 +41,7 @@ spelling, subnet drift, and unreadable inspect output.
 
 Route proxy addressing has dedicated guards in `tests/test_ansible_regressions.py`. Every container on a route proxy network must request a static address that Podman can assign, Traefik's `route_proxy_traefik_ips` address must differ from the service address on the same network, and `route_proxy_container_ips` must match the address the service launch script requests. The checks read the launch scripts and role defaults, so a new proxied service is covered once it pins an address.
 
-Local Nextcloud backups have dedicated guards in `tests/test_ansible_regressions.py`. Every template that writes into the Nextcloud user files tree must run `occ files:scan` as `nextcloud_uid:nextcloud_gid`, must report scan failures instead of discarding them with `|| true`, and must install dumps using `nextcloud_user_files_file_mode` so the mode survives the `nextcloud` role's normalization. The checks discover templates by content, so a new service backup script is covered without editing the tests.
+Local Nextcloud backups have dedicated guards in `tests/test_ansible_regressions.py`. Every template that writes into the Nextcloud user files tree must call the managed `nextcloud_scan_path.sh` helper, must report helper failures instead of discarding them with `|| true`, and must install dumps using `nextcloud_user_files_file_mode` so the mode survives the `nextcloud` role's normalization. The helper itself is checked for serialized scans, retries, an explicit `occ` path and working directory, the `nextcloud_uid:nextcloud_gid` runtime user, and detection of semantic failures that `occ files:scan` reports with a zero exit status. The backup-template checks discover callers by content, so a new service backup script is covered without editing the tests.
 
 Offline or no-container commits can skip the network depsolve only:
 
@@ -180,6 +180,7 @@ Requires a working Podman or Docker engine for the depsolve step, plus network a
 - Each sourced variable expected by a container is passed with `--env VAR_NAME`.
 - Service launch scripts use `podman run --pull=never` and no longer call standalone `podman pull`.
 - Local backup scripts for Navidrome, Vaultwarden, and Semaphore render ownership-preserving `install` commands for the Nextcloud data tree when `backup_local: true`.
+- The shared targeted Nextcloud scan helper renders the expected UID/GID, absolute `occ` path, serialization, retry, and semantic-error checks, and every local service backup calls it.
 
 Run it directly:
 

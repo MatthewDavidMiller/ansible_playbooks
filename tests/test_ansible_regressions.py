@@ -9,6 +9,9 @@ import yaml
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+NEXTCLOUD_SCAN_HELPER = (
+    REPO_ROOT / "roles" / "nextcloud" / "templates" / "nextcloud_scan_path.sh.j2"
+)
 sys.path.insert(0, str(REPO_ROOT))
 
 from filter_plugins.homelab_validation import homelab_container_assignable_ip  # noqa: E402
@@ -49,7 +52,8 @@ def local_nextcloud_backup_templates() -> list[Path]:
     templates = [
         path
         for path in sorted(REPO_ROOT.glob("roles/*/templates/*.j2"))
-        if "files:scan" in path.read_text(encoding="utf-8")
+        if "/usr/local/bin/nextcloud_scan_path.sh"
+        in path.read_text(encoding="utf-8")
     ]
     if not templates:
         raise AssertionError("no local Nextcloud backup templates found")
@@ -65,34 +69,56 @@ class LocalNextcloudBackupTests(unittest.TestCase):
     """Guards for backups written straight into the Nextcloud data directory.
 
     A file placed there is invisible to Nextcloud until it is scanned into the
-    file cache. `occ` refuses to run as root, so a scan issued without --user
-    fails; when that failure is also discarded the backup silently never
-    appears, and only the next playbook run reconciles the tree.
+    file cache. The shared helper serializes the daily scans, waits through
+    transient container failures, and recognizes errors that `occ files:scan`
+    reports while still returning a successful process status.
     """
 
-    def test_scan_runs_as_the_nextcloud_file_owner(self):
+    def test_local_backups_use_the_managed_scan_helper(self):
         for template in local_nextcloud_backup_templates():
             with self.subTest(template=template.name):
                 for command in joined_commands(template.read_text(encoding="utf-8")):
-                    if "php occ" not in command:
+                    if "nextcloud_scan_path.sh" not in command:
                         continue
                     self.assertIn(
-                        "--user {{ nextcloud_uid }}:{{ nextcloud_gid }}",
+                        "/usr/local/bin/nextcloud_scan_path.sh",
                         command,
-                        f"{template.name} must run occ as the config.php owner",
+                        f"{template.name} must use the managed scan helper",
                     )
+                occ_commands = [
+                    command
+                    for command in joined_commands(
+                        template.read_text(encoding="utf-8")
+                    )
+                    if "podman exec" in command and "files:scan" in command
+                ]
+                self.assertFalse(
+                    occ_commands,
+                    f"{template.name} must not maintain a private occ scan invocation",
+                )
 
     def test_scan_failures_are_reported_not_discarded(self):
         for template in local_nextcloud_backup_templates():
             with self.subTest(template=template.name):
                 for command in joined_commands(template.read_text(encoding="utf-8")):
-                    if "files:scan" not in command:
+                    if "nextcloud_scan_path.sh" not in command:
                         continue
                     self.assertNotIn(
                         "|| true",
                         command,
-                        f"{template.name} must not discard occ files:scan failures",
+                        f"{template.name} must not discard targeted scan failures",
                     )
+
+    def test_scan_helper_handles_occ_semantic_and_transient_failures(self):
+        helper = NEXTCLOUD_SCAN_HELPER.read_text(encoding="utf-8")
+        self.assertIn("--user {{ nextcloud_uid }}:{{ nextcloud_gid }}", helper)
+        self.assertIn("--workdir /var/www/html", helper)
+        self.assertIn("php /var/www/html/occ files:scan", helper)
+        self.assertIn("/usr/bin/flock --wait", helper)
+        self.assertIn("max_attempts=", helper)
+        self.assertIn("Unknown user", helper)
+        self.assertIn("Another process is already scanning", helper)
+        self.assertIn("Exception during scan", helper)
 
     def test_backups_are_installed_with_the_normalized_file_mode(self):
         """The nextcloud role rewrites file modes under data/<user>/files.
