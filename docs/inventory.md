@@ -95,6 +95,7 @@ VM1 is the single maintained service host. It runs Traefik, PostgreSQL, Redis, N
 | `vaultwarden_backup_location` | string | Vaultwarden backup destination label | `Nextcloud:vaultwarden_backup` |
 | `vaultwarden_signups_allowed` | boolean | Public signup toggle | `false` |
 | `container_service_names` | string | Space-separated container service names used by Traefik ordering and deferred network migration restart order | `postgres_container redis_container nextcloud_container paperless_ngx navidrome_container vaultwarden semaphore` |
+| `container_network_migration_delay` | string | Delay before the final coordinator runs a queued network migration | `2min` |
 | `backup_host` | string | Backup server IP in CIDR form | `192.168.1.50/32` |
 | `borg_backup_path` | path | Borg repository root on the backup disk | `/opt/borg_backup` |
 | `backup_disk` | string | UUID entry for the backup disk | `UUID=...` |

@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
 """Dynamic DNS updater: Porkbun ping → Porkbun DNS.
 
-Reads WAN IP from the Porkbun ping endpoint, compares it against the cached
-value and the live Porkbun A record, and updates the record only when the IP
-has actually changed.  In steady state (no IP change) the script makes zero
-external API calls beyond reading the local cache file.
+Reads the WAN IP from Porkbun on every run. When it differs from the last
+successfully applied value, the updater reads the live A record and changes it
+only when needed. The cache avoids two extra DNS API calls in steady state.
 
-Logs to /var/log/dynamic_dns.log (rotated at 1 MB, 5 backups).
+Logs to stderr; cron appends that stream to /var/log/dynamic_dns.log and
+logrotate owns file rotation.
 """
 
 import ipaddress
 import logging
-import logging.handlers
 import os
 import sys
 import tempfile
@@ -24,33 +23,20 @@ PORKBUN_API_KEY = os.environ["PORKBUN_API_KEY"]
 PORKBUN_SECRET_KEY = os.environ["PORKBUN_SECRET_KEY"]
 DOMAIN = os.environ["DOMAIN"]
 SUBDOMAIN = os.environ["SUBDOMAIN"]
-IP_CACHE           = Path("/var/cache/dynamic_dns_ip")
-PORKBUN_BASE       = "https://api.porkbun.com/api/json/v3"
-PORKBUN_IPV4_BASE  = "https://api-ipv4.porkbun.com/api/json/v3"
-TIMEOUT            = 10  # seconds per request
-
-# ── Logging ───────────────────────────────────────────────────────────────────
-LOG_FILE = Path("/var/log/dynamic_dns.log")
+IP_CACHE = Path("/var/cache/dynamic_dns_ip")
+PORKBUN_BASE = "https://api.porkbun.com/api/json/v3"
+PORKBUN_IPV4_BASE = "https://api-ipv4.porkbun.com/api/json/v3"
+TIMEOUT = 10  # seconds per request
 
 log = logging.getLogger("dynamic_dns")
 log.setLevel(logging.INFO)
+log.propagate = False
 
 _formatter = logging.Formatter(
     fmt="%(asctime)s %(levelname)-8s %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 
-try:
-    _file_handler = logging.handlers.RotatingFileHandler(
-        LOG_FILE, maxBytes=1 * 1024 * 1024, backupCount=5, encoding="utf-8"
-    )
-    _file_handler.setFormatter(_formatter)
-    log.addHandler(_file_handler)
-except OSError as _e:
-    logging.basicConfig(stream=sys.stderr, level=logging.INFO)
-    log.warning("Could not open log file %s: %s — falling back to stderr", LOG_FILE, _e)
-
-# Always echo to stderr so manual runs and cron output are visible
 _stderr_handler = logging.StreamHandler(sys.stderr)
 _stderr_handler.setFormatter(_formatter)
 log.addHandler(_stderr_handler)
@@ -111,6 +97,16 @@ def write_cached_ip(ip_address: str) -> None:
         raise
 
 
+def cache_applied_ip(ip_address: str) -> bool:
+    """Persist a successful reconciliation and report cache failures cleanly."""
+    try:
+        write_cached_ip(ip_address)
+    except OSError as exc:
+        log.error("Failed to write dynamic DNS cache %s: %s", IP_CACHE, exc)
+        return False
+    return True
+
+
 # ── Porkbun ───────────────────────────────────────────────────────────────────
 
 def _porkbun_post(endpoint: str, extra: dict, base: str = PORKBUN_BASE) -> dict:
@@ -163,7 +159,23 @@ def get_dns_record() -> tuple[str | None, str | None]:
         return None, None
     if len(records) > 1:
         raise RuntimeError(f"Expected one {SUBDOMAIN}.{DOMAIN} A record, found {len(records)}")
-    return records[0].get("content"), records[0].get("id")
+
+    content = records[0].get("content")
+    record_id = records[0].get("id")
+    if not isinstance(content, str):
+        raise RuntimeError("Porkbun A record contained an invalid IPv4 address")
+    try:
+        parsed_content = ipaddress.ip_address(content)
+    except ValueError as exc:
+        raise RuntimeError("Porkbun A record contained an invalid IPv4 address") from exc
+    if not isinstance(parsed_content, ipaddress.IPv4Address):
+        raise RuntimeError("Porkbun A record contained an invalid IPv4 address")
+    if isinstance(record_id, bool) or not isinstance(record_id, (str, int)):
+        raise RuntimeError("Porkbun A record contained an invalid record ID")
+    normalized_record_id = str(record_id)
+    if not normalized_record_id.isdigit():
+        raise RuntimeError("Porkbun A record contained an invalid record ID")
+    return str(parsed_content), normalized_record_id
 
 
 def update_dns_record(record_id: str | None, new_ip: str) -> None:
@@ -199,8 +211,14 @@ def main() -> int:
         log.error("Failed to get WAN IP from Porkbun ping: %s", exc)
         return 1
 
-    # Fast path: no API calls needed when cached IP is current
-    if get_cached_ip() == wan_ip:
+    try:
+        cached_ip = get_cached_ip()
+    except OSError as exc:
+        log.error("Failed to read dynamic DNS cache %s: %s", IP_CACHE, exc)
+        return 1
+
+    # Fast path: the ping request is the only API call when the cache is current.
+    if cached_ip == wan_ip:
         return 0
 
     try:
@@ -210,8 +228,7 @@ def main() -> int:
         return 1
 
     if wan_ip == current_ip:
-        write_cached_ip(wan_ip)
-        return 0
+        return 0 if cache_applied_ip(wan_ip) else 1
 
     try:
         update_dns_record(record_id, wan_ip)
@@ -219,7 +236,8 @@ def main() -> int:
         log.error("Failed to update DNS record: %s", exc)
         return 1
 
-    write_cached_ip(wan_ip)
+    if not cache_applied_ip(wan_ip):
+        return 1
     log.info(
         "Updated %s.%s → %s (was %s)",
         SUBDOMAIN, DOMAIN, wan_ip, current_ip or "none",

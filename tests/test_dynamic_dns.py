@@ -1,5 +1,5 @@
-import os
 import logging
+import os
 from pathlib import Path
 import tempfile
 import types
@@ -19,15 +19,19 @@ def load_module():
         "DOMAIN": "example.com",
         "SUBDOMAIN": "home",
     }
-    with (
-        mock.patch.dict(os.environ, environment, clear=False),
-        mock.patch("logging.handlers.RotatingFileHandler", return_value=logging.NullHandler()),
-    ):
+    with mock.patch.dict(os.environ, environment, clear=False):
         exec(compile(SCRIPT.read_text(encoding="utf-8"), str(SCRIPT), "exec"), module.__dict__)
     return module
 
 
 class DynamicDnsTests(unittest.TestCase):
+    def test_logging_uses_one_non_propagating_stderr_handler(self):
+        module = load_module()
+
+        self.assertFalse(module.log.propagate)
+        self.assertEqual(len(module.log.handlers), 1)
+        self.assertIsInstance(module.log.handlers[0], logging.StreamHandler)
+
     def test_wan_ip_must_be_global_ipv4(self):
         module = load_module()
         module._porkbun_post = mock.Mock(return_value={"yourIp": "192.168.1.10"})
@@ -102,6 +106,19 @@ class DynamicDnsTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "invalid records list"):
             module.get_dns_record()
 
+    def test_dns_record_rejects_missing_or_malformed_fields(self):
+        module = load_module()
+        for record in (
+            {"content": "8.8.8.8"},
+            {"content": "8.8.8.8", "id": "not-numeric"},
+            {"content": "not-an-ip", "id": "42"},
+            {"content": "2001:4860:4860::8888", "id": "42"},
+        ):
+            with self.subTest(record=record):
+                module._porkbun_post = mock.Mock(return_value={"records": [record]})
+                with self.assertRaisesRegex(RuntimeError, "invalid"):
+                    module.get_dns_record()
+
     def test_main_reconciles_cache_without_unneeded_update(self):
         module = load_module()
         with tempfile.TemporaryDirectory() as directory:
@@ -145,6 +162,23 @@ class DynamicDnsTests(unittest.TestCase):
             self.assertEqual(module.main(), 0)
             module.update_dns_record.assert_called_once_with("42", "8.8.8.8")
             self.assertEqual(module.get_cached_ip(), "8.8.8.8")
+
+    def test_main_reports_cache_read_and_write_failures(self):
+        module = load_module()
+        module.log = mock.Mock()
+        module.get_wan_ip = mock.Mock(return_value="8.8.8.8")
+        module.get_cached_ip = mock.Mock(side_effect=PermissionError("denied"))
+        self.assertEqual(module.main(), 1)
+        module.log.error.assert_called_once()
+
+        module = load_module()
+        module.log = mock.Mock()
+        module.get_wan_ip = mock.Mock(return_value="8.8.8.8")
+        module.get_cached_ip = mock.Mock(return_value=None)
+        module.get_dns_record = mock.Mock(return_value=("8.8.8.8", "42"))
+        module.write_cached_ip = mock.Mock(side_effect=PermissionError("denied"))
+        self.assertEqual(module.main(), 1)
+        module.log.error.assert_called_once()
 
     def test_update_uses_edit_or_create_endpoint(self):
         module = load_module()

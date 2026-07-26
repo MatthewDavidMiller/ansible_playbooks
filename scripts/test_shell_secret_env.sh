@@ -144,6 +144,9 @@ proxy_config:
     container_destination: '{{ container_dns.aliases.nextcloud_proxy }}.{{ container_dns.domain }}'
     proxy_network: 'nextcloud_proxy_net'
 container_service_names: 'postgres_container redis_container nextcloud_container paperless_ngx navidrome_container vaultwarden semaphore'
+container_network_migrations:
+  - name: 'nextcloud_proxy_net'
+    subnet: '172.16.1.32/29'
 postgres_image: 'docker.io/postgres@sha256:2222222222222222222222222222222222222222222222222222222222222222'
 postgres_path: '/srv/postgres'
 nextcloud_image: 'docker.io/nextcloud@sha256:4444444444444444444444444444444444444444444444444444444444444444'
@@ -266,12 +269,20 @@ cat > "$tmpdir/render.yml" <<EOF
       ansible.builtin.template:
         src: ${repo_root}/roles/semaphore/templates/backup_semaphore.sh.j2
         dest: ${render_dir}/backup_semaphore.sh
+
+    - name: Render migrate_container_networks.sh
+      ansible.builtin.template:
+        src: ${repo_root}/roles/container_network_migration/templates/migrate_container_networks.sh.j2
+        dest: ${render_dir}/migrate_container_networks.sh
 EOF
 
 ANSIBLE_LOCAL_TEMP="$tmpdir/.ansible-local" \
 ANSIBLE_REMOTE_TEMP="$tmpdir/.ansible-remote" \
 XDG_CACHE_HOME="$tmpdir/.cache" \
 ansible-playbook -i localhost, "$tmpdir/render.yml" -e @"$tmpdir/vars.yml" >/dev/null
+
+shellcheck "$render_dir/migrate_container_networks.sh"
+pass "migrate_container_networks.sh passes ShellCheck after rendering"
 
 get_sourced_var() {
   local file="$1"

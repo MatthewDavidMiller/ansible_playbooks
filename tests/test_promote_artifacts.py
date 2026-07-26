@@ -3,6 +3,7 @@ from contextlib import redirect_stdout
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
 import tempfile
 import sys
@@ -19,6 +20,41 @@ SPEC.loader.exec_module(promote)
 
 
 class PromotionPolicyTests(unittest.TestCase):
+    def test_lock_file_write_is_atomic_and_preserves_mode(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "lock.yml"
+            path.write_text("old: value\n", encoding="utf-8")
+            path.chmod(0o640)
+            real_replace = os.replace
+            replaced_payload = None
+
+            def observe_replace(source, destination):
+                nonlocal replaced_payload
+                replaced_payload = Path(source).read_text(encoding="utf-8")
+                real_replace(source, destination)
+
+            with mock.patch.object(promote.os, "replace", side_effect=observe_replace) as replace:
+                promote.write_lock_file(path, {"artifact_locked_images": {}})
+
+            replace.assert_called_once()
+            self.assertEqual(path.read_text(encoding="utf-8"), replaced_payload)
+            self.assertEqual(path.stat().st_mode & 0o777, 0o640)
+            self.assertEqual(list(Path(directory).glob("*.tmp")), [])
+
+    def test_lock_file_write_keeps_original_and_cleans_temp_on_failure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "lock.yml"
+            path.write_text("old: value\n", encoding="utf-8")
+
+            with mock.patch.object(
+                promote.yaml, "safe_dump", side_effect=OSError("disk full")
+            ):
+                with self.assertRaisesRegex(OSError, "disk full"):
+                    promote.write_lock_file(path, {"artifact_locked_images": {}})
+
+            self.assertEqual(path.read_text(encoding="utf-8"), "old: value\n")
+            self.assertEqual(list(Path(directory).iterdir()), [path])
+
     def test_digest_validation_requires_lowercase_hex(self):
         digest = "sha256:" + "a" * 64
         self.assertEqual(promote.validate_digest(digest, "digest"), digest)

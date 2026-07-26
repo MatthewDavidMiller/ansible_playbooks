@@ -247,5 +247,64 @@ class AnsibleRegressionTests(unittest.TestCase):
         self.assertEqual(file_mode, 0o660)
 
 
+class ContainerNetworkMigrationTests(unittest.TestCase):
+    def setUp(self):
+        self.migration_role = REPO_ROOT / "roles" / "container_network_migration"
+        self.script = (
+            self.migration_role / "templates" / "migrate_container_networks.sh.j2"
+        ).read_text(encoding="utf-8")
+
+    def test_migration_is_coordinated_by_a_dedicated_final_role(self):
+        playbook = yaml.safe_load((REPO_ROOT / "vm1.yml").read_text(encoding="utf-8"))
+        roles = playbook[0]["roles"]
+
+        self.assertGreater(
+            roles.index("container_network_migration"), roles.index("semaphore")
+        )
+        self.assertGreater(
+            roles.index("container_network_migration"), roles.index("standard_cleanup")
+        )
+
+        semaphore_tasks = (
+            REPO_ROOT / "roles" / "semaphore" / "tasks" / "main.yml"
+        ).read_text(encoding="utf-8")
+        self.assertNotIn("Schedule deferred container network migration", semaphore_tasks)
+
+    def test_migration_always_attempts_service_recovery(self):
+        self.assertIn("trap finish EXIT", self.script)
+        self.assertIn("restart_services", self.script)
+        self.assertLess(
+            self.script.index("trap finish EXIT"),
+            self.script.index('echo "Stopping ${unit_name}"'),
+        )
+
+    def test_migration_does_not_discard_lifecycle_failures(self):
+        for command in (
+            "/usr/bin/systemctl stop",
+            "/usr/bin/systemctl start",
+            "/usr/bin/podman network rm",
+        ):
+            with self.subTest(command=command):
+                matching_lines = [
+                    line for line in self.script.splitlines() if command in line
+                ]
+                self.assertTrue(matching_lines)
+                self.assertTrue(all("|| true" not in line for line in matching_lines))
+
+    def test_migration_verifies_network_removal_and_creation(self):
+        removal = self.script.index("/usr/bin/podman network rm")
+        absence_check = self.script.index(
+            "if ! /usr/bin/podman network inspect", removal
+        )
+        still_exists = self.script.index("still exists after removal")
+        creation = self.script.index("/usr/bin/podman network create")
+        not_created = self.script.index("was not created")
+
+        self.assertLess(removal, absence_check)
+        self.assertLess(absence_check, creation)
+        self.assertLess(creation, still_exists)
+        self.assertLess(creation, not_created)
+
+
 if __name__ == "__main__":
     unittest.main()

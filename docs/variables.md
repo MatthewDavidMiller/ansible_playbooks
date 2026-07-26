@@ -51,6 +51,7 @@ VM1 runs the service stack. All variables in this section need real values for
 | `traefik_acme_email` | string | Yes | ACME account email address. | `admin@example.com` |
 | `proxy_config` | list | Yes | Dynamic routes; see [Proxy entries](#proxy-entries). | One entry per exposed service |
 | `container_service_names` | string | Yes | Space-separated systemd service order used by Traefik and deferred network migration. | `postgres_container redis_container nextcloud_container paperless_ngx navidrome_container vaultwarden semaphore` |
+| `container_network_migration_delay` | string | No | Positive systemd time span before a queued network migration starts. | `2min` |
 | `traefik_egress_network` | string | No | Dedicated non-internal Traefik egress network. | `traefik_egress_net` |
 
 Generate a dashboard password hash with `htpasswd`; quote the complete value in

@@ -4,7 +4,6 @@ profile: moderate
 # Paths to exclude from linting
 exclude_paths:
   - .git/
-  - archive/
   - collections/ansible_collections/
   - example_inventory.yml
   - reboot_vms.yml

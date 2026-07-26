@@ -10,8 +10,10 @@ import json
 import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import yaml
@@ -155,6 +157,39 @@ def load_lock_file(path: Path) -> dict:
     if not isinstance(data, dict) or not isinstance(data.get("artifact_locked_images"), dict):
         raise SystemExit(f"Invalid lock file format: {path}")
     return data
+
+
+def write_lock_file(path: Path, data: dict) -> None:
+    """Atomically replace a validated artifact lock without changing its mode."""
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
+            temporary_path = Path(handle.name)
+            yaml.safe_dump(data, handle, sort_keys=False)
+            handle.flush()
+            os.fsync(handle.fileno())
+
+        if path.exists():
+            temporary_path.chmod(stat.S_IMODE(path.stat().st_mode))
+        os.replace(temporary_path, path)
+        temporary_path = None
+
+        directory_fd = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+    except (Exception, KeyboardInterrupt, SystemExit):
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
+        raise
 
 
 def validate_digest(value: object, label: str) -> str:
@@ -659,8 +694,7 @@ def main() -> int:
         return 1
 
     if args.write:
-        with args.lock_file.open("w", encoding="utf-8") as handle:
-            yaml.safe_dump(lock_data, handle, sort_keys=False)
+        write_lock_file(args.lock_file, lock_data)
 
     return 0
 

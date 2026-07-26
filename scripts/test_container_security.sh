@@ -232,9 +232,9 @@ assert_file_contains "--internal" "Paperless: proxy network is created as an int
 assert_file_contains "--internal" "Navidrome: proxy network is created as an internal network" roles/navidrome/tasks/main.yml
 assert_file_contains "--internal" "Vaultwarden: proxy network is created as an internal network" roles/vaultwarden/tasks/main.yml
 assert_file_contains "--internal" "Semaphore: proxy network is created as an internal network" roles/semaphore/tasks/main.yml
-assert_file_contains "Schedule deferred container network migration" "Semaphore: schedules deferred network replacement after the playbook finishes" roles/semaphore/tasks/main.yml
-assert_file_contains "systemd-run" "Semaphore: uses a delayed background job for disruptive network replacement" roles/semaphore/tasks/main.yml
-assert_file_contains "podman network rm --force --time 30" "Deferred migration: removes legacy networks after services are stopped" roles/semaphore/templates/migrate_container_networks.sh.j2
+assert_file_contains "Schedule deferred container network migration" "Migration coordinator: schedules deferred network replacement after the playbook finishes" roles/container_network_migration/tasks/main.yml
+assert_file_contains "systemd-run" "Migration coordinator: uses a delayed background job for disruptive network replacement" roles/container_network_migration/tasks/main.yml
+assert_file_contains "podman network rm --force --time 30" "Deferred migration: removes legacy networks after services are stopped" roles/container_network_migration/templates/migrate_container_networks.sh.j2
 assert_file_contains "Create internal route proxy networks" "reverse_proxy: creates route proxy networks before service roles run" roles/reverse_proxy/tasks/main.yml
 assert_file_contains "Remove non-internal route proxy networks" "reverse_proxy: recreates legacy non-internal route networks" roles/reverse_proxy/tasks/main.yml
 assert_file_contains "Queue legacy route proxy networks for deferred replacement" "reverse_proxy: queues disruptive route network replacements for the final migration job" roles/reverse_proxy/tasks/main.yml

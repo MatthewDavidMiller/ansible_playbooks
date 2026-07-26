@@ -17,6 +17,37 @@ SPEC.loader.exec_module(proxmox)
 
 
 class ProxmoxParsingTests(unittest.TestCase):
+    def test_qm_config_distinguishes_absent_vms_from_query_failures(self):
+        with mock.patch.object(
+            proxmox,
+            "capture",
+            return_value=mock.Mock(returncode=0, stdout="name: VM1\n", stderr=""),
+        ):
+            self.assertEqual(proxmox.qm_config("120"), "name: VM1\n")
+
+        with mock.patch.object(
+            proxmox,
+            "capture",
+            return_value=mock.Mock(
+                returncode=2,
+                stdout="",
+                stderr="Configuration file 'nodes/pve/qemu-server/120.conf' does not exist",
+            ),
+        ):
+            self.assertIsNone(proxmox.qm_config("120"))
+
+        with mock.patch.object(
+            proxmox,
+            "capture",
+            return_value=mock.Mock(
+                returncode=255,
+                stdout="",
+                stderr="cluster filesystem unavailable",
+            ),
+        ):
+            with self.assertRaisesRegex(SystemExit, "cluster filesystem unavailable"):
+                proxmox.qm_config("120")
+
     def test_parse_qm_config_ignores_unstructured_lines(self):
         parsed = proxmox.parse_qm_config("name: VM2\nscsi0: local-lvm:vm-121-disk-0,size=32G\nnoise\n")
         self.assertEqual(parsed["name"], "VM2")

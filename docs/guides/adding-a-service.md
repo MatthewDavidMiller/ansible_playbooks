@@ -1,6 +1,6 @@
 # Adding a Service
 
-This guide covers the maintained pattern: add the service to VM1, not to a new dedicated-VM playbook. Historical multi-VM examples live under [archive.md](../archive.md).
+This guide covers the maintained pattern: add the service to VM1, not to a new dedicated-VM playbook. Historical multi-VM examples are available through the branch described in [archive.md](../archive.md).
 
 ---
 

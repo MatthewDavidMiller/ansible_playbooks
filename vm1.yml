@@ -47,5 +47,6 @@
     - paperless_ngx
     - navidrome
     - vaultwarden
-    - standard_cleanup
     - semaphore
+    - standard_cleanup
+    - container_network_migration

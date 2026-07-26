@@ -12,7 +12,7 @@ assert_no_match() {
   local pattern="$1"
   local label="$2"
   shift 2
-  if rg -n --glob '!archive/**' --glob '!.git/**' --glob '!scripts/test_supply_chain_policy.sh' "$pattern" "$@" >/tmp/supply_chain_policy.out 2>&1; then
+  if rg -n --glob '!.git/**' --glob '!scripts/test_supply_chain_policy.sh' "$pattern" "$@" >/tmp/supply_chain_policy.out 2>&1; then
     cat /tmp/supply_chain_policy.out
     fail "$label"
   fi
@@ -23,7 +23,7 @@ assert_no_fixed_match() {
   local text="$1"
   local label="$2"
   shift 2
-  if rg -n -F --glob '!archive/**' --glob '!.git/**' --glob '!scripts/test_supply_chain_policy.sh' "$text" "$@" >/tmp/supply_chain_policy.out 2>&1; then
+  if rg -n -F --glob '!.git/**' --glob '!scripts/test_supply_chain_policy.sh' "$text" "$@" >/tmp/supply_chain_policy.out 2>&1; then
     cat /tmp/supply_chain_policy.out
     fail "$label"
   fi
@@ -120,8 +120,10 @@ assert_match "Remove non-internal route proxy networks" "reverse_proxy recreates
 assert_match "Queue legacy route proxy networks for deferred replacement" "reverse_proxy queues disruptive route network replacements" roles/reverse_proxy/tasks/main.yml
 assert_match "reverse_proxy_deferred_route_networks" "reverse_proxy defers destructive updates for control-plane route networks" roles/reverse_proxy/tasks/main.yml
 assert_match "semaphore_container_net" "reverse_proxy defers Semaphore runtime network replacement by default" roles/reverse_proxy/defaults/main.yml
-assert_match "Schedule deferred container network migration" "semaphore schedules disruptive network replacement at the end of VM1 runs" roles/semaphore/tasks/main.yml
-assert_match "systemd-run" "semaphore uses a delayed background job for final network migration" roles/semaphore/tasks/main.yml
+assert_match "Schedule deferred container network migration" "dedicated coordinator schedules disruptive network replacement at the end of VM1 runs" roles/container_network_migration/tasks/main.yml
+assert_match "systemd-run" "dedicated coordinator uses a delayed background job for final network migration" roles/container_network_migration/tasks/main.yml
+assert_match "trap finish EXIT" "deferred network migration always attempts service recovery" roles/container_network_migration/templates/migrate_container_networks.sh.j2
+assert_no_fixed_match "|| true" "deferred network migration does not discard lifecycle failures" roles/container_network_migration/templates/migrate_container_networks.sh.j2
 assert_match "from_json.*first.*subnets.*map.*attribute.*subnet" \
   "reverse_proxy checks subnet mismatch for deferred route network recreation" \
   roles/reverse_proxy/tasks/main.yml

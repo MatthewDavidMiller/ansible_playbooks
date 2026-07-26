@@ -1,5 +1,0 @@
----
-# unificontroller role defaults
-
-# Path to the UniFi Controller container data directory
-unificontroller_path: ""

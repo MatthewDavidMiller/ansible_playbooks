@@ -59,7 +59,21 @@ def qm_config(vmid: str) -> str | None:
     result = capture(["qm", "config", vmid])
     if result.returncode == 0:
         return result.stdout
-    return None
+
+    error = (result.stderr or result.stdout).strip()
+    normalized_error = error.casefold()
+    if (
+        "does not exist" in normalized_error
+        or (
+            "configuration file" in normalized_error
+            and "not found" in normalized_error
+        )
+    ):
+        return None
+    raise SystemExit(
+        f"Unable to query Proxmox config for VMID {vmid}: "
+        f"{error or f'qm exited with status {result.returncode}'}"
+    )
 
 
 def parse_qm_config(config: str) -> dict[str, str]:

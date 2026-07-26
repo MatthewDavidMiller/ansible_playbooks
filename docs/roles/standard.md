@@ -1,6 +1,6 @@
 # Standard And Dev Roles Reference
 
-These are the maintained infrastructure and dev-host roles used by the active VM playbooks. Historical standard roles live under the archive.
+These are the maintained infrastructure and dev-host roles used by the active VM playbooks. Historical standard roles are preserved on the branch described in [archive.md](../archive.md).
 
 ---
 
@@ -96,6 +96,24 @@ Keeps SELinux enforcing on Rocky Linux 10 and sets the booleans required by the 
 Runs the post-deploy cleanup pass.
 
 **Key behavior:** clears package caches and vacuums the journal. Destructive container/image pruning is opt-in; volumes and networks are never pruned automatically.
+
+---
+
+### `container_network_migration`
+
+Coordinates queued Podman network replacements after every VM1 service role and
+the cleanup pass have completed.
+
+**Optional variables:**
+
+| Variable | Type | Description | Example |
+|---|---|---|---|
+| `container_network_migration_delay` | string | Positive systemd time span before the migration starts | `2min` |
+
+**Key behavior:** validates the queued network definitions and service restart
+order, renders one root-only migration script, and schedules it with a transient
+systemd unit. The script always attempts to restart services through an exit
+trap and fails visibly if a stop, network replacement, or restart fails.
 
 ---
 

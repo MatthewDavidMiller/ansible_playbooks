@@ -33,7 +33,7 @@ Start with [README.md](../README.md) for the project overview and quick start.
 | [variables.md](variables.md) | Required, conditional, and optional variables to define or override |
 | [roles/standard.md](roles/standard.md) | Standard infrastructure roles (`standard_ssh`, `standard_firewalld`, `standard_selinux`, etc.) |
 | [roles/services.md](roles/services.md) | Service roles (`nextcloud`, `vaultwarden`, `semaphore`, `reverse_proxy`, etc.) |
-| [archive.md](archive.md) | Archived playbooks, roles, and historical reference docs |
+| [archive.md](archive.md) | How to browse the separate historical `archive` branch |
 
 ## Guides
 

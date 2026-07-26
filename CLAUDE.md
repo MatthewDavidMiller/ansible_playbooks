@@ -4,7 +4,7 @@ Repository guidance for Claude Code when working in this project.
 
 ## Project
 
-This repo manages the maintained homelab VM workflow with Ansible. Historical playbooks and roles are preserved under `archive/` for reference only.
+This repo manages the maintained homelab VM workflow with Ansible. Historical playbooks and roles are preserved on the separate `archive` branch for reference only.
 
 Start with [README.md](README.md), then use [docs/index.md](docs/index.md) for the full documentation map.
 
@@ -30,5 +30,5 @@ Start with [README.md](README.md), then use [docs/index.md](docs/index.md) for t
 - [docs/roles/standard.md](docs/roles/standard.md): shared infrastructure roles
 - [docs/roles/services.md](docs/roles/services.md): service role behavior and templates
 - [docs/guides/getting-started.md](docs/guides/getting-started.md): setup and first-run commands
-- [docs/archive.md](docs/archive.md): archived playbooks, roles, and historical docs
+- [docs/archive.md](docs/archive.md): browsing the historical `archive` branch
 - [docs/documentation-standards.md](docs/documentation-standards.md): doc ownership and cross-reference rules

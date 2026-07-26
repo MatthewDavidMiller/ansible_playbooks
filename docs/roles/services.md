@@ -1,6 +1,6 @@
 # Service Roles Reference
 
-These are the maintained service roles used by `vm1.yml`. Historical service roles live under the archive.
+These are the maintained service roles used by `vm1.yml`. Historical service roles are preserved on the branch described in [archive.md](../archive.md).
 
 ---
 
@@ -84,9 +84,9 @@ Deploys Semaphore and backs up its PostgreSQL database into the local Nextcloud 
 
 **Required variables:** `semaphore_database_name`, `semaphore_db_user`, `semaphore_db_password`, `semaphore_admin_name`, `semaphore_admin_email`, `semaphore_admin_password`, `semaphore_encryption_key` (at least 32 characters), `semaphore_known_hosts`, `semaphore_backup_location`, `semaphore_image`, `secret_env_dir`
 
-**Templates:** `semaphore.sh.j2`, `semaphore.service.j2`, `semaphore.env.j2`, `backup_semaphore.sh.j2`, `ssh_known_hosts.j2`, `migrate_container_networks.sh.j2`
+**Templates:** `semaphore.sh.j2`, `semaphore.service.j2`, `semaphore.env.j2`, `backup_semaphore.sh.j2`, `ssh_known_hosts.j2`
 
-**Key behavior:** creates the Semaphore proxy and egress networks, queues legacy non-internal or wrong-subnet Semaphore proxy networks for deferred replacement during staged VM1 runs, and runs last in `vm1.yml` so it can schedule the delayed container-network migration after all service configuration has been rendered. The migration job stops Traefik and the configured `container_service_names`, replaces queued networks as internal networks, restarts services, and logs to `/var/log/homelab-container-network-migration.log`.
+**Key behavior:** creates the Semaphore proxy and egress networks and queues legacy non-internal or wrong-subnet Semaphore proxy networks for deferred replacement during staged VM1 runs. The final [`container_network_migration`](standard.md#container_network_migration) role owns cross-service scheduling and recovery.
 
 ---
 

@@ -1,6 +1,6 @@
 # Ansible Playbooks
 
-Ansible repo for the maintained homelab VM workflow: VM1 runs Rocky Linux 10 Podman services under systemd, and VM2 is a Rocky Linux 10 SSH/tmux dev VM for Codex and Claude Code. Historical playbooks and roles are kept under `archive/` for reference and are not maintained.
+Ansible repo for the maintained homelab VM workflow: VM1 runs Rocky Linux 10 Podman services under systemd, and VM2 is a Rocky Linux 10 SSH/tmux dev VM for Codex and Claude Code. Historical playbooks and roles are preserved on the separate `archive` branch and are not maintained.
 
 ## Documentation
 
@@ -10,7 +10,7 @@ Ansible repo for the maintained homelab VM workflow: VM1 runs Rocky Linux 10 Pod
 - [docs/guides/getting-started.md](docs/guides/getting-started.md) — setup from scratch
 - [docs/variables.md](docs/variables.md) — required, conditional, and optional inventory variables
 - [docs/guides/container-image-updates.md](docs/guides/container-image-updates.md) — secure image review and digest-pinning workflow
-- [docs/archive.md](docs/archive.md) — archived playbooks, roles, and historical notes
+- [docs/archive.md](docs/archive.md) — how to browse the historical `archive` branch
 
 ## Quick Start
 
