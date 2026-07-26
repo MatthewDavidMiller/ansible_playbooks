@@ -211,6 +211,9 @@ assert_file_contains "container_dns[.]aliases[.]postgres_backend.*container_dns[
 assert_file_contains "container_dns[.]aliases[.]redis_backend.*container_dns[.]domain" "Nextcloud: uses backend Redis DNS dictionary" roles/nextcloud/templates/nextcloud.env.j2
 assert_file_contains "container_dns[.]aliases[.]postgres_backend.*container_dns[.]domain" "Paperless: uses backend Postgres DNS dictionary" roles/paperless_ngx/templates/paperless.env.j2
 assert_file_contains "redis://.*container_dns[.]aliases[.]redis_backend.*container_dns[.]domain" "Paperless: uses backend Redis DNS dictionary" roles/paperless_ngx/templates/paperless.env.j2
+assert_file_contains "PAPERLESS_SECRET_KEY=.*paperless_secret_key" "Paperless: renders the required 3.0 signing key" roles/paperless_ngx/templates/paperless.env.j2
+assert_file_contains "PAPERLESS_DBENGINE=" "Paperless: declares the database engine explicitly for 3.0" roles/paperless_ngx/templates/paperless.env.j2
+assert_file_contains "PAPERLESS_TRUSTED_PROXIES=.*route_proxy_traefik_ips" "Paperless: trusts only the Traefik proxy hop" roles/paperless_ngx/templates/paperless.env.j2
 assert_file_contains "container_dns[.]aliases[.]postgres_backend.*container_dns[.]domain" "Semaphore: uses backend Postgres DNS dictionary" roles/semaphore/templates/semaphore.env.j2
 assert_file_contains "--add-host=.*route_proxy_container_ips" "Traefik: resolves proxy route names through container hosts entries" roles/reverse_proxy/templates/traefik_container.sh.j2
 assert_file_contains "--add-host=.*container_dns[.]aliases[.]postgres_backend" "Nextcloud: resolves backend Postgres name through a container hosts entry" roles/nextcloud/templates/nextcloud_container.sh.j2
@@ -832,7 +835,9 @@ TEST_PL_CONSUME=$(mktemp -d)
   -e USERMAP_UID=1000 \
   -e USERMAP_GID=1000 \
   -e PAPERLESS_REDIS=redis://nonexistent:6379 \
+  -e PAPERLESS_DBENGINE=postgresql \
   -e PAPERLESS_DBHOST=nonexistent \
+  -e PAPERLESS_SECRET_KEY=container-security-test-signing-key-not-a-real-secret \
   --volume "$TEST_PL_DATA":/usr/src/paperless/data \
   --volume "$TEST_PL_MEDIA":/usr/src/paperless/media \
   --volume "$TEST_PL_EXPORT":/usr/src/paperless/export \

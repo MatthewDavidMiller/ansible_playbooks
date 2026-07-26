@@ -115,6 +115,8 @@ When `backup_local: false`, also define the following variables:
 | `paperless_database_name` | string | Yes | PostgreSQL database name. | `paperless` |
 | `paperless_db_user` | string | Yes | PostgreSQL application role. | `paperless_user` |
 | `paperless_db_password` | string | Yes, secret | Database password; must satisfy `password_minimum_length`. | Ansible Vault value |
+| `paperless_secret_key` | string | Yes, secret | Django signing key rendered as `PAPERLESS_SECRET_KEY`; must satisfy `secret_key_minimum_length`. Paperless 3.0 dropped the built-in default and refuses to start without it. Generate with `python3 -c "import secrets; print(secrets.token_urlsafe(64))"`. | Ansible Vault value |
+| `secret_key_minimum_length` | integer | No | Minimum accepted length for `paperless_secret_key`. | `32` |
 | `paperless_dns_name` | string | Yes | Public Paperless FQDN. | `paperless.example.com` |
 
 ### Semaphore

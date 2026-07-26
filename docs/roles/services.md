@@ -46,13 +46,15 @@ Deploys the shared PostgreSQL container, Redis container, and Nextcloud itself.
 
 Deploys Paperless NGX on top of the PostgreSQL and Redis containers created by `nextcloud`.
 
-**Required variables:** `paperless_path`, `paperless_data_path`, `paperless_media_path`, `paperless_export_path`, `paperless_consume_path`, `paperless_database_name`, `paperless_db_user`, `paperless_db_password`, `paperless_image`, `secret_env_dir`
+**Required variables:** `paperless_path`, `paperless_data_path`, `paperless_media_path`, `paperless_export_path`, `paperless_consume_path`, `paperless_database_name`, `paperless_db_user`, `paperless_db_password`, `paperless_secret_key`, `paperless_image`, `secret_env_dir`
 
-**Optional variables:** `password_minimum_length` defaults to `16` and controls validation of the Paperless database password.
+**Optional variables:** `password_minimum_length` defaults to `16` and controls validation of the Paperless database password. `secret_key_minimum_length` defaults to `32` and controls validation of `paperless_secret_key`.
 
 **Templates:** `paperless_ngx.sh.j2`, `paperless_ngx.service.j2`, `paperless.env.j2`
 
 **Key behavior:** reconciles the Paperless proxy network through the shared [`container_network`](standard.md#container_network) role, and runs only after the shared database/cache containers are configured.
+
+**Paperless 3.0 configuration notes:** `PAPERLESS_SECRET_KEY` has no built-in default in 3.0, so the container exits at startup unless `paperless_secret_key` is set. `PAPERLESS_DBENGINE` is rendered as `postgresql` because 3.0 requires PostgreSQL and MariaDB users to declare the engine explicitly instead of inferring it from `PAPERLESS_DBHOST`. `PAPERLESS_TRUSTED_PROXIES` names the single Traefik hop on `paperless_proxy_net` so allauth rate limiting reads the real client IP from `X-Forwarded-For` rather than a spoofable value. The 3.0 upgrade also rebuilds the full-text index (Whoosh to Tantivy) on first start and clears task history; both are automatic and need no configuration.
 
 ---
 

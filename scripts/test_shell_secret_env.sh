@@ -38,6 +38,10 @@ paperless_db_password=$(cat <<'EOF'
 pl;db "quoted" \ slash & dollars $HOME and 'single'
 EOF
 )
+paperless_secret_key=$(cat <<'EOF'
+pl;secret "quoted" \ slash & dollars $HOME and 'single'
+EOF
+)
 semaphore_db_password=$(cat <<'EOF'
 sem;db "quoted" \ slash & dollars $HOME and 'single'
 EOF
@@ -79,6 +83,7 @@ nextcloud_db_password: 'nc;db "quoted" \ slash & dollars \$HOME and ''single'''
 paperless_database_name: 'paperless-db'
 paperless_db_user: 'paperless-user'
 paperless_db_password: 'pl;db "quoted" \ slash & dollars \$HOME and ''single'''
+paperless_secret_key: 'pl;secret "quoted" \ slash & dollars \$HOME and ''single'''
 semaphore_database_name: 'semaphore-db'
 semaphore_db_user: 'semaphore-user'
 semaphore_db_password: 'sem;db "quoted" \ slash & dollars \$HOME and ''single'''
@@ -136,6 +141,7 @@ route_proxy_container_ips:
   nextcloud_proxy_net: '172.16.1.34'
 route_proxy_traefik_ips:
   nextcloud_proxy_net: '172.16.1.35'
+  paperless_proxy_net: '172.16.1.43'
 proxy_config:
   - name: 'nextcloud_proxy'
     proxy_fqdn: 'cloud.example.com'
@@ -363,6 +369,9 @@ assert_sourced_var "$render_dir/nextcloud.env" "TRUSTED_PROXIES" "172.16.1.32/29
 assert_sourced_var "$render_dir/paperless.env" "PAPERLESS_DBPASS" "$paperless_db_password" "paperless.env preserves PAPERLESS_DBPASS"
 assert_sourced_var "$render_dir/paperless.env" "PAPERLESS_DBHOST" "test-postgres-backend.test.dns.podman" "paperless.env uses the backend Postgres alias"
 assert_sourced_var "$render_dir/paperless.env" "PAPERLESS_REDIS" "redis://test-redis-backend.test.dns.podman:6379" "paperless.env uses the backend Redis alias"
+assert_sourced_var "$render_dir/paperless.env" "PAPERLESS_SECRET_KEY" "$paperless_secret_key" "paperless.env preserves PAPERLESS_SECRET_KEY"
+assert_sourced_var "$render_dir/paperless.env" "PAPERLESS_DBENGINE" "postgresql" "paperless.env declares the PostgreSQL engine explicitly"
+assert_sourced_var "$render_dir/paperless.env" "PAPERLESS_TRUSTED_PROXIES" "172.16.1.43" "paperless.env trusts only the Traefik proxy hop"
 assert_sourced_var "$render_dir/semaphore.env" "SEMAPHORE_DB_HOST" "test-postgres-backend.test.dns.podman" "semaphore.env uses the backend Postgres alias"
 assert_sourced_var "$render_dir/semaphore.env" "SEMAPHORE_ADMIN_PASSWORD" "$semaphore_admin_password" "semaphore.env preserves SEMAPHORE_ADMIN_PASSWORD"
 assert_sourced_var "$render_dir/semaphore.env" "SEMAPHORE_ACCESS_KEY_ENCRYPTION" "$semaphore_encryption_key" "semaphore.env preserves SEMAPHORE_ACCESS_KEY_ENCRYPTION"
@@ -429,6 +438,9 @@ assert_not_contains "$render_dir/paperless_ngx.sh" "--env-file" "paperless_ngx.s
 assert_contains "$render_dir/paperless_ngx.sh" '. "/etc/homelab/secrets/paperless.env"' "paperless_ngx.sh sources paperless.env"
 assert_contains "$render_dir/paperless_ngx.sh" "--env PAPERLESS_DBPASS" "paperless_ngx.sh passes PAPERLESS_DBPASS"
 assert_contains "$render_dir/paperless_ngx.sh" "--env PAPERLESS_URL" "paperless_ngx.sh passes PAPERLESS_URL"
+assert_contains "$render_dir/paperless_ngx.sh" "--env PAPERLESS_SECRET_KEY" "paperless_ngx.sh passes PAPERLESS_SECRET_KEY"
+assert_contains "$render_dir/paperless_ngx.sh" "--env PAPERLESS_DBENGINE" "paperless_ngx.sh passes PAPERLESS_DBENGINE"
+assert_contains "$render_dir/paperless_ngx.sh" "--env PAPERLESS_TRUSTED_PROXIES" "paperless_ngx.sh passes PAPERLESS_TRUSTED_PROXIES"
 assert_contains "$render_dir/paperless_ngx.sh" "--network=nextcloud_container_net:ip=172.16.1.5,alias=test-paperless-backend" "paperless_ngx.sh joins backend network with a static IP and alias"
 assert_contains "$render_dir/paperless_ngx.sh" "--network=paperless_proxy_net:ip=172.16.1.42,alias=test-paperless-proxy" "paperless_ngx.sh joins proxy network with a static IP and alias"
 assert_contains "$render_dir/paperless_ngx.sh" "--add-host=test-postgres-backend.test.dns.podman:172.16.1.2" "paperless_ngx.sh resolves Postgres alias through /etc/hosts"

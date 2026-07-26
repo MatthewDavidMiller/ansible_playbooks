@@ -13,15 +13,18 @@ exec /usr/bin/podman run \
 --add-host={{ container_dns.aliases.postgres_backend }}.{{ container_dns.domain }}:{{ container_static_ips.postgres_backend }} \
 --add-host={{ container_dns.aliases.redis_backend }}.{{ container_dns.domain }}:{{ container_static_ips.redis_backend }} \
 --env PAPERLESS_REDIS \
+--env PAPERLESS_DBENGINE \
 --env PAPERLESS_DBHOST \
 --env PAPERLESS_DBNAME \
 --env PAPERLESS_DBUSER \
 --env PAPERLESS_DBPASS \
+--env PAPERLESS_SECRET_KEY \
 --env USERMAP_UID \
 --env USERMAP_GID \
 --env PAPERLESS_TIME_ZONE \
 --env PAPERLESS_OCR_LANGUAGE \
 --env PAPERLESS_URL \
+--env PAPERLESS_TRUSTED_PROXIES \
 -v {{ paperless_data_path }}:/usr/src/paperless/data:Z \
 -v {{ paperless_media_path }}:/usr/src/paperless/media:Z \
 -v {{ paperless_export_path }}:/usr/src/paperless/export:Z \

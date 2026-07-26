@@ -11,9 +11,12 @@
       - paperless_image | homelab_immutable_digest_ref
       - route_proxy_network_subnets.paperless_proxy_net | homelab_valid_ipv4_cidr
       - container_static_ips.paperless_proxy | homelab_container_assignable_ip(route_proxy_network_subnets.paperless_proxy_net)
+      - route_proxy_traefik_ips.paperless_proxy_net | homelab_container_assignable_ip(route_proxy_network_subnets.paperless_proxy_net)
       - password_minimum_length | int >= 1
       - paperless_db_password | length >= password_minimum_length | int
-    fail_msg: Configure safe paths, an immutable image, a valid network, and a strong Paperless database secret.
+      - secret_key_minimum_length | int >= 1
+      - paperless_secret_key | length >= secret_key_minimum_length | int
+    fail_msg: Configure safe paths, an immutable image, a valid network, a strong Paperless database secret, and a unique Paperless signing key.
   no_log: true
 
 - name: Create paperless secret directory

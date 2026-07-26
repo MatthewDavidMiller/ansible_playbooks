@@ -101,6 +101,8 @@ assert_match "standard_update_enable_epel" "CRB enable is gated on EPEL being en
 assert_match "^password_minimum_length:[[:space:]]+16$" "database password validation has a default minimum length" roles/nextcloud/defaults/main.yml roles/paperless_ngx/defaults/main.yml
 assert_match "password.*length >= password_minimum_length.*int" "database password validation uses the configurable minimum length" roles/nextcloud/tasks/main.yml roles/paperless_ngx/tasks/main.yml
 assert_no_match "password.*length >= 16" "database password validation does not hard-code the minimum length" roles/nextcloud/tasks/main.yml roles/paperless_ngx/tasks/main.yml
+assert_match "^secret_key_minimum_length:[[:space:]]+32$" "Paperless signing key validation has a default minimum length" roles/paperless_ngx/defaults/main.yml
+assert_match "paperless_secret_key \\| length >= secret_key_minimum_length" "Paperless signing key validation uses the configurable minimum length" roles/paperless_ngx/tasks/main.yml
 assert_match "ansible-galaxy collection install -r collections/requirements\\.yml" "control-node installs use the pinned collection manifest" scripts/desktop_local_ansible.sh docs/guides/getting-started.md
 assert_no_match "ansible-galaxy collection install (community|ansible\\.posix)" "collection installs must not bypass the pinned requirements file" scripts docs
 assert_no_match "\\.latest\\." "mutable cloud image URLs are not allowed" scripts/proxmox_initial_setup.py artifacts/cloud_images.lock.yml docs/guides/proxmox-setup.md

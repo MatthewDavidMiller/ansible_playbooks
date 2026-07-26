@@ -25,8 +25,15 @@ paperless_db_user: ""
 # Password for the Paperless NGX database user
 paperless_db_password: ""
 
+# Django signing key for Paperless sessions and tokens. Paperless 3.0 removed the
+# built-in default and refuses to start unless PAPERLESS_SECRET_KEY is set.
+paperless_secret_key: ""
+
 # Minimum length enforced for the application database password
 password_minimum_length: 16
+
+# Minimum length enforced for the Paperless signing key
+secret_key_minimum_length: 32
 
 # Fully-qualified domain name for Paperless NGX (used in PAPERLESS_URL)
 paperless_dns_name: ""
@@ -49,6 +56,12 @@ container_dns:
 # Deterministic VM1 route proxy network subnet.
 route_proxy_network_subnets:
   paperless_proxy_net: 172.16.1.40/29
+
+# Traefik address on the Paperless route proxy network. Paperless only trusts
+# X-Forwarded-For from this hop, which keeps allauth rate limiting keyed on the
+# real client IP instead of a spoofable header.
+route_proxy_traefik_ips:
+  paperless_proxy_net: 172.16.1.43
 
 # Static container IPs used with /etc/hosts overrides for latency-sensitive
 # service-to-service paths.
