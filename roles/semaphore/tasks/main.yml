@@ -8,7 +8,7 @@
       - secret_env_dir | homelab_safe_absolute_path
       - semaphore_image | homelab_immutable_digest_ref
       - route_proxy_network_subnets.semaphore_container_net | homelab_valid_ipv4_cidr
-      - container_static_ips.semaphore_proxy | homelab_ip_in_subnet(route_proxy_network_subnets.semaphore_container_net)
+      - container_static_ips.semaphore_proxy | homelab_container_assignable_ip(route_proxy_network_subnets.semaphore_container_net)
       - semaphore_egress_network | homelab_safe_name
       - semaphore_known_hosts | trim | length > 0
       - semaphore_admin_email is match('^[^@\\s]+@[^@\\s]+[.][^@\\s]+$')

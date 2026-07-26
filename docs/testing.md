@@ -24,6 +24,8 @@ Runtime tests prefer Docker when both engines are installed, fall back to Podman
 
 The Python suite includes mocked success and failure paths for artifact promotion, Proxmox provisioning, dynamic DNS, shared validation filters, and VM bootstrap behavior. It also executes the Nextcloud permission-normalization command against a temporary file tree to guard its single-pass and idempotent behavior.
 
+Route proxy addressing has dedicated guards in `tests/test_ansible_regressions.py`. Every container on a route proxy network must request a static address that Podman can assign, Traefik's `route_proxy_traefik_ips` address must differ from the service address on the same network, and `route_proxy_container_ips` must match the address the service launch script requests. The checks read the launch scripts and role defaults, so a new proxied service is covered once it pins an address.
+
 Local Nextcloud backups have dedicated guards in `tests/test_ansible_regressions.py`. Every template that writes into the Nextcloud user files tree must run `occ files:scan` as `nextcloud_uid:nextcloud_gid`, must report scan failures instead of discarding them with `|| true`, and must install dumps using `nextcloud_user_files_file_mode` so the mode survives the `nextcloud` role's normalization. The checks discover templates by content, so a new service backup script is covered without editing the tests.
 
 Offline or no-container commits can skip the network depsolve only:

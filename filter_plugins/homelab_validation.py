@@ -42,6 +42,18 @@ def homelab_ip_in_network(address: object, network: object) -> bool:
     )
 
 
+def homelab_container_assignable_ip(address: object, network: object) -> bool:
+    """A host address Podman can hand to a container on this network.
+
+    Podman claims the first host address of a network as the bridge gateway,
+    so a container that requests it never starts.
+    """
+    if not homelab_ip_in_network(address, network):
+        return False
+    parsed_network = ipaddress.ip_network(str(network), strict=True)
+    return ipaddress.ip_address(str(address)) != next(parsed_network.hosts())
+
+
 def homelab_safe_absolute_path(value: object) -> bool:
     text = str(value)
     if not text or text.strip() != text or "\x00" in text:
@@ -66,6 +78,7 @@ class FilterModule:
             "homelab_valid_ipv4_address": homelab_valid_ipv4_address,
             "homelab_ip_in_network": homelab_ip_in_network,
             "homelab_ip_in_subnet": homelab_ip_in_network,
+            "homelab_container_assignable_ip": homelab_container_assignable_ip,
             "homelab_safe_absolute_path": homelab_safe_absolute_path,
             "homelab_immutable_image": homelab_immutable_image,
             "homelab_immutable_digest_ref": homelab_immutable_image,

@@ -156,6 +156,7 @@ corresponding maps consistent.
 | `nextcloud_backend_network_subnet` | string | No | Shared PostgreSQL/Redis/Nextcloud backend subnet; default `172.16.1.0/28`. |
 | `route_proxy_network_subnets` | dictionary | No | Internal subnet keyed by each route network. |
 | `route_proxy_container_ips` | dictionary | No | Backend address keyed by route network for Traefik `/etc/hosts`. |
+| `route_proxy_traefik_ips` | dictionary | No | Address Traefik claims on each route network; must differ from `route_proxy_container_ips`. |
 | `container_static_ips` | dictionary | No | Static address keyed by container alias. |
 | `container_dns` | dictionary | No | Podman DNS domain plus logical alias map. |
 | `reverse_proxy_deferred_route_networks` | list | No | Route networks whose replacement is deferred to their owning role; default is `semaphore_container_net`. |
@@ -176,6 +177,12 @@ route_proxy_container_ips:
   navidrome_container_net: 172.16.1.26
   vaultwarden_container_net: 172.16.1.18
   semaphore_container_net: 172.16.1.50
+route_proxy_traefik_ips:
+  nextcloud_proxy_net: 172.16.1.35
+  paperless_proxy_net: 172.16.1.43
+  navidrome_container_net: 172.16.1.27
+  vaultwarden_container_net: 172.16.1.19
+  semaphore_container_net: 172.16.1.51
 container_static_ips:
   postgres_backend: 172.16.1.2
   redis_backend: 172.16.1.3

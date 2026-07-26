@@ -5,7 +5,7 @@
       - navidrome_path | homelab_safe_absolute_path
       - navidrome_image | homelab_immutable_digest_ref
       - route_proxy_network_subnets.navidrome_container_net | homelab_valid_ipv4_cidr
-      - container_static_ips.navidrome_proxy | homelab_ip_in_subnet(route_proxy_network_subnets.navidrome_container_net)
+      - container_static_ips.navidrome_proxy | homelab_container_assignable_ip(route_proxy_network_subnets.navidrome_container_net)
       - not (backup_local | bool) or nextcloud_path | homelab_safe_absolute_path
       - not (backup_local | bool) or nextcloud_homelab_user | homelab_safe_name
       - (navidrome_uid | string) is match('^[0-9]+$')

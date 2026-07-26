@@ -12,10 +12,10 @@
       - nextcloud_image | homelab_immutable_digest_ref
       - nextcloud_backend_network_subnet | homelab_valid_ipv4_cidr
       - route_proxy_network_subnets.nextcloud_proxy_net | homelab_valid_ipv4_cidr
-      - container_static_ips.postgres_backend | homelab_ip_in_subnet(nextcloud_backend_network_subnet)
-      - container_static_ips.redis_backend | homelab_ip_in_subnet(nextcloud_backend_network_subnet)
-      - container_static_ips.nextcloud_backend | homelab_ip_in_subnet(nextcloud_backend_network_subnet)
-      - container_static_ips.nextcloud_proxy | homelab_ip_in_subnet(route_proxy_network_subnets.nextcloud_proxy_net)
+      - container_static_ips.postgres_backend | homelab_container_assignable_ip(nextcloud_backend_network_subnet)
+      - container_static_ips.redis_backend | homelab_container_assignable_ip(nextcloud_backend_network_subnet)
+      - container_static_ips.nextcloud_backend | homelab_container_assignable_ip(nextcloud_backend_network_subnet)
+      - container_static_ips.nextcloud_proxy | homelab_container_assignable_ip(route_proxy_network_subnets.nextcloud_proxy_net)
       - password_minimum_length | int >= 1
       - postgres_admin_password | length >= password_minimum_length | int
       - nextcloud_db_password | length >= password_minimum_length | int

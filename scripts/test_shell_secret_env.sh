@@ -134,6 +134,8 @@ container_static_ips:
   semaphore_proxy: '172.16.1.50'
 route_proxy_container_ips:
   nextcloud_proxy_net: '172.16.1.34'
+route_proxy_traefik_ips:
+  nextcloud_proxy_net: '172.16.1.35'
 proxy_config:
   - name: 'nextcloud_proxy'
     proxy_fqdn: 'cloud.example.com'
@@ -360,7 +362,12 @@ assert_contains "$render_dir/traefik_container.sh" '. "/etc/homelab/secrets/trae
 assert_contains "$render_dir/traefik_container.sh" "--env PORKBUN_API_KEY" "traefik_container.sh passes PORKBUN_API_KEY"
 assert_contains "$render_dir/traefik_container.sh" "--env PORKBUN_SECRET_API_KEY" "traefik_container.sh passes PORKBUN_SECRET_API_KEY"
 assert_contains "$render_dir/traefik_container.sh" "--network=traefik_egress_net:alias=test-traefik-egress" "traefik_container.sh joins dedicated egress network with an alias"
-assert_contains "$render_dir/traefik_container.sh" "--network=nextcloud_proxy_net:alias=test-traefik-proxy" "traefik_container.sh joins route-declared proxy network with an alias"
+assert_contains "$render_dir/traefik_container.sh" "--network=nextcloud_proxy_net:ip=172.16.1.35,alias=test-traefik-proxy" "traefik_container.sh joins route-declared proxy network with a static IP and alias"
+# Podman hands an unpinned Traefik the first free subnet address, which is the
+# one the service container requests; the second container to start then fails
+# with "requested ip address ... is already allocated".
+assert_not_contains "$render_dir/traefik_container.sh" "--network=nextcloud_proxy_net:alias=" "traefik_container.sh never leaves a route proxy address to Podman IPAM"
+assert_not_contains "$render_dir/traefik_container.sh" "ip=172.16.1.34" "traefik_container.sh does not claim the Nextcloud backend address"
 assert_contains "$render_dir/traefik_container.sh" "--add-host=test-nextcloud-proxy.test.dns.podman:172.16.1.34" "traefik_container.sh resolves Nextcloud proxy alias through /etc/hosts"
 assert_line_before "$render_dir/traefik_container.sh" "--network=nextcloud_proxy_net" "--network=traefik_egress_net" "traefik_container.sh attaches app networks before egress for Podman DNS"
 assert_not_contains "$render_dir/traefik_container.sh" "--network=nextcloud_container_net" "traefik_container.sh does not join backend network"

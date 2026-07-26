@@ -56,6 +56,18 @@ container_dns:
     traefik_proxy: traefik-proxy
     traefik_egress: traefik-egress
 
+# Static IPs Traefik claims on each route proxy network. Without them Podman
+# IPAM hands Traefik the first free address of the subnet, which is the address
+# the service container requests when it starts, and the service then fails
+# with "requested ip address ... is already allocated".
+# Keys match proxy_config[*].proxy_network.
+route_proxy_traefik_ips:
+  nextcloud_proxy_net: 172.16.1.35
+  paperless_proxy_net: 172.16.1.43
+  navidrome_container_net: 172.16.1.27
+  vaultwarden_container_net: 172.16.1.19
+  semaphore_container_net: 172.16.1.51
+
 # Static container IPs used by Traefik /etc/hosts entries for proxied
 # backends. Keys match proxy_config[*].proxy_network.
 route_proxy_container_ips:

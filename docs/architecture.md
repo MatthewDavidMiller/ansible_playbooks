@@ -61,15 +61,17 @@ Publicly proxied services have internal proxy-facing Podman networks, while Post
 | Network | Subnet | Members |
 |---|---|---|
 | `nextcloud_container_net` | 172.16.1.0/28 | postgres (`container_dns.aliases.postgres_backend`), redis (`container_dns.aliases.redis_backend`), nextcloud (`container_dns.aliases.nextcloud_backend`), paperless (`container_dns.aliases.paperless_backend`), semaphore (`container_dns.aliases.semaphore_backend`) |
-| `nextcloud_proxy_net` | 172.16.1.32/29 | nextcloud (`container_dns.aliases.nextcloud_proxy`), traefik (`container_dns.aliases.traefik_proxy`) |
-| `paperless_proxy_net` | 172.16.1.40/29 | paperless (`container_dns.aliases.paperless_proxy`), traefik (`container_dns.aliases.traefik_proxy`) |
-| `navidrome_container_net` | 172.16.1.24/29 | navidrome (`container_dns.aliases.navidrome_proxy`), traefik (`container_dns.aliases.traefik_proxy`) |
-| `vaultwarden_container_net` | 172.16.1.16/29 | vaultwarden (`container_dns.aliases.vaultwarden_proxy`), traefik (`container_dns.aliases.traefik_proxy`) |
-| `semaphore_container_net` | 172.16.1.48/29 | semaphore (`container_dns.aliases.semaphore_proxy`), traefik (`container_dns.aliases.traefik_proxy`) |
+| `nextcloud_proxy_net` | 172.16.1.32/29 | nextcloud (`container_dns.aliases.nextcloud_proxy`, .34), traefik (`container_dns.aliases.traefik_proxy`, .35) |
+| `paperless_proxy_net` | 172.16.1.40/29 | paperless (`container_dns.aliases.paperless_proxy`, .42), traefik (`container_dns.aliases.traefik_proxy`, .43) |
+| `navidrome_container_net` | 172.16.1.24/29 | navidrome (`container_dns.aliases.navidrome_proxy`, .26), traefik (`container_dns.aliases.traefik_proxy`, .27) |
+| `vaultwarden_container_net` | 172.16.1.16/29 | vaultwarden (`container_dns.aliases.vaultwarden_proxy`, .18), traefik (`container_dns.aliases.traefik_proxy`, .19) |
+| `semaphore_container_net` | 172.16.1.48/29 | semaphore (`container_dns.aliases.semaphore_proxy`, .50), traefik (`container_dns.aliases.traefik_proxy`, .51) |
 | `traefik_egress_net` | (auto) | traefik (`container_dns.aliases.traefik_egress`) |
 | `semaphore_egress_net` | (auto) | semaphore (`container_dns.aliases.semaphore_egress`) |
 
 The app/backend networks are created with Podman's `--internal` flag. Missing internal networks are created inline. If an existing app/backend network is not marked internal, or its subnet does not match the configured value, non-staged runs remove and recreate it immediately; staged VM1 runs queue the replacement and let the final `semaphore` role schedule `/usr/local/bin/migrate_container_networks.sh` with `systemd-run --on-active=2min`. That delay lets playbooks launched from the Semaphore container finish before the job stops containers, replaces legacy networks, and starts services again. The job logs to `/var/log/homelab-container-network-migration.log`.
+
+Every member of a route proxy network holds a static address: the service takes its `container_static_ips` entry and Traefik takes its `route_proxy_traefik_ips` entry. Both are required. Podman's IPAM hands a container without a requested address the first free address in the subnet, which is the address the service container requests, so a dynamically addressed Traefik makes whichever container starts second fail with `IPAM error: requested ip address ... is already allocated`. Existing hosts adopt the pinned addresses on the reboot that follows the playbook run.
 
 Traefik route files still use backend names derived from `container_dns.aliases.*` and `container_dns.domain`, and Traefik derives its app-facing network list from each `proxy_config[*].proxy_network` value. The maintained launch scripts add host-file entries for those names using static IPs, avoiding multi-network DNS latency while preserving readable route targets. Services that also join backend-only networks use proxy-network-specific dictionary entries for Traefik routes and backend-specific dictionary entries for database/cache connections.
 

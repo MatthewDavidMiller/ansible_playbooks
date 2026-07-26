@@ -59,6 +59,22 @@
   ansible.builtin.set_fact:
     traefik_app_networks: "{{ proxy_config | map(attribute='proxy_network') | list | unique }}"
 
+- name: Validate deterministic Traefik route network addresses
+  ansible.builtin.assert:
+    that:
+      - route_proxy_traefik_ips[route_proxy_network_name] is defined
+      - route_proxy_traefik_ips[route_proxy_network_name] | homelab_container_assignable_ip(route_proxy_network_subnets[route_proxy_network_name])
+      - route_proxy_container_ips[route_proxy_network_name] | homelab_container_assignable_ip(route_proxy_network_subnets[route_proxy_network_name])
+      - route_proxy_traefik_ips[route_proxy_network_name] != route_proxy_container_ips[route_proxy_network_name]
+    fail_msg: >-
+      Every route network with a deterministic subnet needs a route_proxy_traefik_ips
+      entry inside that subnet that differs from route_proxy_container_ips. Without
+      one, Podman assigns Traefik the first free address, which is the address the
+      service container requests.
+  loop: "{{ traefik_app_networks | select('in', route_proxy_network_subnets | list) | list }}"
+  loop_control:
+    loop_var: route_proxy_network_name
+
 - name: Validate Traefik egress network
   ansible.builtin.assert:
     that:

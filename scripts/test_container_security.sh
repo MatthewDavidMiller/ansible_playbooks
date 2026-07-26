@@ -218,6 +218,9 @@ assert_file_contains "--add-host=.*container_dns[.]aliases[.]redis_backend" "Nex
 assert_file_contains "ip=\\{\\{ container_static_ips[.]postgres_backend \\}\\}" "Postgres: uses a deterministic backend IP" roles/nextcloud/templates/postgres_container.sh.j2
 assert_file_contains "ip=\\{\\{ container_static_ips[.]nextcloud_proxy \\}\\}" "Nextcloud: uses a deterministic proxy IP" roles/nextcloud/templates/nextcloud_container.sh.j2
 assert_file_contains "route_proxy_container_ips" "reverse_proxy: requires deterministic route backend IPs" roles/reverse_proxy/tasks/main.yml
+assert_file_contains "ip=\\{\\{ route_proxy_traefik_ips\\[net\\] \\}\\}" "Traefik: uses a deterministic IP on every route proxy network" roles/reverse_proxy/templates/traefik_container.sh.j2
+assert_file_contains "route_proxy_traefik_ips" "reverse_proxy: validates Traefik route addresses against the service addresses" roles/reverse_proxy/tasks/main.yml
+assert_file_contains "route_proxy_traefik_ips" "reverse_proxy defaults: ships deterministic Traefik route addresses" roles/reverse_proxy/defaults/main.yml
 assert_file_contains "proxy_network" "Variable reference: proxy routes declare their network" docs/variables.md
 assert_file_contains "container_destination" "Variable reference: proxy routes declare their container destination" docs/variables.md
 assert_file_not_contains "traefik_networks" "Variable reference: Traefik networks are derived from route config" docs/variables.md

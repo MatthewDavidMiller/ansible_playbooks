@@ -9,7 +9,7 @@ exec /usr/bin/podman run \
   --pull=never \
   --name=traefik \
 {% for net in traefik_app_networks | default(proxy_config | map(attribute='proxy_network') | list | unique, true) %}
-  --network={{ net }}:alias={{ container_dns.aliases.traefik_proxy }} \
+  --network={{ net }}:{% if net in route_proxy_traefik_ips | default({}) %}ip={{ route_proxy_traefik_ips[net] }},{% endif %}alias={{ container_dns.aliases.traefik_proxy }} \
 {% endfor %}
   --network={{ traefik_egress_network }}:alias={{ container_dns.aliases.traefik_egress }} \
 {% for config_name in proxy_config %}
