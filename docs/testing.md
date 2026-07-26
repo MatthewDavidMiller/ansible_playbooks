@@ -154,10 +154,11 @@ For the full workflow and install references, see [guides/container-image-update
 Checks:
 
 1. **Policy:** pure-Python CLIs (`yamllint`, `ansible-lint`, `pre-commit`) must live in `dev_vm_python_user_packages` (pip `--user`), not `dev_vm_packages` (dnf).
-2. **Policy:** dnf and pip lists must not overlap; required baseline dnf packages remain present.
-3. **Regression:** with CRB disabled, EPEL `yamllint` must fail depsolve (original failure mode still exists upstream).
-4. **Regression:** with CRB enabled (matching `standard_update_packages`), EPEL `yamllint` must resolve.
-5. **Depsolve:** in the digest-pinned Rocky Linux 10 test image with EPEL + CRB, `dnf --assumeno install` must resolve the rootless-Podman `dev_vm_packages` baseline.
+2. **Policy:** dnf and pip lists must not overlap; required baseline dnf packages remain present, including the `rpi-omt-client` and `playlist_generator` system dependencies.
+3. **Policy:** Hadolint matches `rpi-omt-client`'s version pin and is installed with a configured SHA-256 checksum.
+4. **Regression:** with CRB disabled, EPEL `yamllint` must fail depsolve (original failure mode still exists upstream).
+5. **Regression:** with CRB enabled (matching `standard_update_packages`), EPEL `yamllint` must resolve.
+6. **Depsolve:** in the digest-pinned Rocky Linux 10 test image with EPEL + CRB, `dnf --assumeno install` must resolve the rootless-Podman `dev_vm_packages` baseline.
 
 Run it directly:
 

@@ -15,9 +15,19 @@ dev_vm_workspace_path: "/home/{{ dev_vm_user }}/matt_dev"
 dev_vm_trivy_repo_baseurl: "https://aquasecurity.github.io/trivy-repo/rpm/releases/$basearch/"
 dev_vm_trivy_repo_gpgkey: "https://aquasecurity.github.io/trivy-repo/rpm/public.key"
 
+# Hadolint is not packaged by Rocky Linux 10 or EPEL. Match the version and
+# checksum pinned by rpi-omt-client so its lint gate works without running the
+# repository's privileged installer.
+dev_vm_hadolint_version: v2.14.0
+dev_vm_hadolint_sha256: "6bf226944684f56c84dd014e8b979d27425c0148f61b3bd99bcc6f39e9dc5a47"
+dev_vm_hadolint_url: >-
+  https://github.com/hadolint/hadolint/releases/download/{{
+  dev_vm_hadolint_version }}/hadolint-Linux-x86_64
+
 dev_vm_packages:
   - tmux
   - git
+  - openssh-clients
   - nodejs
   - npm
   # Node.js 22.23 uses ares_query_dnsrec, which is absent from the original
@@ -25,13 +35,17 @@ dev_vm_packages:
   # updates from leaving libnode paired with that older, ABI-incompatible RPM.
   - 'c-ares >= 1.34.6-1.el10'
   - python3
+  - python3-devel
   - python3-pip
+  # playlist_generator imports Tkinter in both its GUI and GUI tests.
+  - python3-tkinter
   - '@Development Tools'
   - jq
   - curl
   - wget
   - unzip
   - tar
+  - gzip
   - ripgrep
   - fd-find
   - bubblewrap
@@ -47,6 +61,24 @@ dev_vm_packages:
   - ShellCheck
   - gh
   - trivy
+  # rpi-omt-client downloads an exact repository-local .NET 10 SDK. These are
+  # Microsoft's required native RHEL dependencies plus Avalonia's Linux
+  # desktop libraries, needed by its analyzer and headless test suite.
+  - glibc
+  - libgcc
+  - ca-certificates
+  - openssl-libs
+  - libstdc++
+  - libicu
+  - tzdata
+  - krb5-libs
+  - libX11
+  - libICE
+  - libSM
+  - fontconfig
+  # EPEL's codec-compatible FFmpeg build provides the loudnorm filter and
+  # libopus encoder used by playlist_generator's normalization workflow.
+  - ffmpeg-free
 
 # Docker Engine is intentionally removed from VM2. Keep the package list here
 # only as the declarative removal set for hosts converged from older revisions.

@@ -130,10 +130,14 @@ pass "no overlap between dnf and pip package lists"
 required_dnf=(
   tmux
   git
+  openssh-clients
   nodejs
   npm
   python3
+  python3-devel
   python3-pip
+  python3-tkinter
+  gzip
   ansible-core
   podman
   fuse-overlayfs
@@ -142,6 +146,19 @@ required_dnf=(
   ShellCheck
   gh
   trivy
+  glibc
+  libgcc
+  ca-certificates
+  openssl-libs
+  libstdc++
+  libicu
+  tzdata
+  krb5-libs
+  libX11
+  libICE
+  libSM
+  fontconfig
+  ffmpeg-free
 )
 for pkg in "${required_dnf[@]}"; do
   list_contains "$pkg" "${dev_vm_packages[@]}" || fail "required dnf package missing from dev_vm_packages: $pkg"
@@ -152,6 +169,18 @@ if ! printf '%s\n' "${dev_vm_packages[@]}" | rg -q '^c-ares[[:space:]]*>=[[:spac
   fail "dev_vm_packages must require c-ares >= 1.34.6 for the Node.js 22 ares_query_dnsrec ABI"
 fi
 pass "Node.js c-ares ABI compatibility floor is present"
+
+if ! rg -q '^dev_vm_hadolint_version:[[:space:]]+v2[.]14[.]0$' "$defaults_file"; then
+  fail "dev_vm_hadolint_version must match rpi-omt-client's v2.14.0 pin"
+fi
+if ! rg -q '^dev_vm_hadolint_sha256:[[:space:]]+"[0-9a-f]{64}"$' "$defaults_file"; then
+  fail "dev_vm_hadolint_sha256 must be a quoted SHA-256 digest"
+fi
+if ! rg -q 'checksum:[[:space:]]+"sha256:\{\{ dev_vm_hadolint_sha256 \}\}"' \
+    roles/dev_vm/tasks/packages.yml; then
+  fail "Hadolint must be installed with the configured SHA-256 checksum"
+fi
+pass "Hadolint is version-pinned and checksum-verified"
 
 echo "=== dev_vm dnf dependency resolution (Rocky 10 + EPEL) ==="
 
@@ -194,12 +223,15 @@ dnf_resolve() {
   out=$(dnf -y --assumeno install "$@" 2>&1)
   rc=$?
   set -e
-  if echo "$out" | grep -Eq 'Problem:|nothing provides|No match for argument|Error: Unable to find|Conflicts:'; then
+  if grep -Eq \
+      'Problem:|nothing provides|No match for argument|Error: Unable to find|Conflicts:' \
+      <<<"$out"; then
     echo "$out"
     echo "FAIL: $label did not resolve (dnf rc=$rc)"
     exit 1
   fi
-  if ! echo "$out" | grep -Eq 'Dependencies resolved|Nothing to do|Package .* already installed'; then
+  if ! grep -Eq 'Dependencies resolved|Nothing to do|Package .* already installed' \
+      <<<"$out"; then
     echo "$out"
     echo "FAIL: $label produced unexpected dnf output (dnf rc=$rc)"
     exit 1
@@ -241,7 +273,7 @@ dnf -y -q makecache
 set +e
 yamllint_out=$(dnf -y --assumeno install yamllint 2>&1)
 set -e
-if ! echo "$yamllint_out" | grep -Eq 'Problem:|nothing provides.*pathspec'; then
+if ! grep -Eq 'Problem:|nothing provides.*pathspec' <<<"$yamllint_out"; then
   echo "$yamllint_out"
   echo "FAIL: expected yamllint EPEL RPM to fail without CRB (repo composition may have changed)"
   exit 1

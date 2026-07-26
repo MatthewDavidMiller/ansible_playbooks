@@ -178,7 +178,9 @@ Configures VM2 as an SSH/tmux development host for Codex and Claude Code.
 | `dev_vm_npm_prefix` | path | User-local npm global prefix | `/home/example_user/.npm-global` |
 | `dev_vm_tmux_session` | string | Default tmux session name for `devmux` | `dev` |
 | `dev_vm_workspace_path` | path | Parent workspace directory created empty for the dev user (no auto clone) | `/home/example_user/matt_dev` |
-| `dev_vm_packages` | list | Rocky package baseline (tmux, git, nodejs, a Node-compatible c-ares floor, podman, go, rust, ripgrep, fd-find, bubblewrap, tree, ShellCheck, gh, ansible-core, …) | see role defaults |
+| `dev_vm_packages` | list | Rocky package baseline, including the system dependencies needed to develop and test `rpi-omt-client` and `playlist_generator` | see role defaults |
+| `dev_vm_hadolint_version` | string | Checksum-pinned Hadolint release used by `rpi-omt-client` | `v2.14.0` |
+| `dev_vm_hadolint_sha256` | string | SHA-256 for the x86-64 Hadolint release binary | see role defaults |
 | `dev_vm_npm_global_packages` | list | npm packages for the dev user; pin with `name@version` when desired | `["@openai/codex", "@anthropic-ai/claude-code"]` |
 | `dev_vm_npm_global_state` | string | npm module state: `present` (stable) or `latest` (refresh CLIs) | `present` |
 | `dev_vm_python_user_packages` | list | Version-pinned pip `--user` validator packages | see role defaults |
@@ -189,7 +191,7 @@ Configures VM2 as an SSH/tmux development host for Codex and Claude Code.
 | `dev_vm_ansible_project_path` | path | Checkout path used to find pinned collection requirements | `/home/example_user/matt_dev/ansible_playbooks` |
 | `dev_vm_install_project_collections` | boolean | Install repo-pinned Ansible collections when the checkout exists | `true` |
 
-**Key behavior:** installs the workstation package baseline and rootless Podman, allocates a non-overlapping subordinate-ID range, and verifies Podman runs rootless. Docker services, packages, repository, and group membership are removed without deleting `/var/lib/docker`. Root-owned managed policy disables Codex telemetry, optional telemetry exporters, feedback, publishing, and remote control without removing connectors, automatic updates, Claude Code feature-flag retrieval, local resumable history, or memory. npm agent CLIs remain intentionally unpinned; validator CLIs are version pinned. PATH, tmux, optional Git identity, and repository-pinned Ansible collections are managed for the dev user.
+**Key behavior:** installs the workstation package baseline and rootless Podman, allocates a non-overlapping subordinate-ID range, and verifies Podman runs rootless. The baseline includes the native .NET/Avalonia libraries and checksum-pinned Hadolint required by `rpi-omt-client`, plus Tkinter and EPEL's `ffmpeg-free` build (with `loudnorm` and `libopus`) required by `playlist_generator`. Each project continues to own its repository-local Python and .NET versions. Docker services, packages, repository, and group membership are removed without deleting `/var/lib/docker`. Root-owned managed policy disables Codex telemetry, optional telemetry exporters, feedback, publishing, and remote control without removing connectors, automatic updates, Claude Code feature-flag retrieval, local resumable history, or memory. npm agent CLIs remain intentionally unpinned; validator CLIs are version pinned. PATH, tmux, optional Git identity, and repository-pinned Ansible collections are managed for the dev user.
 
 **First login (interactive):**
 

@@ -13,10 +13,56 @@
     name: "{{ dev_vm_packages }}"
     state: present
 
+- name: Install checksum-pinned Hadolint
+  ansible.builtin.get_url:
+    url: "{{ dev_vm_hadolint_url }}"
+    dest: /usr/local/bin/hadolint
+    checksum: "sha256:{{ dev_vm_hadolint_sha256 }}"
+    owner: root
+    group: root
+    mode: "0755"
+
 - name: Verify Node.js runtime dependencies are compatible
   ansible.builtin.command:
     cmd: /usr/bin/node --version
   changed_when: false
+
+- name: Verify Hadolint is available
+  ansible.builtin.command:
+    cmd: /usr/local/bin/hadolint --version
+  changed_when: false
+
+- name: Verify playlist generator Tkinter dependency
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/python3
+      - -c
+      - import tkinter
+  changed_when: false
+
+- name: Verify playlist generator FFmpeg libopus encoder
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/ffmpeg
+      - -hide_banner
+      - -encoders
+  register: dev_vm_ffmpeg_encoders
+  changed_when: false
+  failed_when: >-
+    dev_vm_ffmpeg_encoders.rc != 0 or
+    'libopus' not in dev_vm_ffmpeg_encoders.stdout
+
+- name: Verify playlist generator FFmpeg loudnorm filter
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/ffmpeg
+      - -hide_banner
+      - -filters
+  register: dev_vm_ffmpeg_filters
+  changed_when: false
+  failed_when: >-
+    dev_vm_ffmpeg_filters.rc != 0 or
+    'loudnorm' not in dev_vm_ffmpeg_filters.stdout
 
 - name: Ensure user-local bin directory exists
   ansible.builtin.file:
