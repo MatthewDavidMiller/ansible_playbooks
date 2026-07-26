@@ -28,6 +28,17 @@ The suite also guards failure recovery in deferred container-network migrations,
 malformed Porkbun record responses, fail-closed Proxmox VM discovery, and atomic
 artifact-lock replacement.
 
+Container network reconciliation has dedicated guards in
+`tests/test_ansible_regressions.py`. Every service role must reconcile the
+networks it owns through the shared `container_network` role, with the expected
+internal flag per network; no role outside `container_network` may run a
+`podman network` command or parse inspect output itself. The shared role must
+queue replacements during staged runs, force-remove before recreating during
+immediate runs, and leave `reverse_proxy_deferred_route_networks` to the role
+that owns them. The replacement decision itself is covered directly in
+`tests/test_homelab_validation.py`, including the legacy `Internal` key
+spelling, subnet drift, and unreadable inspect output.
+
 Route proxy addressing has dedicated guards in `tests/test_ansible_regressions.py`. Every container on a route proxy network must request a static address that Podman can assign, Traefik's `route_proxy_traefik_ips` address must differ from the service address on the same network, and `route_proxy_container_ips` must match the address the service launch script requests. The checks read the launch scripts and role defaults, so a new proxied service is covered once it pins an address.
 
 Local Nextcloud backups have dedicated guards in `tests/test_ansible_regressions.py`. Every template that writes into the Nextcloud user files tree must run `occ files:scan` as `nextcloud_uid:nextcloud_gid`, must report scan failures instead of discarding them with `|| true`, and must install dumps using `nextcloud_user_files_file_mode` so the mode survives the `nextcloud` role's normalization. The checks discover templates by content, so a new service backup script is covered without editing the tests.

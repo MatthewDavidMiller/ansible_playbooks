@@ -22,147 +22,19 @@
     fail_msg: Configure safe paths, immutable images, valid networks, and strong Nextcloud database secrets.
   no_log: true
 
-- name: Inspect nextcloud container network
-  ansible.builtin.command:
-    argv:
-      - podman
-      - network
-      - inspect
-      - nextcloud_container_net
-  register: nextcloud_network
-  changed_when: false
-  failed_when: false
-
-- name: Create nextcloud and postgres container network
-  ansible.builtin.command:
-    argv:
-      - podman
-      - network
-      - create
-      - --internal
-      - --subnet
-      - "{{ nextcloud_backend_network_subnet }}"
-      - nextcloud_container_net
-  when: nextcloud_network.rc != 0
-
-- name: Queue legacy nextcloud backend network for deferred replacement
-  ansible.builtin.set_fact:
-    container_network_migrations: "{{ container_network_migrations | default([]) + [network_migration] }}"
+- name: Reconcile Nextcloud backend network
+  ansible.builtin.include_role:
+    name: container_network
   vars:
-    network_migration:
-      name: nextcloud_container_net
-      subnet: "{{ nextcloud_backend_network_subnet }}"
-  when: nextcloud_network.rc == 0
-    and apply_runtime_changes_on_reboot | default(false) | bool
-    and (
-      not ((nextcloud_network.stdout | from_json | first).internal | default((nextcloud_network.stdout | from_json | first).Internal | default(false)) | bool)
-      or nextcloud_backend_network_subnet not in ((nextcloud_network.stdout | from_json | first).subnets | default([]) | map(attribute='subnet') | list)
-    )
+    container_network_name: nextcloud_container_net
+    container_network_subnet: "{{ nextcloud_backend_network_subnet }}"
 
-- name: Remove non-internal nextcloud backend network
-  ansible.builtin.command:
-    argv:
-      - podman
-      - network
-      - rm
-      - --force
-      - --time
-      - "30"
-      - nextcloud_container_net
-  when: nextcloud_network.rc == 0
-    and not (apply_runtime_changes_on_reboot | default(false) | bool)
-    and (
-      not ((nextcloud_network.stdout | from_json | first).internal | default((nextcloud_network.stdout | from_json | first).Internal | default(false)) | bool)
-      or nextcloud_backend_network_subnet not in ((nextcloud_network.stdout | from_json | first).subnets | default([]) | map(attribute='subnet') | list)
-    )
-
-- name: Recreate nextcloud backend network as internal
-  ansible.builtin.command:
-    argv:
-      - podman
-      - network
-      - create
-      - --internal
-      - --subnet
-      - "{{ nextcloud_backend_network_subnet }}"
-      - nextcloud_container_net
-  when: nextcloud_network.rc == 0
-    and not (apply_runtime_changes_on_reboot | default(false) | bool)
-    and (
-      not ((nextcloud_network.stdout | from_json | first).internal | default((nextcloud_network.stdout | from_json | first).Internal | default(false)) | bool)
-      or nextcloud_backend_network_subnet not in ((nextcloud_network.stdout | from_json | first).subnets | default([]) | map(attribute='subnet') | list)
-    )
-
-- name: Inspect nextcloud proxy network
-  ansible.builtin.command:
-    argv:
-      - podman
-      - network
-      - inspect
-      - nextcloud_proxy_net
-  register: nextcloud_proxy_network
-  changed_when: false
-  failed_when: false
-
-- name: Create nextcloud proxy network
-  ansible.builtin.command:
-    argv:
-      - podman
-      - network
-      - create
-      - --internal
-      - --subnet
-      - "{{ route_proxy_network_subnets.nextcloud_proxy_net }}"
-      - nextcloud_proxy_net
-  when: nextcloud_proxy_network.rc != 0
-
-- name: Queue legacy nextcloud proxy network for deferred replacement
-  ansible.builtin.set_fact:
-    container_network_migrations: "{{ container_network_migrations | default([]) + [network_migration] }}"
+- name: Reconcile Nextcloud proxy network
+  ansible.builtin.include_role:
+    name: container_network
   vars:
-    network_migration:
-      name: nextcloud_proxy_net
-      subnet: "{{ route_proxy_network_subnets.nextcloud_proxy_net }}"
-  when: nextcloud_proxy_network.rc == 0
-    and apply_runtime_changes_on_reboot | default(false) | bool
-    and (
-      not ((nextcloud_proxy_network.stdout | from_json | first).internal | default((nextcloud_proxy_network.stdout | from_json | first).Internal | default(false)) | bool)
-      or route_proxy_network_subnets.nextcloud_proxy_net not in ((nextcloud_proxy_network.stdout | from_json | first).subnets | default([]) | map(attribute='subnet') | list)
-    )
-
-- name: Remove non-internal nextcloud proxy network
-  ansible.builtin.command:
-    argv:
-      - podman
-      - network
-      - rm
-      - --force
-      - --time
-      - "30"
-      - nextcloud_proxy_net
-  when: nextcloud_proxy_network.rc == 0
-    and not (apply_runtime_changes_on_reboot | default(false) | bool)
-    and (
-      not ((nextcloud_proxy_network.stdout | from_json | first).internal | default((nextcloud_proxy_network.stdout | from_json | first).Internal | default(false)) | bool)
-      or route_proxy_network_subnets.nextcloud_proxy_net not in ((nextcloud_proxy_network.stdout | from_json | first).subnets | default([]) | map(attribute='subnet') | list)
-    )
-
-- name: Recreate nextcloud proxy network as internal
-  ansible.builtin.command:
-    argv:
-      - podman
-      - network
-      - create
-      - --internal
-      - --subnet
-      - "{{ route_proxy_network_subnets.nextcloud_proxy_net }}"
-      - nextcloud_proxy_net
-  when: nextcloud_proxy_network.rc == 0
-    and not (apply_runtime_changes_on_reboot | default(false) | bool)
-    and (
-      not ((nextcloud_proxy_network.stdout | from_json | first).internal | default((nextcloud_proxy_network.stdout | from_json | first).Internal | default(false)) | bool)
-      or route_proxy_network_subnets.nextcloud_proxy_net not in ((nextcloud_proxy_network.stdout | from_json | first).subnets | default([]) | map(attribute='subnet') | list)
-    )
+    container_network_name: nextcloud_proxy_net
+    container_network_subnet: "{{ route_proxy_network_subnets.nextcloud_proxy_net }}"
 
 - name: Create nextcloud secret directory
   ansible.builtin.file:
@@ -333,6 +205,9 @@
   ansible.builtin.template:
     src: redis_container.service.j2
     dest: /etc/systemd/system/redis_container.service
+    owner: root
+    group: root
+    mode: "0644"
 
 - name: Enable Redis
   ansible.builtin.systemd:
@@ -344,6 +219,9 @@
   ansible.builtin.template:
     src: postgres_container.service.j2
     dest: /etc/systemd/system/postgres_container.service
+    owner: root
+    group: root
+    mode: "0644"
 
 - name: Enable postgres
   ansible.builtin.systemd:
@@ -355,11 +233,17 @@
   ansible.builtin.template:
     src: nextcloud_container.service.j2
     dest: /etc/systemd/system/nextcloud_container.service
+    owner: root
+    group: root
+    mode: "0644"
 
 - name: Nextcloud config reconciliation service
   ansible.builtin.template:
     src: nextcloud_configure.service.j2
     dest: /etc/systemd/system/nextcloud_configure.service
+    owner: root
+    group: root
+    mode: "0644"
 
 - name: Enable Nextcloud
   ansible.builtin.systemd:

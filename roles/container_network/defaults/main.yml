@@ -1,0 +1,25 @@
+---
+# container_network role defaults
+#
+# This role reconciles a single Podman network. Callers include it per network
+# with ansible.builtin.include_role and override these values inline.
+
+# Network name to reconcile (required).
+container_network_name: ""
+
+# Deterministic IPv4 CIDR for the network. Leave empty to let Podman pick the
+# subnet, in which case only the internal flag is reconciled.
+container_network_subnet: ""
+
+# Whether the network must be created with --internal.
+container_network_internal: true
+
+# Whether drift on an already-present network is corrected here. Set false when
+# another role owns that network's replacement lifecycle; the network is then
+# still created if it is missing, but an existing one is left untouched.
+container_network_reconcile_existing: true
+
+# Replacing a network disconnects every attached container. During staged runs
+# the replacement is queued for the container_network_migration role instead of
+# happening mid-play.
+container_network_defer: "{{ apply_runtime_changes_on_reboot | default(false) | bool }}"

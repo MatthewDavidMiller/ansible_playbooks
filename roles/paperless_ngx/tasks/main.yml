@@ -33,76 +33,12 @@
     mode: "0600"
   no_log: true
 
-- name: Inspect paperless proxy network
-  ansible.builtin.command:
-    argv:
-      - podman
-      - network
-      - inspect
-      - paperless_proxy_net
-  register: paperless_proxy_network
-  changed_when: false
-  failed_when: false
-
-- name: Create paperless proxy network
-  ansible.builtin.command:
-    argv:
-      - podman
-      - network
-      - create
-      - --internal
-      - --subnet
-      - "{{ route_proxy_network_subnets.paperless_proxy_net }}"
-      - paperless_proxy_net
-  when: paperless_proxy_network.rc != 0
-
-- name: Queue legacy paperless proxy network for deferred replacement
-  ansible.builtin.set_fact:
-    container_network_migrations: "{{ container_network_migrations | default([]) + [network_migration] }}"
+- name: Reconcile Paperless proxy network
+  ansible.builtin.include_role:
+    name: container_network
   vars:
-    network_migration:
-      name: paperless_proxy_net
-      subnet: "{{ route_proxy_network_subnets.paperless_proxy_net }}"
-  when: paperless_proxy_network.rc == 0
-    and apply_runtime_changes_on_reboot | default(false) | bool
-    and (
-      not ((paperless_proxy_network.stdout | from_json | first).internal | default((paperless_proxy_network.stdout | from_json | first).Internal | default(false)) | bool)
-      or route_proxy_network_subnets.paperless_proxy_net not in ((paperless_proxy_network.stdout | from_json | first).subnets | default([]) | map(attribute='subnet') | list)
-    )
-
-- name: Remove non-internal paperless proxy network
-  ansible.builtin.command:
-    argv:
-      - podman
-      - network
-      - rm
-      - --force
-      - --time
-      - "30"
-      - paperless_proxy_net
-  when: paperless_proxy_network.rc == 0
-    and not (apply_runtime_changes_on_reboot | default(false) | bool)
-    and (
-      not ((paperless_proxy_network.stdout | from_json | first).internal | default((paperless_proxy_network.stdout | from_json | first).Internal | default(false)) | bool)
-      or route_proxy_network_subnets.paperless_proxy_net not in ((paperless_proxy_network.stdout | from_json | first).subnets | default([]) | map(attribute='subnet') | list)
-    )
-
-- name: Recreate paperless proxy network as internal
-  ansible.builtin.command:
-    argv:
-      - podman
-      - network
-      - create
-      - --internal
-      - --subnet
-      - "{{ route_proxy_network_subnets.paperless_proxy_net }}"
-      - paperless_proxy_net
-  when: paperless_proxy_network.rc == 0
-    and not (apply_runtime_changes_on_reboot | default(false) | bool)
-    and (
-      not ((paperless_proxy_network.stdout | from_json | first).internal | default((paperless_proxy_network.stdout | from_json | first).Internal | default(false)) | bool)
-      or route_proxy_network_subnets.paperless_proxy_net not in ((paperless_proxy_network.stdout | from_json | first).subnets | default([]) | map(attribute='subnet') | list)
-    )
+    container_network_name: paperless_proxy_net
+    container_network_subnet: "{{ route_proxy_network_subnets.paperless_proxy_net }}"
 
 - name: Create paperless paths
   ansible.builtin.file:
@@ -125,6 +61,9 @@
   ansible.builtin.template:
     src: paperless_ngx.service.j2
     dest: /etc/systemd/system/paperless_ngx.service
+    owner: root
+    group: root
+    mode: "0644"
 
 - name: Enable paperless
   ansible.builtin.systemd:

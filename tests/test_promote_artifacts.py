@@ -19,6 +19,36 @@ sys.modules[SPEC.name] = promote
 SPEC.loader.exec_module(promote)
 
 
+class ToolResolutionTests(unittest.TestCase):
+    def setUp(self):
+        promote.resolve_tool_command.cache_clear()
+        self.addCleanup(promote.resolve_tool_command.cache_clear)
+
+    def test_tool_lookup_is_cached_across_services(self):
+        """Every service needs the same three tools; probing PATH and the
+        container engines once per service wastes a run's worth of syscalls."""
+        with mock.patch.object(
+            promote.shutil, "which", return_value="/usr/bin/skopeo"
+        ) as which:
+            for _ in range(5):
+                self.assertEqual(promote.tool_command("skopeo"), ["/usr/bin/skopeo"])
+        which.assert_called_once_with("skopeo")
+
+    def test_cached_command_cannot_be_mutated_by_a_caller(self):
+        with mock.patch.object(promote.shutil, "which", return_value="/usr/bin/trivy"):
+            first = promote.tool_command("trivy")
+            first.append("--corrupted")
+            self.assertEqual(promote.tool_command("trivy"), ["/usr/bin/trivy"])
+
+    def test_missing_tool_without_container_engine_fails_closed(self):
+        with (
+            mock.patch.object(promote.shutil, "which", return_value=None),
+            mock.patch.object(promote, "container_engine", return_value=None),
+        ):
+            with self.assertRaises(SystemExit):
+                promote.resolve_tool_command("cosign")
+
+
 class PromotionPolicyTests(unittest.TestCase):
     def test_lock_file_write_is_atomic_and_preserves_mode(self):
         with tempfile.TemporaryDirectory() as directory:

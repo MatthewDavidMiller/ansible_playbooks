@@ -38,7 +38,7 @@ Deploys the shared PostgreSQL container, Redis container, and Nextcloud itself.
 
 **Templates:** `postgres_container.sh.j2`, `postgres_container.service.j2`, `redis_container.sh.j2`, `redis_container.service.j2`, `nextcloud_container.sh.j2`, `nextcloud_container.service.j2`, `nextcloud_configure.sh.j2`, `nextcloud_configure.service.j2`, `postgres.env.j2`, `nextcloud.env.j2`
 
-**Key behavior:** owns the shared database layer for Nextcloud, Paperless, and Semaphore, creates missing internal backend/proxy networks, queues legacy non-internal or wrong-subnet Nextcloud networks for deferred replacement during staged VM1 runs, normalizes directory and file modes in one walk of each configured user files tree, reconciles persistent `config.php` values after Nextcloud starts, and must run before those consumers.
+**Key behavior:** owns the shared database layer for Nextcloud, Paperless, and Semaphore, reconciles its internal backend and proxy networks through the shared [`container_network`](standard.md#container_network) role, normalizes directory and file modes in one walk of each configured user files tree, reconciles persistent `config.php` values after Nextcloud starts, and must run before those consumers.
 
 ---
 
@@ -52,7 +52,7 @@ Deploys Paperless NGX on top of the PostgreSQL and Redis containers created by `
 
 **Templates:** `paperless_ngx.sh.j2`, `paperless_ngx.service.j2`, `paperless.env.j2`
 
-**Key behavior:** creates the Paperless proxy network as internal, queues legacy non-internal or wrong-subnet proxy networks for deferred replacement during staged VM1 runs, and runs only after the shared database/cache containers are configured.
+**Key behavior:** reconciles the Paperless proxy network through the shared [`container_network`](standard.md#container_network) role, and runs only after the shared database/cache containers are configured.
 
 ---
 
@@ -62,7 +62,7 @@ Deploys Navidrome with an explicit non-root runtime user and a local backup work
 
 **Required variables:** `navidrome_path`, `navidrome_backup_location`, `navidrome_uid`, `navidrome_gid`, `navidrome_image`
 
-**Key behavior:** creates the Navidrome proxy network as internal, queues legacy non-internal or wrong-subnet proxy networks for deferred replacement during staged VM1 runs, and either bind-mounts `navidrome_local_music_path` or falls back to the role's own music path. With `backup_local: true` the daily backup installs the SQLite dumps into the Nextcloud data tree and then re-indexes them; see [Indexing local backups into Nextcloud](#indexing-local-backups-into-nextcloud).
+**Key behavior:** reconciles the Navidrome proxy network through the shared [`container_network`](standard.md#container_network) role, and either bind-mounts `navidrome_local_music_path` or falls back to the role's own music path. With `backup_local: true` the daily backup installs the SQLite dumps into the Nextcloud data tree and then re-indexes them; see [Indexing local backups into Nextcloud](#indexing-local-backups-into-nextcloud).
 
 ---
 
@@ -74,7 +74,7 @@ Deploys Vaultwarden and its SQLite-backed backup workflow.
 
 **Templates:** `vaultwarden.sh.j2`, `vaultwarden.service.j2`, `backup_db.j2`
 
-**Key behavior:** keeps public signup disabled, creates the Vaultwarden proxy network as internal, and queues legacy non-internal or wrong-subnet proxy networks for deferred replacement during staged VM1 runs. With `backup_local: true` the daily backup installs the SQLite copy into the Nextcloud data tree and then re-indexes it; see [Indexing local backups into Nextcloud](#indexing-local-backups-into-nextcloud).
+**Key behavior:** keeps public signup disabled, and reconciles the Vaultwarden proxy network through the shared [`container_network`](standard.md#container_network) role. With `backup_local: true` the daily backup installs the SQLite copy into the Nextcloud data tree and then re-indexes it; see [Indexing local backups into Nextcloud](#indexing-local-backups-into-nextcloud).
 
 ---
 
@@ -86,7 +86,7 @@ Deploys Semaphore and backs up its PostgreSQL database into the local Nextcloud 
 
 **Templates:** `semaphore.sh.j2`, `semaphore.service.j2`, `semaphore.env.j2`, `backup_semaphore.sh.j2`, `ssh_known_hosts.j2`
 
-**Key behavior:** creates the Semaphore proxy and egress networks and queues legacy non-internal or wrong-subnet Semaphore proxy networks for deferred replacement during staged VM1 runs. The final [`container_network_migration`](standard.md#container_network_migration) role owns cross-service scheduling and recovery.
+**Key behavior:** reconciles the Semaphore proxy and egress networks through the shared [`container_network`](standard.md#container_network) role. The final [`container_network_migration`](standard.md#container_network_migration) role owns cross-service scheduling and recovery.
 
 ---
 

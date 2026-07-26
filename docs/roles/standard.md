@@ -99,6 +99,47 @@ Runs the post-deploy cleanup pass.
 
 ---
 
+### `container_network`
+
+Reconciles a single Podman network to the state its calling role declares.
+Service roles include it once per network they own instead of repeating the
+inspect/create/replace sequence, so the drift rules live in one place.
+
+**Optional variables:**
+
+| Variable | Type | Description | Default |
+|---|---|---|---|
+| `container_network_name` | string | Network to reconcile | `""` |
+| `container_network_subnet` | string | Deterministic IPv4 CIDR, or empty to let Podman choose | `""` |
+| `container_network_internal` | bool | Create the network with `--internal` | `true` |
+| `container_network_reconcile_existing` | bool | Repair drift on an existing network; when false the network is still created if missing | `true` |
+| `container_network_defer` | bool | Queue replacement instead of performing it inline | `apply_runtime_changes_on_reboot` |
+
+**Key behavior:** validates the requested name and subnet, inspects the network
+once, and decides replacement through the `homelab_network_needs_replacement`
+filter. A missing network is always created. An existing network that is not
+internal, or whose subnet does not match, is force-removed and recreated during
+non-staged runs, or appended to `container_network_migrations` during staged
+runs so `container_network_migration` can replace it after the play finishes.
+
+Set `container_network_reconcile_existing: false` when another role owns the
+network's lifecycle — `reverse_proxy` uses this for
+`reverse_proxy_deferred_route_networks` so it never tears down the network
+carrying the Semaphore container that is running the playbook.
+
+**Usage:**
+
+```yaml
+- name: Reconcile Navidrome proxy network
+  ansible.builtin.include_role:
+    name: container_network
+  vars:
+    container_network_name: navidrome_container_net
+    container_network_subnet: "{{ route_proxy_network_subnets.navidrome_container_net }}"
+```
+
+---
+
 ### `container_network_migration`
 
 Coordinates queued Podman network replacements after every VM1 service role and

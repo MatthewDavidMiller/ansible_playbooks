@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
+import functools
 import json
 import os
 import re
@@ -86,10 +87,17 @@ def docker_config_uses_external_helpers(config_path: Path) -> bool:
     return bool(data.get("credsStore") or data.get("credHelpers"))
 
 
-def resolve_tool_command(name: str) -> tuple[list[str], str]:
+@functools.lru_cache(maxsize=None)
+def resolve_tool_command(name: str) -> tuple[tuple[str, ...], str]:
+    """Locate a tool, preferring a native binary over the pinned container.
+
+    Cached because every service in a run needs the same three tools, and
+    resolving one probes PATH, the container engines, and the credential
+    helper config each time.
+    """
     local_binary = shutil.which(name)
     if local_binary is not None:
-        return [local_binary], f"local binary ({local_binary})"
+        return (local_binary,), f"local binary ({local_binary})"
 
     engine = container_engine()
     if engine is None:
@@ -125,7 +133,7 @@ def resolve_tool_command(name: str) -> tuple[list[str], str]:
         add_mount(argv, REPO_ROOT, str(REPO_ROOT))
 
     argv.append(FALLBACK_TOOL_IMAGES[name])
-    return argv, f"container fallback via {engine} ({FALLBACK_TOOL_IMAGES[name]})"
+    return tuple(argv), f"container fallback via {engine} ({FALLBACK_TOOL_IMAGES[name]})"
 
 
 def tool_command(name: str) -> list[str]:
@@ -133,7 +141,7 @@ def tool_command(name: str) -> list[str]:
     if description.startswith("container fallback") and name not in ANNOUNCED_FALLBACKS:
         ANNOUNCED_FALLBACKS.add(name)
         print(f"[{name}] using {description}", file=sys.stderr)
-    return argv
+    return list(argv)
 
 
 def required_tools(*, skip_signature_verify: bool, skip_scan: bool) -> list[str]:

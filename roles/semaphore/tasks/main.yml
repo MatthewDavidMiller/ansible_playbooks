@@ -16,76 +16,12 @@
     fail_msg: Configure strong Semaphore secrets, pinned SSH hosts, safe paths, an immutable image, and valid networks.
   no_log: true
 
-- name: Inspect semaphore container network
-  ansible.builtin.command:
-    argv:
-      - podman
-      - network
-      - inspect
-      - semaphore_container_net
-  register: semaphore_network
-  changed_when: false
-  failed_when: false
-
-- name: Create semaphore container network
-  ansible.builtin.command:
-    argv:
-      - podman
-      - network
-      - create
-      - --internal
-      - --subnet
-      - "{{ route_proxy_network_subnets.semaphore_container_net }}"
-      - semaphore_container_net
-  when: semaphore_network.rc != 0
-
-- name: Queue legacy semaphore proxy network for deferred replacement
-  ansible.builtin.set_fact:
-    container_network_migrations: "{{ container_network_migrations | default([]) + [network_migration] }}"
+- name: Reconcile Semaphore proxy network
+  ansible.builtin.include_role:
+    name: container_network
   vars:
-    network_migration:
-      name: semaphore_container_net
-      subnet: "{{ route_proxy_network_subnets.semaphore_container_net }}"
-  when: semaphore_network.rc == 0
-    and apply_runtime_changes_on_reboot | default(false) | bool
-    and (
-      not ((semaphore_network.stdout | from_json | first).internal | default((semaphore_network.stdout | from_json | first).Internal | default(false)) | bool)
-      or route_proxy_network_subnets.semaphore_container_net not in ((semaphore_network.stdout | from_json | first).subnets | default([]) | map(attribute='subnet') | list)
-    )
-
-- name: Remove non-internal semaphore proxy network
-  ansible.builtin.command:
-    argv:
-      - podman
-      - network
-      - rm
-      - --force
-      - --time
-      - "30"
-      - semaphore_container_net
-  when: semaphore_network.rc == 0
-    and not (apply_runtime_changes_on_reboot | default(false) | bool)
-    and (
-      not ((semaphore_network.stdout | from_json | first).internal | default((semaphore_network.stdout | from_json | first).Internal | default(false)) | bool)
-      or route_proxy_network_subnets.semaphore_container_net not in ((semaphore_network.stdout | from_json | first).subnets | default([]) | map(attribute='subnet') | list)
-    )
-
-- name: Recreate semaphore proxy network as internal
-  ansible.builtin.command:
-    argv:
-      - podman
-      - network
-      - create
-      - --internal
-      - --subnet
-      - "{{ route_proxy_network_subnets.semaphore_container_net }}"
-      - semaphore_container_net
-  when: semaphore_network.rc == 0
-    and not (apply_runtime_changes_on_reboot | default(false) | bool)
-    and (
-      not ((semaphore_network.stdout | from_json | first).internal | default((semaphore_network.stdout | from_json | first).Internal | default(false)) | bool)
-      or route_proxy_network_subnets.semaphore_container_net not in ((semaphore_network.stdout | from_json | first).subnets | default([]) | map(attribute='subnet') | list)
-    )
+    container_network_name: semaphore_container_net
+    container_network_subnet: "{{ route_proxy_network_subnets.semaphore_container_net }}"
 
 - name: Validate Semaphore egress network
   ansible.builtin.assert:
@@ -95,25 +31,12 @@
       - semaphore_egress_network != 'semaphore_container_net'
     fail_msg: "semaphore_egress_network must be a safe dedicated non-backend network name."
 
-- name: Inspect semaphore egress network
-  ansible.builtin.command:
-    argv:
-      - podman
-      - network
-      - inspect
-      - "{{ semaphore_egress_network }}"
-  register: semaphore_egress_network_inspect
-  changed_when: false
-  failed_when: false
-
-- name: Create semaphore egress network
-  ansible.builtin.command:
-    argv:
-      - podman
-      - network
-      - create
-      - "{{ semaphore_egress_network }}"
-  when: semaphore_egress_network_inspect.rc != 0
+- name: Reconcile Semaphore egress network
+  ansible.builtin.include_role:
+    name: container_network
+  vars:
+    container_network_name: "{{ semaphore_egress_network }}"
+    container_network_internal: false
 
 - name: Create semaphore secret directory
   ansible.builtin.file:
@@ -160,6 +83,9 @@
   ansible.builtin.template:
     src: semaphore.service.j2
     dest: /etc/systemd/system/semaphore.service
+    owner: root
+    group: root
+    mode: "0644"
 
 - name: Enable semaphore
   ansible.builtin.systemd:

@@ -227,20 +227,18 @@ assert_file_not_contains "traefik_networks" "Variable reference: Traefik network
 assert_file_contains "proxy_network" "reverse_proxy: route validation requires explicit proxy network metadata" roles/reverse_proxy/tasks/main.yml
 assert_file_contains "traefik_egress_network" "Traefik: uses a dedicated egress network for DNS-01/outbound traffic" roles/reverse_proxy/templates/traefik_container.sh.j2
 assert_file_contains "attribute='proxy_network'" "Traefik: app network membership is derived from routes" roles/reverse_proxy/templates/traefik_container.sh.j2
-assert_file_contains "--internal" "Nextcloud: backend/proxy networks are created as internal networks" roles/nextcloud/tasks/main.yml
-assert_file_contains "--internal" "Paperless: proxy network is created as an internal network" roles/paperless_ngx/tasks/main.yml
-assert_file_contains "--internal" "Navidrome: proxy network is created as an internal network" roles/navidrome/tasks/main.yml
-assert_file_contains "--internal" "Vaultwarden: proxy network is created as an internal network" roles/vaultwarden/tasks/main.yml
-assert_file_contains "--internal" "Semaphore: proxy network is created as an internal network" roles/semaphore/tasks/main.yml
+assert_file_contains "--internal" "Shared network role: creates internal networks" roles/container_network/tasks/main.yml
+assert_file_contains "container_network_internal: true" "Shared network role: networks are internal unless a caller opts out" roles/container_network/defaults/main.yml
+assert_file_contains "homelab_network_needs_replacement" "Shared network role: replacement decision is made by the tested filter" roles/container_network/tasks/main.yml
 assert_file_contains "Schedule deferred container network migration" "Migration coordinator: schedules deferred network replacement after the playbook finishes" roles/container_network_migration/tasks/main.yml
 assert_file_contains "systemd-run" "Migration coordinator: uses a delayed background job for disruptive network replacement" roles/container_network_migration/tasks/main.yml
 assert_file_contains "podman network rm --force --time 30" "Deferred migration: removes legacy networks after services are stopped" roles/container_network_migration/templates/migrate_container_networks.sh.j2
-assert_file_contains "Create internal route proxy networks" "reverse_proxy: creates route proxy networks before service roles run" roles/reverse_proxy/tasks/main.yml
-assert_file_contains "Remove non-internal route proxy networks" "reverse_proxy: recreates legacy non-internal route networks" roles/reverse_proxy/tasks/main.yml
-assert_file_contains "Queue legacy route proxy networks for deferred replacement" "reverse_proxy: queues disruptive route network replacements for the final migration job" roles/reverse_proxy/tasks/main.yml
+assert_file_contains "Reconcile route proxy networks" "reverse_proxy: creates route proxy networks before service roles run" roles/reverse_proxy/tasks/main.yml
+assert_file_contains "Remove drifted container network" "Shared network role: recreates legacy non-internal networks" roles/container_network/tasks/main.yml
+assert_file_contains "Queue container network" "Shared network role: queues disruptive replacements for the final migration job" roles/container_network/tasks/main.yml
 assert_file_contains "reverse_proxy_deferred_route_networks" "reverse_proxy: defers destructive updates for control-plane route networks" roles/reverse_proxy/tasks/main.yml
 assert_file_contains "semaphore_container_net" "reverse_proxy defaults: defers Semaphore runtime network replacement" roles/reverse_proxy/defaults/main.yml
-assert_file_contains "--force" "reverse_proxy: force-removes attached legacy proxy networks before recreating them" roles/reverse_proxy/tasks/main.yml
+assert_file_contains "--force" "Shared network role: force-removes attached legacy networks before recreating them" roles/container_network/tasks/main.yml
 assert_file_not_contains "--network=nextcloud_container_net" "Traefik: is not placed on database/cache backend network" roles/reverse_proxy/templates/traefik_container.sh.j2
 assert_file_not_contains "-p " "Nextcloud: does not publish host ports" roles/nextcloud/templates/nextcloud_container.sh.j2
 assert_file_not_contains "-p " "Paperless: does not publish host ports" roles/paperless_ngx/templates/paperless_ngx.sh.j2

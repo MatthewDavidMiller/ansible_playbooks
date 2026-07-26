@@ -42,6 +42,20 @@ assert_match() {
   fail "$label"
 }
 
+assert_match_each() {
+  local pattern="$1"
+  local label="$2"
+  local path
+  shift 2
+  for path in "$@"; do
+    if ! rg -n "$pattern" "$path" >/tmp/supply_chain_policy.out 2>&1; then
+      cat /tmp/supply_chain_policy.out
+      fail "$label ($path)"
+    fi
+  done
+  pass "$label"
+}
+
 assert_not_tracked() {
   local label="$1"
   local path
@@ -115,36 +129,32 @@ assert_match "homelab_valid_ipv4_cidr" "reverse_proxy uses semantic CIDR validat
 assert_match "Validate reverse proxy route definitions" "reverse_proxy validates route definitions" roles/reverse_proxy/tasks/main.yml
 assert_match "Validate reverse proxy route names are unique" "reverse_proxy rejects duplicate route names and FQDNs" roles/reverse_proxy/tasks/main.yml
 assert_match "proxy_network" "reverse_proxy requires explicit route-owned proxy networks" roles/reverse_proxy/tasks/main.yml
-assert_match "Create internal route proxy networks" "reverse_proxy creates internal route proxy networks" roles/reverse_proxy/tasks/main.yml
-assert_match "Remove non-internal route proxy networks" "reverse_proxy recreates legacy non-internal route networks" roles/reverse_proxy/tasks/main.yml
-assert_match "Queue legacy route proxy networks for deferred replacement" "reverse_proxy queues disruptive route network replacements" roles/reverse_proxy/tasks/main.yml
+assert_match "Reconcile route proxy networks" "reverse_proxy reconciles route proxy networks before service roles run" roles/reverse_proxy/tasks/main.yml
+assert_match "Remove drifted container network" "shared network role recreates legacy non-internal networks" roles/container_network/tasks/main.yml
+assert_match "Queue container network" "shared network role queues disruptive network replacements" roles/container_network/tasks/main.yml
 assert_match "reverse_proxy_deferred_route_networks" "reverse_proxy defers destructive updates for control-plane route networks" roles/reverse_proxy/tasks/main.yml
 assert_match "semaphore_container_net" "reverse_proxy defers Semaphore runtime network replacement by default" roles/reverse_proxy/defaults/main.yml
 assert_match "Schedule deferred container network migration" "dedicated coordinator schedules disruptive network replacement at the end of VM1 runs" roles/container_network_migration/tasks/main.yml
 assert_match "systemd-run" "dedicated coordinator uses a delayed background job for final network migration" roles/container_network_migration/tasks/main.yml
 assert_match "trap finish EXIT" "deferred network migration always attempts service recovery" roles/container_network_migration/templates/migrate_container_networks.sh.j2
 assert_no_fixed_match "|| true" "deferred network migration does not discard lifecycle failures" roles/container_network_migration/templates/migrate_container_networks.sh.j2
-assert_match "from_json.*first.*subnets.*map.*attribute.*subnet" \
-  "reverse_proxy checks subnet mismatch for deferred route network recreation" \
-  roles/reverse_proxy/tasks/main.yml
-assert_match "from_json.*first.*subnets.*map.*attribute.*subnet" \
-  "nextcloud checks subnet mismatch for deferred network recreation" \
-  roles/nextcloud/tasks/main.yml
-assert_match "from_json.*first.*subnets.*map.*attribute.*subnet" \
-  "navidrome checks subnet mismatch for deferred network recreation" \
-  roles/navidrome/tasks/main.yml
-assert_match "from_json.*first.*subnets.*map.*attribute.*subnet" \
-  "paperless_ngx checks subnet mismatch for deferred network recreation" \
-  roles/paperless_ngx/tasks/main.yml
-assert_match "from_json.*first.*subnets.*map.*attribute.*subnet" \
-  "vaultwarden checks subnet mismatch for deferred network recreation" \
-  roles/vaultwarden/tasks/main.yml
-assert_match "from_json.*first.*subnets.*map.*attribute.*subnet" \
-  "semaphore checks subnet mismatch via JSON-parsed subnets" \
-  roles/semaphore/tasks/main.yml
-assert_no_fixed_match "not in semaphore_network.stdout" \
-  "semaphore subnet check uses JSON parsing, not raw stdout search" \
-  roles/semaphore/tasks/main.yml
+assert_match "homelab_network_needs_replacement" \
+  "container network replacement is decided by the shared tested filter" \
+  roles/container_network/tasks/main.yml
+assert_match "network.get\(\"subnets\"\)" \
+  "network replacement decision compares parsed subnet data, not raw stdout" \
+  filter_plugins/homelab_validation.py
+assert_match_each "name: container_network" \
+  "service roles reconcile their networks through the shared role" \
+  roles/nextcloud/tasks/main.yml roles/navidrome/tasks/main.yml \
+  roles/paperless_ngx/tasks/main.yml roles/semaphore/tasks/main.yml \
+  roles/vaultwarden/tasks/main.yml roles/reverse_proxy/tasks/main.yml
+assert_no_fixed_match "from_json | first" \
+  "roles do not re-implement inline container network reconciliation" \
+  roles
+assert_no_match "^\\s+- network$" \
+  "role tasks do not run podman network commands outside the shared role" \
+  roles --glob 'roles/*/tasks/*.yml' --glob '!roles/container_network/**'
 assert_match "traefik_egress_network" "Traefik uses a dedicated egress network" roles/reverse_proxy/templates/traefik_container.sh.j2
 assert_no_match "traefik_networks:" "maintained configuration does not use free-form Traefik network membership" roles docs vm1.yml
 assert_match "Validate firewalld ingress inputs" "firewalld validates ingress inputs before applying policy" roles/standard_firewalld/tasks/main.yml

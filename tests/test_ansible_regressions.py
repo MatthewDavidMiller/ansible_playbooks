@@ -247,6 +247,131 @@ class AnsibleRegressionTests(unittest.TestCase):
         self.assertEqual(file_mode, 0o660)
 
 
+def role_tasks(role: str, tasks_file: str = "main.yml") -> list[dict]:
+    return yaml.safe_load(
+        (REPO_ROOT / "roles" / role / "tasks" / tasks_file).read_text(encoding="utf-8")
+    )
+
+
+def network_reconcile_calls(role: str) -> list[dict]:
+    """Vars each `include_role: container_network` call in a role passes."""
+    calls = []
+    for task in role_tasks(role):
+        include = task.get("ansible.builtin.include_role") or {}
+        if include.get("name") == "container_network":
+            calls.append(task.get("vars") or {})
+    return calls
+
+
+class SharedContainerNetworkTests(unittest.TestCase):
+    """Guards for the single shared Podman network reconciliation path.
+
+    This logic used to be copy-pasted into every service role, so a fix to the
+    internal-flag or subnet-drift check reached only the role it was made in.
+    Reconciliation now lives in `roles/container_network`, and the drift
+    decision itself is the unit-tested `homelab_network_needs_replacement`
+    filter rather than an inline Jinja expression.
+    """
+
+    #: Networks each role owns, and whether Podman must create them --internal.
+    EXPECTED_NETWORKS = {
+        "nextcloud": {"nextcloud_container_net": True, "nextcloud_proxy_net": True},
+        "navidrome": {"navidrome_container_net": True},
+        "paperless_ngx": {"paperless_proxy_net": True},
+        "vaultwarden": {"vaultwarden_container_net": True},
+        "semaphore": {
+            "semaphore_container_net": True,
+            "{{ semaphore_egress_network }}": False,
+        },
+        "reverse_proxy": {
+            "{{ traefik_egress_network }}": False,
+            "{{ route_proxy_network_name }}": True,
+        },
+    }
+
+    def test_every_service_role_reconciles_the_networks_it_owns(self):
+        for role, expected in self.EXPECTED_NETWORKS.items():
+            with self.subTest(role=role):
+                declared = {
+                    call["container_network_name"]: call.get(
+                        "container_network_internal", True
+                    )
+                    for call in network_reconcile_calls(role)
+                }
+                self.assertEqual(declared, expected)
+
+    def test_no_role_reimplements_network_reconciliation(self):
+        """A role that shells out to `podman network` has forked the logic."""
+        for tasks in sorted(REPO_ROOT.glob("roles/*/tasks/*.yml")):
+            if tasks.parents[1].name == "container_network":
+                continue
+            with self.subTest(tasks=str(tasks.relative_to(REPO_ROOT))):
+                body = tasks.read_text(encoding="utf-8")
+                self.assertNotIn("- network", body)
+                self.assertNotIn("from_json", body)
+
+    def test_service_networks_are_internal(self):
+        """Only the two deliberate egress networks may reach the host network."""
+        external = {
+            (role, name)
+            for role, networks in self.EXPECTED_NETWORKS.items()
+            for name, internal in networks.items()
+            if not internal
+        }
+        self.assertEqual(
+            external,
+            {
+                ("semaphore", "{{ semaphore_egress_network }}"),
+                ("reverse_proxy", "{{ traefik_egress_network }}"),
+            },
+        )
+
+    def test_control_plane_networks_are_created_but_not_replaced_by_the_proxy(self):
+        """Replacing semaphore_container_net from reverse_proxy would cut the
+        Semaphore container running the playbook, so only the semaphore role
+        may repair drift on it."""
+        route_call = next(
+            call
+            for call in network_reconcile_calls("reverse_proxy")
+            if call["container_network_name"] == "{{ route_proxy_network_name }}"
+        )
+        self.assertIn(
+            "not in reverse_proxy_deferred_route_networks",
+            route_call["container_network_reconcile_existing"],
+        )
+        defaults = role_defaults("reverse_proxy")
+        self.assertIn(
+            "semaphore_container_net", defaults["reverse_proxy_deferred_route_networks"]
+        )
+
+    def test_reconciliation_defers_replacement_during_staged_runs(self):
+        defaults = role_defaults("container_network")
+        self.assertIn(
+            "apply_runtime_changes_on_reboot", defaults["container_network_defer"]
+        )
+
+        tasks = role_tasks("container_network")
+        names = [task["name"] for task in tasks]
+        queue = next(index for index, name in enumerate(names) if "Queue" in name)
+        remove = next(index for index, name in enumerate(names) if "Remove" in name)
+        create = next(index for index, name in enumerate(names) if "Create" in name)
+        self.assertLess(queue, remove)
+        self.assertLess(remove, create)
+
+        # Removal and queueing are mutually exclusive: a staged run must never
+        # tear a network down mid-play.
+        self.assertIn("container_network_defer | bool", tasks[queue]["when"])
+        self.assertIn("not (container_network_defer | bool)", tasks[remove]["when"])
+
+    def test_drifted_networks_are_force_removed_before_recreation(self):
+        remove = next(
+            task
+            for task in role_tasks("container_network")
+            if task["name"].startswith("Remove drifted")
+        )
+        self.assertIn("--force", remove["ansible.builtin.command"]["argv"])
+
+
 class ContainerNetworkMigrationTests(unittest.TestCase):
     def setUp(self):
         self.migration_role = REPO_ROOT / "roles" / "container_network_migration"

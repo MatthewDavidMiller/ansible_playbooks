@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ipaddress
+import json
 import re
 from pathlib import PurePosixPath
 
@@ -71,6 +72,53 @@ def homelab_safe_name(value: object) -> bool:
     return text not in {".", ".."} and bool(_SAFE_NAME.fullmatch(text))
 
 
+def _first_inspected_network(inspect_output: object) -> dict:
+    """The single network entry `podman network inspect <name>` reports."""
+    try:
+        networks = json.loads(str(inspect_output))
+    except (TypeError, ValueError) as exc:
+        raise ValueError("podman network inspect did not return JSON") from exc
+    if not isinstance(networks, list) or not networks:
+        raise ValueError("podman network inspect returned no network entry")
+    network = networks[0]
+    if not isinstance(network, dict):
+        raise ValueError("podman network inspect returned an unexpected entry")
+    return network
+
+
+def homelab_network_needs_replacement(
+    inspect_output: object,
+    subnet: object = "",
+    require_internal: bool = True,
+) -> bool:
+    """Whether an existing Podman network must be torn down and recreated.
+
+    Podman cannot convert a network to `--internal` or move it to a different
+    subnet in place, so a network whose recorded state has drifted from the
+    declared state is only fixable by replacement. Callers pass the stdout of a
+    successful `podman network inspect`; an empty ``subnet`` means the network
+    has no deterministic subnet and only the internal flag is enforced.
+    """
+    network = _first_inspected_network(inspect_output)
+
+    # Podman 4 reports `internal`; older releases used `Internal`.
+    is_internal = network.get("internal", network.get("Internal", False))
+    if require_internal and not is_internal:
+        return True
+
+    declared_subnet = str(subnet).strip()
+    if not declared_subnet:
+        return False
+
+    subnets = network.get("subnets") or []
+    if not isinstance(subnets, list):
+        raise ValueError("podman network inspect returned unexpected subnet data")
+    configured = [
+        entry.get("subnet") for entry in subnets if isinstance(entry, dict)
+    ]
+    return declared_subnet not in configured
+
+
 class FilterModule:
     def filters(self) -> dict[str, object]:
         return {
@@ -83,4 +131,5 @@ class FilterModule:
             "homelab_immutable_image": homelab_immutable_image,
             "homelab_immutable_digest_ref": homelab_immutable_image,
             "homelab_safe_name": homelab_safe_name,
+            "homelab_network_needs_replacement": homelab_network_needs_replacement,
         }

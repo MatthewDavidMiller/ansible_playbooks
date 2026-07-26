@@ -16,76 +16,12 @@
     name: sqlite
     state: present
 
-- name: Inspect vaultwarden container network
-  ansible.builtin.command:
-    argv:
-      - podman
-      - network
-      - inspect
-      - vaultwarden_container_net
-  register: vaultwarden_network
-  changed_when: false
-  failed_when: false
-
-- name: Create vaultwarden container network
-  ansible.builtin.command:
-    argv:
-      - podman
-      - network
-      - create
-      - --internal
-      - --subnet
-      - "{{ route_proxy_network_subnets.vaultwarden_container_net }}"
-      - vaultwarden_container_net
-  when: vaultwarden_network.rc != 0
-
-- name: Queue legacy vaultwarden proxy network for deferred replacement
-  ansible.builtin.set_fact:
-    container_network_migrations: "{{ container_network_migrations | default([]) + [network_migration] }}"
+- name: Reconcile Vaultwarden proxy network
+  ansible.builtin.include_role:
+    name: container_network
   vars:
-    network_migration:
-      name: vaultwarden_container_net
-      subnet: "{{ route_proxy_network_subnets.vaultwarden_container_net }}"
-  when: vaultwarden_network.rc == 0
-    and apply_runtime_changes_on_reboot | default(false) | bool
-    and (
-      not ((vaultwarden_network.stdout | from_json | first).internal | default((vaultwarden_network.stdout | from_json | first).Internal | default(false)) | bool)
-      or route_proxy_network_subnets.vaultwarden_container_net not in ((vaultwarden_network.stdout | from_json | first).subnets | default([]) | map(attribute='subnet') | list)
-    )
-
-- name: Remove non-internal vaultwarden proxy network
-  ansible.builtin.command:
-    argv:
-      - podman
-      - network
-      - rm
-      - --force
-      - --time
-      - "30"
-      - vaultwarden_container_net
-  when: vaultwarden_network.rc == 0
-    and not (apply_runtime_changes_on_reboot | default(false) | bool)
-    and (
-      not ((vaultwarden_network.stdout | from_json | first).internal | default((vaultwarden_network.stdout | from_json | first).Internal | default(false)) | bool)
-      or route_proxy_network_subnets.vaultwarden_container_net not in ((vaultwarden_network.stdout | from_json | first).subnets | default([]) | map(attribute='subnet') | list)
-    )
-
-- name: Recreate vaultwarden proxy network as internal
-  ansible.builtin.command:
-    argv:
-      - podman
-      - network
-      - create
-      - --internal
-      - --subnet
-      - "{{ route_proxy_network_subnets.vaultwarden_container_net }}"
-      - vaultwarden_container_net
-  when: vaultwarden_network.rc == 0
-    and not (apply_runtime_changes_on_reboot | default(false) | bool)
-    and (
-      not ((vaultwarden_network.stdout | from_json | first).internal | default((vaultwarden_network.stdout | from_json | first).Internal | default(false)) | bool)
-      or route_proxy_network_subnets.vaultwarden_container_net not in ((vaultwarden_network.stdout | from_json | first).subnets | default([]) | map(attribute='subnet') | list)
-    )
+    container_network_name: vaultwarden_container_net
+    container_network_subnet: "{{ route_proxy_network_subnets.vaultwarden_container_net }}"
 
 - name: Create Vaultwarden container path
   ansible.builtin.file:
@@ -144,6 +80,9 @@
   ansible.builtin.template:
     src: vaultwarden.service.j2
     dest: /etc/systemd/system/vaultwarden.service
+    owner: root
+    group: root
+    mode: "0644"
 
 - name: Enable Vaultwarden
   ansible.builtin.systemd:

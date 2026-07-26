@@ -83,127 +83,27 @@
       - traefik_egress_network != 'nextcloud_container_net'
     fail_msg: "traefik_egress_network must be a safe dedicated non-backend network name."
 
-- name: Inspect Traefik egress network
-  ansible.builtin.command:
-    argv:
-      - podman
-      - network
-      - inspect
-      - "{{ traefik_egress_network }}"
-  register: traefik_egress_network_inspect
-  changed_when: false
-  failed_when: false
+- name: Reconcile Traefik egress network
+  ansible.builtin.include_role:
+    name: container_network
+  vars:
+    container_network_name: "{{ traefik_egress_network }}"
+    container_network_internal: false
 
-- name: Create Traefik egress network
-  ansible.builtin.command:
-    argv:
-      - podman
-      - network
-      - create
-      - "{{ traefik_egress_network }}"
-  when: traefik_egress_network_inspect.rc != 0
-
-- name: Inspect route proxy networks
-  ansible.builtin.command:
-    argv:
-      - podman
-      - network
-      - inspect
-      - "{{ route_proxy_network_name }}"
-  register: route_proxy_networks
-  changed_when: false
-  failed_when: false
+- name: Reconcile route proxy networks
+  ansible.builtin.include_role:
+    name: container_network
+  vars:
+    container_network_name: "{{ route_proxy_network_name }}"
+    container_network_subnet: "{{ route_proxy_network_subnets[route_proxy_network_name] | default('') }}"
+    # Control-plane networks are created here when missing so routes resolve on
+    # a first run, but their replacement stays with the role that owns the
+    # service. Replacing semaphore_container_net from here would cut the
+    # Semaphore container that is running the playbook.
+    container_network_reconcile_existing: "{{ route_proxy_network_name not in reverse_proxy_deferred_route_networks }}"
   loop: "{{ traefik_app_networks }}"
   loop_control:
     loop_var: route_proxy_network_name
-
-- name: Queue legacy route proxy networks for deferred replacement
-  ansible.builtin.set_fact:
-    container_network_migrations: "{{ container_network_migrations | default([]) + [network_migration] }}"
-  loop: "{{ route_proxy_networks.results }}"
-  loop_control:
-    loop_var: route_network
-  vars:
-    network_migration:
-      name: "{{ route_network.route_proxy_network_name }}"
-      subnet: "{{ route_proxy_network_subnets[route_network.route_proxy_network_name] | default('') }}"
-  when:
-    - apply_runtime_changes_on_reboot | default(false) | bool
-    - route_network.rc == 0
-    - route_network.route_proxy_network_name not in reverse_proxy_deferred_route_networks
-    - >-
-      not ((route_network.stdout | from_json | first).internal | default((route_network.stdout | from_json | first).Internal | default(false)) | bool)
-      or (route_proxy_network_subnets[route_network.route_proxy_network_name] | default('') | length > 0
-          and route_proxy_network_subnets[route_network.route_proxy_network_name] not in ((route_network.stdout | from_json | first).subnets | default([]) | map(attribute='subnet') | list))
-
-- name: Remove non-internal route proxy networks
-  ansible.builtin.command:
-    argv:
-      - podman
-      - network
-      - rm
-      - --force
-      - --time
-      - "30"
-      - "{{ route_network.route_proxy_network_name }}"
-  loop: "{{ route_proxy_networks.results }}"
-  loop_control:
-    loop_var: route_network
-  when:
-    - route_network.rc == 0
-    - not (apply_runtime_changes_on_reboot | default(false) | bool)
-    - route_network.route_proxy_network_name not in reverse_proxy_deferred_route_networks
-    - >-
-      not ((route_network.stdout | from_json | first).internal | default((route_network.stdout | from_json | first).Internal | default(false)) | bool)
-      or (route_proxy_network_subnets[route_network.route_proxy_network_name] | default('') | length > 0
-          and route_proxy_network_subnets[route_network.route_proxy_network_name] not in ((route_network.stdout | from_json | first).subnets | default([]) | map(attribute='subnet') | list))
-
-- name: Create internal route proxy networks with deterministic subnets
-  ansible.builtin.command:
-    argv:
-      - podman
-      - network
-      - create
-      - --internal
-      - --subnet
-      - "{{ route_proxy_network_subnets[route_network.route_proxy_network_name] }}"
-      - "{{ route_network.route_proxy_network_name }}"
-  loop: "{{ route_proxy_networks.results }}"
-  loop_control:
-    loop_var: route_network
-  when:
-    - >-
-      route_network.rc != 0 or
-      (
-        not (apply_runtime_changes_on_reboot | default(false) | bool) and
-        route_network.route_proxy_network_name not in reverse_proxy_deferred_route_networks and
-        (
-          not ((route_network.stdout | from_json | first).internal | default((route_network.stdout | from_json | first).Internal | default(false)) | bool)
-          or route_proxy_network_subnets[route_network.route_proxy_network_name] not in ((route_network.stdout | from_json | first).subnets | default([]) | map(attribute='subnet') | list)
-        )
-      )
-    - route_network.route_proxy_network_name in route_proxy_network_subnets
-
-- name: Create internal route proxy networks
-  ansible.builtin.command:
-    argv:
-      - podman
-      - network
-      - create
-      - --internal
-      - "{{ route_network.route_proxy_network_name }}"
-  loop: "{{ route_proxy_networks.results }}"
-  loop_control:
-    loop_var: route_network
-  when:
-    - >-
-      route_network.rc != 0 or
-      (
-        not (apply_runtime_changes_on_reboot | default(false) | bool) and
-        route_network.route_proxy_network_name not in reverse_proxy_deferred_route_networks and
-        not ((route_network.stdout | from_json | first).internal | default((route_network.stdout | from_json | first).Internal | default(false)) | bool)
-      )
-    - route_network.route_proxy_network_name not in route_proxy_network_subnets
 
 - name: Create traefik container path
   ansible.builtin.file:
@@ -294,6 +194,9 @@
   ansible.builtin.template:
     src: traefik_container.service.j2
     dest: /etc/systemd/system/traefik_container.service
+    owner: root
+    group: root
+    mode: "0644"
 
 - name: Enable Traefik
   ansible.builtin.systemd:

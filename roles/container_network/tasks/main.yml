@@ -1,0 +1,82 @@
+---
+# Reconcile one Podman network to the state its owning role declares.
+#
+# Podman cannot flip an existing network to --internal or move it to a different
+# subnet in place, so drift is only repairable by removing and recreating the
+# network. That disconnects every attached container, which would interrupt
+# running services mid-play. When apply_runtime_changes_on_reboot is set, the
+# replacement is therefore queued in container_network_migrations and carried
+# out by the container_network_migration role once the playbook has finished.
+#
+# See roles/container_network/defaults/main.yml for the input variables.
+
+- name: Validate container network request
+  ansible.builtin.assert:
+    that:
+      - container_network_name | homelab_safe_name
+      - container_network_subnet | length == 0
+        or container_network_subnet | homelab_valid_ipv4_cidr
+    fail_msg: >-
+      container_network_name must be a safe network name and
+      container_network_subnet must be empty or a valid IPv4 CIDR.
+    quiet: true
+
+- name: Inspect container network {{ container_network_name }}
+  ansible.builtin.command:
+    argv:
+      - podman
+      - network
+      - inspect
+      - "{{ container_network_name }}"
+  register: container_network_state
+  changed_when: false
+  failed_when: false
+
+# Decided once here so the create, queue, and remove tasks below stay readable
+# and the inspect output is parsed a single time.
+- name: Evaluate container network {{ container_network_name }}
+  ansible.builtin.set_fact:
+    container_network_absent: "{{ container_network_state.rc != 0 }}"
+    container_network_drifted: >-
+      {{ container_network_state.rc == 0
+         and container_network_reconcile_existing | bool
+         and container_network_state.stdout | homelab_network_needs_replacement(
+               container_network_subnet, container_network_internal | bool) }}
+
+- name: Queue container network {{ container_network_name }} for deferred replacement
+  ansible.builtin.set_fact:
+    container_network_migrations: "{{ container_network_migrations | default([]) + [container_network_migration_request] }}"
+  vars:
+    container_network_migration_request:
+      name: "{{ container_network_name }}"
+      subnet: "{{ container_network_subnet }}"
+  when:
+    - container_network_drifted | bool
+    - container_network_defer | bool
+
+- name: Remove drifted container network {{ container_network_name }}
+  ansible.builtin.command:
+    argv:
+      - podman
+      - network
+      - rm
+      - --force
+      - --time
+      - "30"
+      - "{{ container_network_name }}"
+  when:
+    - container_network_drifted | bool
+    - not (container_network_defer | bool)
+
+- name: Create container network {{ container_network_name }}
+  ansible.builtin.command:
+    argv: "{{ container_network_create_argv }}"
+  vars:
+    container_network_create_argv: >-
+      {{ ['podman', 'network', 'create']
+         + (['--internal'] if container_network_internal | bool else [])
+         + (['--subnet', container_network_subnet] if container_network_subnet | length > 0 else [])
+         + [container_network_name] }}
+  when: >-
+    container_network_absent | bool
+    or (container_network_drifted | bool and not (container_network_defer | bool))

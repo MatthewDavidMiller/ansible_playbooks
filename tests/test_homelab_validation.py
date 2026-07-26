@@ -1,3 +1,4 @@
+import json
 import unittest
 
 from filter_plugins.homelab_validation import (
@@ -5,11 +6,21 @@ from filter_plugins.homelab_validation import (
     homelab_container_assignable_ip,
     homelab_immutable_image,
     homelab_ip_in_network,
+    homelab_network_needs_replacement,
     homelab_safe_absolute_path,
     homelab_safe_name,
     homelab_valid_ipv4_address,
     homelab_valid_ipv4_cidr,
 )
+
+
+def inspect_output(*, internal=True, subnets=("172.16.1.0/28",), internal_key="internal"):
+    network = {"name": "example_net"}
+    if internal_key is not None:
+        network[internal_key] = internal
+    if subnets is not None:
+        network["subnets"] = [{"subnet": subnet} for subnet in subnets]
+    return json.dumps([network])
 
 
 class HomelabValidationTests(unittest.TestCase):
@@ -62,6 +73,82 @@ class HomelabValidationTests(unittest.TestCase):
         self.assertTrue(homelab_immutable_image("registry.example/app@sha256:" + "a" * 64))
         self.assertFalse(homelab_immutable_image("registry.example/app:latest"))
         self.assertFalse(homelab_immutable_image("registry.example/app@sha256:" + "A" * 64))
+
+    def test_matching_network_is_left_alone(self):
+        self.assertFalse(
+            homelab_network_needs_replacement(inspect_output(), "172.16.1.0/28")
+        )
+
+    def test_non_internal_network_is_replaced(self):
+        self.assertTrue(
+            homelab_network_needs_replacement(
+                inspect_output(internal=False), "172.16.1.0/28"
+            )
+        )
+
+    def test_legacy_capitalized_internal_key_is_honored(self):
+        # Podman 4 reports `internal`; older releases reported `Internal`.
+        self.assertFalse(
+            homelab_network_needs_replacement(
+                inspect_output(internal_key="Internal"), "172.16.1.0/28"
+            )
+        )
+        self.assertTrue(
+            homelab_network_needs_replacement(
+                inspect_output(internal=False, internal_key="Internal"), "172.16.1.0/28"
+            )
+        )
+
+    def test_missing_internal_flag_counts_as_non_internal(self):
+        self.assertTrue(
+            homelab_network_needs_replacement(
+                inspect_output(internal_key=None), "172.16.1.0/28"
+            )
+        )
+
+    def test_subnet_drift_is_replaced(self):
+        self.assertTrue(
+            homelab_network_needs_replacement(
+                inspect_output(subnets=("172.16.9.0/28",)), "172.16.1.0/28"
+            )
+        )
+        self.assertFalse(
+            homelab_network_needs_replacement(
+                inspect_output(subnets=("172.16.9.0/28", "172.16.1.0/28")),
+                "172.16.1.0/28",
+            )
+        )
+
+    def test_network_without_declared_subnet_only_enforces_internal(self):
+        """Route networks with no deterministic subnet accept whatever Podman assigned."""
+        self.assertFalse(
+            homelab_network_needs_replacement(inspect_output(subnets=("10.89.0.0/24",)), "")
+        )
+        self.assertTrue(
+            homelab_network_needs_replacement(
+                inspect_output(internal=False, subnets=("10.89.0.0/24",)), ""
+            )
+        )
+
+    def test_missing_subnet_data_is_replaced_when_a_subnet_is_declared(self):
+        self.assertTrue(
+            homelab_network_needs_replacement(
+                inspect_output(subnets=None), "172.16.1.0/28"
+            )
+        )
+
+    def test_require_internal_can_be_disabled(self):
+        self.assertFalse(
+            homelab_network_needs_replacement(
+                inspect_output(internal=False), "172.16.1.0/28", False
+            )
+        )
+
+    def test_unreadable_inspect_output_fails_loudly(self):
+        for output in ("", "not-json", "{}", "[]", "[null]"):
+            with self.subTest(output=output):
+                with self.assertRaises(ValueError):
+                    homelab_network_needs_replacement(output, "172.16.1.0/28")
 
     def test_filter_module_exports_compatibility_aliases(self):
         filters = FilterModule().filters()
