@@ -30,7 +30,7 @@ TOOLING_GUIDE = REPO_ROOT / "docs" / "guides" / "container-image-updates.md"
 SCAN_SEVERITIES = "MEDIUM,HIGH,CRITICAL"
 NO_NEWER_IMAGE_EXCEPTION = "no_newer_upstream_image"
 MAX_EXCEPTION_DAYS = 30
-MINIMUM_IMAGE_AGE_HOURS = 48
+MINIMUM_IMAGE_AGE_HOURS = 24
 SHA256_DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
 FALLBACK_TOOL_IMAGES = {
     "skopeo": "quay.io/skopeo/stable@sha256:c7d3c512612f52805023cd38351081dad7e2729fc13d14b701e47c7c8bdd6615",

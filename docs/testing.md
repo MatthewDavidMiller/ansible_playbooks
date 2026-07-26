@@ -118,7 +118,7 @@ bash scripts/test_container_security.sh
 
 1. Inspect each `upstream_ref` once with `skopeo` to resolve its digest and creation timestamp.
 2. Verify signatures with `cosign` when `signature_required: true` and the lock entry includes pinned signer metadata.
-3. Require a changed image's recorded creation time to be at least 48 hours old.
+3. Require a changed image's recorded creation time to be at least 24 hours old.
 4. Scan for fix-available `MEDIUM`, `HIGH`, and `CRITICAL` findings with `trivy`. Scanner/tool errors fail closed.
 5. Require a reviewed, maximum-30-day public exception for non-Critical findings. Critical findings require an exact local service/digest/CVE acceptance unless every candidate Critical finding is already present in the currently approved digest; that no-regression case promotes the eligible newer image.
 6. Optionally write the approved digest back to `artifacts/containers.lock.yml`.

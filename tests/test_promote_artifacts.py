@@ -138,7 +138,7 @@ class PromotionPolicyTests(unittest.TestCase):
         self.assertEqual(result.non_critical_count, 1)
         self.assertEqual(result.critical_ids, frozenset({"CVE-2"}))
 
-    def test_changed_image_must_be_at_least_48_hours_old(self):
+    def test_changed_image_must_be_at_least_24_hours_old(self):
         created = datetime(2026, 7, 13, 6, 52, tzinfo=timezone.utc)
         promote.validate_minimum_image_age(
             created,

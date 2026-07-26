@@ -14,7 +14,7 @@ Start with [README.md](README.md), then use [docs/index.md](docs/index.md) for t
 - Keep architecture, inventory, and playbook facts in `docs/`, not in this file.
 - Update documentation in the same change when behavior, variables, or role ordering changes.
 - Do not add a `Co-Authored-By` trailer to commits in this repository.
-- Never wait or sleep for an artificial time gate (for example, waiting until a newer container image becomes 48 hours old). Choose the latest option that is eligible right now, finish the task, and note any newer ineligible candidates for a later run.
+- Never wait or sleep for an artificial time gate (for example, waiting until a newer container image becomes 24 hours old). Choose the latest option that is eligible right now, finish the task, and note any newer ineligible candidates for a later run.
 
 ## Checks
 

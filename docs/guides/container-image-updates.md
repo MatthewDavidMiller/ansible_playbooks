@@ -8,14 +8,14 @@ The deploy path stays pinned to immutable digests in [`artifacts/containers.lock
 
 1. Change the intended upstream tag in the lock file to the latest **currently eligible** stable tag.
 2. Resolve the exact digest with `skopeo`.
-3. Require the image's recorded creation time to be at least 48 hours old.
+3. Require the image's recorded creation time to be at least 24 hours old.
 4. Verify the image signature with `cosign` when `signature_required: true` and the lock entry pins the expected signer metadata.
 5. Scan the image with `trivy` for fix-available `MEDIUM`, `HIGH`, and `CRITICAL` vulnerabilities.
 6. Run the repo's policy and container-hardening tests before deployment.
 
 ### Select latest eligible now
 
-Promote the newest stable tag that already satisfies the 48-hour age gate and the rest of this workflow. Do not sleep or otherwise wait for a younger upstream tag to become eligible. Leave younger tags for a later update run, and record that choice in the lock-file `notes` when useful.
+Promote the newest stable tag that already satisfies the 24-hour age gate and the rest of this workflow. Do not sleep or otherwise wait for a younger upstream tag to become eligible. Leave younger tags for a later update run, and record that choice in the lock-file `notes` when useful.
 
 Stay on the current major track when a major bump needs a separate procedure (for example PostgreSQL; see [postgres-upgrade.md](postgres-upgrade.md)).
 
@@ -81,7 +81,7 @@ python3 scripts/promote_artifacts.py --write --service traefik
 Treat each update as approved only after all of the following are true:
 
 - `skopeo` resolved the expected upstream tag to a digest.
-- The candidate image's recorded creation time is at least 48 hours old. Younger images are not eligible for promotion.
+- The candidate image's recorded creation time is at least 24 hours old. Younger images are not eligible for promotion.
 - `cosign verify` succeeded for services that require signatures and have pinned signer metadata in the lock file.
 - `trivy` reported no fix-available `MEDIUM`, `HIGH`, or `CRITICAL` findings. A maximum-30-day `no_newer_upstream_image` exception may cover non-Critical findings. A Critical finding needs an exact local acceptance unless the same Critical finding is already present in the currently approved image; in that no-regression case, prefer the eligible newer image. Review `logs/container-vulnerability-findings.log`.
 - Any local VEX/ignore use is digest-specific, service-specific, time-bounded, and backed by runtime hardening or network containment.
@@ -102,7 +102,7 @@ Use `vulnerability_exception: no_newer_upstream_image` only when Trivy reports f
 
 ## Pre-existing Critical Findings
 
-Do not retain an older image solely because an eligible newer image contains the same Critical findings. When a candidate is at least 48 hours old, the promotion tool scans both digests. It may promote the candidate without a new Critical acceptance only when every unaccepted Critical finding in the candidate is also present in the currently approved image. Any new Critical finding still fails closed and requires exact local acceptance.
+Do not retain an older image solely because an eligible newer image contains the same Critical findings. When a candidate is at least 24 hours old, the promotion tool scans both digests. It may promote the candidate without a new Critical acceptance only when every unaccepted Critical finding in the candidate is also present in the currently approved image. Any new Critical finding still fails closed and requires exact local acceptance.
 
 The `no_newer_upstream_image` exception is still required when the candidate also has fix-available non-Critical findings. This no-regression rule does not hide findings or treat them as remediated; it prevents known inherited findings from blocking an otherwise newer image.
 
