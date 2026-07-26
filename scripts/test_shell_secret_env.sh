@@ -436,15 +436,32 @@ assert_contains "$render_dir/semaphore.sh" "--mount type=tmpfs,destination=/tmp/
 assert_not_contains "$render_dir/semaphore.sh" "mode=1777" "semaphore.sh does not render a world-writable project temp path"
 
 assert_contains "$render_dir/backup_navidrome.sh" '/usr/bin/install -d -o 33 -g 33 -m 0770 "$DEST"' "backup_navidrome.sh creates the Nextcloud destination with Nextcloud ownership"
-assert_contains "$render_dir/backup_navidrome.sh" '/usr/bin/install -o 33 -g 33 -m 0640 "$backup_file" "$DEST/"' "backup_navidrome.sh installs backups with Nextcloud ownership"
+assert_contains "$render_dir/backup_navidrome.sh" '/usr/bin/install -o 33 -g 33 -m 0660 "$backup_file" "$DEST/"' "backup_navidrome.sh installs backups with the normalized Nextcloud file mode"
 assert_not_contains "$render_dir/backup_navidrome.sh" '/usr/bin/cp "$LOCAL_BACKUP_DIR"/*.db "$DEST/"' "backup_navidrome.sh no longer copies backups as root"
 
 assert_contains "$render_dir/backup_vaultwarden.sh" '/usr/bin/install -d -o 33 -g 33 -m 0770 "$DEST"' "backup_vaultwarden.sh creates the Nextcloud destination with Nextcloud ownership"
-assert_contains "$render_dir/backup_vaultwarden.sh" '/usr/bin/install -o 33 -g 33 -m 0640 "$BACKUP_FILE" "$DEST/"' "backup_vaultwarden.sh installs backups with Nextcloud ownership"
+assert_contains "$render_dir/backup_vaultwarden.sh" '/usr/bin/install -o 33 -g 33 -m 0660 "$BACKUP_FILE" "$DEST/"' "backup_vaultwarden.sh installs backups with the normalized Nextcloud file mode"
 assert_not_contains "$render_dir/backup_vaultwarden.sh" '/usr/bin/cp "$BACKUP_FILE" "$DEST/"' "backup_vaultwarden.sh no longer copies backups as root"
 
 assert_contains "$render_dir/backup_semaphore.sh" '/usr/bin/install -d -o 33 -g 33 -m 0770 "$DEST"' "backup_semaphore.sh creates the Nextcloud destination with Nextcloud ownership"
-assert_contains "$render_dir/backup_semaphore.sh" '/usr/bin/install -o 33 -g 33 -m 0640 "$DUMP_FILE" "$DEST/"' "backup_semaphore.sh installs backups with Nextcloud ownership"
+assert_contains "$render_dir/backup_semaphore.sh" '/usr/bin/install -o 33 -g 33 -m 0660 "$DUMP_FILE" "$DEST/"' "backup_semaphore.sh installs backups with the normalized Nextcloud file mode"
 assert_not_contains "$render_dir/backup_semaphore.sh" '/usr/bin/cp "$DUMP_FILE" "$DEST/"' "backup_semaphore.sh no longer copies backups as root"
+
+# occ refuses to run as root, so a scan without --user silently fails behind
+# `|| true` and the backup never becomes visible in Nextcloud until the next
+# playbook run reconciles the tree.
+for backup_script in backup_navidrome.sh backup_vaultwarden.sh backup_semaphore.sh; do
+  assert_contains "$render_dir/$backup_script" \
+    '/usr/bin/podman exec --user 33:33 nextcloud php occ files:scan' \
+    "$backup_script runs occ files:scan as the Nextcloud file owner"
+  assert_not_contains "$render_dir/$backup_script" \
+    '/usr/bin/podman exec nextcloud php occ' \
+    "$backup_script never runs occ as root"
+  if grep -n 'occ files:scan' "$render_dir/$backup_script" | grep -q '|| true'; then
+    fail "$backup_script must not discard occ files:scan failures"
+  else
+    pass "$backup_script reports occ files:scan failures instead of discarding them"
+  fi
+done
 
 echo "=== Regression tests complete. ==="

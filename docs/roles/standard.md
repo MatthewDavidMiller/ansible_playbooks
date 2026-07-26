@@ -8,7 +8,7 @@ These are the maintained infrastructure and dev-host roles used by the active VM
 
 Deploys the managed SSH hardening drop-in under `/etc/ssh/sshd_config.d/`.
 
-**Key behavior:** disables password auth and root login, keeps project SSH defaults centralized, and validates the config before reload.
+**Key behavior:** disables password auth and root login, keeps project SSH defaults centralized, and validates the config before reload. The drop-in pins the SFTP subsystem to the Rocky path `/usr/libexec/openssh/sftp-server`; `sshd -t` does not check that the binary exists, so a wrong path silently breaks SFTP and SSHFS.
 
 **Optional variables:**
 

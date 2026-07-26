@@ -24,6 +24,8 @@ Runtime tests prefer Docker when both engines are installed, fall back to Podman
 
 The Python suite includes mocked success and failure paths for artifact promotion, Proxmox provisioning, dynamic DNS, shared validation filters, and VM bootstrap behavior. It also executes the Nextcloud permission-normalization command against a temporary file tree to guard its single-pass and idempotent behavior.
 
+Local Nextcloud backups have dedicated guards in `tests/test_ansible_regressions.py`. Every template that writes into the Nextcloud user files tree must run `occ files:scan` as `nextcloud_uid:nextcloud_gid`, must report scan failures instead of discarding them with `|| true`, and must install dumps using `nextcloud_user_files_file_mode` so the mode survives the `nextcloud` role's normalization. The checks discover templates by content, so a new service backup script is covered without editing the tests.
+
 Offline or no-container commits can skip the network depsolve only:
 
 ```bash

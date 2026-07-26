@@ -62,7 +62,7 @@ Deploys Navidrome with an explicit non-root runtime user and a local backup work
 
 **Required variables:** `navidrome_path`, `navidrome_backup_location`, `navidrome_uid`, `navidrome_gid`, `navidrome_image`
 
-**Key behavior:** creates the Navidrome proxy network as internal, queues legacy non-internal or wrong-subnet proxy networks for deferred replacement during staged VM1 runs, and either bind-mounts `navidrome_local_music_path` or falls back to the role's own music path.
+**Key behavior:** creates the Navidrome proxy network as internal, queues legacy non-internal or wrong-subnet proxy networks for deferred replacement during staged VM1 runs, and either bind-mounts `navidrome_local_music_path` or falls back to the role's own music path. With `backup_local: true` the daily backup installs the SQLite dumps into the Nextcloud data tree and then re-indexes them; see [Indexing local backups into Nextcloud](#indexing-local-backups-into-nextcloud).
 
 ---
 
@@ -74,7 +74,7 @@ Deploys Vaultwarden and its SQLite-backed backup workflow.
 
 **Templates:** `vaultwarden.sh.j2`, `vaultwarden.service.j2`, `backup_db.j2`
 
-**Key behavior:** keeps public signup disabled, creates the Vaultwarden proxy network as internal, and queues legacy non-internal or wrong-subnet proxy networks for deferred replacement during staged VM1 runs.
+**Key behavior:** keeps public signup disabled, creates the Vaultwarden proxy network as internal, and queues legacy non-internal or wrong-subnet proxy networks for deferred replacement during staged VM1 runs. With `backup_local: true` the daily backup installs the SQLite copy into the Nextcloud data tree and then re-indexes it; see [Indexing local backups into Nextcloud](#indexing-local-backups-into-nextcloud).
 
 ---
 
@@ -98,7 +98,19 @@ Manages the local Borg backup disk and the daily backup scripts for VM1.
 
 **Templates:** `init_backup_repo.sh.j2`, `backup_files.sh.j2`
 
-**Key behavior:** initializes the Borg repo if needed, mounts the backup disk, and keeps the VM1 backup workflow local-first.
+**Key behavior:** initializes the Borg repo if needed, mounts the backup disk, and keeps the VM1 backup workflow local-first. Remote (`backup_local: false`) runs unmount the SSHFS mount with `fusermount3`, since Rocky 10 ships FUSE 3 only.
+
+---
+
+### Indexing local backups into Nextcloud
+
+With `backup_local: true`, the `navidrome`, `vaultwarden`, and `semaphore` backup scripts write their dumps directly into `{{ nextcloud_path }}/data/<nextcloud_homelab_user>/files/...` as `nextcloud_uid:nextcloud_gid`. A file placed there is invisible to Nextcloud clients until it is added to the file cache, so each script finishes with `occ files:scan --path=...`.
+
+`occ` refuses to run as root — it must run as the owner of `config/config.php` — so the scan must be invoked as `podman exec --user {{ nextcloud_uid }}:{{ nextcloud_gid }} nextcloud php occ`, the same form used by `nextcloud_configure.sh`. A scan failure is logged to the service's backup log and does not fail the run, because the dump itself is already safely on disk.
+
+Dumps are installed with `nextcloud_user_files_directory_mode` and `nextcloud_user_files_file_mode` rather than literal modes. The `nextcloud` role normalizes every file under `data/<user>/files` to those modes on each run, so a script that writes a different mode leaves each backup wrong until the next playbook run silently corrects it. For the same reason the per-service "Repair … ownership" tasks set ownership only: a recursive `mode` would also rewrite the backup files themselves.
+
+Both properties are covered by `tests/test_ansible_regressions.py` and by the rendered-script assertions in `scripts/test_shell_secret_env.sh`.
 
 ---
 

@@ -128,13 +128,15 @@
     mode: "0770"
   when: backup_local | default(false)
 
+# Ownership only. A recursive mode would also apply the directory mode to the
+# backup files themselves; file modes belong to the nextcloud role's
+# user-files normalization.
 - name: Repair Vaultwarden Nextcloud backup destination ownership
   ansible.builtin.file:
     path: "{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/{{ vaultwarden_backup_location | replace('Nextcloud:', '') }}"
     state: directory
     owner: "{{ nextcloud_uid }}"
     group: "{{ nextcloud_gid }}"
-    mode: "0770"
     recurse: true
   when: backup_local | default(false)
 

@@ -10,7 +10,10 @@ archive={{ borg_backup_path | quote }}"::nextcloud_backup-$(/usr/bin/date +%m_%d
 {% else %}
 # Remote backup — SSHFS mount Nextcloud from {{ nextcloud_host }}
 cleanup() {
-    /usr/bin/fusermount -u {{ ssh_mount_path | quote }} >/dev/null 2>&1 || true
+    # Rocky 10 ships FUSE 3 only, which provides fusermount3 rather than fusermount.
+    /usr/bin/fusermount3 -u {{ ssh_mount_path | quote }} >/dev/null 2>&1 \
+        || /usr/bin/fusermount -u {{ ssh_mount_path | quote }} >/dev/null 2>&1 \
+        || true
 }
 trap cleanup EXIT
 /usr/bin/sshfs {{ (user_name ~ '@' ~ nextcloud_host ~ ':' ~ nextcloud_backup_path) | quote }} \
