@@ -6,12 +6,18 @@ This guide covers the maintained workflow for updating VM1 container images with
 
 The deploy path stays pinned to immutable digests in [`artifacts/containers.lock.yml`](../../artifacts/containers.lock.yml). Updating an image means:
 
-1. Change the intended upstream tag in the lock file.
+1. Change the intended upstream tag in the lock file to the latest **currently eligible** stable tag.
 2. Resolve the exact digest with `skopeo`.
 3. Require the image's recorded creation time to be at least 48 hours old.
 4. Verify the image signature with `cosign` when `signature_required: true` and the lock entry pins the expected signer metadata.
 5. Scan the image with `trivy` for fix-available `MEDIUM`, `HIGH`, and `CRITICAL` vulnerabilities.
 6. Run the repo's policy and container-hardening tests before deployment.
+
+### Select latest eligible now
+
+Promote the newest stable tag that already satisfies the 48-hour age gate and the rest of this workflow. Do not sleep or otherwise wait for a younger upstream tag to become eligible. Leave younger tags for a later update run, and record that choice in the lock-file `notes` when useful.
+
+Stay on the current major track when a major bump needs a separate procedure (for example PostgreSQL; see [postgres-upgrade.md](postgres-upgrade.md)).
 
 ## Tooling
 
@@ -34,7 +40,7 @@ If you want native installs, use the official project instructions:
 
 ## Review Workflow
 
-Edit the target service entry in [`artifacts/containers.lock.yml`](../../artifacts/containers.lock.yml) and change `upstream_ref` and `approved_tag` to the new tag you want to review.
+Edit the target service entry in [`artifacts/containers.lock.yml`](../../artifacts/containers.lock.yml) and change `upstream_ref` and `approved_tag` to the latest currently eligible tag.
 
 For a full review and lock-file update in one pass:
 

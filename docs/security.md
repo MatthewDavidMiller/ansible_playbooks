@@ -37,7 +37,7 @@ Out of scope for the current low-disruption design:
 - Do not put Traefik on the backend database/cache network.
 - Do not add container egress by placing apps on non-internal networks unless the operational need is documented.
 - Do not use mutable image references in maintained deployment paths.
-- Do not promote a newer container image until its recorded creation time is at least 48 hours old.
+- Do not promote a newer container image until its recorded creation time is at least 48 hours old. When updating, select the latest already-eligible tag; do not wait for a younger tag to age in.
 - Do not remove `no_log` from secret rendering tasks.
 - Do not create service paths without explicit owner, group, and mode.
 - Document any container that cannot use `--read-only` or `--cap-drop=ALL` with the reason and a test.

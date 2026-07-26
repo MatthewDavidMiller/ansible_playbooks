@@ -1,55 +1,59 @@
----
-# Promotion metadata for maintained VM1 container images.
-# Update approved digests by running scripts/promote_artifacts.py when you
-# intentionally promote newer upstream tags.
 artifact_locked_images:
   traefik:
-    upstream_ref: public.ecr.aws/docker/library/traefik:v3.7.7
-    approved_tag: v3.7.7
-    approved_digest: sha256:1cb3845d7a05e1473c9086351426597e911db49db382b6e4769f9b0744962ac8
+    upstream_ref: public.ecr.aws/docker/library/traefik:v3.7.8
+    approved_tag: v3.7.8
+    approved_digest: sha256:4299bbed850421258fc5448c2e0e6ad350981d4d335a68de11b92448aedbefe5
     internal_repo: homelab/traefik
     signature_required: false
-    notes: Approved via scripts/promote_artifacts.py
+    vulnerability_exception: no_newer_upstream_image
+    vulnerability_exception_reviewed_on: '2026-07-26'
+    vulnerability_exception_expires_on: '2026-08-25'
+    notes: Approved latest eligible upstream image via scripts/promote_artifacts.py;
+      non-Critical findings accepted through 2026-08-25. Newer v3.7.9 is under the
+      48-hour age gate and was not selected.
   postgres:
     upstream_ref: public.ecr.aws/docker/library/postgres:17.10
     approved_tag: '17.10'
-    approved_digest: sha256:2203e6282d9e7de7c24d7da234e2a744fb325df366a3fd8ed940e8abbee39527
+    approved_digest: sha256:a426e44bac0b759c95894d68e1a0ac03ecc20b619f498a91aae373bf06d8508d
     internal_repo: homelab/postgres
     signature_required: false
     vulnerability_exception: no_newer_upstream_image
-    vulnerability_exception_reviewed_on: '2026-07-14'
-    vulnerability_exception_expires_on: '2026-08-13'
-    notes: Approved latest upstream image via scripts/promote_artifacts.py; vulnerability
-      findings accepted until a newer upstream image resolves them.
+    vulnerability_exception_reviewed_on: '2026-07-26'
+    vulnerability_exception_expires_on: '2026-08-25'
+    notes: Approved newer no-regression image via scripts/promote_artifacts.py; Critical
+      findings were also present in the previous digest and non-Critical findings
+      are accepted through 2026-08-25.
   redis:
     upstream_ref: public.ecr.aws/docker/library/redis:8.8.0
     approved_tag: 8.8.0
-    approved_digest: sha256:0a972391db0b24ec336e35d1bc98b237237e26f82bf5120cf2f6b1688d1df973
+    approved_digest: sha256:234c902a2db49461a129e2d4aeff85b28cf20187ed274a67f6e50995fa713c7b
     internal_repo: homelab/redis
     signature_required: false
-    notes: Approved via scripts/promote_artifacts.py
+    notes: Approved via scripts/promote_artifacts.py. Newer 8.8.1 is under the 48-hour
+      age gate and was not selected.
   nextcloud:
-    upstream_ref: public.ecr.aws/docker/library/nextcloud:34.0.1
-    approved_tag: 34.0.1
-    approved_digest: sha256:e15c14f83a90484e497dabc7d01248370f69e1de353c072b8aa15dbd19d5fd9b
+    upstream_ref: public.ecr.aws/docker/library/nextcloud:34.0.2
+    approved_tag: 34.0.2
+    approved_digest: sha256:e93ccfc952c95f18175f3d297fb2f60c35070c05ca976050c250a9ddab793e75
     internal_repo: homelab/nextcloud
     signature_required: false
     vulnerability_exception: no_newer_upstream_image
-    vulnerability_exception_reviewed_on: '2026-07-14'
-    vulnerability_exception_expires_on: '2026-08-13'
+    vulnerability_exception_reviewed_on: '2026-07-26'
+    vulnerability_exception_expires_on: '2026-08-25'
     notes: Approved latest upstream image via scripts/promote_artifacts.py; non-Critical
-      vulnerability findings accepted through 2026-08-13.
+      vulnerability findings accepted through 2026-08-25.
   paperless:
-    upstream_ref: ghcr.io/paperless-ngx/paperless-ngx:2.20.15
-    approved_tag: 2.20.15
-    approved_digest: sha256:6c86cad803970ea782683a8e80e7403444c5bf3cf70de63b4d3c8e87500db92f
+    upstream_ref: ghcr.io/paperless-ngx/paperless-ngx:3.0.2
+    approved_tag: 3.0.2
+    approved_digest: sha256:fef384c955d2ec2acf1bd0882ffc195ecc170266c803dfe28b79df6deabb3569
     internal_repo: homelab/paperless-ngx
     signature_required: false
     vulnerability_exception: no_newer_upstream_image
-    vulnerability_exception_reviewed_on: '2026-07-14'
-    vulnerability_exception_expires_on: '2026-08-13'
-    notes: Approved latest upstream image via scripts/promote_artifacts.py; vulnerability
-      findings accepted until a newer upstream image resolves them.
+    vulnerability_exception_reviewed_on: '2026-07-26'
+    vulnerability_exception_expires_on: '2026-08-25'
+    notes: Approved latest eligible upstream image via scripts/promote_artifacts.py;
+      non-Critical findings accepted through 2026-08-25. Newer 3.0.3 is under the
+      48-hour age gate and was not selected.
   navidrome:
     upstream_ref: docker.io/deluan/navidrome:0.63.2
     approved_tag: 0.63.2
@@ -64,18 +68,19 @@ artifact_locked_images:
     internal_repo: homelab/vaultwarden
     signature_required: false
     vulnerability_exception: no_newer_upstream_image
-    vulnerability_exception_reviewed_on: '2026-07-14'
-    vulnerability_exception_expires_on: '2026-08-13'
-    notes: Approved latest upstream image via scripts/promote_artifacts.py; vulnerability
-      findings accepted until a newer upstream image resolves them.
+    vulnerability_exception_reviewed_on: '2026-07-26'
+    vulnerability_exception_expires_on: '2026-08-25'
+    notes: Approved latest eligible upstream image (1.36.0). Newer 1.37.0 is under the
+      48-hour age gate and was not selected.
   semaphore:
-    upstream_ref: public.ecr.aws/semaphore/server:v2.18.12
-    approved_tag: v2.18.12
-    approved_digest: sha256:f6651f30d5bf962afe13831b579c3e0f02a13a45735f852b4de3225d98859c8e
+    upstream_ref: public.ecr.aws/semaphore/server:v2.18.28
+    approved_tag: v2.18.28
+    approved_digest: sha256:6454b2e58a6616de82240f7b4f271663fe0ec3430e10a9cc7e763ff6df12baa0
     internal_repo: homelab/semaphore
     signature_required: false
     vulnerability_exception: no_newer_upstream_image
-    vulnerability_exception_reviewed_on: '2026-07-14'
-    vulnerability_exception_expires_on: '2026-08-13'
-    notes: Approved latest upstream image via scripts/promote_artifacts.py; vulnerability
-      findings accepted until a newer upstream image resolves them.
+    vulnerability_exception_reviewed_on: '2026-07-26'
+    vulnerability_exception_expires_on: '2026-08-25'
+    notes: Approved newer no-regression image via scripts/promote_artifacts.py; Critical
+      findings were also present in the previous digest and non-Critical findings
+      are accepted through 2026-08-25.
