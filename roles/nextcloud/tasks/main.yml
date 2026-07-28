@@ -143,15 +143,18 @@
     setype: container_file_t
     state: present
 
+# restorecon -v prints a line per relabeled file, and the first run after the
+# rule above relabels the whole data tree. Returning that as task output kills
+# the forked Ansible worker Semaphore runs inside its 384 MB swapless container
+# ("A worker was found in a dead state"), so the count is taken in the pipeline
+# and only the total comes back.
 - name: Restore SELinux contexts on the Nextcloud data tree
-  ansible.builtin.command:
-    argv:
-      - restorecon
-      - -R
-      - -v
-      - "{{ nextcloud_path }}/data"
+  ansible.builtin.shell:
+    cmd: set -o pipefail && restorecon -R -v {{ nextcloud_path }}/data | wc -l
+  args:
+    executable: /bin/bash
   register: nextcloud_data_restorecon
-  changed_when: nextcloud_data_restorecon.stdout != ""
+  changed_when: nextcloud_data_restorecon.stdout | trim | int > 0
 
 - name: Find Nextcloud user files roots
   ansible.builtin.command:
@@ -171,41 +174,25 @@
   changed_when: false
   when: nextcloud_normalize_user_files_permissions | bool
 
+# -print emits a line per file the walk fixes, so a first pass over a populated
+# tree hands back the same unbounded output that killed the restore above.
+# Count the fixes in the pipeline and return only the total.
 - name: Normalize Nextcloud user file tree permissions
-  ansible.builtin.command:
-    argv:
-      - find
-      - "{{ item }}"
-      - "("
-      - -type
-      - d
-      - -not
-      - -perm
-      - "{{ nextcloud_user_files_directory_mode }}"
-      - -print
-      - -exec
-      - chmod
-      - "{{ nextcloud_user_files_directory_mode }}"
-      - "{}"
-      - +
-      - ")"
-      - -o
-      - "("
-      - -type
-      - f
-      - -not
-      - -perm
-      - "{{ nextcloud_user_files_file_mode }}"
-      - -print
-      - -exec
-      - chmod
-      - "{{ nextcloud_user_files_file_mode }}"
-      - "{}"
-      - +
-      - ")"
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail &&
+      find {{ item | quote }}
+      \( -type d -not -perm {{ nextcloud_user_files_directory_mode }}
+      -print -exec chmod {{ nextcloud_user_files_directory_mode }} {} + \)
+      -o
+      \( -type f -not -perm {{ nextcloud_user_files_file_mode }}
+      -print -exec chmod {{ nextcloud_user_files_file_mode }} {} + \)
+      | wc -l
+  args:
+    executable: /bin/bash
   register: nextcloud_user_tree_permissions
   loop: "{{ nextcloud_user_files_roots.stdout_lines }}"
-  changed_when: nextcloud_user_tree_permissions.stdout != ""
+  changed_when: nextcloud_user_tree_permissions.stdout | trim | int > 0
   when:
     - nextcloud_normalize_user_files_permissions | bool
     - nextcloud_user_files_roots.stdout_lines | length > 0

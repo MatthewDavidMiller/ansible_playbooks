@@ -1,5 +1,6 @@
 from pathlib import Path
 import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -58,6 +59,24 @@ def local_nextcloud_backup_templates() -> list[Path]:
     if not templates:
         raise AssertionError("no local Nextcloud backup templates found")
     return templates
+
+
+def restorecon_commands(tasks: list[dict]) -> list[str]:
+    """Every restorecon invocation in a task file, each as one string."""
+    commands = []
+    for task in tasks:
+        for module in ("ansible.builtin.command", "ansible.builtin.shell"):
+            invocation = task.get(module)
+            if isinstance(invocation, str):
+                commands.append(invocation)
+            elif isinstance(invocation, dict):
+                argv = invocation.get("argv") or []
+                commands.append(" ".join(argv) or invocation.get("cmd", ""))
+    return [
+        command
+        for command in commands
+        if re.search(r"(?<![\w./-])restorecon(?=\s)", command)
+    ]
 
 
 def joined_commands(script: str) -> list[str]:
@@ -195,19 +214,21 @@ class LocalNextcloudBackupTests(unittest.TestCase):
             "the nextcloud role must label its volume as container content",
         )
 
-        restores = [
-            task["ansible.builtin.command"]["argv"]
-            for task in tasks
-            if task.get("ansible.builtin.command", {}).get("argv", [""])[0]
-            == "restorecon"
-        ]
+        restores = restorecon_commands(tasks)
         self.assertTrue(restores, "the role must restore contexts on the data tree")
-        for argv in restores:
-            self.assertIn("{{ nextcloud_path }}/data", argv)
-            self.assertNotIn(
-                "-F",
-                argv,
+        for command in restores:
+            self.assertIn("{{ nextcloud_path }}/data", command)
+            self.assertNotRegex(
+                command,
+                r"-[A-Za-z]*F",
                 "forcing the range would strip the MCS categories podman's :Z applied",
+            )
+            self.assertRegex(
+                command,
+                r"\|\s*wc -l",
+                "restorecon -v prints a line per relabeled file, and returning the "
+                "whole data tree's worth kills the Ansible worker Semaphore runs "
+                "inside its memory-capped container",
             )
 
     def test_scan_helper_confirms_the_path_reached_the_file_cache(self):
@@ -341,8 +362,15 @@ class AnsibleRegressionTests(unittest.TestCase):
             if task.get("name") == "Normalize Nextcloud user file tree permissions"
         ]
         self.assertEqual(len(matching), 1)
-        argv = matching[0]["ansible.builtin.command"]["argv"]
-        self.assertEqual(argv.count("find"), 1)
+        command = matching[0]["ansible.builtin.shell"]["cmd"]
+        self.assertEqual(command.count("find"), 1)
+        self.assertRegex(
+            command,
+            r"\|\s*wc -l",
+            "-print emits a line per fixed file, and returning a populated tree's "
+            "worth kills the Ansible worker Semaphore runs inside its "
+            "memory-capped container",
+        )
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -351,20 +379,28 @@ class AnsibleRegressionTests(unittest.TestCase):
             child_directory.mkdir(mode=0o700)
             child_file.write_text("content", encoding="utf-8")
             child_file.chmod(0o600)
-            rendered = [
-                str(root) if value == "{{ item }}" else
-                "0770" if value == "{{ nextcloud_user_files_directory_mode }}" else
-                "0660" if value == "{{ nextcloud_user_files_file_mode }}" else
-                value
-                for value in argv
+            rendered = (
+                command.replace("{{ item | quote }}", shlex.quote(str(root)))
+                .replace("{{ nextcloud_user_files_directory_mode }}", "0770")
+                .replace("{{ nextcloud_user_files_file_mode }}", "0660")
+            )
+            self.assertNotIn("{{", rendered)
+            runs = [
+                subprocess.run(
+                    rendered,
+                    shell=True,
+                    executable="/bin/bash",
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+                for _ in range(2)
             ]
-            first = subprocess.run(rendered, check=True, capture_output=True, text=True)
-            second = subprocess.run(rendered, check=True, capture_output=True, text=True)
             directory_mode = child_directory.stat().st_mode & 0o777
             file_mode = child_file.stat().st_mode & 0o777
 
-        self.assertTrue(first.stdout)
-        self.assertEqual(second.stdout, "")
+        self.assertGreater(int(runs[0].stdout.strip()), 0)
+        self.assertEqual(runs[1].stdout.strip(), "0")
         self.assertEqual(directory_mode, 0o770)
         self.assertEqual(file_mode, 0o660)
 

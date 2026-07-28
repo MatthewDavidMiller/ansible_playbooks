@@ -38,7 +38,7 @@ Deploys the shared PostgreSQL container, Redis container, and Nextcloud itself.
 
 **Templates:** `postgres_container.sh.j2`, `postgres_container.service.j2`, `redis_container.sh.j2`, `redis_container.service.j2`, `nextcloud_container.sh.j2`, `nextcloud_container.service.j2`, `nextcloud_configure.sh.j2`, `nextcloud_configure.service.j2`, `postgres.env.j2`, `nextcloud.env.j2`
 
-**Key behavior:** owns the shared database layer for Nextcloud, Paperless, and Semaphore, reconciles its internal backend and proxy networks through the shared [`container_network`](standard.md#container_network) role, normalizes directory and file modes in one walk of each configured user files tree, keeps the `container_file_t` file context rule for its mounted volume so host-written backups are labeled correctly at creation, reconciles persistent `config.php` values after Nextcloud starts, and must run before those consumers.
+**Key behavior:** owns the shared database layer for Nextcloud, Paperless, and Semaphore, reconciles its internal backend and proxy networks through the shared [`container_network`](standard.md#container_network) role, normalizes directory and file modes in one walk of each configured user files tree, reporting only how many files that walk fixed, keeps the `container_file_t` file context rule for its mounted volume so host-written backups are labeled correctly at creation, reconciles persistent `config.php` values after Nextcloud starts, and must run before those consumers.
 
 ---
 
