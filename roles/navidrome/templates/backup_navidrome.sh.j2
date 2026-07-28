@@ -30,12 +30,6 @@ for backup_file in "$LOCAL_BACKUP_DIR"/*.db; do
     [ -e "$backup_file" ] || break
     /usr/bin/install -o {{ nextcloud_uid }} -g {{ nextcloud_gid }} -m {{ nextcloud_user_files_file_mode | default('0660') }} "$backup_file" "$DEST/"
 done
-if ! /usr/local/bin/nextcloud_scan_path.sh \
-    "{{ nextcloud_homelab_user }}/files/{{ navidrome_backup_location | replace('Nextcloud:', '') }}" \
-    >> "$BACKUP_LOG" 2>&1; then
-    /usr/bin/echo "[$(date)] ERROR: occ files:scan failed. Backups are on disk but Nextcloud has not indexed them." \
-        >> "$BACKUP_LOG"
-fi
 /usr/bin/find "$LOCAL_BACKUP_DIR" -type f -name "*.db" -delete
 
 # === Prune old backups from destination ===
@@ -45,6 +39,14 @@ if [ "$BACKUP_COUNT" -ge "$THRESHOLD" ]; then
     /usr/bin/find "$DEST" -type f -name "*.db" -mtime +30 -delete
 else
     /usr/bin/echo "[$(date)] Cleanup skipped — only $BACKUP_COUNT backups found." >> "$BACKUP_LOG"
+fi
+
+# === Index the result: scan after pruning so removals leave the file cache too ===
+if ! /usr/local/bin/nextcloud_scan_path.sh \
+    "{{ nextcloud_homelab_user }}/files/{{ navidrome_backup_location | replace('Nextcloud:', '') }}" \
+    >> "$BACKUP_LOG" 2>&1; then
+    /usr/bin/echo "[$(date)] ERROR: occ files:scan failed. Backups are on disk but Nextcloud has not indexed them." \
+        >> "$BACKUP_LOG"
 fi
 
 {% else %}

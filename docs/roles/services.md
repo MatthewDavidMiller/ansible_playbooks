@@ -38,7 +38,7 @@ Deploys the shared PostgreSQL container, Redis container, and Nextcloud itself.
 
 **Templates:** `postgres_container.sh.j2`, `postgres_container.service.j2`, `redis_container.sh.j2`, `redis_container.service.j2`, `nextcloud_container.sh.j2`, `nextcloud_container.service.j2`, `nextcloud_configure.sh.j2`, `nextcloud_configure.service.j2`, `postgres.env.j2`, `nextcloud.env.j2`
 
-**Key behavior:** owns the shared database layer for Nextcloud, Paperless, and Semaphore, reconciles its internal backend and proxy networks through the shared [`container_network`](standard.md#container_network) role, normalizes directory and file modes in one walk of each configured user files tree, reconciles persistent `config.php` values after Nextcloud starts, and must run before those consumers.
+**Key behavior:** owns the shared database layer for Nextcloud, Paperless, and Semaphore, reconciles its internal backend and proxy networks through the shared [`container_network`](standard.md#container_network) role, normalizes directory and file modes in one walk of each configured user files tree, keeps the `container_file_t` file context rule for its mounted volume so host-written backups are labeled correctly at creation, reconciles persistent `config.php` values after Nextcloud starts, and must run before those consumers.
 
 ---
 
@@ -108,9 +108,22 @@ Manages the local Borg backup disk and the daily backup scripts for VM1.
 
 With `backup_local: true`, the `navidrome`, `vaultwarden`, and `semaphore` backup scripts write their dumps directly into `{{ nextcloud_path }}/data/<nextcloud_homelab_user>/files/...` as `nextcloud_uid:nextcloud_gid`. A file placed there is invisible to Nextcloud clients until it is added to the file cache, so each script passes its destination to `/usr/local/bin/nextcloud_scan_path.sh`.
 
-The `nextcloud` role owns that helper so every service uses the same `occ files:scan` invocation. It serializes scans from the daily cron jobs with `flock`, waits for a usable Nextcloud container, and retries transient failures. It also recognizes error text from `files:scan`: that command can print an unknown user, lock contention, or a scan exception while still exiting with status zero, so checking the process status alone is insufficient. The helper uses an explicit working directory and absolute `occ` path and runs as `nextcloud_uid:nextcloud_gid`.
+Ownership and mode are not sufficient on their own. Podman's `:Z` relabel only covers what exists when the container starts, so a dump the host writes from cron afterwards takes the policy default for that path, `default_t`, which the container is denied `getattr` on. `occ files:scan` then reports `Error during scan: stat(): stat failed`, skips the file, and still exits zero. The `nextcloud` role therefore carries a persistent `container_file_t` rule for `nextcloud_path`, so every host-written backup is labeled correctly when it is created; see [SELinux](../architecture.md#selinux).
 
-After the retry budget is exhausted, the helper returns failure and the calling service records the failure in its backup log. The service backup remains non-fatal because the dump itself is already safely on disk.
+The `nextcloud` role owns that helper so every service uses the same `occ files:scan` invocation. It uses an explicit working directory and absolute `occ` path and runs as `nextcloud_uid:nextcloud_gid`.
+
+Every caller is a cron job, so the helper cannot inherit anything from its environment. It exports its own `PATH`, `HOME`, and `LC_ALL`, calls every binary through an absolute path, and reads `/dev/null` for stdin instead of relying on a terminal.
+
+The helper runs in these stages:
+
+1. **Reject an unusable request.** `occ` resolves `--path` against the global root, where each account is mounted at `/<user id>/`, and it reports a bad account without failing. A path that is not `<user>/files/<path>` — the shape an empty `nextcloud_homelab_user` renders — is refused up front, as is a path that does not exist under `nextcloud_path/data`.
+2. **Serialize.** All local service backups run `@daily` and can reach `files:scan` at the same time, so scans take a `flock` on `/run/lock/nextcloud-files-scan.lock`.
+3. **Wait for a usable instance.** `podman container exists` is also true for a created or stopped container, so the helper waits until `occ status` answers and reports neither maintenance nor a pending database upgrade. The daily backups can start while the container is still restarting after a reboot or an image update, and `occ` still answers `status` in maintenance mode while refusing to load the commands a scan needs.
+4. **Scan, then confirm.** `files:scan` can print an unknown user, lock contention, a maintenance notice, or a scan exception while still exiting zero, so the helper checks the output text as well as the process status. It also fails on `Error during scan`, which reports one unreadable file, skips it, and lets the command exit zero — the way a backup goes unindexed while the cron job reports success. The same failures are counted in the summary table, so the helper reads the `Errors` column too, locating it by its header so a future table layout cannot shift the count. Because the command can additionally exit zero without indexing anything, a successful scan is confirmed with `occ info:file` before the helper reports success. If a future image drops `info:file`, the confirmation is skipped rather than failing a backup that is already on disk.
+
+Every `occ` call runs under `timeout`, so a hung command is killed instead of holding the shared lock and the cron job all night. After the retry budget is exhausted, the helper returns failure and the calling service records the failure in its backup log. The service backup remains non-fatal because the dump itself is already safely on disk.
+
+Navidrome prunes its destination on the same schedule, so it scans after pruning: one scan then indexes both the new dump and the removals, instead of leaving deleted backups in the file cache until the next full scan.
 
 Dumps are installed with `nextcloud_user_files_directory_mode` and `nextcloud_user_files_file_mode` rather than literal modes. The `nextcloud` role normalizes every file under `data/<user>/files` to those modes on each run, so a script that writes a different mode leaves each backup wrong until the next playbook run silently corrects it. For the same reason the per-service "Repair … ownership" tasks set ownership only: a recursive `mode` would also rewrite the backup files themselves.
 

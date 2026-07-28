@@ -113,12 +113,108 @@ class LocalNextcloudBackupTests(unittest.TestCase):
         helper = NEXTCLOUD_SCAN_HELPER.read_text(encoding="utf-8")
         self.assertIn("--user {{ nextcloud_uid }}:{{ nextcloud_gid }}", helper)
         self.assertIn("--workdir /var/www/html", helper)
-        self.assertIn("php /var/www/html/occ files:scan", helper)
+        self.assertIn("nextcloud php /var/www/html/occ", helper)
+        self.assertIn('occ files:scan --path="$scan_path"', helper)
         self.assertIn("/usr/bin/flock --wait", helper)
         self.assertIn("max_attempts=", helper)
         self.assertIn("Unknown user", helper)
         self.assertIn("Another process is already scanning", helper)
         self.assertIn("Exception during scan", helper)
+        self.assertIn("maintenance: true", helper)
+
+    def test_scan_helper_fails_on_per_file_scan_errors(self):
+        """`Error during scan` skips one file and still exits zero.
+
+        That is how a backup goes unindexed while the cron job reports
+        success, so both the message and the summary Errors column have to
+        fail the scan.
+        """
+        helper = NEXTCLOUD_SCAN_HELPER.read_text(encoding="utf-8")
+        self.assertIn("Error during scan", helper)
+        self.assertIn("scan_error_count", helper)
+        self.assertIn('[ "$scan_errors" -eq 0 ]', helper)
+
+    def test_scan_helper_runs_under_a_cron_environment(self):
+        """cron supplies almost no environment and no controlling terminal.
+
+        Anything the scan needs has to be set here, every command has to be
+        absolute so a different PATH cannot select another binary, and a hung
+        occ has to be killed instead of holding the shared lock all night.
+        """
+        helper = NEXTCLOUD_SCAN_HELPER.read_text(encoding="utf-8")
+        self.assertIn("export PATH=", helper)
+        self.assertIn('export HOME="${HOME:-/root}"', helper)
+        self.assertIn("export LC_ALL=", helper)
+        self.assertIn("/usr/bin/timeout --kill-after", helper)
+        self.assertIn("< /dev/null", helper)
+
+        body = "\n".join(
+            line for line in helper.splitlines() if not line.lstrip().startswith("#")
+        )
+        for command in (
+            "podman",
+            "flock",
+            "grep",
+            "sleep",
+            "mktemp",
+            "date",
+            "timeout",
+            "cat",
+            "mkdir",
+            "awk",
+            "rm",
+        ):
+            self.assertIsNone(
+                re.search(rf"(?<![\w./-]){command}(?=\s)", body),
+                f"{command} must be called through an absolute path",
+            )
+
+    def test_nextcloud_volume_has_a_container_file_context_rule(self):
+        """Host-written backups need the right SELinux label from birth.
+
+        The disk holding nextcloud_path matches no shipped file context rule,
+        so its policy default is default_t and the container is denied getattr
+        on anything the host writes there after podman's :Z relabel ran.
+        """
+        tasks = yaml.safe_load(
+            (REPO_ROOT / "roles" / "nextcloud" / "tasks" / "main.yml").read_text(
+                encoding="utf-8"
+            )
+        )
+        fcontexts = [
+            task["community.general.sefcontext"]
+            for task in tasks
+            if "community.general.sefcontext" in task
+        ]
+        self.assertTrue(
+            any(
+                fcontext["target"] == "{{ nextcloud_path }}(/.*)?"
+                and fcontext["setype"] == "container_file_t"
+                for fcontext in fcontexts
+            ),
+            "the nextcloud role must label its volume as container content",
+        )
+
+        restores = [
+            task["ansible.builtin.command"]["argv"]
+            for task in tasks
+            if task.get("ansible.builtin.command", {}).get("argv", [""])[0]
+            == "restorecon"
+        ]
+        self.assertTrue(restores, "the role must restore contexts on the data tree")
+        for argv in restores:
+            self.assertIn("{{ nextcloud_path }}/data", argv)
+            self.assertNotIn(
+                "-F",
+                argv,
+                "forcing the range would strip the MCS categories podman's :Z applied",
+            )
+
+    def test_scan_helper_confirms_the_path_reached_the_file_cache(self):
+        """files:scan can exit zero without indexing the backup at all."""
+        helper = NEXTCLOUD_SCAN_HELPER.read_text(encoding="utf-8")
+        self.assertIn("occ info:file", helper)
+        self.assertIn("path_is_indexed", helper)
 
     def test_backups_are_installed_with_the_normalized_file_mode(self):
         """The nextcloud role rewrites file modes under data/<user>/files.

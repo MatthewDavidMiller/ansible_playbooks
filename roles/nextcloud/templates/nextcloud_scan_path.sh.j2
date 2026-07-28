@@ -1,62 +1,198 @@
 #!/bin/bash
 set -euo pipefail
 
+# cron runs this helper with an almost empty environment: PATH is /usr/bin:/bin,
+# there is no controlling terminal, and nothing guarantees HOME or a locale.
+# Pin everything the scan depends on instead of inheriting it, and keep every
+# command absolute so a PATH change can never select a different binary.
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export HOME="${HOME:-/root}"
+export LC_ALL=C
+unset CDPATH
+umask 022
+
 if [ "$#" -ne 1 ] || [ -z "$1" ]; then
     echo "Usage: $0 <user/files/path>" >&2
     exit 2
 fi
 
 scan_path="/${1#/}"
+host_path="{{ nextcloud_path }}/data${scan_path}"
+
 lock_file="/run/lock/nextcloud-files-scan.lock"
+lock_wait=900
+ready_attempts=36
+ready_delay=5
 max_attempts=12
 retry_delay=5
+occ_timeout=1800
+
+log() {
+    echo "[$(/usr/bin/date '+%Y-%m-%d %H:%M:%S%z')] nextcloud_scan_path ${scan_path}: $*"
+}
+
+# occ resolves --path against the global root, where every account is mounted at
+# /<user id>/. A path with no account segment scans a user that cannot exist,
+# which occ reports without failing, so reject it here instead. An empty
+# nextcloud_homelab_user renders exactly that shape.
+case "$scan_path" in
+    /*/files | /*/files/*) ;;
+    *)
+        log "Refusing to scan: expected <user>/files/<path>, so nextcloud_homelab_user is probably empty" >&2
+        exit 2
+        ;;
+esac
+
+if [ ! -e "$host_path" ]; then
+    log "Nothing to scan: $host_path is missing on disk" >&2
+    exit 1
+fi
+
+# A hung occ must not hold the shared lock or the cron job forever.
+occ() {
+    /usr/bin/timeout --kill-after=30s "${occ_timeout}s" \
+        /usr/bin/podman exec \
+        --user {{ nextcloud_uid }}:{{ nextcloud_gid }} \
+        --workdir /var/www/html \
+        nextcloud php /var/www/html/occ "$@" < /dev/null
+}
+
+occ_output=$(/usr/bin/mktemp /tmp/nextcloud-files-scan.XXXXXX)
+trap '/usr/bin/rm -f "$occ_output"' EXIT
+
+# occ still answers `status` while the instance is upgrading or in maintenance
+# mode, but it refuses to load the commands a scan needs.
+instance_is_unavailable() {
+    /usr/bin/grep -Eq \
+        '(maintenance: true|needsDbUpgrade: true|installed: false|in maintenance mode|needs upgrade|is not installed)' \
+        "$occ_output"
+}
+
+# files:scan reports these and still exits zero, so the process status alone
+# cannot decide whether the backup reached the file cache. Nextcloud indents
+# some of them, so only anchor the patterns that always start a line.
+# "Error during scan" is per file: the scan keeps going, skips that file, and
+# still exits zero, which is exactly how a backup goes unindexed in silence.
+scan_reported_an_error() {
+    /usr/bin/grep -Eq \
+        '(^Unknown user |Error while scanning|Error during scan|^Home storage |^Path not found:|Another process is already scanning|Exception during scan|will not be accessible due to incompatible encoding|in maintenance mode)' \
+        "$occ_output"
+}
+
+# The summary table counts the same per-file failures, so read the Errors
+# column as well as the message text. The column is located by its header so a
+# future table layout cannot silently shift the count, and an unrecognized
+# table yields zero and leaves the decision to the patterns above.
+scan_error_count() {
+    /usr/bin/awk -F'|' '
+        /Folders/ && /Errors/ {
+            for (field = 1; field <= NF; field++) {
+                gsub(/^[ \t]+|[ \t]+$/, "", $field)
+                if ($field == "Errors") {
+                    column = field
+                }
+            }
+            next
+        }
+        column && $column ~ /[0-9]/ {
+            count = $column
+            gsub(/[^0-9]/, "", count)
+            errors += count
+        }
+        END { print errors + 0 }
+    ' "$occ_output"
+}
+
+# The scan is only useful if the path really landed in the file cache, so
+# confirm it rather than trusting the command status. info:file has shipped
+# since Nextcloud 25; if an image ever drops it, skip the confirmation instead
+# of failing a backup that is already on disk.
+path_is_indexed() {
+    local info_output
+    if info_output=$(occ info:file "$scan_path" 2>&1); then
+        return 0
+    fi
+    if printf '%s\n' "$info_output" | /usr/bin/grep -q 'is not defined'; then
+        log "occ info:file is unavailable, so skipping the file cache confirmation" >&2
+        return 0
+    fi
+    printf '%s\n' "$info_output" >&2
+    return 1
+}
 
 # All local service backups use @daily and can reach files:scan at the same
 # time. Serialize scans so one transient Nextcloud lock cannot strand a backup
 # outside the file cache until the next full scan.
+/usr/bin/mkdir -p /run/lock
 exec 9>"$lock_file"
-if ! /usr/bin/flock --wait 300 9; then
-    echo "Timed out waiting for the Nextcloud files:scan lock" >&2
+if ! /usr/bin/flock --wait "$lock_wait" 9; then
+    log "Timed out after ${lock_wait}s waiting for the Nextcloud files:scan lock" >&2
     exit 1
 fi
 
-scan_output=$(/usr/bin/mktemp /tmp/nextcloud-files-scan.XXXXXX)
-trap '/usr/bin/rm -f "$scan_output"' EXIT
-
-scan_reported_an_error() {
-    /usr/bin/grep -Eq \
-        '(^Unknown user |^Error while scanning|^Home storage |^Path not found:|^Another process is already scanning|^Exception during scan:|will not be accessible due to incompatible encoding)' \
-        "$scan_output"
-}
-
-for attempt in $(/usr/bin/seq 1 "$max_attempts"); do
-    : > "$scan_output"
+# `podman container exists` is also true for a created or stopped container, so
+# reach all the way through to occ before deciding Nextcloud is usable. The
+# daily backups can start while the container is still restarting after a
+# reboot or an image update.
+nextcloud_is_ready=false
+ready_reason="unknown"
+for ((attempt = 1; attempt <= ready_attempts; attempt++)); do
+    : > "$occ_output"
 
     if ! /usr/bin/podman container exists nextcloud; then
-        echo "Nextcloud container does not exist" > "$scan_output"
-    elif ! /usr/bin/podman exec \
-        --user {{ nextcloud_uid }}:{{ nextcloud_gid }} \
-        --workdir /var/www/html \
-        nextcloud php /var/www/html/occ status \
-        > "$scan_output" 2>&1; then
-        :
-    elif /usr/bin/podman exec \
-        --user {{ nextcloud_uid }}:{{ nextcloud_gid }} \
-        --workdir /var/www/html \
-        nextcloud php /var/www/html/occ files:scan \
-        --path="$scan_path" \
-        > "$scan_output" 2>&1 \
-        && ! scan_reported_an_error; then
-        /usr/bin/cat "$scan_output"
-        exit 0
+        ready_reason="the nextcloud container does not exist"
+    elif ! occ status > "$occ_output" 2>&1; then
+        ready_reason="occ status failed"
+    elif instance_is_unavailable; then
+        ready_reason="Nextcloud is in maintenance or upgrade mode"
+    else
+        nextcloud_is_ready=true
+        break
     fi
 
-    /usr/bin/cat "$scan_output" >&2
+    if [ "$attempt" -eq 1 ]; then
+        log "Waiting up to $((ready_attempts * ready_delay))s for Nextcloud: $ready_reason" >&2
+    fi
+    if [ "$attempt" -lt "$ready_attempts" ]; then
+        /usr/bin/sleep "$ready_delay"
+    fi
+done
+
+if [ "$nextcloud_is_ready" != true ]; then
+    log "Nextcloud never became usable: $ready_reason" >&2
+    /usr/bin/cat "$occ_output" >&2
+    exit 1
+fi
+
+for ((attempt = 1; attempt <= max_attempts; attempt++)); do
+    : > "$occ_output"
+    scan_status=0
+    occ files:scan --path="$scan_path" > "$occ_output" 2>&1 || scan_status=$?
+    scan_errors=$(scan_error_count)
+
+    if [ "$scan_status" -eq 0 ] && [ "$scan_errors" -eq 0 ] && ! scan_reported_an_error; then
+        /usr/bin/cat "$occ_output"
+        if path_is_indexed; then
+            exit 0
+        fi
+        log "files:scan exited zero but the path is still missing from the file cache" >&2
+    else
+        /usr/bin/cat "$occ_output" >&2
+        if [ "$scan_status" -eq 124 ] || [ "$scan_status" -eq 137 ]; then
+            log "files:scan exceeded ${occ_timeout}s and was killed" >&2
+        elif [ "$scan_errors" -gt 0 ]; then
+            log "files:scan skipped $scan_errors file(s) and still exited $scan_status" >&2
+        fi
+        if /usr/bin/grep -q 'stat failed for' "$occ_output"; then
+            log "occ listed those files but could not stat them, so they are on disk and unreadable to the container: check their SELinux label against {{ nextcloud_path }}/data, then ownership, mode, and the data bind mount" >&2
+        fi
+    fi
+
     if [ "$attempt" -lt "$max_attempts" ]; then
-        echo "Nextcloud files:scan attempt $attempt/$max_attempts failed for $scan_path; retrying in ${retry_delay}s" >&2
+        log "files:scan attempt $attempt/$max_attempts failed, retrying in ${retry_delay}s" >&2
         /usr/bin/sleep "$retry_delay"
     fi
 done
 
-echo "Nextcloud files:scan failed after $max_attempts attempts for $scan_path" >&2
+log "files:scan failed after $max_attempts attempts" >&2
 exit 1

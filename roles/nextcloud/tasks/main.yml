@@ -128,6 +128,31 @@
     group: "{{ nextcloud_gid }}"
     mode: "0770"
 
+# The disk holding nextcloud_path matches no shipped file context rule, so its
+# policy default is default_t. Podman's :Z relabel only fixes what exists when
+# a container starts; a backup the host writes afterwards lands as default_t,
+# which the container is denied getattr on. Ownership and mode still look
+# right, so occ files:scan reports "stat(): stat failed", skips the file, and
+# exits zero while the backup never reaches the file cache. Owning the rule
+# here rather than through standard_selinux_extra_fcontexts keeps it with the
+# mount it describes, because the restore below is only correct once this role
+# has mounted the disk.
+- name: Label the Nextcloud volume as container content
+  community.general.sefcontext:
+    target: "{{ nextcloud_path }}(/.*)?"
+    setype: container_file_t
+    state: present
+
+- name: Restore SELinux contexts on the Nextcloud data tree
+  ansible.builtin.command:
+    argv:
+      - restorecon
+      - -R
+      - -v
+      - "{{ nextcloud_path }}/data"
+  register: nextcloud_data_restorecon
+  changed_when: nextcloud_data_restorecon.stdout != ""
+
 - name: Find Nextcloud user files roots
   ansible.builtin.command:
     argv:

@@ -115,7 +115,11 @@ Rocky Linux 10 ships with SELinux in enforcing mode (targeted policy). The `stan
 
 VM2 also enables `domain_can_mmap_files` for interactive development tools that memory-map generated files, package-manager artifacts, or local build outputs.
 
-All container volume mounts use `:Z`, which triggers automatic SELinux file context relabeling. No manual `sefcontext` tasks are needed.
+All container volume mounts use `:Z`, which relabels the volume when the container starts. That covers content the container itself writes, but not content the host writes afterwards: a path outside the shipped file context rules defaults to `default_t`, which containers are denied `getattr` on. Any volume the host also writes into therefore needs a persistent rule.
+
+The Nextcloud data disk is the one such volume, because the daily service backups install their dumps into it from cron. The `nextcloud` role owns that rule (`nextcloud_path(/.*)?` as `container_file_t`) and restores contexts on the data tree, because both are only correct once the role has mounted the disk. `restorecon` runs without `-F` so the MCS categories `:Z` applied survive. The Borg repository paths have the same exposure and are handled manually during restores; see [guides/dr-restore.md](guides/dr-restore.md).
+
+Host-level contexts unrelated to a specific role go through `standard_selinux_extra_fcontexts` instead.
 
 After deploying to a new host, audit for remaining denials:
 

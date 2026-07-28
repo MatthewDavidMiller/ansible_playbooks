@@ -13,6 +13,7 @@
       - semaphore_known_hosts | trim | length > 0
       - semaphore_admin_email is match('^[^@\\s]+@[^@\\s]+[.][^@\\s]+$')
       - not (backup_local | bool) or nextcloud_path | homelab_safe_absolute_path
+      - not (backup_local | bool) or nextcloud_homelab_user | homelab_safe_name
     fail_msg: Configure strong Semaphore secrets, pinned SSH hosts, safe paths, an immutable image, and valid networks.
   no_log: true
 
