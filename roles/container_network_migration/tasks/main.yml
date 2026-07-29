@@ -27,7 +27,10 @@
       - container_network_migration.name | homelab_safe_name
       - container_network_migration.subnet | default('') | length == 0
         or container_network_migration.subnet | homelab_valid_ipv4_cidr
-    fail_msg: Each deferred migration needs a safe network name and an optional valid IPv4 subnet.
+      - (container_network_migration.internal | default(true)) is boolean
+    fail_msg: >-
+      Each deferred migration needs a safe network name, an optional valid
+      IPv4 subnet, and a boolean internal-network setting.
   loop: "{{ container_network_migrations | default([]) }}"
   loop_control:
     loop_var: container_network_migration

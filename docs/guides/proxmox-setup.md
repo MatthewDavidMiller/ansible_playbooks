@@ -173,38 +173,47 @@ After bootstrapping, the VM is ready for Ansible management. See [getting-starte
    rclone config
    ```
 
-2. Edit the script and set `RCLONE_DEST` to your Nextcloud backup path:
+2. Set `RCLONE_DEST` in root's crontab. Keeping deployment configuration out of
+   the tracked script avoids local source edits:
    ```bash
-   RCLONE_DEST="Nextcloud:backups/proxmox"
+   RCLONE_DEST=Nextcloud:backups/proxmox
    ```
 
 3. Copy the script to the Proxmox host and add it to root's crontab:
    ```bash
    crontab -e
-   # Add:
+   # Add both lines:
+   RCLONE_DEST=Nextcloud:backups/proxmox
    0 2 * * * /root/backup_proxmox_config.sh
    ```
 
-Logs are written to `/var/log/backup_proxmox_config.log` and automatically truncated at 10 MB. See [dr-restore.md — Proxmox Node Configuration](dr-restore.md#proxmox-node-configuration) for the restore procedure.
+Logs are written to `/var/log/backup_proxmox_config.log` and automatically
+truncated at 10 MB. The script prevents overlapping runs, removes its private
+temporary archive on every exit, and deletes only top-level
+`proxmox_config_*.tar.gz` files older than 30 days. Override the retention
+period with a positive integer in `PROXMOX_BACKUP_RETENTION_DAYS`.
+See [dr-restore.md — Proxmox Node Configuration](dr-restore.md#proxmox-node-configuration) for the restore procedure.
 
 ---
 
 ## Adding a New VM
 
-To add a new VM to the setup script, follow the pattern in `scripts/proxmox_initial_setup.py`:
+To add a new Rocky Linux VM to the setup script, add a declarative entry to
+`ROCKY_VMS` in `scripts/proxmox_initial_setup.py`:
 
 ```python
-# Create <Name> VM
-subprocess.call([r"qm", r"clone", r"401", r"<VMID>", r"--name", r"<Name>"])
-subprocess.call([r"qm", r"set", r"<VMID>", r"--efidisk0",
-    r"local-lvm:1,format=raw,efitype=4m,pre-enrolled-keys=0"])
-subprocess.call([r"qm", r"set", r"<VMID>", r"--cores", r"<N>"])
-subprocess.call([r"qm", r"set", r"<VMID>", r"--memory", r"<MB>"])
+{
+    "vmid": "<VMID>",
+    "name": "<Name>",
+    "cores": "<N>",
+    "memory": "<MiB>",
+    "root_disk_size": "<optional-size>",
+},
 ```
 
-Use VMID 400 (Debian 12 template) for Debian-based VMs, VMID 401 (Rocky Linux 10 template) for Rocky-based VMs.
-
-Rocky-based VMs inherit `--cpu host` from the template. If you create a Rocky VM outside of this script, set it manually:
+The shared clone path handles identity checks, EFI setup, option drift, and
+grow-only root-disk resizing. Rocky-based VMs inherit `--cpu host` from
+template VMID 401. If you create a Rocky VM outside of this script, set it manually:
 
 ```bash
 qm set <VMID> --cpu host

@@ -29,7 +29,7 @@ Out of scope for the current low-disruption design:
 - Container images are resolved from `artifacts/containers.lock.yml`, deployed as immutable digest refs, pre-pulled by `standard_podman`, and launched with `--pull=never`.
 - Containers use explicit network placement, internal app/backend networks for deny-by-default egress, memory/PID limits, `no-new-privileges`, reduced capabilities, and read-only root filesystems where compatible.
 - Runtime secrets are rendered under `secret_env_dir` as root-owned `0600` env files. Secret-writing tasks use `no_log: true`.
-- Backups use root-owned scripts and restrictive file modes. Temporary backup handling should use private permissions and cleanup traps.
+- Backups use root-owned scripts and restrictive file modes. Temporary backup handling uses private permissions and cleanup traps; remote retention filters must be scoped to files owned by the backup workflow.
 
 ## Change Rules
 

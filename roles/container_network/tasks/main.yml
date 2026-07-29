@@ -16,9 +16,13 @@
       - container_network_name | homelab_safe_name
       - container_network_subnet | length == 0
         or container_network_subnet | homelab_valid_ipv4_cidr
+      - container_network_internal is boolean
+      - container_network_reconcile_existing is boolean
+      - container_network_defer is boolean
     fail_msg: >-
       container_network_name must be a safe network name and
-      container_network_subnet must be empty or a valid IPv4 CIDR.
+      container_network_subnet must be empty or a valid IPv4 CIDR. Reconciliation,
+      internal-network, and deferral controls must be booleans.
     quiet: true
 
 - name: Inspect container network {{ container_network_name }}
@@ -50,6 +54,7 @@
     container_network_migration_request:
       name: "{{ container_network_name }}"
       subnet: "{{ container_network_subnet }}"
+      internal: "{{ container_network_internal }}"
   when:
     - container_network_drifted | bool
     - container_network_defer | bool

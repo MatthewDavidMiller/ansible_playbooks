@@ -153,6 +153,10 @@ container_service_names: 'postgres_container redis_container nextcloud_container
 container_network_migrations:
   - name: 'nextcloud_proxy_net'
     subnet: '172.16.1.32/29'
+    internal: true
+  - name: 'traefik_egress_net'
+    subnet: ''
+    internal: false
 postgres_image: 'docker.io/postgres@sha256:2222222222222222222222222222222222222222222222222222222222222222'
 postgres_path: '/srv/postgres'
 nextcloud_image: 'docker.io/nextcloud@sha256:4444444444444444444444444444444444444444444444444444444444444444'
@@ -361,6 +365,16 @@ assert_not_contains() {
 }
 
 echo "=== Shell-Sourced Secret Env Regression Tests ==="
+
+assert_contains "$render_dir/migrate_container_networks.sh" \
+  "/usr/bin/podman network create --internal --subnet 172.16.1.32/29 nextcloud_proxy_net" \
+  "migrate_container_networks.sh preserves internal network mode"
+assert_contains "$render_dir/migrate_container_networks.sh" \
+  "/usr/bin/podman network create traefik_egress_net" \
+  "migrate_container_networks.sh preserves external egress network mode"
+assert_not_contains "$render_dir/migrate_container_networks.sh" \
+  "/usr/bin/podman network create --internal traefik_egress_net" \
+  "migrate_container_networks.sh does not isolate egress networks"
 
 assert_sourced_var "$render_dir/dynamic_dns.env" "PORKBUN_API_KEY" "$porkbun_api_key" "dynamic_dns.env preserves PORKBUN_API_KEY"
 assert_sourced_var "$render_dir/dynamic_dns.env" "PORKBUN_SECRET_KEY" "$porkbun_secret_key" "dynamic_dns.env preserves PORKBUN_SECRET_KEY"

@@ -82,11 +82,7 @@ if /usr/bin/podman network inspect {{ network.name | quote }} >/dev/null 2>&1; t
   fi
 fi
 if ! /usr/bin/podman network inspect {{ network.name | quote }} >/dev/null 2>&1; then
-{% if network.subnet | default('') | length > 0 %}
-  /usr/bin/podman network create --internal --subnet {{ network.subnet | quote }} {{ network.name | quote }}
-{% else %}
-  /usr/bin/podman network create --internal {{ network.name | quote }}
-{% endif %}
+  /usr/bin/podman network create{% if network.internal | default(true) | bool %} --internal{% endif %}{% if network.subnet | default('') | length > 0 %} --subnet {{ network.subnet | quote }}{% endif %} {{ network.name | quote }}
 else
   echo "ERROR: Network {{ network.name }} still exists after removal"
   exit 1

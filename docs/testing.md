@@ -1,6 +1,6 @@
 # Testing
 
-## CI/CD Pipeline
+## Local Validation Pipeline
 
 Checks run automatically on every `git commit` via the local pre-commit hook at `hooks/pre-commit`.
 
@@ -33,11 +33,16 @@ Container network reconciliation has dedicated guards in
 networks it owns through the shared `container_network` role, with the expected
 internal flag per network; no role outside `container_network` may run a
 `podman network` command or parse inspect output itself. The shared role must
-queue replacements during staged runs, force-remove before recreating during
-immediate runs, and leave `reverse_proxy_deferred_route_networks` to the role
-that owns them. The replacement decision itself is covered directly in
-`tests/test_homelab_validation.py`, including the legacy `Internal` key
-spelling, subnet drift, and unreadable inspect output.
+queue replacements during staged runs, preserve each queued network's internal
+mode, force-remove before recreating during immediate runs, and leave
+`reverse_proxy_deferred_route_networks` to the role that owns them. The
+replacement decision itself is covered directly in
+`tests/test_homelab_validation.py`, including exact internal/external mode,
+the legacy `Internal` key spelling, subnet drift, and unreadable inspect output.
+
+`tests/test_backup_proxmox_config.py` guards the standalone Proxmox backup's
+fail-fast destination validation, private temporary files, exit-trap cleanup,
+and archive-only remote retention filter.
 
 Route proxy addressing has dedicated guards in `tests/test_ansible_regressions.py`. Every container on a route proxy network must request a static address that Podman can assign, Traefik's `route_proxy_traefik_ips` address must differ from the service address on the same network, and `route_proxy_container_ips` must match the address the service launch script requests. The checks read the launch scripts and role defaults, so a new proxied service is covered once it pins an address.
 

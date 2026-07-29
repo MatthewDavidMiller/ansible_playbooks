@@ -9,7 +9,7 @@ from pathlib import PurePosixPath
 
 
 _DIGEST_REF = re.compile(r"^\S+@sha256:[0-9a-f]{64}$")
-_SAFE_NAME = re.compile(r"^[A-Za-z0-9_.-]+$")
+_SAFE_NAME = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_.-]*$")
 
 
 def homelab_valid_ipv4_cidr(value: object, reject_default: bool = True) -> bool:
@@ -89,7 +89,7 @@ def _first_inspected_network(inspect_output: object) -> dict:
 def homelab_network_needs_replacement(
     inspect_output: object,
     subnet: object = "",
-    require_internal: bool = True,
+    expected_internal: bool = True,
 ) -> bool:
     """Whether an existing Podman network must be torn down and recreated.
 
@@ -101,9 +101,12 @@ def homelab_network_needs_replacement(
     """
     network = _first_inspected_network(inspect_output)
 
-    # Podman 4 reports `internal`; older releases used `Internal`.
+    # Podman 4 reports `internal`; older releases used `Internal`. A missing
+    # flag represents a non-internal network, matching Podman's default.
     is_internal = network.get("internal", network.get("Internal", False))
-    if require_internal and not is_internal:
+    if not isinstance(is_internal, bool):
+        raise ValueError("podman network inspect returned an invalid internal flag")
+    if is_internal != expected_internal:
         return True
 
     declared_subnet = str(subnet).strip()

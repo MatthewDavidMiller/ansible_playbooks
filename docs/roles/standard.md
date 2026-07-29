@@ -111,16 +111,17 @@ inspect/create/replace sequence, so the drift rules live in one place.
 |---|---|---|---|
 | `container_network_name` | string | Network to reconcile | `""` |
 | `container_network_subnet` | string | Deterministic IPv4 CIDR, or empty to let Podman choose | `""` |
-| `container_network_internal` | bool | Create the network with `--internal` | `true` |
+| `container_network_internal` | bool | Exact desired internal mode; drift in either direction triggers replacement | `true` |
 | `container_network_reconcile_existing` | bool | Repair drift on an existing network; when false the network is still created if missing | `true` |
 | `container_network_defer` | bool | Queue replacement instead of performing it inline | `apply_runtime_changes_on_reboot` |
 
-**Key behavior:** validates the requested name and subnet, inspects the network
+**Key behavior:** validates the requested name, subnet, and boolean controls, inspects the network
 once, and decides replacement through the `homelab_network_needs_replacement`
-filter. A missing network is always created. An existing network that is not
-internal, or whose subnet does not match, is force-removed and recreated during
-non-staged runs, or appended to `container_network_migrations` during staged
-runs so `container_network_migration` can replace it after the play finishes.
+filter. A missing network is always created. An existing network whose internal
+mode or subnet does not match is force-removed and recreated during non-staged
+runs, or appended to `container_network_migrations` during staged runs so
+`container_network_migration` can replace it after the play finishes. Deferred
+requests retain the desired internal mode, so egress networks remain external.
 
 Set `container_network_reconcile_existing: false` when another role owns the
 network's lifecycle — `reverse_proxy` uses this for

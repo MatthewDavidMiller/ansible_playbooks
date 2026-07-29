@@ -68,6 +68,7 @@ class HomelabValidationTests(unittest.TestCase):
         self.assertFalse(homelab_safe_absolute_path("/opt/service\x00data"))
         self.assertTrue(homelab_safe_name("service_net-1"))
         self.assertFalse(homelab_safe_name("service net"))
+        self.assertFalse(homelab_safe_name("-option"))
         self.assertFalse(homelab_safe_name("."))
         self.assertFalse(homelab_safe_name(".."))
         self.assertTrue(homelab_immutable_image("registry.example/app@sha256:" + "a" * 64))
@@ -137,12 +138,24 @@ class HomelabValidationTests(unittest.TestCase):
             )
         )
 
-    def test_require_internal_can_be_disabled(self):
+    def test_external_network_mode_is_reconciled_exactly(self):
         self.assertFalse(
             homelab_network_needs_replacement(
                 inspect_output(internal=False), "172.16.1.0/28", False
             )
         )
+        self.assertTrue(
+            homelab_network_needs_replacement(
+                inspect_output(internal=True), "172.16.1.0/28", False
+            )
+        )
+
+    def test_invalid_internal_flag_fails_loudly(self):
+        output = json.dumps(
+            [{"name": "example_net", "internal": "false", "subnets": []}]
+        )
+        with self.assertRaisesRegex(ValueError, "invalid internal flag"):
+            homelab_network_needs_replacement(output)
 
     def test_unreadable_inspect_output_fails_loudly(self):
         for output in ("", "not-json", "{}", "[]", "[null]"):

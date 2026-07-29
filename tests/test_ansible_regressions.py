@@ -529,6 +529,15 @@ class SharedContainerNetworkTests(unittest.TestCase):
         )
         self.assertIn("--force", remove["ansible.builtin.command"]["argv"])
 
+    def test_deferred_replacement_preserves_declared_network_mode(self):
+        queue = next(
+            task
+            for task in role_tasks("container_network")
+            if task["name"].startswith("Queue container network")
+        )
+        request = queue["vars"]["container_network_migration_request"]
+        self.assertEqual(request["internal"], "{{ container_network_internal }}")
+
 
 class ContainerNetworkMigrationTests(unittest.TestCase):
     def setUp(self):
@@ -587,6 +596,15 @@ class ContainerNetworkMigrationTests(unittest.TestCase):
         self.assertLess(absence_check, creation)
         self.assertLess(creation, still_exists)
         self.assertLess(creation, not_created)
+
+    def test_migration_recreates_the_declared_internal_mode(self):
+        create_line = next(
+            line
+            for line in self.script.splitlines()
+            if line.strip().startswith("/usr/bin/podman network create")
+        )
+        self.assertIn("network.internal | default(true) | bool", create_line)
+        self.assertNotIn("network create --internal --subnet", create_line)
 
 
 if __name__ == "__main__":

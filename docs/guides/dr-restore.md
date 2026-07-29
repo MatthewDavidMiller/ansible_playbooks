@@ -43,8 +43,12 @@ Alternatively, download from the Nextcloud web UI.
 **2. Extract to a staging directory:**
 ```bash
 mkdir -p /restore_staging/pve
-tar -xzf /restore_staging/proxmox_config_<DATE>.tar.gz -C /restore_staging/pve --strip-components 1
+tar -xzf /restore_staging/proxmox_config_<DATE>.tar.gz -C /restore_staging/pve --strip-components 2
 ```
+
+The archive stores paths below `etc/pve/`; stripping both leading components
+places `qemu-server/`, `storage.cfg`, and the other configuration directly in
+the staging directory used below.
 
 **3. Restore key configuration files:**
 
