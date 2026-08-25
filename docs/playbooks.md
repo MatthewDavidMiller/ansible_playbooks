@@ -16,21 +16,9 @@ This document covers the maintained playbooks only. Legacy playbooks are preserv
 
 ---
 
-## `vm2.yml`
-
-**Target:** `vm2`
-
-**Roles (in order):** `standard_ssh` → `standard_qemu_guest_agent` → `standard_update_packages` → `configure_timezone` → `standard_cron` → `standard_firewalld` → `dev_vm` → `standard_selinux` → `standard_cleanup`
-
-**Usage:** Configures VM2 as a Rocky Linux 10 SSH/tmux development VM for Codex and Claude Code.
-
-**Notes:** `vm2.yml` enables EPEL and CRB for the dev workstation package set, permits local-only SSH TCP forwarding and raises `MaxSessions` for VS Code Remote SSH, installs Codex and Claude Code through user-local npm, and configures rootless Podman. Machine-managed policy disables Codex telemetry, optional telemetry exporters, feedback, error reporting, publishing, and remote-control features while retaining connectors, automatic updates, Claude Code feature-flag retrieval, local session history, and memory. Convergence removes Docker Engine and the root-equivalent `docker` group membership while preserving `/var/lib/docker`. Provider login remains interactive.
-
----
-
 ## `homelab_vms.yml`
 
-**Imports:** `vm1.yml` → `vm2.yml`
+**Imports:** `vm1.yml`
 
 **Usage:** Active orchestrator playbook for the homelab.
 
@@ -57,11 +45,3 @@ This document covers the maintained playbooks only. Legacy playbooks are preserv
 **Target:** `vm1`
 
 **Usage:** Manual host patching workflow. Switches `standard_update_packages` into full-update mode so installed packages can be advanced beyond security errata when you explicitly choose to do so.
-
----
-
-## `standalone_tasks/update_vm2_packages.yml`
-
-**Target:** `vm2`
-
-**Usage:** Manual VM2 patching workflow. Enables EPEL and switches `standard_update_packages` into full-update mode for the dev VM package set.

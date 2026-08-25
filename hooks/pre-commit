@@ -2,9 +2,6 @@
 # Pre-commit hook: runs the complete maintained local validation gate.
 # Install: git config core.hooksPath hooks
 # Skip:    git commit --no-verify
-#
-# Offline / skip network depsolve for dev_vm packages:
-#   DEV_VM_PACKAGE_DEPSOLVE=0 git commit ...
 
 set -euo pipefail
 
@@ -52,20 +49,15 @@ bash scripts/test_container_security.sh static
 echo "PASS: container static policy"
 
 echo ""
-echo "--- dev_vm Package Resolution ---"
-bash scripts/test_dev_vm_packages.sh
-echo "PASS: dev_vm packages"
-
-echo ""
 echo "--- Ansible Lint ---"
 ansible-lint
 echo "PASS: ansible-lint"
 
 echo ""
 echo "--- Ansible Syntax Check ---"
-for playbook in vm1.yml vm2.yml homelab_vms.yml update_homelab_vms.yml reboot_vms.yml; do
+for playbook in vm1.yml homelab_vms.yml update_homelab_vms.yml reboot_vms.yml; do
   [ -f "$playbook" ] || continue
-  ansible-playbook --syntax-check -i vm1,vm2,homelab, "$playbook"
+  ansible-playbook --syntax-check -i vm1,homelab, "$playbook"
 done
 echo "PASS: ansible syntax check"
 

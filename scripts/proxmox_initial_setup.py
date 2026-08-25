@@ -32,13 +32,6 @@ ROCKY_VMS = [
         "cores": "2",
         "memory": "16384",
     },
-    {
-        "vmid": "121",
-        "name": "VM2",
-        "cores": "4",
-        "memory": "32768",
-        "root_disk_size": "100G",
-    },
 ]
 
 

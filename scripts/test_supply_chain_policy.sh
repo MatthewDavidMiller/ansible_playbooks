@@ -117,12 +117,9 @@ assert_match "PermitRootLogin no" "SSH disables root login" roles/standard_ssh/t
 assert_match "X11Forwarding no" "SSH disables X11 forwarding" roles/standard_ssh/templates/10-standard-hardening.conf.j2
 assert_match "standard_ssh_tcp_forwarding_mode:.*ternary.*'no'" "SSH disables TCP forwarding by default" roles/standard_ssh/defaults/main.yml
 assert_match "AllowTcpForwarding .*standard_ssh_tcp_forwarding_mode" "SSH renders explicit TCP forwarding mode" roles/standard_ssh/templates/10-standard-hardening.conf.j2
-assert_match "standard_ssh_tcp_forwarding_mode:[[:space:]]*local" "VM2 allows local-only SSH TCP forwarding for editor remoting" vm2.yml
 assert_match "standard_ssh_allow_agent_forwarding:[[:space:]]*false" "SSH disables agent forwarding by default" roles/standard_ssh/defaults/main.yml
-assert_match "standard_ssh_allow_agent_forwarding:[[:space:]]*true" "VM2 allows SSH agent forwarding for development access" vm2.yml
 assert_match "standard_ssh_streamlocal_forwarding_mode:[[:space:]]*['\"]no['\"]" "SSH disables Unix-socket forwarding by default" roles/standard_ssh/defaults/main.yml
-assert_match "standard_ssh_allow_users" "maintained playbooks restrict SSH to the configured user" vm1.yml vm2.yml
-assert_match "set -g mouse on" "dev_vm enables tmux mouse scrolling" roles/dev_vm/tasks/shell.yml
+assert_match "standard_ssh_allow_users" "maintained playbooks restrict SSH to the configured user" vm1.yml
 assert_match "LogLevel VERBOSE" "SSH logs key auth details" roles/standard_ssh/templates/10-standard-hardening.conf.j2
 assert_match "dashboard-basic-auth@file" "Traefik dashboard requires BasicAuth middleware" roles/reverse_proxy/templates/dashboard.yml.j2
 assert_match "basicAuth:" "Traefik dashboard BasicAuth middleware is defined" roles/reverse_proxy/templates/security.yml.j2
@@ -162,11 +159,6 @@ assert_no_match "traefik_networks:" "maintained configuration does not use free-
 assert_match "Validate firewalld ingress inputs" "firewalld validates ingress inputs before applying policy" roles/standard_firewalld/tasks/main.yml
 assert_match "homelab_valid_ipv4_cidr" "firewalld uses semantic CIDR validation" roles/standard_firewalld/tasks/main.yml
 assert_match "Remove stale homelab source assignments" "firewalld reconciles removed source networks" roles/standard_firewalld/tasks/main.yml
-assert_no_match "\\bdev_vm_docker_packages\\b|\\bdev_vm_docker_prune\\b" "dev_vm no longer provisions Docker Engine" roles/dev_vm vm2.yml docs/variables.md
-assert_match "import_tasks: privacy[.]yml" "dev_vm includes managed agent privacy tasks" roles/dev_vm/tasks/main.yml
-assert_match "/etc/codex/managed_config[.]toml" "dev_vm installs Codex managed privacy defaults" roles/dev_vm/tasks/privacy.yml
-assert_match "/etc/codex/requirements[.]toml" "dev_vm enforces Codex privacy requirements" roles/dev_vm/tasks/privacy.yml
-assert_match "/etc/claude-code/managed-settings[.]json" "dev_vm installs Claude Code managed privacy settings" roles/dev_vm/tasks/privacy.yml
 assert_match "owner: root" "backup role sets root ownership on managed backup paths/scripts" roles/backup/tasks/main.yml
 assert_match "umask 077" "Borg backup script uses restrictive umask" roles/backup/templates/backup_files.sh.j2
 assert_match "trap cleanup EXIT" "remote Borg backup unmounts through cleanup trap" roles/backup/templates/backup_files.sh.j2

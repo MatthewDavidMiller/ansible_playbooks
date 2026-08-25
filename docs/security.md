@@ -22,9 +22,8 @@ Out of scope for the current low-disruption design:
 
 - SSH disables password auth, root login, X11 forwarding, and TCP forwarding by default. `standard_ssh_allow_users` can add an explicit login allowlist after inventory users are standardized.
 - Firewalld keeps a drop-by-default model and rejects `0.0.0.0/0` for management and Ansible source CIDRs.
-- SELinux remains enforcing on maintained VMs. VM2 enables `domain_can_mmap_files` for standard dev tooling; additional host-specific SELinux exceptions should be explicit variables, not ad hoc permissive mode.
-- VM2 uses rootless Podman with explicit subordinate UID/GID allocation. Docker Engine, its repository, services, and root-equivalent group membership are removed; `/var/lib/docker` is retained for deliberate manual recovery or deletion.
-- SSH is allowlisted to `user_name`, disables agent and stream-local forwarding, and defaults to no TCP forwarding. VM2 opts into agent forwarding for development access and local-only TCP forwarding for editor remoting.
+- SELinux remains enforcing on maintained VMs. Host-specific SELinux exceptions should be explicit variables, not ad hoc permissive mode.
+- SSH is allowlisted to `user_name`, disables agent and stream-local forwarding, and defaults to no TCP forwarding.
 - Traefik is the only intended public ingress on ports `80` and `443`. Dashboard/admin routes require management-source allowlisting and BasicAuth.
 - Container images are resolved from `artifacts/containers.lock.yml`, deployed as immutable digest refs, pre-pulled by `standard_podman`, and launched with `--pull=never`.
 - Containers use explicit network placement, internal app/backend networks for deny-by-default egress, memory/PID limits, `no-new-privileges`, reduced capabilities, and read-only root filesystems where compatible.
@@ -50,7 +49,7 @@ Before merging security-sensitive changes, run:
 bash scripts/test_supply_chain_policy.sh
 bash scripts/test_shell_secret_env.sh
 ANSIBLE_LOCAL_TEMP=/tmp/.ansible-local ANSIBLE_REMOTE_TEMP=/tmp/.ansible-remote XDG_CACHE_HOME=/tmp/.cache ansible-lint
-ANSIBLE_LOCAL_TEMP=/tmp/.ansible-local ANSIBLE_REMOTE_TEMP=/tmp/.ansible-remote XDG_CACHE_HOME=/tmp/.cache ansible-playbook --syntax-check -i vm1,vm2,homelab, vm1.yml
+ANSIBLE_LOCAL_TEMP=/tmp/.ansible-local ANSIBLE_REMOTE_TEMP=/tmp/.ansible-remote XDG_CACHE_HOME=/tmp/.cache ansible-playbook --syntax-check -i vm1,homelab, vm1.yml
 ```
 
 For container runtime changes, also run:

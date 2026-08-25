@@ -9,17 +9,16 @@ This document covers the maintained VM topology, container/runtime patterns, fir
 | VM ID | Name | OS | Services |
 |---|---|---|---|
 | 120 | VM1 | Rocky Linux 10 | Nextcloud, Paperless NGX, Navidrome, Vaultwarden, Semaphore, PostgreSQL 17, Redis, Traefik reverse proxy, Borg backup |
-| 121 | VM2 | Rocky Linux 10 | SSH/tmux dev VM for Codex, Claude Code, rootless Podman, and local development tooling |
 
 Templates: VMID 400 (Debian 12 cloud-init), VMID 401 (Rocky Linux 10 cloud-init)
 
-All VMs are provisioned via `scripts/proxmox_initial_setup.py`. See [guides/proxmox-setup.md](guides/proxmox-setup.md).
+VM1 is provisioned via `scripts/proxmox_initial_setup.py`. See [guides/proxmox-setup.md](guides/proxmox-setup.md).
 
 ---
 
 ## Deployment Target
 
-The maintained deployment target is Rocky Linux 10 on VM1 and VM2. Some roles still contain cross-distribution guards, but the maintained workflow documented in this repo is the Rocky Linux path.
+The maintained deployment target is Rocky Linux 10 on VM1. Some roles still contain cross-distribution guards, but the maintained workflow documented in this repo is the Rocky Linux path.
 
 ---
 
@@ -113,8 +112,6 @@ Rocky Linux 10 ships with SELinux in enforcing mode (targeted policy). The `stan
 - `virt_use_fusefs`
 - `container_manage_cgroup`
 
-VM2 also enables `domain_can_mmap_files` for interactive development tools that memory-map generated files, package-manager artifacts, or local build outputs.
-
 All container volume mounts use `:Z`, which relabels the volume when the container starts. That covers content the container itself writes, but not content the host writes afterwards: a path outside the shipped file context rules defaults to `default_t`, which containers are denied `getattr` on. Any volume the host also writes into therefore needs a persistent rule.
 
 The Nextcloud data disk is the one such volume, because the daily service backups install their dumps into it from cron. The `nextcloud` role owns that rule (`nextcloud_path(/.*)?` as `container_file_t`) and restores contexts on the data tree, because both are only correct once the role has mounted the disk. `restorecon` runs without `-F` so the MCS categories `:Z` applied survive, and its per-file `-v` output is counted in the pipeline rather than returned, because a full relabel of the data tree is more output than the memory-capped Semaphore container can hold. The Borg repository paths have the same exposure and are handled manually during restores; see [guides/dr-restore.md](guides/dr-restore.md).
@@ -129,26 +126,6 @@ sealert -a /var/log/audit/audit.log
 ```
 
 See [roles/standard.md#standard_selinux](roles/standard.md#standard_selinux).
-
----
-
-## VM2 Dev VM
-
-VM2 is the interactive development host. Users connect over SSH, start or reattach to a tmux session with `devmux`, detach with `Ctrl-b`, then `d`, and run Codex or Claude Code from that persistent shell.
-
-**Key design decisions:**
-
-- VM2 uses the same Rocky Linux 10 baseline and SSH/firewall hardening as VM1.
-- The dev tooling is owned by the existing `user_name` account.
-- npm global packages install under `/home/{{ user_name }}/.npm-global` instead of a root-owned global prefix.
-- Agent CLI PATH is managed via `/etc/profile.d/dev-vm-path.sh` (login) and a user snippet sourced from interactive `~/.bashrc` so tmux and editor terminals see npm and pip user bins.
-- Root-owned Codex and Claude Code managed policies disable Codex analytics, optional telemetry exporters, feedback, error reporting, publishing, and device remote control. Connectors, automatic updates, Claude Code feature-flag retrieval, local resumable history, memory, prompt caching, and ordinary model/web requests remain available. Claude Code's application telemetry cannot be disabled independently of feature-flag retrieval, so that coupled channel remains enabled to preserve capability.
-- Rootless Podman is the only container engine. Docker Engine and root-equivalent `docker` group membership are removed while `/var/lib/docker` is preserved.
-- Provider auth (API keys / OAuth) is interactive and not stored in Ansible inventory.
-- The playbook installs the `devmux` helper but does not automatically attach SSH logins to tmux, so Ansible, scp, and noninteractive SSH remain predictable.
-- Interactive SSH logins show the dev user how to run `devmux` and detach from the tmux session.
-
-**First login checklist:** SSH as `user_name` → `devmux` → complete Codex/Claude auth → `command -v codex claude podman`.
 
 ---
 
@@ -169,5 +146,3 @@ Most standard roles run first, in this order, before any service roles:
 Service roles follow. `nextcloud` must run before `paperless_ngx` and `semaphore` because it owns the shared PostgreSQL 17 and Redis containers.
 
 `standard_cleanup` runs after every service role, so Podman image prune only sees the currently deployed images as in use and does not delete the latest cached image before services restart. The orchestration-only `container_network_migration` role runs last so a queued disruptive migration is scheduled only after all host changes finish.
-
-VM2 follows the same baseline order through firewall setup, then runs `dev_vm` before `standard_selinux` and `standard_cleanup`.

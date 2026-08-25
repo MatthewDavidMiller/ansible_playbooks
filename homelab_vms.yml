@@ -1,6 +1,3 @@
 ---
 - name: Run vm1 config playbook
   import_playbook: vm1.yml
-
-- name: Run vm2 config playbook
-  import_playbook: vm2.yml

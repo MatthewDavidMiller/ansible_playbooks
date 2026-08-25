@@ -18,7 +18,6 @@ This guide covers provisioning new VMs on Proxmox using `scripts/proxmox_initial
 | VMID | Name | Template | Cores | RAM |
 |---|---|---|---|---|
 | 120 | VM1 | 401 | 2 | 16384 MB |
-| 121 | VM2 | 401 | 4 | 32768 MB |
 
 Each VM gets an EFI disk (`efitype=4m, pre-enrolled-keys=0`) and UEFI BIOS.
 
@@ -57,12 +56,6 @@ VM1 needs a larger root disk. Run this in the Proxmox shell after cloning:
 ```bash
 qm resize 120 scsi0 60G
 ```
-
-All other VMs use the default template disk size.
-
-### VM2 (VMID 121)
-
-The script resizes VM2's root disk to 100 GB during provisioning so local repositories, package caches, and agent workspaces have room to grow.
 
 ### VM1 Second Disk (Borg Backup)
 

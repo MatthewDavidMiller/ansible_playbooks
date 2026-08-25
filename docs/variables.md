@@ -1,8 +1,8 @@
 # Variables
 
 This document lists the inventory variables used by the maintained `vm1.yml`
-and `vm2.yml` playbooks. Create a gitignored `inventory.yml` and define every
-variable required for the hosts you intend to manage.
+playbook. Create a gitignored `inventory.yml` and define every variable
+required for the hosts you intend to manage.
 
 `Required` means that the maintained playbook needs a real value. `Conditional`
 means that the variable is required only when the described feature is enabled.
@@ -19,7 +19,7 @@ Define these under `all.vars`, `homelab.vars`, or on each applicable host.
 
 | Variable | Type | Required | Description | Example/default |
 |---|---|---|---|---|
-| `ansible_host` | string | Yes, per host | Address Ansible uses to connect to `vm1` or `vm2`. | `192.168.1.120` |
+| `ansible_host` | string | Yes, per host | Address Ansible uses to connect to `vm1`. | `192.168.1.120` |
 | `user_name` | string | Yes | Existing non-root login and script owner. The playbooks add it to the SSH allowlist. | `example_user` |
 | `default_interface` | string | Yes | Host interface assigned to the public firewalld zone. | `ens18` |
 | `management_network` | list | Yes | Trusted management IPv4 CIDRs. | `["192.168.1.0/24"]` |
@@ -230,42 +230,6 @@ Every item in `proxy_config` accepts these fields:
 | `proxy_allow_encoded_slash` | boolean | No | Enables encoded-slash forwarding. | `false` |
 | `proxy_management_only` | boolean | No | Restricts the route to `management_network`. | `false` |
 
-## VM2 variables
-
-Beyond the shared variables, VM2 only requires its `ansible_host`; the `dev_vm`
-role derives its user and paths from `user_name`. These variables customize the
-development environment:
-
-| Variable | Type | Required | Description | Default |
-|---|---|---|---|---|
-| `dev_vm_user` | string | No | Owner of interactive development tools. | `{{ user_name }}` |
-| `dev_vm_npm_prefix` | path | No | User-owned npm global prefix under `/home`. | `/home/{{ dev_vm_user }}/.npm-global` |
-| `dev_vm_tmux_session` | string | No | Session opened by the `devmux` helper. | `dev` |
-| `dev_vm_workspace_path` | path | No | Workspace directory created for the user. | `/home/{{ dev_vm_user }}/matt_dev` |
-| `dev_vm_packages` | list | No | DNF packages and package groups installed on VM2, including the Rocky 10 c-ares ABI floor and the system dependencies for `rpi-omt-client` and `playlist_generator`. | See role defaults |
-| `dev_vm_hadolint_version` | string | No | Checksum-pinned Hadolint version aligned with `rpi-omt-client`. | `v2.14.0` |
-| `dev_vm_hadolint_sha256` | string | No | SHA-256 digest for the x86-64 Hadolint release binary. | See role defaults |
-| `dev_vm_removed_docker_packages` | list | No | Docker packages declaratively removed. | See role defaults |
-| `dev_vm_rootless_subid_start` | integer | No | Start of rootless Podman's subordinate UID/GID range; at least `65536`. | `100000` |
-| `dev_vm_rootless_subid_count` | integer | No | Size of subordinate UID/GID range; at least `65536`. | `65536` |
-| `dev_vm_npm_global_packages` | list | No | User-local npm agent CLIs. | `@openai/codex`, `@anthropic-ai/claude-code` |
-| `dev_vm_npm_global_state` | string | No | npm package state, either `present` or `latest`. | `present` |
-| `dev_vm_python_user_base` | path | No | User-local Python installation root. | `/home/{{ dev_vm_user }}/.local` |
-| `dev_vm_python_user_packages` | list | No | Version-pinned validator CLI packages. | See role defaults |
-| `dev_vm_git_user_name` | string | No | Global Git `user.name`; empty leaves it unset. | `""` |
-| `dev_vm_git_user_email` | string | No | Global Git `user.email`; empty leaves it unset. | `""` |
-| `dev_vm_install_project_collections` | boolean | No | Installs repository-pinned Ansible collections when the checkout exists. | `true` |
-| `dev_vm_ansible_project_path` | path | No | Repository checkout on VM2. | `/home/{{ dev_vm_user }}/matt_dev/ansible_playbooks` |
-| `dev_vm_ansible_collection_requirements` | path | No | Collection requirements file. | `{{ dev_vm_ansible_project_path }}/collections/requirements.yml` |
-| `dev_vm_ansible_collection_path` | path | No | Collection install destination. | `{{ dev_vm_ansible_project_path }}/collections` |
-| `dev_vm_path_entries` | list | No | Paths added to login and interactive shells. | npm and Python user bin directories |
-| `vm2_selinux_extra_booleans` | list | No | Extra SELinux boolean objects passed to the standard role. | `[{name: domain_can_mmap_files, state: true}]` |
-
-`vm2.yml` sets `standard_update_enable_epel: true`,
-`standard_ssh_tcp_forwarding_mode: local`,
-`standard_ssh_allow_agent_forwarding: true`, and
-`standard_ssh_max_sessions: 10`; inventory does not need to repeat them.
-
 ## Optional shared role overrides
 
 These variables have working defaults and normally do not belong in inventory.
@@ -304,7 +268,7 @@ override them in inventory.
 
 ## Standalone playbook variable
 
-`standalone_tasks/generate_ssh_key.yml` is outside the maintained VM1/VM2
+`standalone_tasks/generate_ssh_key.yml` is outside the maintained VM1
 orchestration. When running it, define `user_name` and `key_name`; `key_name` is
 the filename created below `/home/{{ user_name }}` (for example,
 `id_ansible_ed25519`).

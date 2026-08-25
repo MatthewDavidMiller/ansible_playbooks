@@ -1,6 +1,6 @@
 # Inventory Variable Reference
 
-Use [variables.md](variables.md) to create your real inventory. This document covers the maintained VM1 and VM2 workflow.
+Use [variables.md](variables.md) to create your real inventory. This document covers the maintained VM1 workflow.
 
 ---
 
@@ -110,31 +110,6 @@ VM1 is the single maintained service host. It runs Traefik, PostgreSQL, Redis, N
 Maintained container images are resolved in `vm1.yml` from `artifacts/containers.lock.yml` as upstream digest refs. Inventory does not set service image refs directly in the maintained path.
 
 `artifacts/cloud_images.lock.yml` serves the same role for the Proxmox Rocky image and must contain a versioned URL plus SHA256 before provisioning.
-
----
-
-## `vm2` Host
-
-VM2 is the SSH/tmux development VM for Codex and Claude Code. It inherits the shared `homelab` variables and needs only its connection target by default.
-
-| Variable | Type | Description | Example |
-|---|---|---|---|
-| `ansible_host` | string | Hostname or IP | `192.168.1.121` |
-| `dev_vm_tmux_session` | string | Default tmux session name for the `devmux` helper | `dev` |
-| `dev_vm_npm_prefix` | path | User-local npm global prefix | `/home/example_user/.npm-global` |
-| `dev_vm_ansible_project_path` | path | VM2 checkout path used to install pinned Ansible collections | `/home/example_user/matt_dev/ansible_playbooks` |
-| `dev_vm_workspace_path` | path | Parent workspace directory created for the dev user | `/home/example_user/matt_dev` |
-| `dev_vm_git_user_name` | string | Optional global git `user.name` | `Example User` |
-| `dev_vm_git_user_email` | string | Optional global git `user.email` | `user@example.com` |
-| `dev_vm_npm_global_state` | string | npm agent CLI state (`present` or `latest`) | `present` |
-| `dev_vm_rootless_subid_start` | integer | Start of a non-overlapping subordinate UID/GID range | `100000` |
-| `dev_vm_rootless_subid_count` | integer | Size of the subordinate UID/GID range | `65536` |
-| `standard_ssh_tcp_forwarding_mode` | string | SSH forwarding mode; VM2 permits local editor tunnels only | `local` |
-| `standard_ssh_allow_agent_forwarding` | boolean | SSH agent/key forwarding; enabled by the VM2 playbook | `true` |
-| `standard_ssh_max_sessions` | integer | SSH session channel limit; VM2 playbook defaults to `10` | `10` |
-| `vm2_selinux_extra_booleans` | list | VM2 SELinux booleans passed into `standard_selinux_extra_booleans` | `[{name: domain_can_mmap_files, state: true}]` |
-
-The `dev_vm` role uses `user_name` as the interactive SSH/dev user, installs rootless Podman with subordinate IDs, installs user-local npm packages under `/home/{{ user_name }}/.npm-global`, pins Python validator CLIs under `/home/{{ user_name }}/.local`, and installs pinned Ansible collections from the checkout. It removes Docker Engine packages, services, repository, and group membership without deleting `/var/lib/docker`. Provider API keys and login are not provisioned; complete them interactively after first SSH.
 
 ---
 

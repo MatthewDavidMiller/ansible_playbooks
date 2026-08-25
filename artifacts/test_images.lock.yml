@@ -1,7 +1,5 @@
 ---
 # Immutable helper images used only by local validation scripts.
 test_locked_images:
-  rocky_linux_10:
-    image: docker.io/rockylinux/rockylinux@sha256:827d37bc128288ccf160ee318bb3cb92d591164cb217e92f8bc61e3982ae1834
   alpine:
     image: docker.io/library/alpine@sha256:4bcff63911fcb4448bd4fdacec207030997caf25e9bea4045fa6c8c44de311d1

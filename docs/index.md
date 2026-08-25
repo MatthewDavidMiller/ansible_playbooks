@@ -1,6 +1,6 @@
 # Ansible Playbooks — Documentation Index
 
-Ansible playbooks for the maintained homelab VM workflow. VM1 runs Podman services managed by systemd; VM2 is an SSH/tmux dev VM for Codex and Claude Code using rootless Podman.
+Ansible playbooks for the maintained homelab VM workflow. VM1 runs Podman services managed by systemd.
 
 Start with [README.md](../README.md) for the project overview and quick start.
 

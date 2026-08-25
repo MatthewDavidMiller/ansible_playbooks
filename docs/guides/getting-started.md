@@ -11,7 +11,7 @@ Install the following on your control machine:
 - **Ansible** — via your package manager or in a virtualenv
 - **ansible-lint** — `pip install ansible-lint`
 - **Python 3** — required by Ansible
-- **Podman or Docker on the control node** — required for local container tests, package depsolve testing, and pinned image-review tooling fallbacks; VM2 itself provisions only rootless Podman
+- **Podman or Docker on the control node** — required for local container tests and pinned image-review tooling fallbacks
 
 ---
 
@@ -33,7 +33,7 @@ Create a local inventory file that is not committed:
 $EDITOR inventory.yml
 ```
 
-Use [variables.md](../variables.md) to define the required shared, VM1, and VM2
+Use [variables.md](../variables.md) to define the required shared and VM1
 values. Key things to configure include:
 
 - `management_network` and `ip_ansible` — your management network CIDR and Ansible controller IP; these become the firewalld allowlist

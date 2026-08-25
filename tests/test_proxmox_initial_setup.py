@@ -49,8 +49,8 @@ class ProxmoxParsingTests(unittest.TestCase):
                 proxmox.qm_config("120")
 
     def test_parse_qm_config_ignores_unstructured_lines(self):
-        parsed = proxmox.parse_qm_config("name: VM2\nscsi0: local-lvm:vm-121-disk-0,size=32G\nnoise\n")
-        self.assertEqual(parsed["name"], "VM2")
+        parsed = proxmox.parse_qm_config("name: VM1\nscsi0: local-lvm:vm-120-disk-0,size=32G\nnoise\n")
+        self.assertEqual(parsed["name"], "VM1")
         self.assertNotIn("noise", parsed)
 
     def test_size_parsing_and_disk_extraction(self):

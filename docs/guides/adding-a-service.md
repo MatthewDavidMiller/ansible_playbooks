@@ -54,7 +54,7 @@ Use the existing active service roles as reference:
 
 ```bash
 ansible-lint
-ansible-playbook --syntax-check -i vm1,vm2,homelab, vm1.yml
+ansible-playbook --syntax-check -i vm1,homelab, vm1.yml
 bash scripts/test_shell_secret_env.sh
 ```
 

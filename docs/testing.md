@@ -16,8 +16,7 @@ git config core.hooksPath hooks
 2. Python unit tests and bytecode compilation
 3. ShellCheck and yamllint
 4. Secret-template rendering regression tests
-5. `dev_vm` policy plus Rocky 10/EPEL dependency resolution using a digest-pinned test image
-6. `ansible-lint` and syntax checks for every maintained playbook
+5. `ansible-lint` and syntax checks for every maintained playbook
 
 The static portion of `scripts/test_container_security.sh` runs in the hook. Runtime container tests remain manual because they pull images and can take several minutes.
 Runtime tests prefer Docker when both engines are installed, fall back to Podman automatically, and honor an explicit `DOCKER=/path/to/engine` override.
@@ -48,12 +47,6 @@ Route proxy addressing has dedicated guards in `tests/test_ansible_regressions.p
 
 Local Nextcloud backups have dedicated guards in `tests/test_ansible_regressions.py`. Every template that writes into the Nextcloud user files tree must call the managed `nextcloud_scan_path.sh` helper, must report helper failures instead of discarding them with `|| true`, and must install dumps using `nextcloud_user_files_file_mode` so the mode survives the `nextcloud` role's normalization. The helper itself is checked for serialized scans, retries, an explicit `occ` path and working directory, the `nextcloud_uid:nextcloud_gid` runtime user, and detection of semantic failures that `occ files:scan` reports with a zero exit status. Because every caller is a cron job, the helper is also checked for a pinned `PATH`, `HOME`, and locale, absolute paths for every binary it calls, a `timeout` around `occ`, and the `occ info:file` confirmation that the scanned path really reached the file cache. A separate check holds the `nextcloud` role to the `container_file_t` rule for its volume and to a `restorecon` of the data tree that does not force the range, since `-F` would strip the MCS categories podman's `:Z` applied, and that counts its `-v` output through `wc -l` instead of returning a line per relabeled file. The backup-template checks discover callers by content, so a new service backup script is covered without editing the tests.
 
-Offline or no-container commits can skip the network depsolve only:
-
-```bash
-DEV_VM_PACKAGE_DEPSOLVE=0 git commit ...
-```
-
 ---
 
 ## Quick Start
@@ -61,15 +54,14 @@ DEV_VM_PACKAGE_DEPSOLVE=0 git commit ...
 ```bash
 cd /home/matthew/matt_dev/ansible_playbooks
 XDG_CACHE_HOME=/tmp/.cache ANSIBLE_LOCAL_TEMP=/tmp/.ansible-local ANSIBLE_REMOTE_TEMP=/tmp/.ansible-remote ansible-lint
-ANSIBLE_LOCAL_TEMP=/tmp/.ansible-local ANSIBLE_REMOTE_TEMP=/tmp/.ansible-remote ansible-playbook --syntax-check -i vm1,vm2,homelab, vm1.yml
-ANSIBLE_LOCAL_TEMP=/tmp/.ansible-local ANSIBLE_REMOTE_TEMP=/tmp/.ansible-remote ansible-playbook --syntax-check -i vm1,vm2,homelab, homelab_vms.yml
-ANSIBLE_LOCAL_TEMP=/tmp/.ansible-local ANSIBLE_REMOTE_TEMP=/tmp/.ansible-remote ansible-playbook --syntax-check -i vm1,vm2,homelab, update_homelab_vms.yml
-ANSIBLE_LOCAL_TEMP=/tmp/.ansible-local ANSIBLE_REMOTE_TEMP=/tmp/.ansible-remote ansible-playbook --syntax-check -i vm1,vm2,homelab, reboot_vms.yml
+ANSIBLE_LOCAL_TEMP=/tmp/.ansible-local ANSIBLE_REMOTE_TEMP=/tmp/.ansible-remote ansible-playbook --syntax-check -i vm1,homelab, vm1.yml
+ANSIBLE_LOCAL_TEMP=/tmp/.ansible-local ANSIBLE_REMOTE_TEMP=/tmp/.ansible-remote ansible-playbook --syntax-check -i vm1,homelab, homelab_vms.yml
+ANSIBLE_LOCAL_TEMP=/tmp/.ansible-local ANSIBLE_REMOTE_TEMP=/tmp/.ansible-remote ansible-playbook --syntax-check -i vm1,homelab, update_homelab_vms.yml
+ANSIBLE_LOCAL_TEMP=/tmp/.ansible-local ANSIBLE_REMOTE_TEMP=/tmp/.ansible-remote ansible-playbook --syntax-check -i vm1,homelab, reboot_vms.yml
 bash scripts/test_shell_secret_env.sh
 bash scripts/test_supply_chain_policy.sh
 python3 -m unittest discover -s tests -p 'test_*.py'
 python3 scripts/promote_artifacts.py --validate-policy
-bash scripts/test_dev_vm_packages.sh
 python3 scripts/promote_artifacts.py --check-tools
 python3 scripts/promote_artifacts.py --service traefik
 bash scripts/test_container_security.sh 2>&1 | tee /tmp/container_test_results.txt
@@ -152,30 +144,6 @@ For the full workflow and install references, see [guides/container-image-update
 
 ---
 
-## dev_vm Package Resolution Testing
-
-`scripts/test_dev_vm_packages.sh` guards the VM2 workstation package baseline against the class of failure that breaks `dnf` depsolve on Rocky 10 + EPEL when CRB is missing (for example EPEL `yamllint` needing `python3.12dist(pathspec)` from CRB).
-
-Checks:
-
-1. **Policy:** pure-Python CLIs (`yamllint`, `ansible-lint`, `pre-commit`) must live in `dev_vm_python_user_packages` (pip `--user`), not `dev_vm_packages` (dnf).
-2. **Policy:** dnf and pip lists must not overlap; required baseline dnf packages remain present, including the `rpi-omt-client` and `playlist_generator` system dependencies.
-3. **Policy:** Hadolint matches `rpi-omt-client`'s version pin and is installed with a configured SHA-256 checksum.
-4. **Regression:** with CRB disabled, EPEL `yamllint` must fail depsolve (original failure mode still exists upstream).
-5. **Regression:** with CRB enabled (matching `standard_update_packages`), EPEL `yamllint` must resolve.
-6. **Depsolve:** in the digest-pinned Rocky Linux 10 test image with EPEL + CRB, `dnf --assumeno install` must resolve the rootless-Podman `dev_vm_packages` baseline.
-
-Run it directly:
-
-```bash
-bash scripts/test_dev_vm_packages.sh
-DEV_VM_PACKAGE_DEPSOLVE=0 bash scripts/test_dev_vm_packages.sh   # policy only
-```
-
-Requires a working Podman or Docker engine for the depsolve step, plus network access to Rocky and EPEL repositories. VM2 itself provisions only rootless Podman.
-
----
-
 ## Shell-Sourced Env Regression Testing
 
 `scripts/test_shell_secret_env.sh` renders the affected templates locally and checks the parser-specific invariants for the secret env migration:
@@ -202,7 +170,6 @@ bash scripts/test_shell_secret_env.sh
 - `scripts/test_shell_secret_env.sh` reports `PASS` for shell quoting and generated launch artifact checks.
 - `scripts/test_supply_chain_policy.sh` reports `PASS` for immutable image refs, approved collection installs, and pinned provisioning inputs.
 - `scripts/test_supply_chain_policy.sh` also enforces core SSH, firewall, proxy, backup, and secret-rendering guardrails.
-- `scripts/test_dev_vm_packages.sh` reports `PASS` for pinned-validator package policy, the EPEL-without-CRB regression fixture, and Rocky 10 + EPEL + CRB resolution of the rootless-Podman package baseline.
 - `python3 scripts/promote_artifacts.py --check-tools` reports either native binaries or the pinned container fallback for `skopeo`, `cosign`, and `trivy`.
 - VM1 container tests report `PASS` for PostgreSQL, Redis, Nextcloud, Traefik, Paperless, Vaultwarden, Semaphore, and Navidrome.
 
@@ -213,7 +180,6 @@ bash scripts/test_shell_secret_env.sh
 - Because VM1 now uses shell-sourced root-only env files under `secret_env_dir`, run `scripts/test_shell_secret_env.sh` after touching env templates or launch scripts so parser regressions are caught before deployment.
 - Run `python3 scripts/promote_artifacts.py --check-tools` after provisioning a new control node so missing native binaries or missing container-engine fallback are caught early.
 - Run `scripts/test_supply_chain_policy.sh` after changing image refs, bootstrap tooling, or dependency manifests.
-- Run `scripts/test_dev_vm_packages.sh` after changing `roles/dev_vm/defaults/main.yml` package lists or VM2 EPEL/CRB settings. The depsolve step uses the immutable Rocky test image with EPEL + CRB to mirror `standard_update_packages` on VM2.
 - Run `scripts/test_supply_chain_policy.sh` and `bash scripts/test_container_security.sh static` after changing container-network tasks. These checks cover route-owned proxy networks and the deferred migration path used when staged VM1 runs would otherwise interrupt Semaphore.
 - Use `bash scripts/review_container_updates.sh --service <name>` when updating `artifacts/containers.lock.yml` so digest resolution, signature verification, scanning, and runtime hardening checks happen in one sequence.
 - Semaphore host verification depends on real `semaphore_known_hosts` content in inventory; the container security script validates the runtime SSH args shape, not your real host keys.
