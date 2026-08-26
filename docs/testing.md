@@ -2,24 +2,56 @@
 
 ## Local Validation Pipeline
 
-Checks run automatically on every `git commit` via the local pre-commit hook at `hooks/pre-commit`.
+Every check in this repository runs inside a pinned Alpine toolbox image built from [`tools/toolbox/Dockerfile`](../tools/toolbox/Dockerfile). Docker or Podman is the only thing a workstation needs: `ansible-core`, `ansible-lint`, `yamllint`, `shellcheck`, Python, and the collections pinned in `collections/requirements.yml` all live in the image, so every commit is validated against the same tool versions no matter which machine runs the gate.
 
-**Install the hook:**
+**Set up once:**
 
 ```bash
-git config core.hooksPath hooks
+make install
 ```
 
-**What runs:**
+That builds the toolbox image and points `core.hooksPath` at `hooks/`, so the gate runs on every `git commit`. Skip a run with `git commit --no-verify`.
 
-1. Supply-chain and static container policy checks
-2. Python unit tests and bytecode compilation
-3. ShellCheck and yamllint
-4. Secret-template rendering regression tests
-5. `ansible-lint` and syntax checks for every maintained playbook
+**Targets:**
 
-The static portion of `scripts/test_container_security.sh` runs in the hook. Runtime container tests remain manual because they pull images and can take several minutes.
-Runtime tests prefer Docker when both engines are installed, fall back to Podman automatically, and honor an explicit `DOCKER=/path/to/engine` override.
+| Command | What it runs |
+|---|---|
+| `make lint` | Bash syntax, ShellCheck, yamllint, Python compilation, `ansible-lint`, and `--syntax-check` for every maintained playbook |
+| `make test` | Everything in `make lint`, plus supply-chain policy, artifact promotion policy, Python unit tests, secret-template rendering, and the static container policy checks |
+| `make test-full` | Everything in `make test`, then the runtime container tests (see [below](#the-one-gate-that-runs-outside-the-toolbox)) |
+| `make shell` | Interactive shell inside the toolbox |
+| `make clean` | Remove toolbox images, validator caches, and `__pycache__` directories |
+
+`make test` is what the pre-commit hook runs. Runtime container tests stay out of it because they pull the locked service images and start real containers; run `make test-full` after changing container flags, launch templates, or image pins.
+
+### How the toolbox runs
+
+`scripts/toolbox.sh` builds the image on first use and execs straight through when it is already inside one, so the hook → `test-local.sh` → `lint.sh` chain runs in a single container rather than nesting three.
+
+- The base image is the digest-pinned Alpine entry in [`artifacts/test_images.lock.yml`](../artifacts/test_images.lock.yml), the same lock the runtime container tests read. Bumping the toolbox base is therefore an ordinary reviewed lock-file change, not a second pin to keep in sync.
+- The image tag is a content hash of the Dockerfile, `tests/requirements-dev.txt`, `collections/requirements.yml`, and that base digest. Changing any pin names a different image, rebuilds on the next gate run, and drops the image it replaces.
+- The repository is bind-mounted at its own absolute path, and so is `/tmp`. The runtime container tests build fixtures under `mktemp -d` and hand those paths to the host engine, which resolves them in its own filesystem — any other mount point would silently mount the wrong directory.
+- The container runs as the invoking user, so a gate leaves no root-owned files in the working tree.
+- The host engine socket is mounted so the runtime tests and the image-review fallbacks can start containers. Docker is preferred when both engines are usable, Podman is the fallback, and `DOCKER` overrides the choice. That variable is word-split the same way `scripts/test_container_security.sh` splits its own, so it takes a prefix: `DOCKER="sudo docker" make test` works where the socket is root-owned and you would rather not join the `docker` group.
+
+### Rootless engines
+
+Rootless and rootful daemons are both supported, and which one is in use is detected rather than configured. Rootless Docker needs no flags, no `DOCKER=` override, and no `docker` group membership.
+
+The detection decides two things:
+
+- **Which socket is mounted.** `DOCKER_HOST` wins if it names one. Otherwise a rootless daemon's socket is looked for under `XDG_RUNTIME_DIR` and a rootful one's at `/var/run/docker.sock`. The order follows the daemon that answered, so a workstation running both still pairs the socket with the daemon that holds the toolbox image.
+- **How the container's uid is mapped.** A rootful engine is handed your uid. A rootless one already maps you to the container's root, so Podman gets `--userns=keep-id` and rootless Docker is left alone at root — which is you. Naming a uid there instead would resolve to a subuid you do not own, and every file a gate wrote into the tree would come back owned by something like `100999`.
+
+Rootless Docker is the better default of the two on a workstation: the `docker` group is root-equivalent, so joining it to run a lint gate grants considerably more than the gate needs.
+
+### The one gate that runs outside the toolbox
+
+The runtime container suite is the exception. Everything else only needs somewhere to run; this one needs full fidelity from the engine's own command line, and the toolbox reaches the engine through a Docker-API socket.
+
+Podman's compatibility layer rejects the `uid=`/`gid=` tmpfs options that the PostgreSQL socket fixture depends on — it accepts `mode=` and `size=` on the very same mount, so this is a gap in that layer rather than a difference between the engines. Driven through it with a Docker client, the suite dies on `unknown mount option "uid=999"` before its first assertion.
+
+`scripts/run-runtime-container-tests.sh` therefore runs the suite wherever it can speak to the engine natively: on the host when Podman owns it, inside the toolbox when Docker does. `make test-full` calls it, so this resolves itself and needs no flag. The Podman path is the only place in this repository that wants anything on the host beyond an engine — `python3` with PyYAML, to read the pinned digests out of the lock files — and it says so and stops rather than failing obscurely if that is missing.
 
 The Python suite includes mocked success and failure paths for artifact promotion, Proxmox provisioning, dynamic DNS, shared validation filters, and VM bootstrap behavior. It also executes the Nextcloud permission-normalization command against a temporary file tree to guard its single-pass and idempotent behavior, and to confirm it reports a count of the files it fixed rather than a line for each one.
 
@@ -51,23 +83,32 @@ Local Nextcloud backups have dedicated guards in `tests/test_ansible_regressions
 
 ## Quick Start
 
+The whole gate:
+
 ```bash
-cd /home/matthew/matt_dev/ansible_playbooks
-XDG_CACHE_HOME=/tmp/.cache ANSIBLE_LOCAL_TEMP=/tmp/.ansible-local ANSIBLE_REMOTE_TEMP=/tmp/.ansible-remote ansible-lint
-ANSIBLE_LOCAL_TEMP=/tmp/.ansible-local ANSIBLE_REMOTE_TEMP=/tmp/.ansible-remote ansible-playbook --syntax-check -i vm1,homelab, vm1.yml
-ANSIBLE_LOCAL_TEMP=/tmp/.ansible-local ANSIBLE_REMOTE_TEMP=/tmp/.ansible-remote ansible-playbook --syntax-check -i vm1,homelab, homelab_vms.yml
-ANSIBLE_LOCAL_TEMP=/tmp/.ansible-local ANSIBLE_REMOTE_TEMP=/tmp/.ansible-remote ansible-playbook --syntax-check -i vm1,homelab, update_homelab_vms.yml
-ANSIBLE_LOCAL_TEMP=/tmp/.ansible-local ANSIBLE_REMOTE_TEMP=/tmp/.ansible-remote ansible-playbook --syntax-check -i vm1,homelab, reboot_vms.yml
-bash scripts/test_shell_secret_env.sh
-bash scripts/test_supply_chain_policy.sh
-python3 -m unittest discover -s tests -p 'test_*.py'
-python3 scripts/promote_artifacts.py --validate-policy
-python3 scripts/promote_artifacts.py --check-tools
-python3 scripts/promote_artifacts.py --service traefik
-bash scripts/test_container_security.sh 2>&1 | tee /tmp/container_test_results.txt
-grep -E "^(PASS|FAIL|WARN|INFO)" /tmp/container_test_results.txt
-bash scripts/test_container_security.sh semaphore
+make test
 ```
+
+Individual checks run in the toolbox too — `scripts/toolbox.sh` takes any command and runs it inside the image:
+
+```bash
+./scripts/toolbox.sh ansible-lint
+./scripts/toolbox.sh ansible-playbook --syntax-check -i vm1,homelab, vm1.yml
+./scripts/toolbox.sh bash scripts/test_supply_chain_policy.sh
+./scripts/toolbox.sh bash scripts/test_shell_secret_env.sh
+./scripts/toolbox.sh python3 -m unittest discover -s tests -p 'test_*.py'
+./scripts/toolbox.sh python3 scripts/promote_artifacts.py --validate-policy
+./scripts/toolbox.sh python3 scripts/promote_artifacts.py --check-tools
+./scripts/toolbox.sh bash scripts/test_container_security.sh static
+```
+
+Or open a shell and run several in a row:
+
+```bash
+make shell
+```
+
+`XDG_CACHE_HOME`, `ANSIBLE_LOCAL_TEMP`, and `ANSIBLE_REMOTE_TEMP` are set in the image, so no environment prefixes are needed to keep validator caches out of the working tree.
 
 > `:Z` SELinux volume relabel flags are intentionally omitted from the local container tests.
 
@@ -89,13 +130,16 @@ The script validates the current VM1 hardening profile:
 
 By default the script now reads the approved image refs from `artifacts/containers.lock.yml`, converts them to digest-pinned `repo@sha256:...` refs, and tests those exact images. It still accepts image override env vars when you need to test a candidate image before writing it into the lock file:
 
-For faster debugging, pass one or more targets instead of running the full suite:
+The full suite is `make test-full`. For faster debugging, pass one or more targets to the wrapper instead — it picks the right place to run them:
 
 ```bash
-bash scripts/test_container_security.sh static
-bash scripts/test_container_security.sh semaphore
-bash scripts/test_container_security.sh postgres redis
+./scripts/run-runtime-container-tests.sh semaphore
+./scripts/run-runtime-container-tests.sh postgres redis
 ```
+
+The `static` target needs no engine and is already part of `make test`.
+
+Image override variables are not forwarded into the toolbox. Use `make shell` and export them there, or run the script on the host:
 
 ```bash
 TRAEFIK_IMAGE=public.ecr.aws/docker/library/traefik@sha256:d6858791f9e74df44ca4014166647c41cdc2abd3bf2a71b832ca4e1c6a91b257 \
@@ -127,17 +171,17 @@ Critical findings cannot be hidden by a broad Trivy ignore or VEX file. Use `log
 
 The script prefers native `skopeo`, `cosign`, and `trivy` binaries. If one is missing, it falls back to a pinned, capability-dropped, read-only container via Podman or Docker.
 
-Check the current tool path selection:
+The toolbox image carries none of those three binaries, so a review run inside it always takes the pinned-container fallback through the mounted engine socket. Check the current tool path selection:
 
 ```bash
-python3 scripts/promote_artifacts.py --check-tools
+./scripts/toolbox.sh python3 scripts/promote_artifacts.py --check-tools
 ```
 
 Full review for one or more services:
 
 ```bash
-bash scripts/review_container_updates.sh --service traefik
-bash scripts/review_container_updates.sh --service postgres --service redis
+./scripts/toolbox.sh bash scripts/review_container_updates.sh --service traefik
+./scripts/toolbox.sh bash scripts/review_container_updates.sh --service postgres --service redis
 ```
 
 For the full workflow and install references, see [guides/container-image-updates.md](guides/container-image-updates.md).
@@ -156,10 +200,10 @@ For the full workflow and install references, see [guides/container-image-update
 - Local backup scripts for Navidrome, Vaultwarden, and Semaphore render ownership-preserving `install` commands for the Nextcloud data tree when `backup_local: true`.
 - The shared targeted Nextcloud scan helper renders the expected UID/GID, absolute `occ` path, serialization, retry, and semantic-error checks, and every local service backup calls it.
 
-Run it directly:
+It runs as part of `make test`. To run it alone:
 
 ```bash
-bash scripts/test_shell_secret_env.sh
+./scripts/toolbox.sh bash scripts/test_shell_secret_env.sh
 ```
 
 ---
@@ -170,17 +214,20 @@ bash scripts/test_shell_secret_env.sh
 - `scripts/test_shell_secret_env.sh` reports `PASS` for shell quoting and generated launch artifact checks.
 - `scripts/test_supply_chain_policy.sh` reports `PASS` for immutable image refs, approved collection installs, and pinned provisioning inputs.
 - `scripts/test_supply_chain_policy.sh` also enforces core SSH, firewall, proxy, backup, and secret-rendering guardrails.
-- `python3 scripts/promote_artifacts.py --check-tools` reports either native binaries or the pinned container fallback for `skopeo`, `cosign`, and `trivy`.
+- `scripts/promote_artifacts.py --check-tools` reports either native binaries or the pinned container fallback for `skopeo`, `cosign`, and `trivy`.
 - VM1 container tests report `PASS` for PostgreSQL, Redis, Nextcloud, Traefik, Paperless, Vaultwarden, Semaphore, and Navidrome.
+- `make lint` and `make test` end with an explicit pass line; any missing linter fails the run instead of being skipped.
 
 ---
 
 ## Notes
 
-- Because VM1 now uses shell-sourced root-only env files under `secret_env_dir`, run `scripts/test_shell_secret_env.sh` after touching env templates or launch scripts so parser regressions are caught before deployment.
-- Run `python3 scripts/promote_artifacts.py --check-tools` after provisioning a new control node so missing native binaries or missing container-engine fallback are caught early.
+- `make test` covers `scripts/test_shell_secret_env.sh`, `scripts/test_supply_chain_policy.sh`, and the static container policy checks, so the notes below matter mainly when you want one of them on its own between commits.
+- Because VM1 uses shell-sourced root-only env files under `secret_env_dir`, run `scripts/test_shell_secret_env.sh` after touching env templates or launch scripts so parser regressions are caught before deployment.
+- Run `scripts/promote_artifacts.py --check-tools` after provisioning a new control node so missing native binaries or missing container-engine fallback are caught early.
 - Run `scripts/test_supply_chain_policy.sh` after changing image refs, bootstrap tooling, or dependency manifests.
-- Run `scripts/test_supply_chain_policy.sh` and `bash scripts/test_container_security.sh static` after changing container-network tasks. These checks cover route-owned proxy networks and the deferred migration path used when staged VM1 runs would otherwise interrupt Semaphore.
+- Run `scripts/test_supply_chain_policy.sh` and `scripts/test_container_security.sh static` after changing container-network tasks. These checks cover route-owned proxy networks and the deferred migration path used when staged VM1 runs would otherwise interrupt Semaphore.
+- Bumping a Python pin in `tests/requirements-dev.txt`, a collection in `collections/requirements.yml`, or the Alpine digest in `artifacts/test_images.lock.yml` rebuilds the toolbox on the next gate run. No separate rebuild step is needed; `make install` forces one.
 - Use `bash scripts/review_container_updates.sh --service <name>` when updating `artifacts/containers.lock.yml` so digest resolution, signature verification, scanning, and runtime hardening checks happen in one sequence.
 - Semaphore host verification depends on real `semaphore_known_hosts` content in inventory; the container security script validates the runtime SSH args shape, not your real host keys.
 - VM1 backups remain intentionally unencrypted for this homelab. The hardening focus is on safer temp-file handling and reduced credential exposure, not backup-at-rest encryption.

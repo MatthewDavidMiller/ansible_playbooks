@@ -52,7 +52,9 @@ Start with [README.md](../README.md) for the project overview and quick start.
 
 | Document | Description |
 |---|---|
-| [testing.md](testing.md) | Container security tests + CI/CD pipeline (pre-commit hook runs on every commit) |
+| [testing.md](testing.md) | Validation pipeline, `make` targets, and container security tests (the pre-commit hook runs the gate on every commit) |
+| [`../tools/toolbox/Dockerfile`](../tools/toolbox/Dockerfile) | The pinned Alpine image every lint, test, and CI/CD gate runs inside |
+| [`../tests/requirements-dev.txt`](../tests/requirements-dev.txt) | Pinned Python tooling baked into the toolbox image |
 
 ## Standards
 

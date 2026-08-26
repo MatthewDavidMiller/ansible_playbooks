@@ -29,14 +29,31 @@ ansible-playbook -i inventory.yml update_homelab_vms.yml
 
 # Dry run
 ansible-playbook -i inventory.yml vm1.yml --check
+```
 
-# Lint
-ansible-lint
+## Validation
+
+Every check runs inside a pinned Alpine toolbox image, so Docker or Podman is the only prerequisite — `ansible-lint`, `yamllint`, `shellcheck`, `ansible-core`, and the pinned collections all live in the image.
+
+```bash
+# Build the toolbox and install the pre-commit hook (once)
+make install
+
+# Lint only
+make lint
+
+# The full gate the pre-commit hook runs
+make test
+
+# Add the runtime container tests
+make test-full
 
 # Review and pin container image updates securely
-python3 scripts/promote_artifacts.py --check-tools
-bash scripts/review_container_updates.sh --service traefik
+./scripts/toolbox.sh python3 scripts/promote_artifacts.py --check-tools
+./scripts/toolbox.sh bash scripts/review_container_updates.sh --service traefik
 ```
+
+See [docs/testing.md](docs/testing.md) for what each target runs and how the toolbox is built.
 
 Normal `vm1.yml` runs apply security-only OS updates. Use the standalone update playbook when you intentionally want the broader installed package set refreshed.
 

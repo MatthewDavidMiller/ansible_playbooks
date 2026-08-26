@@ -8,10 +8,17 @@ This guide walks you through setting up the Ansible playbooks on a new machine f
 
 Install the following on your control machine:
 
-- **Ansible** — via your package manager or in a virtualenv
-- **ansible-lint** — `pip install ansible-lint`
+- **Ansible** — via your package manager or in a virtualenv, to run the playbooks against your hosts
 - **Python 3** — required by Ansible
-- **Podman or Docker on the control node** — required for local container tests and pinned image-review tooling fallbacks
+- **Podman or Docker on the control node** — required for local container tests and pinned image-review tooling fallbacks. Rootless works for both and needs no extra configuration; see [../testing.md](../testing.md) for what the gates detect.
+
+Validation tooling is not in that list. `ansible-lint`, `yamllint`, `shellcheck`, and a pinned `ansible-core` live in the toolbox image, so a container engine is all the gates need:
+
+```bash
+make install
+```
+
+That builds the image and installs the pre-commit hook. See [../testing.md](../testing.md) for the available targets.
 
 ---
 

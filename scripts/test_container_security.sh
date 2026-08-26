@@ -14,6 +14,22 @@ LOCK_FILE=${LOCK_FILE:-"$REPO_ROOT/artifacts/containers.lock.yml"}
 TEST_LOCK_FILE=${TEST_LOCK_FILE:-"$REPO_ROOT/artifacts/test_images.lock.yml"}
 DOCKER=${DOCKER:-}
 if [[ -z "$DOCKER" ]]; then
+  # Presence on PATH is not usability. A workstation can carry the Docker CLI
+  # with no daemon it is allowed to reach -- a stopped daemon, or a root-owned
+  # socket and no group membership -- and picking it then means every runtime
+  # test fails on a permission error while a working Podman sits unused.
+  for engine_candidate in docker podman; do
+    if command -v "$engine_candidate" >/dev/null 2>&1 &&
+      "$engine_candidate" info >/dev/null 2>&1; then
+      DOCKER=$engine_candidate
+      break
+    fi
+  done
+  unset engine_candidate
+fi
+if [[ -z "$DOCKER" ]]; then
+  # Nothing answered. Name whichever CLI exists anyway, so the static target
+  # still runs and any runtime failure that follows names a real engine.
   if command -v docker >/dev/null 2>&1; then
     DOCKER=docker
   elif command -v podman >/dev/null 2>&1; then
@@ -26,6 +42,28 @@ ENGINE_RUN=("$DOCKER" run)
 if [[ "$DOCKER" == *podman* ]]; then
   # Runtime tests use disposable bind mounts; avoid relabeling host paths.
   ENGINE_RUN+=(--security-opt label=disable)
+fi
+# Whether the daemon behind $DOCKER is rootless.
+#
+# This decides what "hand it back to me" has to mean inside the helper
+# container in cleanup_dir. A rootless daemon maps the invoking user to the
+# container's root, so uid 0 in there is the caller out here and every other
+# uid is a subuid the caller does not own. A rootful daemon maps uids straight
+# through.
+#
+# scripts/toolbox.sh has already resolved this against the host's own CLI and
+# passes it in, which is the only reliable answer once the engine is reached
+# over a Docker-API socket. Asking the daemon is the fallback for a direct run.
+ENGINE_ROOTLESS=${ENGINE_ROOTLESS:-}
+if [[ -z "$ENGINE_ROOTLESS" ]]; then
+  if [[ "$DOCKER" == *podman* ]]; then
+    engine_rootless_probe=$($DOCKER info --format '{{.Host.Security.Rootless}}' 2>/dev/null || true)
+    [[ "$engine_rootless_probe" == "true" ]] && ENGINE_ROOTLESS=1
+  else
+    engine_rootless_probe=$($DOCKER info --format '{{.SecurityOptions}}' 2>/dev/null || true)
+    [[ "$engine_rootless_probe" == *rootless* ]] && ENGINE_ROOTLESS=1
+  fi
+  unset engine_rootless_probe
 fi
 usage() {
   sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'
@@ -116,11 +154,21 @@ chown_test_path() {
 }
 cleanup_dir() {
   # Restore ownership to the current user through the selected container engine.
+  local restore_owner
   if [[ "$DOCKER" == *podman* ]]; then
     $DOCKER unshare chown -R 0:0 "$1"
   else
+    # Whose uid the helper container has to name to give the tree back to the
+    # caller: see ENGINE_ROOTLESS above. Getting this wrong does not fail
+    # loudly -- it leaves a subuid-owned tree that the following rm cannot
+    # remove.
+    if [[ -n "$ENGINE_ROOTLESS" ]]; then
+      restore_owner="0:0"
+    else
+      restore_owner="$(id -u):$(id -g)"
+    fi
     "${ENGINE_RUN[@]}" --rm -v "$(dirname "$1")":/mnt \
-      "$TEST_HELPER_IMAGE" chown -R "$(id -u):$(id -g)" "/mnt/$(basename "$1")"
+      "$TEST_HELPER_IMAGE" chown -R "$restore_owner" "/mnt/$(basename "$1")"
   fi
   rm -rf "$1"
 }

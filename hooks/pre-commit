@@ -1,65 +1,21 @@
 #!/bin/bash
-# Pre-commit hook: runs the complete maintained local validation gate.
-# Install: git config core.hooksPath hooks
+# Pre-commit hook: runs the complete local validation gate.
+#
+# The gate runs inside the toolbox image, so a commit needs nothing on this
+# machine but Docker or Podman -- no host install of ansible-core,
+# ansible-lint, yamllint, or shellcheck, and no version drift between what a
+# commit was checked against here and anywhere else.
+#
+# Install: make install   (equivalently: git config core.hooksPath hooks)
 # Skip:    git commit --no-verify
+#
+# The runtime container tests are deliberately not part of this gate: they pull
+# the locked service images and take several minutes. Run them with
+# `make test-full` when container behaviour changes.
 
 set -euo pipefail
 
-# Keep validator caches out of the repository and work in restricted shells.
-export XDG_CACHE_HOME="${XDG_CACHE_HOME:-/tmp/ansible-playbooks-cache}"
-export ANSIBLE_LOCAL_TEMP="${ANSIBLE_LOCAL_TEMP:-/tmp/ansible-playbooks-local}"
-export ANSIBLE_REMOTE_TEMP="${ANSIBLE_REMOTE_TEMP:-/tmp/ansible-playbooks-remote}"
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "${REPO_ROOT}"
 
-echo "=== Pre-commit checks ==="
-
-echo ""
-echo "--- Supply Chain Policy ---"
-bash scripts/test_supply_chain_policy.sh
-python3 scripts/promote_artifacts.py --validate-policy
-echo "PASS: supply-chain policy"
-
-echo ""
-echo "--- Python Unit Tests ---"
-python3 -m unittest discover -s tests -p 'test_*.py'
-python3 -m py_compile scripts/*.py filter_plugins/*.py
-echo "PASS: Python tests and compilation"
-
-echo ""
-echo "--- ShellCheck ---"
-shellcheck -e SC2015,SC2016,SC2054 hooks/pre-commit scripts/*.sh roles/nextcloud/files/db_wrapper.sh
-echo "PASS: ShellCheck"
-
-echo ""
-echo "--- YAML Lint ---"
-mapfile -t yaml_files < <(
-  git ls-files --cached --others --exclude-standard '*.yml' '*.yaml' \
-    | while IFS= read -r path; do [[ -f "$path" ]] && echo "$path"; done
-)
-yamllint -c .yamllint.yml "${yaml_files[@]}"
-echo "PASS: YAML lint"
-
-echo ""
-echo "--- Secret Rendering ---"
-bash scripts/test_shell_secret_env.sh
-echo "PASS: secret rendering"
-
-echo ""
-echo "--- Container Static Policy ---"
-bash scripts/test_container_security.sh static
-echo "PASS: container static policy"
-
-echo ""
-echo "--- Ansible Lint ---"
-ansible-lint
-echo "PASS: ansible-lint"
-
-echo ""
-echo "--- Ansible Syntax Check ---"
-for playbook in vm1.yml homelab_vms.yml update_homelab_vms.yml reboot_vms.yml; do
-  [ -f "$playbook" ] || continue
-  ansible-playbook --syntax-check -i vm1,homelab, "$playbook"
-done
-echo "PASS: ansible syntax check"
-
-echo ""
-echo "=== All checks passed ==="
+exec ./scripts/toolbox.sh ./scripts/test-local.sh

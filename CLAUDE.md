@@ -18,9 +18,11 @@ Start with [README.md](README.md), then use [docs/index.md](docs/index.md) for t
 
 ## Checks
 
-- Run `ansible-lint` after Ansible changes.
-- Run `ansible-playbook -i inventory.yml <playbook>.yml --syntax-check` for changed playbooks when relevant.
-- Keep verification scoped to the files you changed.
+- Every gate runs inside the toolbox image, so Docker or Podman is the only host prerequisite. Build it once with `make install`.
+- Run `make lint` after Ansible changes: it covers `ansible-lint`, `yamllint`, ShellCheck, Python compilation, and `--syntax-check` for every maintained playbook.
+- Run `make test` before committing. The pre-commit hook runs the same gate.
+- Run `make test-full` when container flags, launch templates, or image pins change; it adds the runtime container tests.
+- Run a single check with `./scripts/toolbox.sh <command>`, and keep verification scoped to the files you changed.
 
 ## Where To Look
 
@@ -30,5 +32,6 @@ Start with [README.md](README.md), then use [docs/index.md](docs/index.md) for t
 - [docs/roles/standard.md](docs/roles/standard.md): shared infrastructure roles
 - [docs/roles/services.md](docs/roles/services.md): service role behavior and templates
 - [docs/guides/getting-started.md](docs/guides/getting-started.md): setup and first-run commands
+- [docs/testing.md](docs/testing.md): the toolbox image, `make` targets, and what each gate covers
 - [docs/archive.md](docs/archive.md): browsing the historical `archive` branch
 - [docs/documentation-standards.md](docs/documentation-standards.md): doc ownership and cross-reference rules
