@@ -28,7 +28,10 @@ DEFAULT_TRIVY_VEX_FILE = REPO_ROOT / "logs" / "trivy-vex.json"
 DEFAULT_CRITICAL_ACCEPTANCE_FILE = REPO_ROOT / "logs" / "vulnerability-acceptance.yml"
 TOOLING_GUIDE = REPO_ROOT / "docs" / "guides" / "container-image-updates.md"
 SCAN_SEVERITIES = "MEDIUM,HIGH,CRITICAL"
-NO_NEWER_IMAGE_EXCEPTION = "no_newer_upstream_image"
+# Bounds a Critical acceptance in the untracked acceptance file. Time-bounded
+# lock-file exceptions for non-Critical findings no longer exist: staying on an
+# older image to avoid findings the newer one also has is not a trade worth
+# making, so currency is the policy and findings are reported instead.
 MAX_EXCEPTION_DAYS = 30
 MINIMUM_IMAGE_AGE_HOURS = 24
 SHA256_DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
@@ -264,24 +267,6 @@ def parse_policy_date(value: object, field: str, service: str) -> date:
         raise SystemExit(f"{service}: {field} must be an ISO date (YYYY-MM-DD)") from exc
 
 
-def validate_exception_metadata(entry: dict, service: str, *, today: date | None = None) -> None:
-    exception = entry.get("vulnerability_exception")
-    if exception is None:
-        return
-    if exception != NO_NEWER_IMAGE_EXCEPTION:
-        raise SystemExit(f"{service}: unknown vulnerability_exception: {exception}")
-
-    current_date = today or date.today()
-    reviewed = parse_policy_date(entry.get("vulnerability_exception_reviewed_on"), "vulnerability_exception_reviewed_on", service)
-    expires = parse_policy_date(entry.get("vulnerability_exception_expires_on"), "vulnerability_exception_expires_on", service)
-    if reviewed > current_date:
-        raise SystemExit(f"{service}: vulnerability exception review date is in the future")
-    if expires < current_date:
-        raise SystemExit(f"{service}: vulnerability exception expired on {expires.isoformat()}")
-    if expires < reviewed or (expires - reviewed).days > MAX_EXCEPTION_DAYS:
-        raise SystemExit(f"{service}: vulnerability exception may cover at most {MAX_EXCEPTION_DAYS} days")
-
-
 def load_critical_acceptances(path: Path, *, today: date | None = None) -> set[tuple[str, str, str]]:
     if not path.exists():
         return set()
@@ -372,6 +357,89 @@ def critical_findings_are_preexisting(
     currently_approved: ScanResult | None,
 ) -> bool:
     return bool(currently_approved) and set(candidate_ids).issubset(currently_approved.critical_ids)
+
+
+def parse_version_tag(tag: object) -> tuple[str, tuple[int, ...]] | None:
+    """Split a release tag into its optional prefix and numeric components.
+
+    Returns None for anything that is not purely a dotted number with an
+    optional single-letter prefix, which is what keeps `latest`, `stable`,
+    `17-bookworm` and `3.0.5-rc1` out of the candidate set.
+    """
+    if not isinstance(tag, str):
+        return None
+    match = re.fullmatch(r"(?P<prefix>[A-Za-z]*)(?P<version>\d+(?:\.\d+)*)", tag.strip())
+    if match is None:
+        return None
+    return match.group("prefix"), tuple(int(part) for part in match.group("version").split("."))
+
+
+def list_upstream_tags(repository: str) -> list[str]:
+    result = run([*tool_command("skopeo"), "list-tags", f"docker://{repository}"])
+    try:
+        data = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        raise SystemExit(f"Failed to list tags for {repository}") from exc
+    tags = data.get("Tags") if isinstance(data, dict) else None
+    if not isinstance(tags, list):
+        raise SystemExit(f"Failed to list tags for {repository}")
+    return [tag for tag in tags if isinstance(tag, str)]
+
+
+@dataclass(frozen=True)
+class TagSelection:
+    tag: str
+    is_newer: bool
+    held_back: tuple[str, ...]
+
+
+def select_newest_tag(current_tag: object, tags: list[str]) -> TagSelection | None:
+    """Pick the newest release of the same major line as the current tag.
+
+    A newer image is worth having on its own: upstream fixes bugs that never
+    become CVEs, so refusing to move because the scanner still reports
+    something leaves the deployment on strictly older code. Currency is
+    therefore the default, and only two things hold it back -- the minimum age
+    gate applied by the caller, and a major version boundary, because a major
+    is where upstream is allowed to break the configuration this repository
+    renders.
+
+    Candidates must share the current tag's exact shape: the same prefix and
+    the same number of components. Registries carry `17.11` beside `17.11.0`
+    and `v3.7.13` beside `3.7.13`, and mixing those spellings would make the
+    selected tag depend on which variant a registry happens to publish.
+    """
+    current = parse_version_tag(current_tag)
+    if current is None:
+        return None
+    prefix, current_version = current
+
+    same_line: list[tuple[tuple[int, ...], str]] = []
+    newer_major: list[tuple[tuple[int, ...], str]] = []
+    for tag in tags:
+        parsed = parse_version_tag(tag)
+        if parsed is None:
+            continue
+        tag_prefix, version = parsed
+        if tag_prefix != prefix or len(version) != len(current_version):
+            continue
+        if version[0] == current_version[0]:
+            same_line.append((version, tag))
+        elif version > current_version:
+            newer_major.append((version, tag))
+
+    if not same_line:
+        return None
+
+    best_version, best_tag = max(same_line)
+    # Reported rather than selected, so a major bump stays a decision someone
+    # makes and tests instead of one a scheduled review makes for them.
+    held_back = tuple(tag for _, tag in sorted(newer_major)[-3:])
+    return TagSelection(
+        tag=best_tag,
+        is_newer=best_version > current_version,
+        held_back=held_back,
+    )
 
 
 def to_digest_ref(image_ref: str, digest: str) -> str:
@@ -538,7 +606,15 @@ def main() -> int:
     parser.add_argument("--lock-file", type=Path, default=DEFAULT_LOCK_FILE)
     parser.add_argument("--registry", help="Optional registry host to mirror approved digests into, e.g. registry.example.internal")
     parser.add_argument("--service", action="append", help="Only process the named service(s)")
-    parser.add_argument("--write", action="store_true", help="Write updated digests back to the lock file")
+    parser.add_argument("--write", action="store_true", help="Write updated tags and digests back to the lock file")
+    parser.add_argument(
+        "--keep-pinned-tag",
+        action="store_true",
+        help=(
+            "Review the tag already in the lock file instead of selecting the newest "
+            "release of the same major line"
+        ),
+    )
     parser.add_argument(
         "--check-tools",
         action="store_true",
@@ -600,7 +676,6 @@ def main() -> int:
         if service not in images:
             raise SystemExit(f"Unknown service in lock file: {service}")
         validate_lock_entry(images[service], service)
-        validate_exception_metadata(images[service], service)
 
     critical_acceptances = load_critical_acceptances(args.critical_acceptance_file)
     if args.validate_policy:
@@ -624,6 +699,28 @@ def main() -> int:
         for service in selected:
             entry = images[service]
             upstream_ref = entry["upstream_ref"]
+            repository = upstream_ref.rsplit(":", 1)[0] if ":" in upstream_ref.rsplit("/", 1)[-1] else upstream_ref
+            selected_tag = entry.get("approved_tag")
+
+            # Move to the newest release of the same major line before anything
+            # else looks at the image, so the rest of the run judges the version
+            # this repository should be running rather than the one it happens
+            # to be pinned to.
+            if not args.keep_pinned_tag:
+                selection = select_newest_tag(entry.get("approved_tag"), list_upstream_tags(repository))
+                if selection is None:
+                    print(f"[{service}] tag={entry.get('approved_tag')} (not a release version; left pinned)")
+                else:
+                    selected_tag = selection.tag
+                    if selection.is_newer:
+                        print(f"[{service}] tag={entry.get('approved_tag')} -> {selected_tag}")
+                    if selection.held_back:
+                        print(
+                            f"[{service}] held-back={', '.join(selection.held_back)} "
+                            "(new major; promote by hand after checking the config it renders)"
+                        )
+                upstream_ref = f"{repository}:{selected_tag}"
+
             inspection = inspect_image(upstream_ref)
             digest = inspection.digest
             print(f"[{service}] upstream={upstream_ref}")
@@ -662,9 +759,22 @@ def main() -> int:
                     for vulnerability_id in scan_result.critical_ids
                     if (service, digest, vulnerability_id) not in critical_acceptances
                 )
+                # Findings do not block a promotion on their own. Refusing to
+                # move while upstream has published something newer keeps the
+                # deployment on older code carrying the same findings plus every
+                # bug fixed since, which is strictly worse. What still blocks is
+                # a regression: a Critical this image introduces that the digest
+                # it would replace did not have.
                 if unaccepted_critical:
-                    currently_approved_result = None
-                    if current_digest and current_digest != digest:
+                    if not current_digest or current_digest == digest:
+                        # Already on this digest, so there is nothing newer to
+                        # move to and nothing to have regressed from. Standing
+                        # findings are reported, loudly, and reviewed by hand.
+                        print(
+                            f"[{service}] scan=STANDING Critical findings on the approved image, "
+                            f"no newer release available: {', '.join(unaccepted_critical)}"
+                        )
+                    else:
                         current_ref = to_digest_ref(upstream_ref, current_digest)
                         currently_approved_result = scan_image(
                             current_ref,
@@ -674,25 +784,27 @@ def main() -> int:
                             args.trivy_ignore_file,
                             args.trivy_vex_file,
                         )
-                    if critical_findings_are_preexisting(unaccepted_critical, currently_approved_result):
-                        critical_no_regression = True
-                        print(
-                            f"[{service}] scan=NO-REGRESSION Critical findings are already "
-                            "present in the currently approved image"
-                        )
-                    else:
-                        print(
-                            f"[{service}] scan=FAIL unaccepted Critical findings: "
-                            f"{', '.join(unaccepted_critical)}"
-                        )
-                        scan_failures.append(service)
-                        scan_ok = False
+                        if critical_findings_are_preexisting(unaccepted_critical, currently_approved_result):
+                            critical_no_regression = True
+                            print(
+                                f"[{service}] scan=NO-REGRESSION Critical findings are already "
+                                "present in the currently approved image"
+                            )
+                        else:
+                            introduced = sorted(
+                                set(unaccepted_critical) - currently_approved_result.critical_ids
+                            )
+                            print(
+                                f"[{service}] scan=FAIL Critical findings introduced by this image: "
+                                f"{', '.join(introduced)}"
+                            )
+                            scan_failures.append(service)
+                            scan_ok = False
                 if scan_ok and scan_result.non_critical_count:
-                    if entry.get("vulnerability_exception") == NO_NEWER_IMAGE_EXCEPTION:
-                        print(f"[{service}] scan=EXEMPT time-bounded non-Critical findings accepted")
-                    else:
-                        scan_failures.append(service)
-                        scan_ok = False
+                    print(
+                        f"[{service}] scan=REPORTED {scan_result.non_critical_count} "
+                        "non-Critical finding(s); see the scan log"
+                    )
 
             if not scan_ok:
                 continue
@@ -701,22 +813,11 @@ def main() -> int:
                 mirror_image(digest_ref, internal_ref, digest)
 
             if args.write:
+                entry["upstream_ref"] = upstream_ref
+                entry["approved_tag"] = selected_tag
                 entry["approved_digest"] = digest
                 if args.registry:
                     entry["notes"] = f"Approved via scripts/promote_artifacts.py and mirrored to {args.registry}"
-                elif entry.get("vulnerability_exception") == NO_NEWER_IMAGE_EXCEPTION:
-                    if critical_no_regression:
-                        entry["notes"] = (
-                            "Approved newer no-regression image via scripts/promote_artifacts.py; "
-                            "Critical findings were also present in the previous digest and non-Critical "
-                            f"findings are accepted through {entry['vulnerability_exception_expires_on']}."
-                        )
-                    else:
-                        entry["notes"] = (
-                            "Approved latest upstream image via scripts/promote_artifacts.py; "
-                            f"non-Critical vulnerability findings accepted through "
-                            f"{entry['vulnerability_exception_expires_on']}."
-                        )
                 elif critical_no_regression:
                     entry["notes"] = (
                         "Approved newer no-regression image via scripts/promote_artifacts.py; "

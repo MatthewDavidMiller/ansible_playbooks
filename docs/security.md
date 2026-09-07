@@ -36,7 +36,9 @@ Out of scope for the current low-disruption design:
 - Do not put Traefik on the backend database/cache network.
 - Do not add container egress by placing apps on non-internal networks unless the operational need is documented.
 - Do not use mutable image references in maintained deployment paths.
-- Do not promote a newer container image until its recorded creation time is at least 24 hours old. When updating, select the latest already-eligible tag; do not wait for a younger tag to age in.
+- Do not promote a newer container image until its recorded creation time is at least 24 hours old.
+- Do not hold an image back because it still has fix-available findings. The review tool promotes the newest release of the pinned major line; only a Critical the candidate introduces, or a major version boundary, stops it. See [guides/container-vulnerability-policy.md](guides/container-vulnerability-policy.md).
+- Do not cross a major version by editing the lock file alone. A major may change the configuration these roles render, so run the runtime container tests before it reaches VM1.
 - Do not remove `no_log` from secret rendering tasks.
 - Do not create service paths without explicit owner, group, and mode.
 - Document any container that cannot use `--read-only` or `--cap-drop=ALL` with the reason and a test.

@@ -10,6 +10,8 @@ import sys
 import unittest
 from unittest import mock
 
+import yaml
+
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "scripts" / "promote_artifacts.py"
 SPEC = importlib.util.spec_from_file_location("promote_artifacts", MODULE_PATH)
@@ -106,25 +108,59 @@ class PromotionPolicyTests(unittest.TestCase):
                 with self.assertRaises(SystemExit):
                     promote.validate_lock_entry(invalid, "app")
 
-    def test_exception_metadata_is_time_bounded(self):
-        entry = {
-            "vulnerability_exception": promote.NO_NEWER_IMAGE_EXCEPTION,
-            "vulnerability_exception_reviewed_on": "2026-07-14",
-            "vulnerability_exception_expires_on": "2026-08-13",
-        }
-        promote.validate_exception_metadata(entry, "service", today=date(2026, 7, 14))
-        entry["vulnerability_exception_expires_on"] = "2026-08-14"
-        with self.assertRaises(SystemExit):
-            promote.validate_exception_metadata(entry, "service", today=date(2026, 7, 14))
+    def test_release_tags_are_parsed_and_non_releases_rejected(self):
+        self.assertEqual(promote.parse_version_tag("v3.7.13"), ("v", (3, 7, 13)))
+        self.assertEqual(promote.parse_version_tag("17.10"), ("", (17, 10)))
+        for rejected in (
+            "latest",
+            "stable",
+            "17-bookworm",
+            "3.0.5-rc1",
+            "34.0.3-apache",
+            "",
+            None,
+            17.10,
+        ):
+            with self.subTest(tag=rejected):
+                self.assertIsNone(promote.parse_version_tag(rejected))
 
-    def test_expired_exception_is_rejected(self):
-        entry = {
-            "vulnerability_exception": promote.NO_NEWER_IMAGE_EXCEPTION,
-            "vulnerability_exception_reviewed_on": "2026-06-01",
-            "vulnerability_exception_expires_on": "2026-07-01",
-        }
-        with self.assertRaises(SystemExit):
-            promote.validate_exception_metadata(entry, "service", today=date(2026, 7, 14))
+    def test_newest_tag_in_the_same_major_is_selected(self):
+        selection = promote.select_newest_tag(
+            "v3.7.9", ["v3.7.9", "v3.7.11", "v3.7.13", "v3.6.1"]
+        )
+        self.assertEqual(selection.tag, "v3.7.13")
+        self.assertTrue(selection.is_newer)
+        self.assertEqual(selection.held_back, ())
+
+    def test_a_new_major_is_reported_but_never_selected(self):
+        """A major is where upstream may break the config this repo renders."""
+        selection = promote.select_newest_tag("17.10", ["17.10", "17.11", "18.0", "18.1"])
+        self.assertEqual(selection.tag, "17.11")
+        self.assertEqual(selection.held_back, ("18.0", "18.1"))
+
+    def test_selection_keeps_the_current_tag_shape(self):
+        """Registries carry 17.11 beside 17.11.0, and v3.7.13 beside 3.7.13.
+
+        Selecting across those spellings would make the chosen tag depend on
+        which variants a registry happens to publish.
+        """
+        selection = promote.select_newest_tag(
+            "v3.7.9", ["v3.7.9", "3.7.13", "v3.7.11", "v3.7.13.1"]
+        )
+        self.assertEqual(selection.tag, "v3.7.11")
+
+        selection = promote.select_newest_tag("17.10", ["17.10", "17.11.0", "17.9"])
+        self.assertEqual(selection.tag, "17.10")
+        self.assertFalse(selection.is_newer)
+
+    def test_already_newest_is_not_reported_as_newer(self):
+        selection = promote.select_newest_tag("0.63.2", ["0.63.1", "0.63.2", "0.62.0"])
+        self.assertEqual(selection.tag, "0.63.2")
+        self.assertFalse(selection.is_newer)
+
+    def test_unparseable_current_tag_disables_selection(self):
+        self.assertIsNone(promote.select_newest_tag("stable", ["stable", "1.2.3"]))
+        self.assertIsNone(promote.select_newest_tag("v3.7.9", ["latest", "stable"]))
 
     def test_trivy_json_distinguishes_critical_findings(self):
         report = {
@@ -240,18 +276,23 @@ class PromotionPolicyTests(unittest.TestCase):
             f"registry.example/app@{digest}",
         )
 
+    def _single_service_lock(self, directory: str, tag: str) -> Path:
+        lock_file = Path(directory) / "lock.yml"
+        lock_file.write_text(
+            "artifact_locked_images:\n"
+            "  app:\n"
+            f"    upstream_ref: registry.example/app:{tag}\n"
+            f"    approved_tag: '{tag}'\n"
+            "    internal_repo: homelab/app\n"
+            f"    approved_digest: sha256:{'a' * 64}\n"
+            "    signature_required: false\n",
+            encoding="utf-8",
+        )
+        return lock_file
+
     def test_main_inspects_each_selected_image_once(self):
         with tempfile.TemporaryDirectory() as directory:
-            lock_file = Path(directory) / "lock.yml"
-            lock_file.write_text(
-                "artifact_locked_images:\n"
-                "  app:\n"
-                "    upstream_ref: registry.example/app:1\n"
-                "    internal_repo: homelab/app\n"
-                f"    approved_digest: sha256:{'a' * 64}\n"
-                "    signature_required: false\n",
-                encoding="utf-8",
-            )
+            lock_file = self._single_service_lock(directory, "1.0.0")
             inspection = promote.ImageInspection("sha256:" + "a" * 64, None)
             argv = [
                 "promote_artifacts.py",
@@ -261,6 +302,7 @@ class PromotionPolicyTests(unittest.TestCase):
                 "app",
                 "--skip-scan",
                 "--skip-signature-verify",
+                "--keep-pinned-tag",
             ]
             with (
                 mock.patch.object(sys, "argv", argv),
@@ -269,7 +311,46 @@ class PromotionPolicyTests(unittest.TestCase):
                 redirect_stdout(io.StringIO()),
             ):
                 self.assertEqual(promote.main(), 0)
-            inspect.assert_called_once_with("registry.example/app:1")
+            inspect.assert_called_once_with("registry.example/app:1.0.0")
+
+    def test_main_promotes_the_newest_tag_and_writes_it_back(self):
+        """The lock records the version that was reviewed, not the one it held."""
+        with tempfile.TemporaryDirectory() as directory:
+            lock_file = self._single_service_lock(directory, "1.0.0")
+            new_digest = "sha256:" + "b" * 64
+            argv = [
+                "promote_artifacts.py",
+                "--lock-file",
+                str(lock_file),
+                "--service",
+                "app",
+                "--skip-scan",
+                "--skip-signature-verify",
+                "--write",
+            ]
+            with (
+                mock.patch.object(sys, "argv", argv),
+                mock.patch.object(promote, "resolve_tool_command", return_value=(["skopeo"], "local")),
+                mock.patch.object(
+                    promote, "list_upstream_tags", return_value=["1.0.0", "1.2.0", "2.0.0"]
+                ),
+                mock.patch.object(
+                    promote,
+                    "inspect_image",
+                    return_value=promote.ImageInspection(
+                        new_digest, datetime(2026, 1, 1, tzinfo=timezone.utc)
+                    ),
+                ) as inspect,
+                redirect_stdout(io.StringIO()),
+            ):
+                self.assertEqual(promote.main(), 0)
+
+            inspect.assert_called_once_with("registry.example/app:1.2.0")
+            written = yaml.safe_load(lock_file.read_text(encoding="utf-8"))
+            entry = written["artifact_locked_images"]["app"]
+            self.assertEqual(entry["upstream_ref"], "registry.example/app:1.2.0")
+            self.assertEqual(entry["approved_tag"], "1.2.0")
+            self.assertEqual(entry["approved_digest"], new_digest)
 
 
 if __name__ == "__main__":

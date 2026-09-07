@@ -85,9 +85,8 @@ assert_task_has_no_log() {
 echo "=== Supply Chain Policy Checks ==="
 
 assert_match "^artifact_locked_images:" "container artifact lock file exists" artifacts/containers.lock.yml
-assert_match "vulnerability_exception:[[:space:]]+no_newer_upstream_image" "container vulnerability exceptions use the approved reason" artifacts/containers.lock.yml
-assert_match "vulnerability_exception_reviewed_on:[[:space:]]+'[0-9]{4}-[0-9]{2}-[0-9]{2}'" "vulnerability exceptions record a review date" artifacts/containers.lock.yml
-assert_match "vulnerability_exception_expires_on:[[:space:]]+'[0-9]{4}-[0-9]{2}-[0-9]{2}'" "vulnerability exceptions record an expiry date" artifacts/containers.lock.yml
+assert_no_match "vulnerability_exception" "lock file carries no standing vulnerability exceptions" artifacts/containers.lock.yml
+assert_match "approved_tag:" "lock entries record the reviewed release tag" artifacts/containers.lock.yml
 assert_no_match "test_locked_images:([[:space:]]|.)*image:[[:space:]]+[^[:space:]]+:[^@[:space:]]+$" "test helper images are immutable" artifacts/test_images.lock.yml
 assert_match "^collections:" "pinned collection manifest exists" collections/requirements.yml
 assert_no_fixed_match "--pull=newer" "maintained launch scripts do not auto-pull on start" roles docs scripts vm1.yml

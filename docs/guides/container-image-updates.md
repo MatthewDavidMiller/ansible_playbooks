@@ -4,20 +4,30 @@ This guide covers the maintained workflow for updating VM1 container images with
 
 ## Goal
 
-The deploy path stays pinned to immutable digests in [`artifacts/containers.lock.yml`](../../artifacts/containers.lock.yml). Updating an image means:
+The deploy path stays pinned to immutable digests in [`artifacts/containers.lock.yml`](../../artifacts/containers.lock.yml). Updating images means running the review; the tool selects the version itself:
 
-1. Change the intended upstream tag in the lock file to the latest **currently eligible** stable tag.
+1. List the upstream tags and select the newest release of the major line already pinned.
 2. Resolve the exact digest with `skopeo`.
-3. Require the image's recorded creation time to be at least 24 hours old.
+3. Require a changed image's recorded creation time to be at least 24 hours old.
 4. Verify the image signature with `cosign` when `signature_required: true` and the lock entry pins the expected signer metadata.
-5. Scan the image with `trivy` for fix-available `MEDIUM`, `HIGH`, and `CRITICAL` vulnerabilities.
-6. Run the repo's policy and container-hardening tests before deployment.
+5. Scan the image with `trivy` for fix-available `MEDIUM`, `HIGH`, and `CRITICAL` vulnerabilities, and fail only on a Critical the current digest does not already have.
+6. Write the tag and digest back, then run the repo's policy and container-hardening tests before deployment.
 
-### Select latest eligible now
+```bash
+./scripts/toolbox.sh python3 scripts/promote_artifacts.py --write
+```
 
-Promote the newest stable tag that already satisfies the 24-hour age gate and the rest of this workflow. Do not sleep or otherwise wait for a younger upstream tag to become eligible. Leave younger tags for a later update run, and record that choice in the lock-file `notes` when useful.
+### The tool picks the version
 
-Stay on the current major track when a major bump needs a separate procedure (for example PostgreSQL; see [postgres-upgrade.md](postgres-upgrade.md)).
+`approved_tag` is an output, not an input. Editing a tag by hand only matters when you want something the selection will not pick, and `--keep-pinned-tag` reviews exactly what the lock already names.
+
+Selection is deliberately narrow. A candidate must share the current tag's exact shape — same prefix, same number of components — because registries publish `17.11` beside `17.11.0` and `v3.7.13` beside `3.7.13`, and mixing spellings would make the result depend on which variants a registry happens to carry. Anything that is not a plain dotted version (`latest`, `stable`, `3.0.5-rc1`, `34.0.3-apache`) is never a candidate.
+
+### Major versions are held back
+
+The tool never crosses a major. It reports newer majors as `held-back` and stays on the pinned line, because a major is where upstream may break the configuration these roles render — Paperless 3.0 required a new `PAPERLESS_SECRET_KEY`, and PostgreSQL majors need the whole procedure in [postgres-upgrade.md](postgres-upgrade.md).
+
+Taking one is a deliberate act: edit `upstream_ref` and `approved_tag` to the new major, run the review, then run `make test-full` so the runtime container tests start the image for real before it reaches VM1.
 
 ## Tooling
 
@@ -83,28 +93,20 @@ Treat each update as approved only after all of the following are true:
 - `skopeo` resolved the expected upstream tag to a digest.
 - The candidate image's recorded creation time is at least 24 hours old. Younger images are not eligible for promotion.
 - `cosign verify` succeeded for services that require signatures and have pinned signer metadata in the lock file.
-- `trivy` reported no fix-available `MEDIUM`, `HIGH`, or `CRITICAL` findings. A maximum-30-day `no_newer_upstream_image` exception may cover non-Critical findings. A Critical finding needs an exact local acceptance unless the same Critical finding is already present in the currently approved image; in that no-regression case, prefer the eligible newer image. Review `logs/container-vulnerability-findings.log`.
+- `trivy` introduced no Critical finding that the digest being replaced did not already carry. Remaining findings are reported, not blocking — review `logs/container-vulnerability-findings.log` and see [container-vulnerability-policy.md](container-vulnerability-policy.md) for why currency wins over standing findings.
 - Any local VEX/ignore use is digest-specific, service-specific, time-bounded, and backed by runtime hardening or network containment.
 - `scripts/test_supply_chain_policy.sh` passed.
 - `scripts/test_container_security.sh` passed against the locked image set. During focused debugging, target affected services with commands like `bash scripts/test_container_security.sh semaphore`.
 
 The container security test now defaults to the digest-pinned refs in [`artifacts/containers.lock.yml`](../../artifacts/containers.lock.yml), so it exercises the same approved images that `vm1.yml` deploys. You can still override individual images with environment variables when needed.
 
-## Vulnerability Exceptions
+## Pre-existing And New Critical Findings
 
-Use `vulnerability_exception: no_newer_upstream_image` only when Trivy reports fix-available non-Critical findings and no newer eligible stable upstream image is available. Record `vulnerability_exception_reviewed_on` and an expiry no more than 30 days later.
+Do not retain an older image because a newer one carries the same findings. When a candidate is at least 24 hours old, the promotion tool scans both digests and promotes without a new acceptance whenever every unaccepted Critical finding in the candidate is also present in the currently approved image.
 
-- Keep the exception on the specific digest-pinned lock entry.
-- Continue running and retaining the local Trivy findings for review.
-- Remove the exception when a newer upstream image passes the scan.
-- Do not use the exception for an older image when a newer eligible stable image exists.
-- Do not use this public exception to accept a new Critical finding; use the untracked exact-acceptance schema instead.
+A Critical the candidate *introduces* fails closed and requires an exact local acceptance in the untracked schema. That is the one finding-based block left; non-Critical findings never stop a promotion.
 
-## Pre-existing Critical Findings
-
-Do not retain an older image solely because an eligible newer image contains the same Critical findings. When a candidate is at least 24 hours old, the promotion tool scans both digests. It may promote the candidate without a new Critical acceptance only when every unaccepted Critical finding in the candidate is also present in the currently approved image. Any new Critical finding still fails closed and requires exact local acceptance.
-
-The `no_newer_upstream_image` exception is still required when the candidate also has fix-available non-Critical findings. This no-regression rule does not hide findings or treat them as remediated; it prevents known inherited findings from blocking an otherwise newer image.
+A service already on the newest release of its major reports `scan=STANDING` with its Critical IDs on every run. There is nothing to promote to, so the finding is surfaced rather than converted into a block that no update could clear.
 
 ## Signature Exceptions
 
