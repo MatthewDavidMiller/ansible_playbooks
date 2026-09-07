@@ -10,7 +10,7 @@ Install the following on your control machine:
 
 - **Ansible** — via your package manager or in a virtualenv, to run the playbooks against your hosts
 - **Python 3** — required by Ansible
-- **Podman or Docker on the control node** — required for local container tests and pinned image-review tooling fallbacks. Rootless works for both and needs no extra configuration; see [../testing.md](../testing.md) for what the gates detect.
+- **Rootless Podman on the control node** — required for the validation toolbox, the local container tests, and the pinned image-review tooling fallbacks. Enable its API socket with `systemctl --user enable --now podman.socket`; see [../testing.md](../testing.md) for why the gates require rootless and refuse to run rootful.
 
 Validation tooling is not in that list. `ansible-lint`, `yamllint`, `shellcheck`, and a pinned `ansible-core` live in the toolbox image, so a container engine is all the gates need:
 

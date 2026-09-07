@@ -2,7 +2,7 @@
 # Pre-commit hook: runs the complete local validation gate.
 #
 # The gate runs inside the toolbox image, so a commit needs nothing on this
-# machine but Docker or Podman -- no host install of ansible-core,
+# machine but rootless Podman -- no host install of ansible-core,
 # ansible-lint, yamllint, or shellcheck, and no version drift between what a
 # commit was checked against here and anywhere else.
 #

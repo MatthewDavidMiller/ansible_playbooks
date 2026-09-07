@@ -33,7 +33,7 @@ ansible-playbook -i inventory.yml vm1.yml --check
 
 ## Validation
 
-Every check runs inside a pinned Alpine toolbox image, so Docker or Podman is the only prerequisite — `ansible-lint`, `yamllint`, `shellcheck`, `ansible-core`, and the pinned collections all live in the image.
+Every check runs inside a pinned Alpine toolbox image, so rootless Podman is the only prerequisite — `ansible-lint`, `yamllint`, `shellcheck`, `ansible-core`, and the pinned collections all live in the image.
 
 ```bash
 # Build the toolbox and install the pre-commit hook (once)

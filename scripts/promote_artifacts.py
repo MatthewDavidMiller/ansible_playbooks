@@ -33,7 +33,7 @@ MAX_EXCEPTION_DAYS = 30
 MINIMUM_IMAGE_AGE_HOURS = 24
 SHA256_DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
 FALLBACK_TOOL_IMAGES = {
-    "skopeo": "quay.io/skopeo/stable@sha256:c7d3c512612f52805023cd38351081dad7e2729fc13d14b701e47c7c8bdd6615",
+    "skopeo": "quay.io/skopeo/stable@sha256:abded792af33493f9aaa08132f564d3f9c12818193c0adc0a62f44ed84a04eda",
     "cosign": "ghcr.io/sigstore/cosign/cosign@sha256:6bbe0d281d955c79f85b325f0f7e651c1bcab5a4fa4ad4903d74955178a3b2eb",
     "trivy": "public.ecr.aws/aquasecurity/trivy@sha256:016eae51fdcf989332a5404af7e8f625cd5d95d7c0907a221d080a996f556500",
 }
@@ -63,10 +63,34 @@ def run(argv: list[str], *, capture_output: bool = True) -> subprocess.Completed
 
 
 def container_engine() -> str | None:
-    for candidate in ("podman", "docker"):
-        if shutil.which(candidate):
-            return candidate
-    return None
+    """Locate Podman, the only engine this repository's tooling runs on.
+
+    Inside the toolbox this resolves to the podman-remote client, which runs
+    the fallback container on the host engine through the mounted API socket.
+    """
+    return shutil.which("podman")
+
+
+def trivy_cache_path() -> Path:
+    """Where to keep trivy's vulnerability database between runs.
+
+    The path has to name the same directory here and on the host, because the
+    container is started by the host engine: inside the toolbox this script
+    talks to it through podman-remote, so the engine resolves every bind mount
+    in the host's filesystem rather than in ours. $HOME in the toolbox is
+    /home/toolbox, which exists in the image and nowhere else, and asking the
+    host to mount it fails the run outright with
+    `statfs /home/toolbox/.cache/trivy: no such file or directory`.
+
+    /tmp is bind-mounted at /tmp for exactly this reason, so a cache under it
+    means the same thing on both sides. It matches the /tmp/ansible-playbooks-*
+    convention the linters already use for their caches, and `make clean`
+    removes it with them. On a host run the ordinary XDG location is right and
+    keeps the database across reboots.
+    """
+    if os.environ.get("ANSIBLE_PLAYBOOKS_IN_TOOLBOX"):
+        return Path("/tmp/ansible-playbooks-trivy-cache")
+    return Path.home() / ".cache" / "trivy"
 
 
 def add_mount(argv: list[str], source: Path, target: str, *, read_only: bool = True) -> None:
@@ -92,7 +116,7 @@ def resolve_tool_command(name: str) -> tuple[tuple[str, ...], str]:
     """Locate a tool, preferring a native binary over the pinned container.
 
     Cached because every service in a run needs the same three tools, and
-    resolving one probes PATH, the container engines, and the credential
+    resolving one probes PATH, the container engine, and the credential
     helper config each time.
     """
     local_binary = shutil.which(name)
@@ -102,10 +126,18 @@ def resolve_tool_command(name: str) -> tuple[tuple[str, ...], str]:
     engine = container_engine()
     if engine is None:
         raise SystemExit(
-            f"Required tool not available: {name}. Install it locally or ensure podman/docker is available "
+            f"Required tool not available: {name}. Install it locally or ensure podman is available "
             f"for the pinned container fallback. See {TOOLING_GUIDE}."
         )
 
+    # trivy copies every file it analyses into a scratch directory, so its /tmp
+    # has to fit the largest single file in the image being scanned rather than
+    # anything about the image as a whole. Paperless ships PyTorch, and
+    # libtorch_cpu.so on its own overruns a small tmpfs: the scan then dies
+    # partway through a layer with "no space left on device", which reads as a
+    # full disk rather than a container limit. skopeo and cosign only ever hold
+    # a manifest or a signature, so they keep the small allowance.
+    tmp_size = "4g" if name == "trivy" else "256m"
     argv = [
         engine,
         "run",
@@ -114,20 +146,22 @@ def resolve_tool_command(name: str) -> tuple[tuple[str, ...], str]:
         "--security-opt=no-new-privileges:true",
         "--read-only",
         "--tmpfs",
-        "/tmp:rw,noexec,nosuid,nodev,size=256m",
+        f"/tmp:rw,noexec,nosuid,nodev,size={tmp_size}",
     ]
     if name != "trivy":
         argv.extend(["--tmpfs", "/root/.cache:rw,noexec,nosuid,nodev,size=128m"])
-    if engine == "podman":
-        argv.extend(["--security-opt", "label=disable"])
+    argv.extend(["--security-opt", "label=disable"])
 
+    # Registry credentials, in the two formats the tools inside the container
+    # read. The Docker config format is what skopeo and trivy look for; Podman
+    # writes its own auth.json under ~/.config/containers.
     docker_config = Path.home() / ".docker" / "config.json"
     if not docker_config_uses_external_helpers(docker_config):
         add_mount(argv, Path.home() / ".docker", "/root/.docker")
     add_mount(argv, Path.home() / ".config" / "containers", "/root/.config/containers")
 
-    trivy_cache_dir = Path.home() / ".cache" / "trivy"
     if name == "trivy":
+        trivy_cache_dir = trivy_cache_path()
         trivy_cache_dir.mkdir(parents=True, exist_ok=True)
         add_mount(argv, trivy_cache_dir, "/root/.cache/trivy", read_only=False)
         add_mount(argv, REPO_ROOT, str(REPO_ROOT))

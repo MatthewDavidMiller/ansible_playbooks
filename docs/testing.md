@@ -2,7 +2,7 @@
 
 ## Local Validation Pipeline
 
-Every check in this repository runs inside a pinned Alpine toolbox image built from [`tools/toolbox/Dockerfile`](../tools/toolbox/Dockerfile). Docker or Podman is the only thing a workstation needs: `ansible-core`, `ansible-lint`, `yamllint`, `shellcheck`, Python, and the collections pinned in `collections/requirements.yml` all live in the image, so every commit is validated against the same tool versions no matter which machine runs the gate.
+Every check in this repository runs inside a pinned Alpine toolbox image built from [`tools/toolbox/Dockerfile`](../tools/toolbox/Dockerfile). Rootless Podman is the only thing a workstation needs: `ansible-core`, `ansible-lint`, `yamllint`, `shellcheck`, Python, and the collections pinned in `collections/requirements.yml` all live in the image, so every commit is validated against the same tool versions no matter which machine runs the gate.
 
 **Set up once:**
 
@@ -30,28 +30,26 @@ That builds the toolbox image and points `core.hooksPath` at `hooks/`, so the ga
 
 - The base image is the digest-pinned Alpine entry in [`artifacts/test_images.lock.yml`](../artifacts/test_images.lock.yml), the same lock the runtime container tests read. Bumping the toolbox base is therefore an ordinary reviewed lock-file change, not a second pin to keep in sync.
 - The image tag is a content hash of the Dockerfile, `tests/requirements-dev.txt`, `collections/requirements.yml`, and that base digest. Changing any pin names a different image, rebuilds on the next gate run, and drops the image it replaces.
-- The repository is bind-mounted at its own absolute path, and so is `/tmp`. The runtime container tests build fixtures under `mktemp -d` and hand those paths to the host engine, which resolves them in its own filesystem — any other mount point would silently mount the wrong directory.
+- The repository is bind-mounted at its own absolute path, and so is `/tmp`. Containers started from inside the toolbox run on the host engine and are handed bind-mount paths, which the host resolves in its own filesystem — any other mount point would silently mount the wrong directory.
 - The container runs as the invoking user, so a gate leaves no root-owned files in the working tree.
-- The host engine socket is mounted so the runtime tests and the image-review fallbacks can start containers. Docker is preferred when both engines are usable, Podman is the fallback, and `DOCKER` overrides the choice. That variable is word-split the same way `scripts/test_container_security.sh` splits its own, so it takes a prefix: `DOCKER="sudo docker" make test` works where the socket is root-owned and you would rather not join the `docker` group.
+- The host's Podman API socket is mounted and `CONTAINER_HOST` points at it, so the image-review tool fallbacks can start their pinned containers. The client in the image is `podman-remote`, installed as `podman`, which speaks Podman's own API rather than the Docker-compatible one. Enable the socket with `systemctl --user enable --now podman.socket`.
+- `PODMAN` names a different binary if `podman` is not the one to use. It is word-split, so it takes a prefix.
 
-### Rootless engines
+### Why rootless, and why only Podman
 
-Rootless and rootful daemons are both supported, and which one is in use is detected rather than configured. Rootless Docker needs no flags, no `DOCKER=` override, and no `docker` group membership.
+Rootless Podman is a requirement, not a preference. `scripts/toolbox.sh` asks the engine (`podman info --format '{{.Host.Security.Rootless}}'`) and refuses to run rootful rather than adapting to it, because a rootful gate writes root-owned files into your working tree.
 
-The detection decides two things:
+Under rootless Podman the container's root is you, and every other uid inside comes out of your subuid range. So the toolbox runs with both `--userns=keep-id`, which maps your host uid to itself inside the namespace, and `--user "$(id -u):$(id -g)"`, which is what that mapping makes mean you. Get this pair wrong and nothing announces it: the gate runs as something like uid `100999` and dies partway through on a permission error inside a tree you own.
 
-- **Which socket is mounted.** `DOCKER_HOST` wins if it names one. Otherwise a rootless daemon's socket is looked for under `XDG_RUNTIME_DIR` and a rootful one's at `/var/run/docker.sock`. The order follows the daemon that answered, so a workstation running both still pairs the socket with the daemon that holds the toolbox image.
-- **How the container's uid is mapped.** A rootful engine is handed your uid. A rootless one already maps you to the container's root, so Podman gets `--userns=keep-id` and rootless Docker is left alone at root — which is you. Naming a uid there instead would resolve to a subuid you do not own, and every file a gate wrote into the tree would come back owned by something like `100999`.
-
-Rootless Docker is the better default of the two on a workstation: the `docker` group is root-equivalent, so joining it to run a lint gate grants considerably more than the gate needs.
+Supporting Docker as well meant detecting which engine and which mode was in use and mapping uids differently for each combination — and one of those detections is why `podman-docker`, which puts a `docker` command on `PATH` that is Podman, produced exactly the silent failure above. One engine, one mapping, checked rather than guessed. `tests/test_ansible_regressions.py` fails the build if a Docker path or a different uid mapping reappears in the pipeline scripts.
 
 ### The one gate that runs outside the toolbox
 
-The runtime container suite is the exception. Everything else only needs somewhere to run; this one needs full fidelity from the engine's own command line, and the toolbox reaches the engine through a Docker-API socket.
+The runtime container suite is the exception. Everything else only needs somewhere to run; this one needs a local Podman rather than a client talking to one over the socket.
 
-Podman's compatibility layer rejects the `uid=`/`gid=` tmpfs options that the PostgreSQL socket fixture depends on — it accepts `mode=` and `size=` on the very same mount, so this is a gap in that layer rather than a difference between the engines. Driven through it with a Docker client, the suite dies on `unknown mount option "uid=999"` before its first assertion.
+Its fixtures are host directories owned by the subuids its containers run as, so creating and reclaiming them means entering your user namespace with `podman unshare chown`. The remote client refuses that outright — `cannot use command "podman unshare" with the remote podman client` — because a user namespace is local to the machine holding the files.
 
-`scripts/run-runtime-container-tests.sh` therefore runs the suite wherever it can speak to the engine natively: on the host when Podman owns it, inside the toolbox when Docker does. `make test-full` calls it, so this resolves itself and needs no flag. The Podman path is the only place in this repository that wants anything on the host beyond an engine — `python3` with PyYAML, to read the pinned digests out of the lock files — and it says so and stops rather than failing obscurely if that is missing.
+`scripts/run-runtime-container-tests.sh` therefore runs the suite on the host, and `make test-full` calls it, so this needs no flag. It is the only place in this repository that wants anything on the host beyond Podman itself — `python3` with PyYAML, to read the pinned digests out of the lock files — and it says so and stops rather than failing obscurely if that is missing.
 
 The Python suite includes mocked success and failure paths for artifact promotion, Proxmox provisioning, dynamic DNS, shared validation filters, and VM bootstrap behavior. It also executes the Nextcloud permission-normalization command against a temporary file tree to guard its single-pass and idempotent behavior, and to confirm it reports a count of the files it fixed rather than a line for each one.
 
@@ -130,7 +128,7 @@ The script validates the current VM1 hardening profile:
 
 By default the script now reads the approved image refs from `artifacts/containers.lock.yml`, converts them to digest-pinned `repo@sha256:...` refs, and tests those exact images. It still accepts image override env vars when you need to test a candidate image before writing it into the lock file:
 
-The full suite is `make test-full`. For faster debugging, pass one or more targets to the wrapper instead — it picks the right place to run them:
+The full suite is `make test-full`. For faster debugging, pass one or more targets to the wrapper instead:
 
 ```bash
 ./scripts/run-runtime-container-tests.sh semaphore
@@ -139,7 +137,7 @@ The full suite is `make test-full`. For faster debugging, pass one or more targe
 
 The `static` target needs no engine and is already part of `make test`.
 
-Image override variables are not forwarded into the toolbox. Use `make shell` and export them there, or run the script on the host:
+The runtime suite runs on the host, so image override variables are set in the shell that invokes it:
 
 ```bash
 TRAEFIK_IMAGE=public.ecr.aws/docker/library/traefik@sha256:d6858791f9e74df44ca4014166647c41cdc2abd3bf2a71b832ca4e1c6a91b257 \
@@ -169,9 +167,9 @@ Lock-file and Critical-acceptance digests must be complete lowercase `sha256:` v
 Trivy output is written to `logs/container-vulnerability-findings.log`; `logs/` is git ignored.
 Critical findings cannot be hidden by a broad Trivy ignore or VEX file. Use `logs/vulnerability-acceptance.yml` for exact Critical acceptances; real acceptance data must stay out of the public repo. `artifacts/vulnerability-acceptance.example.yml` is the schema reference.
 
-The script prefers native `skopeo`, `cosign`, and `trivy` binaries. If one is missing, it falls back to a pinned, capability-dropped, read-only container via Podman or Docker.
+The script prefers native `skopeo`, `cosign`, and `trivy` binaries. If one is missing, it falls back to a pinned, capability-dropped, read-only container run with Podman.
 
-The toolbox image carries none of those three binaries, so a review run inside it always takes the pinned-container fallback through the mounted engine socket. Check the current tool path selection:
+The toolbox image carries none of those three binaries, so a review run inside it always takes the pinned-container fallback, which `podman-remote` starts on the host engine through the mounted API socket. Check the current tool path selection:
 
 ```bash
 ./scripts/toolbox.sh python3 scripts/promote_artifacts.py --check-tools

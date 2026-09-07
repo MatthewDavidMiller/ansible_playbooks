@@ -1,6 +1,6 @@
 # The validation toolbox: every linter, test runner, and collection this
 # repository's gates depend on, so a workstation needs nothing from the host
-# but Docker or Podman. scripts/toolbox.sh builds this image and runs the
+# but rootless Podman. scripts/toolbox.sh builds this image and runs the
 # gates inside it.
 #
 # The base is the digest-pinned Alpine image the local validation scripts
@@ -16,8 +16,7 @@
 # It declares no USER on purpose. scripts/toolbox.sh supplies the uid at run
 # time -- the invoking user's, so a gate leaves no root-owned files in the
 # working tree -- and that uid is not known when the image is built. Baking one
-# in would be overridden on Docker and would collide with Podman's
-# --userns=keep-id mapping.
+# in would collide with the --userns=keep-id mapping that puts it there.
 
 ARG ALPINE_REF
 FROM ${ALPINE_REF}
@@ -35,10 +34,16 @@ SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 # git is not just for reading history: ansible-lint discovers the files it
 # lints through it, and hooks/pre-commit selects YAML files with `git ls-files`.
 #
-# docker-cli talks to the host engine through the socket scripts/toolbox.sh
-# mounts. There is no daemon in here -- the runtime container tests in
-# scripts/test_container_security.sh start their containers on the host engine
-# and drive them from in here.
+# podman-remote talks to the host engine through the API socket
+# scripts/toolbox.sh mounts and points CONTAINER_HOST at. There is no engine in
+# here: it is a client, and the pinned skopeo/cosign/trivy containers that
+# scripts/promote_artifacts.py falls back to run on the host. It is installed
+# under the name every caller uses, which is why the symlink follows.
+#
+# The runtime container tests deliberately do not go through it: they set up
+# and hand back fixture directories with `podman unshare`, which the remote
+# client refuses because a user namespace is local to the machine holding the
+# files. See scripts/run-runtime-container-tests.sh.
 #
 # ripgrep is not a convenience here: scripts/test_supply_chain_policy.sh asserts
 # every one of its policies through `rg`, and relies on its `--glob` exclusions
@@ -55,7 +60,6 @@ RUN apk add --no-cache \
         coreutils \
         curl \
         diffutils \
-        docker-cli \
         file \
         findutils \
         gawk \
@@ -63,6 +67,7 @@ RUN apk add --no-cache \
         grep \
         libffi-dev \
         openssl-dev \
+        podman-remote \
         py3-pip \
         python3 \
         python3-dev \
@@ -70,7 +75,8 @@ RUN apk add --no-cache \
         sed \
         shellcheck \
         tar \
-        xz
+        xz \
+    && ln -s podman-remote /usr/bin/podman
 
 # Alpine marks its Python installation externally managed, so the tooling lives
 # in a virtualenv exactly as it would on a host -- baked into the image rather

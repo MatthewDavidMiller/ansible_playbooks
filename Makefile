@@ -3,7 +3,7 @@
 
 .PHONY: help install lint test test-full shell clean
 
-# Every gate runs inside the toolbox image, so Docker or Podman is the only
+# Every gate runs inside the toolbox image, so rootless Podman is the only
 # thing this repository needs from a workstation. scripts/toolbox.sh builds the
 # image on first use and execs straight through when it is already inside one.
 TOOLBOX := ./scripts/toolbox.sh
@@ -26,7 +26,7 @@ help:
 	@echo "  shell       Interactive shell inside the toolbox"
 	@echo "  clean       Remove toolbox images and local validator caches"
 	@echo ""
-	@echo "Prerequisite: Docker or Podman. Nothing else -- ansible-core,"
+	@echo "Prerequisite: rootless Podman. Nothing else -- ansible-core,"
 	@echo "ansible-lint, yamllint, shellcheck, and the pinned collections all"
 	@echo "live in the image 'make install' builds."
 
@@ -56,16 +56,15 @@ shell:
 
 # Toolbox images are tagged by content hash, so this removes every generation
 # of them rather than one known tag. Podman qualifies a locally built image as
-# localhost/<repo> and Docker leaves it bare, hence the anchor on either the
-# start or a slash. Removal failures are ignored: an image a container still
-# holds is collected on the next build instead.
+# localhost/<repo>, hence the anchor on either the start or a slash. Removal
+# failures are ignored: an image a container still holds is collected on the
+# next build instead.
 clean:
-	@engine=$$(docker info >/dev/null 2>&1 && command -v docker \
-		|| { podman info >/dev/null 2>&1 && command -v podman; }) || { \
-		echo "No usable container engine found; nothing to clean."; exit 0; }; \
-	$$engine images --format '{{.Repository}}:{{.Tag}}' 2>/dev/null \
+	@podman info >/dev/null 2>&1 || { \
+		echo "Podman is not usable here; nothing to clean."; exit 0; }; \
+	podman images --format '{{.Repository}}:{{.Tag}}' 2>/dev/null \
 		| grep -E "(^|/)$(TOOLBOX_REPO):" \
-		| xargs -r $$engine rmi 2>/dev/null || true
-	rm -rf /tmp/ansible-playbooks-cache /tmp/ansible-playbooks-local /tmp/ansible-playbooks-remote
+		| xargs -r podman rmi 2>/dev/null || true
+	rm -rf /tmp/ansible-playbooks-cache /tmp/ansible-playbooks-local /tmp/ansible-playbooks-remote /tmp/ansible-playbooks-trivy-cache
 	find . -path ./.git -prune -o -type d -name __pycache__ -print0 | xargs -0 -r rm -rf
 	@echo "Clean complete"

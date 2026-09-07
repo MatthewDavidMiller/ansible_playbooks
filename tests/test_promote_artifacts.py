@@ -26,7 +26,7 @@ class ToolResolutionTests(unittest.TestCase):
 
     def test_tool_lookup_is_cached_across_services(self):
         """Every service needs the same three tools; probing PATH and the
-        container engines once per service wastes a run's worth of syscalls."""
+        container engine once per service wastes a run's worth of syscalls."""
         with mock.patch.object(
             promote.shutil, "which", return_value="/usr/bin/skopeo"
         ) as which:

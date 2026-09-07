@@ -24,7 +24,7 @@ Stay on the current major track when a major bump needs a separate procedure (fo
 The repo supports two ways to run the review tooling:
 
 - Preferred: install `skopeo`, `cosign`, and `trivy` locally on the control node.
-- Fallback: if a tool is missing locally, [`scripts/promote_artifacts.py`](../../scripts/promote_artifacts.py) automatically uses a pinned official container image for that tool through `podman` or `docker`.
+- Fallback: if a tool is missing locally, [`scripts/promote_artifacts.py`](../../scripts/promote_artifacts.py) automatically uses a pinned official container image for that tool through `podman`.
 
 Check the current tool path selection with:
 

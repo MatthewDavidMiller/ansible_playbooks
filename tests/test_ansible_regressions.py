@@ -342,14 +342,80 @@ class RouteProxyAddressTests(unittest.TestCase):
                 self.assertIn(self.backend_ips[network], service_addresses.values())
 
 
-class AnsibleRegressionTests(unittest.TestCase):
-    def test_container_runtime_harness_falls_back_to_podman(self):
-        script = (REPO_ROOT / "scripts" / "test_container_security.sh").read_text(
+class RootlessPodmanPipelineTests(unittest.TestCase):
+    """The validation pipeline runs on rootless Podman and nothing else.
+
+    Supporting a second engine meant detecting which one was in use and mapping
+    uids two different ways per engine, and a wrong answer there is silent: the
+    gate runs as an unowned subuid and dies on a permission error somewhere
+    inside the working tree. These guards keep a Docker path from creeping
+    back in and keep the uid mapping intact.
+    """
+
+    PIPELINE_SCRIPTS = (
+        "scripts/toolbox.sh",
+        "scripts/run-runtime-container-tests.sh",
+        "scripts/test_container_security.sh",
+    )
+
+    def script(self, relative_path: str) -> str:
+        return (REPO_ROOT / relative_path).read_text(encoding="utf-8")
+
+    def test_pipeline_scripts_invoke_no_docker_engine(self):
+        # Matches the engine as a command or as a variable holding one, but not
+        # the word inside a comment, an image reference, or a Dockerfile path.
+        docker_engine = re.compile(
+            r"(?<![\w./-])docker(?![\w./-])(?=\s+(?:run|build|info|images|inspect|rm|rmi|exec|version|--))"
+            r"|\bDOCKER=|\$DOCKER\b|\bcommand -v docker\b"
+        )
+        for relative_path in self.PIPELINE_SCRIPTS:
+            with self.subTest(script=relative_path):
+                for number, line in enumerate(self.script(relative_path).splitlines(), 1):
+                    if line.lstrip().startswith("#"):
+                        continue
+                    self.assertIsNone(
+                        docker_engine.search(line),
+                        f"{relative_path}:{number} reaches for Docker: {line.strip()}",
+                    )
+
+    def test_pipeline_scripts_require_a_rootless_engine(self):
+        for relative_path in ("scripts/toolbox.sh", "scripts/run-runtime-container-tests.sh"):
+            with self.subTest(script=relative_path):
+                self.assertIn(
+                    "{{.Host.Security.Rootless}}",
+                    self.script(relative_path),
+                    "a rootful engine has to be rejected, not mapped around",
+                )
+
+    def test_toolbox_maps_the_callers_uid_into_the_container(self):
+        toolbox = self.script("scripts/toolbox.sh")
+        self.assertIn("--userns=keep-id", toolbox)
+        self.assertRegex(
+            toolbox,
+            r'--user "\$\(id -u\):\$\(id -g\)"',
+            "keep-id is what makes --user name the caller rather than a subuid; "
+            "both are needed for a gate's writes to stay owned by them",
+        )
+
+    def test_runtime_suite_hands_fixtures_back_through_the_user_namespace(self):
+        suite = self.script("scripts/test_container_security.sh")
+        self.assertIn("$PODMAN unshare chown", suite)
+        self.assertNotIn(
+            "$(id -u):$(id -g)",
+            suite,
+            "under rootless Podman the caller is 0:0 inside the namespace; "
+            "naming their host uid there resolves to a subuid instead",
+        )
+
+    def test_toolbox_image_carries_a_podman_client(self):
+        dockerfile = (REPO_ROOT / "tools" / "toolbox" / "Dockerfile").read_text(
             encoding="utf-8"
         )
-        self.assertIn("command -v docker", script)
-        self.assertIn("command -v podman", script)
-        self.assertIn("DOCKER=podman", script)
+        self.assertIn("podman-remote", dockerfile)
+        self.assertNotIn("docker-cli", dockerfile)
+
+
+class AnsibleRegressionTests(unittest.TestCase):
 
     def test_nextcloud_permission_normalization_uses_one_idempotent_walk(self):
         tasks = yaml.safe_load(

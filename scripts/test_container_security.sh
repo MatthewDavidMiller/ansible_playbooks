@@ -12,59 +12,14 @@ set -euo pipefail
 REPO_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 LOCK_FILE=${LOCK_FILE:-"$REPO_ROOT/artifacts/containers.lock.yml"}
 TEST_LOCK_FILE=${TEST_LOCK_FILE:-"$REPO_ROOT/artifacts/test_images.lock.yml"}
-DOCKER=${DOCKER:-}
-if [[ -z "$DOCKER" ]]; then
-  # Presence on PATH is not usability. A workstation can carry the Docker CLI
-  # with no daemon it is allowed to reach -- a stopped daemon, or a root-owned
-  # socket and no group membership -- and picking it then means every runtime
-  # test fails on a permission error while a working Podman sits unused.
-  for engine_candidate in docker podman; do
-    if command -v "$engine_candidate" >/dev/null 2>&1 &&
-      "$engine_candidate" info >/dev/null 2>&1; then
-      DOCKER=$engine_candidate
-      break
-    fi
-  done
-  unset engine_candidate
-fi
-if [[ -z "$DOCKER" ]]; then
-  # Nothing answered. Name whichever CLI exists anyway, so the static target
-  # still runs and any runtime failure that follows names a real engine.
-  if command -v docker >/dev/null 2>&1; then
-    DOCKER=docker
-  elif command -v podman >/dev/null 2>&1; then
-    DOCKER=podman
-  else
-    DOCKER=docker
-  fi
-fi
-ENGINE_RUN=("$DOCKER" run)
-if [[ "$DOCKER" == *podman* ]]; then
-  # Runtime tests use disposable bind mounts; avoid relabeling host paths.
-  ENGINE_RUN+=(--security-opt label=disable)
-fi
-# Whether the daemon behind $DOCKER is rootless.
-#
-# This decides what "hand it back to me" has to mean inside the helper
-# container in cleanup_dir. A rootless daemon maps the invoking user to the
-# container's root, so uid 0 in there is the caller out here and every other
-# uid is a subuid the caller does not own. A rootful daemon maps uids straight
-# through.
-#
-# scripts/toolbox.sh has already resolved this against the host's own CLI and
-# passes it in, which is the only reliable answer once the engine is reached
-# over a Docker-API socket. Asking the daemon is the fallback for a direct run.
-ENGINE_ROOTLESS=${ENGINE_ROOTLESS:-}
-if [[ -z "$ENGINE_ROOTLESS" ]]; then
-  if [[ "$DOCKER" == *podman* ]]; then
-    engine_rootless_probe=$($DOCKER info --format '{{.Host.Security.Rootless}}' 2>/dev/null || true)
-    [[ "$engine_rootless_probe" == "true" ]] && ENGINE_ROOTLESS=1
-  else
-    engine_rootless_probe=$($DOCKER info --format '{{.SecurityOptions}}' 2>/dev/null || true)
-    [[ "$engine_rootless_probe" == *rootless* ]] && ENGINE_ROOTLESS=1
-  fi
-  unset engine_rootless_probe
-fi
+# Rootless Podman is the only engine these tests run against, and the runtime
+# targets assume it: fixture ownership is set and restored with
+# `podman unshare`, which is meaningless without the caller's user namespace.
+# The static target needs no engine at all, so a missing or unusable Podman is
+# only reported here and left to fail at the first runtime command.
+PODMAN=${PODMAN:-podman}
+# Runtime tests use disposable bind mounts; avoid relabeling host paths.
+ENGINE_RUN=("$PODMAN" run --security-opt label=disable)
 usage() {
   sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'
 }
@@ -142,34 +97,19 @@ TEST_HELPER_IMAGE=${TEST_HELPER_IMAGE:-$(test_image_ref alpine)}
   exit 2
 }
 
-cleanup()     { $DOCKER rm -f "$1" >/dev/null 2>&1 || true; }
+cleanup()     { $PODMAN rm -f "$1" >/dev/null 2>&1 || true; }
+# A fixture directory has to be owned by the uid the container runs as, which
+# under rootless Podman is a subuid the caller cannot chown to directly. Both
+# helpers therefore work from inside the caller's user namespace, where those
+# subuids are addressable and 0:0 is the caller.
 chown_test_path() {
   local owner="$1" path="$2"
   shift 2
-  if [[ "$DOCKER" == *podman* ]]; then
-    $DOCKER unshare chown "$@" "$owner" "$path"
-  else
-    "${ENGINE_RUN[@]}" --rm -v "$path":/target "$TEST_HELPER_IMAGE" chown "$@" "$owner" /target
-  fi
+  $PODMAN unshare chown "$@" "$owner" "$path"
 }
 cleanup_dir() {
-  # Restore ownership to the current user through the selected container engine.
-  local restore_owner
-  if [[ "$DOCKER" == *podman* ]]; then
-    $DOCKER unshare chown -R 0:0 "$1"
-  else
-    # Whose uid the helper container has to name to give the tree back to the
-    # caller: see ENGINE_ROOTLESS above. Getting this wrong does not fail
-    # loudly -- it leaves a subuid-owned tree that the following rm cannot
-    # remove.
-    if [[ -n "$ENGINE_ROOTLESS" ]]; then
-      restore_owner="0:0"
-    else
-      restore_owner="$(id -u):$(id -g)"
-    fi
-    "${ENGINE_RUN[@]}" --rm -v "$(dirname "$1")":/mnt \
-      "$TEST_HELPER_IMAGE" chown -R "$restore_owner" "/mnt/$(basename "$1")"
-  fi
+  # Hand the tree back before removing it: rm cannot touch a subuid-owned one.
+  $PODMAN unshare chown -R 0:0 "$1"
   rm -rf "$1"
 }
 cleanup_all_test_containers() {
@@ -219,7 +159,7 @@ assert_file_not_contains() {
 check_running() {
   local name="$1" label="$2"
   sleep 5
-  if $DOCKER inspect --format='{{.State.Status}}' "$name" 2>/dev/null | grep -q running; then
+  if $PODMAN inspect --format='{{.State.Status}}' "$name" 2>/dev/null | grep -q running; then
     pass "$label"
   else
     fail "$label"
@@ -231,7 +171,7 @@ cleanup_all_test_containers
 
 echo "=== Container Security Flag Tests ==="
 echo "Targets: ${SELECTED_TESTS[*]}"
-if container_engine_version=$($DOCKER --version 2>/dev/null); then
+if container_engine_version=$($PODMAN --version 2>/dev/null); then
   echo "Container engine: $container_engine_version"
 else
   echo "Container engine: not available (required only for runtime targets)"
@@ -322,10 +262,9 @@ fi
 # ---------------------------------------------------------------------------
 if should_run postgres; then
 echo "--- TEST-01: PostgreSQL ---"
-POSTGRES_SOCKET_TMP_MOUNT=(--tmpfs /var/run/postgresql:rw,nosuid,nodev,size=16m,mode=0750,uid=999,gid=999)
-if [[ "$DOCKER" == *podman* ]]; then
-  POSTGRES_SOCKET_TMP_MOUNT=(--mount type=tmpfs,destination=/var/run/postgresql,tmpfs-size=16M,tmpfs-mode=0750,U=true)
-fi
+# U=true has Podman chown the mount to the container's user, which is how a
+# tmpfs is handed to a non-root uid without naming the subuid it maps to.
+POSTGRES_SOCKET_TMP_MOUNT=(--mount type=tmpfs,destination=/var/run/postgresql,tmpfs-size=16M,tmpfs-mode=0750,U=true)
 TEST_PG_DIR=$(mktemp -d)
 chmod 0750 "$TEST_PG_DIR"
 chown_test_path 999:999 "$TEST_PG_DIR"
@@ -348,10 +287,10 @@ chown_test_path 999:999 "$TEST_PG_DIR"
   "$POSTGRES_IMAGE"
 
 sleep 15
-$DOCKER inspect --format='{{.State.Status}}' test_postgres 2>/dev/null \
+$PODMAN inspect --format='{{.State.Status}}' test_postgres 2>/dev/null \
   | grep -q running && pass "Postgres: starts with cap-drop=ALL + shm-size=256m + 0750/999:999 dir" \
   || fail "Postgres: starts with cap-drop=ALL + shm-size=256m + 0750/999:999 dir"
-$DOCKER exec test_postgres pg_isready -U testuser \
+$PODMAN exec test_postgres pg_isready -U testuser \
   && pass "Postgres: pg_isready succeeds" || fail "Postgres: pg_isready failed"
 
 cleanup test_postgres
@@ -375,14 +314,14 @@ echo "--- TEST-02: PostgreSQL Role Isolation ---"
   --env POSTGRES_DB=postgres \
   "$POSTGRES_IMAGE"
 sleep 15
-$DOCKER exec test_postgres_roles psql -U postgres_admin -d postgres -c "CREATE ROLE nextcloud_user LOGIN PASSWORD 'ncpass';"
-$DOCKER exec test_postgres_roles psql -U postgres_admin -d postgres -c "CREATE ROLE paperless_user LOGIN PASSWORD 'plpass';"
-$DOCKER exec test_postgres_roles psql -U postgres_admin -d postgres -c "CREATE DATABASE nextcloud OWNER nextcloud_user;"
-$DOCKER exec test_postgres_roles psql -U postgres_admin -d postgres -c "CREATE DATABASE paperless OWNER paperless_user;"
-$DOCKER exec test_postgres_roles env PGPASSWORD=ncpass psql -h localhost -U nextcloud_user -d nextcloud -c "SELECT current_user;" \
+$PODMAN exec test_postgres_roles psql -U postgres_admin -d postgres -c "CREATE ROLE nextcloud_user LOGIN PASSWORD 'ncpass';"
+$PODMAN exec test_postgres_roles psql -U postgres_admin -d postgres -c "CREATE ROLE paperless_user LOGIN PASSWORD 'plpass';"
+$PODMAN exec test_postgres_roles psql -U postgres_admin -d postgres -c "CREATE DATABASE nextcloud OWNER nextcloud_user;"
+$PODMAN exec test_postgres_roles psql -U postgres_admin -d postgres -c "CREATE DATABASE paperless OWNER paperless_user;"
+$PODMAN exec test_postgres_roles env PGPASSWORD=ncpass psql -h localhost -U nextcloud_user -d nextcloud -c "SELECT current_user;" \
   | grep -q nextcloud_user && pass "Postgres: nextcloud role can access its own database" \
   || fail "Postgres: nextcloud role access failed"
-$DOCKER exec test_postgres_roles env PGPASSWORD=ncpass \
+$PODMAN exec test_postgres_roles env PGPASSWORD=ncpass \
   psql -h localhost -U nextcloud_user -d paperless -c "CREATE TABLE cross_db_smoke(id int);" \
   >/tmp/test_postgres_roles.out 2>/tmp/test_postgres_roles.err \
   && fail "Postgres: nextcloud role unexpectedly managed paperless database" \
@@ -419,13 +358,13 @@ chown_test_path 999:999 "$TEST_PG_MIG_INIT" -R
   "$POSTGRES_IMAGE"
 
 sleep 15
-$DOCKER exec test_postgres_migration_seed env PGPASSWORD=oldsharedpass \
+$PODMAN exec test_postgres_migration_seed env PGPASSWORD=oldsharedpass \
   psql -h localhost -U nextcloud_user -d postgres \
   -c "CREATE DATABASE paperless OWNER nextcloud_user;"
-$DOCKER exec test_postgres_migration_seed env PGPASSWORD=oldsharedpass \
+$PODMAN exec test_postgres_migration_seed env PGPASSWORD=oldsharedpass \
   psql -h localhost -U nextcloud_user -d postgres \
   -c "CREATE DATABASE semaphore OWNER nextcloud_user;"
-$DOCKER exec test_postgres_migration_seed env PGPASSWORD=oldsharedpass \
+$PODMAN exec test_postgres_migration_seed env PGPASSWORD=oldsharedpass \
   psql -h localhost -U nextcloud_user -d semaphore \
   -c "CREATE TABLE access_key (id serial primary key);"
 
@@ -459,18 +398,18 @@ cleanup test_postgres_migration_seed
   "$POSTGRES_IMAGE"
 
 sleep 20
-$DOCKER inspect --format='{{.State.Status}}' test_postgres_migration 2>/dev/null \
+$PODMAN inspect --format='{{.State.Status}}' test_postgres_migration 2>/dev/null \
   | grep -q running && pass "Postgres migration: wrapper starts on existing shared-user data directory" \
   || fail "Postgres migration: wrapper failed on existing shared-user data directory"
-$DOCKER exec test_postgres_migration env PGPASSWORD=adminpass \
+$PODMAN exec test_postgres_migration env PGPASSWORD=adminpass \
   psql -h localhost -U postgres_admin -d postgres -c "SELECT current_user;" \
   | grep -q postgres_admin && pass "Postgres migration: postgres_admin is available after fallback bootstrap" \
   || fail "Postgres migration: postgres_admin was not created"
-$DOCKER exec test_postgres_migration env PGPASSWORD=plpass \
+$PODMAN exec test_postgres_migration env PGPASSWORD=plpass \
   psql -h localhost -U paperless_user -d paperless -c "CREATE TABLE migration_smoke(id int);" \
   >/dev/null 2>&1 && pass "Postgres migration: paperless role owns migrated database" \
   || fail "Postgres migration: paperless role cannot manage migrated database"
-$DOCKER exec test_postgres_migration env PGPASSWORD=sempass \
+$PODMAN exec test_postgres_migration env PGPASSWORD=sempass \
   psql -h localhost -U semaphore_user -d semaphore \
   -c "INSERT INTO access_key DEFAULT VALUES; CREATE TABLE migration_smoke(id int);" \
   >/dev/null 2>&1 && pass "Postgres migration: semaphore role owns migrated database and serial-backed sequences" \
@@ -510,10 +449,10 @@ chown_test_path 999:999 "$TEST_PG_LEGACY_INIT" -R
   "$POSTGRES_IMAGE"
 
 sleep 15
-$DOCKER exec test_postgres_legacy_seed env PGPASSWORD=legacysecret \
+$PODMAN exec test_postgres_legacy_seed env PGPASSWORD=legacysecret \
   psql -h localhost -U postgres -d postgres \
   -c "CREATE DATABASE paperless OWNER postgres;"
-$DOCKER exec test_postgres_legacy_seed env PGPASSWORD=legacysecret \
+$PODMAN exec test_postgres_legacy_seed env PGPASSWORD=legacysecret \
   psql -h localhost -U postgres -d postgres \
   -c "CREATE DATABASE semaphore OWNER postgres;"
 
@@ -547,22 +486,22 @@ cleanup test_postgres_legacy_seed
   "$POSTGRES_IMAGE"
 
 sleep 20
-$DOCKER inspect --format='{{.State.Status}}' test_postgres_legacy_migration 2>/dev/null \
+$PODMAN inspect --format='{{.State.Status}}' test_postgres_legacy_migration 2>/dev/null \
   | grep -q running && pass "Postgres legacy migration: wrapper starts on existing postgres-owned data directory" \
   || fail "Postgres legacy migration: wrapper failed on existing postgres-owned data directory"
-$DOCKER exec test_postgres_legacy_migration env PGPASSWORD=adminpass \
+$PODMAN exec test_postgres_legacy_migration env PGPASSWORD=adminpass \
   psql -h localhost -U postgres_admin -d postgres -c "SELECT current_user;" \
   | grep -q postgres_admin && pass "Postgres legacy migration: postgres_admin is available after fallback bootstrap" \
   || fail "Postgres legacy migration: postgres_admin was not created"
-$DOCKER exec test_postgres_legacy_migration env PGPASSWORD=ncpass \
+$PODMAN exec test_postgres_legacy_migration env PGPASSWORD=ncpass \
   psql -h localhost -U nextcloud_user -d nextcloud -c "CREATE TABLE migration_smoke(id int);" \
   >/dev/null 2>&1 && pass "Postgres legacy migration: nextcloud role owns migrated database" \
   || fail "Postgres legacy migration: nextcloud role cannot manage migrated database"
-$DOCKER exec test_postgres_legacy_migration env PGPASSWORD=plpass \
+$PODMAN exec test_postgres_legacy_migration env PGPASSWORD=plpass \
   psql -h localhost -U paperless_user -d paperless -c "CREATE TABLE migration_smoke(id int);" \
   >/dev/null 2>&1 && pass "Postgres legacy migration: paperless role owns migrated database" \
   || fail "Postgres legacy migration: paperless role cannot manage migrated database"
-$DOCKER exec test_postgres_legacy_migration env PGPASSWORD=sempass \
+$PODMAN exec test_postgres_legacy_migration env PGPASSWORD=sempass \
   psql -h localhost -U semaphore_user -d semaphore -c "CREATE TABLE migration_smoke(id int);" \
   >/dev/null 2>&1 && pass "Postgres legacy migration: semaphore role owns migrated database" \
   || fail "Postgres legacy migration: semaphore role cannot manage migrated database"
@@ -602,10 +541,10 @@ chown_test_path 999:999 "$TEST_PG_CUSTOM_INIT" -R
   "$POSTGRES_IMAGE"
 
 sleep 15
-$DOCKER exec test_postgres_custom_seed env PGPASSWORD=legacysecret \
+$PODMAN exec test_postgres_custom_seed env PGPASSWORD=legacysecret \
   psql -h localhost -U legacy_admin -d postgres \
   -c "CREATE DATABASE paperless OWNER legacy_admin;"
-$DOCKER exec test_postgres_custom_seed env PGPASSWORD=legacysecret \
+$PODMAN exec test_postgres_custom_seed env PGPASSWORD=legacysecret \
   psql -h localhost -U legacy_admin -d postgres \
   -c "CREATE DATABASE semaphore OWNER legacy_admin;"
 
@@ -641,22 +580,22 @@ cleanup test_postgres_custom_seed
   "$POSTGRES_IMAGE"
 
 sleep 20
-$DOCKER inspect --format='{{.State.Status}}' test_postgres_custom_migration 2>/dev/null \
+$PODMAN inspect --format='{{.State.Status}}' test_postgres_custom_migration 2>/dev/null \
   | grep -q running && pass "Postgres custom migration: wrapper starts with explicit legacy bootstrap credentials" \
   || fail "Postgres custom migration: wrapper failed with explicit legacy bootstrap credentials"
-$DOCKER exec test_postgres_custom_migration env PGPASSWORD=adminpass \
+$PODMAN exec test_postgres_custom_migration env PGPASSWORD=adminpass \
   psql -h localhost -U postgres_admin -d postgres -c "SELECT current_user;" \
   | grep -q postgres_admin && pass "Postgres custom migration: postgres_admin is available after legacy bootstrap override" \
   || fail "Postgres custom migration: postgres_admin was not created"
-$DOCKER exec test_postgres_custom_migration env PGPASSWORD=ncpass \
+$PODMAN exec test_postgres_custom_migration env PGPASSWORD=ncpass \
   psql -h localhost -U nextcloud_user -d nextcloud -c "CREATE TABLE migration_smoke(id int);" \
   >/dev/null 2>&1 && pass "Postgres custom migration: nextcloud role owns migrated database" \
   || fail "Postgres custom migration: nextcloud role cannot manage migrated database"
-$DOCKER exec test_postgres_custom_migration env PGPASSWORD=plpass \
+$PODMAN exec test_postgres_custom_migration env PGPASSWORD=plpass \
   psql -h localhost -U paperless_user -d paperless -c "CREATE TABLE migration_smoke(id int);" \
   >/dev/null 2>&1 && pass "Postgres custom migration: paperless role owns migrated database" \
   || fail "Postgres custom migration: paperless role cannot manage migrated database"
-$DOCKER exec test_postgres_custom_migration env PGPASSWORD=sempass \
+$PODMAN exec test_postgres_custom_migration env PGPASSWORD=sempass \
   psql -h localhost -U semaphore_user -d semaphore -c "CREATE TABLE migration_smoke(id int);" \
   >/dev/null 2>&1 && pass "Postgres custom migration: semaphore role owns migrated database" \
   || fail "Postgres custom migration: semaphore role cannot manage migrated database"
@@ -696,22 +635,22 @@ chown_test_path 999:999 "$TEST_PG_MIXED_INIT" -R
   "$POSTGRES_IMAGE"
 
 sleep 15
-$DOCKER exec test_postgres_mixed_seed env PGPASSWORD=adminpass \
+$PODMAN exec test_postgres_mixed_seed env PGPASSWORD=adminpass \
   psql -h localhost -U postgres_admin -d postgres \
   -c "CREATE ROLE nextcloud_user LOGIN PASSWORD 'ncpass';"
-$DOCKER exec test_postgres_mixed_seed env PGPASSWORD=adminpass \
+$PODMAN exec test_postgres_mixed_seed env PGPASSWORD=adminpass \
   psql -h localhost -U postgres_admin -d postgres \
   -c "CREATE ROLE paperless_user LOGIN PASSWORD 'plpass';"
-$DOCKER exec test_postgres_mixed_seed env PGPASSWORD=adminpass \
+$PODMAN exec test_postgres_mixed_seed env PGPASSWORD=adminpass \
   psql -h localhost -U postgres_admin -d postgres \
   -c "CREATE ROLE semaphore_user LOGIN PASSWORD 'sempass';"
-$DOCKER exec test_postgres_mixed_seed env PGPASSWORD=adminpass \
+$PODMAN exec test_postgres_mixed_seed env PGPASSWORD=adminpass \
   psql -h localhost -U postgres_admin -d postgres \
   -c "CREATE DATABASE paperless OWNER paperless_user;"
-$DOCKER exec test_postgres_mixed_seed env PGPASSWORD=adminpass \
+$PODMAN exec test_postgres_mixed_seed env PGPASSWORD=adminpass \
   psql -h localhost -U postgres_admin -d postgres \
   -c "CREATE DATABASE semaphore OWNER semaphore_user;"
-$DOCKER exec test_postgres_mixed_seed env PGPASSWORD=adminpass \
+$PODMAN exec test_postgres_mixed_seed env PGPASSWORD=adminpass \
   psql -h localhost -U postgres_admin -d semaphore \
   -c "CREATE TABLE django_migrations (id serial primary key, app text, name text, applied timestamptz);"
 
@@ -745,10 +684,10 @@ cleanup test_postgres_mixed_seed
   "$POSTGRES_IMAGE"
 
 sleep 20
-$DOCKER inspect --format='{{.State.Status}}' test_postgres_mixed_migration 2>/dev/null \
+$PODMAN inspect --format='{{.State.Status}}' test_postgres_mixed_migration 2>/dev/null \
   | grep -q running && pass "Postgres mixed migration: wrapper starts with existing service-owned databases" \
   || fail "Postgres mixed migration: wrapper failed with existing service-owned databases"
-$DOCKER exec test_postgres_mixed_migration env PGPASSWORD=sempass \
+$PODMAN exec test_postgres_mixed_migration env PGPASSWORD=sempass \
   psql -h localhost -U semaphore_user -d semaphore \
   -c "SELECT * FROM django_migrations; INSERT INTO django_migrations(app, name) VALUES ('main', '0001_initial');" \
   >/dev/null 2>&1 && pass "Postgres mixed migration: semaphore role can access legacy admin-owned tables after normalization" \
@@ -779,7 +718,7 @@ echo "--- TEST-03: Redis ---"
 
 check_running test_redis "Redis: starts with cap-drop=ALL + CHOWN/FOWNER/DAC_OVERRIDE + 512m limit"
 sleep 3
-$DOCKER exec test_redis redis-cli ping \
+$PODMAN exec test_redis redis-cli ping \
   | grep -q PONG && pass "Redis: ping succeeds" || fail "Redis: ping failed"
 
 cleanup test_redis
@@ -804,7 +743,7 @@ chown_test_path 33:33 "$TEST_NC_DIR"
   "$NEXTCLOUD_IMAGE"
 
 sleep 20
-$DOCKER inspect --format='{{.State.Status}}' test_nextcloud \
+$PODMAN inspect --format='{{.State.Status}}' test_nextcloud \
   | grep -q running \
   && pass "Nextcloud: starts with no-new-privileges (cap-drop=ALL omitted — requires CHOWN for rsync entrypoint)" \
   || fail "Nextcloud: failed to start"
@@ -833,7 +772,7 @@ EOF
   -p 18080:80 \
   "$TRAEFIK_IMAGE"
 sleep 5
-$DOCKER inspect --format='{{.State.Status}}' test_traefik_nocap 2>/dev/null \
+$PODMAN inspect --format='{{.State.Status}}' test_traefik_nocap 2>/dev/null \
   | grep -q running \
   && echo "INFO: Traefik runs without NET_BIND_SERVICE (WSL does not enforce this cap)" \
   || echo "INFO: Traefik exits without NET_BIND_SERVICE — NET_BIND_SERVICE required on real kernel (expected)"
@@ -892,9 +831,9 @@ TEST_PL_CONSUME=$(mktemp -d)
   --volume "$TEST_PL_CONSUME":/usr/src/paperless/consume \
   "$PAPERLESS_IMAGE"
 sleep 10
-echo "Paperless status: $($DOCKER inspect --format='{{.State.Status}}' test_paperless 2>/dev/null)"
+echo "Paperless status: $($PODMAN inspect --format='{{.State.Status}}' test_paperless 2>/dev/null)"
 check_running test_paperless "Paperless: remains running with reduced capabilities and no-new-privileges"
-if $DOCKER logs test_paperless 2>&1 | grep -qi "gosu\|permission denied\|operation not permitted"; then
+if $PODMAN logs test_paperless 2>&1 | grep -qi "gosu\|permission denied\|operation not permitted"; then
   fail "Paperless: startup shows privilege errors with required caps"
 else
   pass "Paperless: starts without privilege errors using CHOWN/SETUID/SETGID/FOWNER/DAC_OVERRIDE"
@@ -944,12 +883,9 @@ EOF
 chown_test_path 1001:0 "$TEST_SEM_DIR" -R
 chown_test_path 1001:0 "$TEST_SEM_STATE_DIR" -R
 
-SEMAPHORE_PROJECT_TMP_MOUNT=(--tmpfs /tmp/semaphore:rw,nosuid,nodev,size=64m,mode=0750,uid=1001,gid=0)
-SEMAPHORE_HOME_TMP_MOUNT=(--tmpfs /home/semaphore:rw,nosuid,nodev,size=32m,mode=0750,uid=1001,gid=0)
-if [[ "$DOCKER" == *podman* ]]; then
-  SEMAPHORE_PROJECT_TMP_MOUNT=(--mount type=tmpfs,destination=/tmp/semaphore,tmpfs-size=64M,tmpfs-mode=0750,U=true)
-  SEMAPHORE_HOME_TMP_MOUNT=(--mount type=tmpfs,destination=/home/semaphore,tmpfs-size=32M,tmpfs-mode=0750,U=true)
-fi
+# U=true as above: Podman chowns the tmpfs to the container's own user.
+SEMAPHORE_PROJECT_TMP_MOUNT=(--mount type=tmpfs,destination=/tmp/semaphore,tmpfs-size=64M,tmpfs-mode=0750,U=true)
+SEMAPHORE_HOME_TMP_MOUNT=(--mount type=tmpfs,destination=/home/semaphore,tmpfs-size=32M,tmpfs-mode=0750,U=true)
 
 # Test A: baseline
 "${ENGINE_RUN[@]}" -d --name test_semaphore_base \
@@ -961,7 +897,7 @@ fi
   -e SEMAPHORE_ACCESS_KEY_ENCRYPTION=aabbccddaabbccddaabbccddaabbccdd \
   "$SEMAPHORE_IMAGE"
 sleep 8
-$DOCKER inspect --format='{{.State.Status}}' test_semaphore_base \
+$PODMAN inspect --format='{{.State.Status}}' test_semaphore_base \
   | grep -q running && pass "Semaphore: baseline starts" || fail "Semaphore: baseline failed"
 cleanup test_semaphore_base
 
@@ -986,20 +922,20 @@ cleanup test_semaphore_base
   -e ANSIBLE_SSH_ARGS="-o UserKnownHostsFile=/etc/ssh/ssh_known_hosts -o StrictHostKeyChecking=yes" \
   "$SEMAPHORE_IMAGE"
 sleep 8
-$DOCKER inspect --format='{{.State.Status}}' test_semaphore_caps 2>/dev/null \
+$PODMAN inspect --format='{{.State.Status}}' test_semaphore_caps 2>/dev/null \
   | grep -q running \
   && pass "Semaphore: starts with cap-drop=ALL + read-only rootfs + writable config mount" \
   || fail "Semaphore: failed with cap-drop=ALL + read-only rootfs + writable config mount"
-$DOCKER exec test_semaphore_caps sh -c 'mkdir /tmp/semaphore/project_1 && rmdir /tmp/semaphore/project_1' \
+$PODMAN exec test_semaphore_caps sh -c 'mkdir /tmp/semaphore/project_1 && rmdir /tmp/semaphore/project_1' \
   >/dev/null 2>&1 \
   && pass "Semaphore: can create project work directories on read-only rootfs" \
   || fail "Semaphore: cannot create project work directories on read-only rootfs"
-$DOCKER exec test_semaphore_caps sh -c 'mkdir -p "$HOME/.ansible/cp"' \
+$PODMAN exec test_semaphore_caps sh -c 'mkdir -p "$HOME/.ansible/cp"' \
   >/dev/null 2>&1 \
   && pass "Semaphore: Ansible home runtime directory is writable on read-only rootfs" \
   || fail "Semaphore: Ansible home runtime directory is not writable on read-only rootfs"
 echo "--- Semaphore cap-drop logs (last 20 lines) ---"
-$DOCKER logs test_semaphore_caps 2>&1 | tail -20
+$PODMAN logs test_semaphore_caps 2>&1 | tail -20
 cleanup test_semaphore_caps
 cleanup_dir "$TEST_SEM_DIR"
 cleanup_dir "$TEST_SEM_STATE_DIR"
