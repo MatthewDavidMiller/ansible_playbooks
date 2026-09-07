@@ -8,17 +8,17 @@ artifact_locked_images:
     notes: Approved via scripts/promote_artifacts.py. Latest upstream release with
       no fix-available findings, so the previous non-Critical exception was removed.
   postgres:
-    upstream_ref: public.ecr.aws/docker/library/postgres:17.10
-    approved_tag: '17.10'
-    approved_digest: sha256:a426e44bac0b759c95894d68e1a0ac03ecc20b619f498a91aae373bf06d8508d
+    upstream_ref: public.ecr.aws/docker/library/postgres:17.11
+    approved_tag: '17.11'
+    approved_digest: sha256:67f41722b7a8cbdb868a44a4995c846eddfdc2973bccb291ce937dce88ad5675
     internal_repo: homelab/postgres
     signature_required: false
     vulnerability_exception: no_newer_upstream_image
-    vulnerability_exception_reviewed_on: '2026-07-26'
-    vulnerability_exception_expires_on: '2026-08-25'
+    vulnerability_exception_reviewed_on: '2026-09-07'
+    vulnerability_exception_expires_on: '2026-10-07'
     notes: Approved newer no-regression image via scripts/promote_artifacts.py; Critical
       findings were also present in the previous digest and non-Critical findings
-      are accepted through 2026-08-25.
+      are accepted through 2026-10-07.
   redis:
     upstream_ref: public.ecr.aws/docker/library/redis:8.8.1
     approved_tag: 8.8.1
@@ -27,28 +27,28 @@ artifact_locked_images:
     signature_required: false
     notes: Approved via scripts/promote_artifacts.py
   nextcloud:
-    upstream_ref: public.ecr.aws/docker/library/nextcloud:34.0.2
-    approved_tag: 34.0.2
-    approved_digest: sha256:e93ccfc952c95f18175f3d297fb2f60c35070c05ca976050c250a9ddab793e75
+    upstream_ref: public.ecr.aws/docker/library/nextcloud:34.0.3
+    approved_tag: 34.0.3
+    approved_digest: sha256:b97df9e0e1ee3c8c6cc009cb3f12ddce915d624d543b3bb93882025fe323a407
     internal_repo: homelab/nextcloud
     signature_required: false
     vulnerability_exception: no_newer_upstream_image
-    vulnerability_exception_reviewed_on: '2026-07-26'
-    vulnerability_exception_expires_on: '2026-08-25'
+    vulnerability_exception_reviewed_on: '2026-09-07'
+    vulnerability_exception_expires_on: '2026-10-07'
     notes: Approved latest upstream image via scripts/promote_artifacts.py; non-Critical
-      vulnerability findings accepted through 2026-08-25.
+      vulnerability findings accepted through 2026-10-07.
   paperless:
-    upstream_ref: ghcr.io/paperless-ngx/paperless-ngx:3.0.2
-    approved_tag: 3.0.2
-    approved_digest: sha256:fef384c955d2ec2acf1bd0882ffc195ecc170266c803dfe28b79df6deabb3569
+    upstream_ref: ghcr.io/paperless-ngx/paperless-ngx:3.0.5
+    approved_tag: 3.0.5
+    approved_digest: sha256:65a4cabf0169ea7fbd90ab7bb28ba3f8b5909613635acda1a03ad606f34b456b
     internal_repo: homelab/paperless-ngx
     signature_required: false
     vulnerability_exception: no_newer_upstream_image
-    vulnerability_exception_reviewed_on: '2026-07-26'
-    vulnerability_exception_expires_on: '2026-08-25'
-    notes: Approved latest eligible upstream image via scripts/promote_artifacts.py;
-      non-Critical findings accepted through 2026-08-25. Newer 3.0.3 was under the
-      age gate at review time and was not selected.
+    vulnerability_exception_reviewed_on: '2026-09-07'
+    vulnerability_exception_expires_on: '2026-10-07'
+    notes: Approved newer no-regression image via scripts/promote_artifacts.py; Critical
+      findings were also present in the previous digest and non-Critical findings
+      are accepted through 2026-10-07.
   navidrome:
     upstream_ref: docker.io/deluan/navidrome:0.63.2
     approved_tag: 0.63.2
@@ -65,14 +65,14 @@ artifact_locked_images:
     notes: Approved via scripts/promote_artifacts.py. Latest upstream release with
       no fix-available findings, so the previous non-Critical exception was removed.
   semaphore:
-    upstream_ref: public.ecr.aws/semaphore/server:v2.18.28
-    approved_tag: v2.18.28
-    approved_digest: sha256:6454b2e58a6616de82240f7b4f271663fe0ec3430e10a9cc7e763ff6df12baa0
+    upstream_ref: public.ecr.aws/semaphore/server:v2.18.30
+    approved_tag: v2.18.30
+    approved_digest: sha256:b2e96d1f93ff329fb88519ae7eb07a5be62515b8f09bb2ac810b417ce3ce790d
     internal_repo: homelab/semaphore
     signature_required: false
     vulnerability_exception: no_newer_upstream_image
-    vulnerability_exception_reviewed_on: '2026-07-26'
-    vulnerability_exception_expires_on: '2026-08-25'
+    vulnerability_exception_reviewed_on: '2026-09-07'
+    vulnerability_exception_expires_on: '2026-10-07'
     notes: Approved newer no-regression image via scripts/promote_artifacts.py; Critical
       findings were also present in the previous digest and non-Critical findings
-      are accepted through 2026-08-25.
+      are accepted through 2026-10-07.
