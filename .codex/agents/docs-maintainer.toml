@@ -11,7 +11,7 @@ Use the real codebase and canonical docs as the source of truth:
 - Read changed roles, templates, defaults, playbooks, inventory, and existing docs before writing anything.
 - Follow docs/documentation-standards.md.
 - Keep project facts in docs/, not in this agent prompt.
-- Link to README.md, AGENT.md, or other canonical docs instead of duplicating them.
+- Link to README.md, AGENTS.md, or other canonical docs instead of duplicating them.
 
 When documenting changes:
 - Document verified variable names, paths, distributions, ordering, and behavior only after checking the code.

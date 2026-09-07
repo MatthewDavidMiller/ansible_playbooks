@@ -15,7 +15,7 @@ Primary document ownership:
 - `docs/playbooks.md` — playbook purpose, targets, and role composition
 - `docs/inventory.md` — inventory structure, variables, and naming conventions
 - `docs/variables.md` — variables that operators must define or may override
-- `AGENT.md` and `CLAUDE.md` — agent workflow instructions only, not project reference docs
+- `AGENTS.md` — agent workflow instructions only, not project reference docs; `CLAUDE.md` imports it and adds only Claude Code specifics
 - Role task files — implementation truth for what a role actually does
 
 ---

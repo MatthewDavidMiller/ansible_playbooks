@@ -18,8 +18,8 @@ Start with [README.md](../README.md) for the project overview and quick start.
 
 | Document | Description |
 |---|---|
-| [AGENT.md](../AGENT.md) | Repo-specific instructions for coding agents |
-| [CLAUDE.md](../CLAUDE.md) | Repo-specific instructions for Claude Code |
+| [AGENTS.md](../AGENTS.md) | Repo-specific workflow instructions for coding agents |
+| [CLAUDE.md](../CLAUDE.md) | Claude Code specifics; imports `AGENTS.md` |
 
 ## Architecture & Reference
 
