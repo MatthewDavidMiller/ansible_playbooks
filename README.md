@@ -18,9 +18,6 @@ Ansible repo for the maintained homelab VM workflow: VM1 runs Rocky Linux 10 Pod
 # Run VM1 (stages runtime changes; reboot later to apply)
 ansible-playbook -i inventory.yml vm1.yml
 
-# Apply host package updates from approved repos
-ansible-playbook -i inventory.yml standalone_tasks/update_vm1_packages.yml
-
 # Active orchestrator for the homelab
 ansible-playbook -i inventory.yml homelab_vms.yml
 
@@ -55,7 +52,7 @@ make test-full
 
 See [docs/testing.md](docs/testing.md) for what each target runs and how the toolbox is built.
 
-Normal `vm1.yml` runs apply security-only OS updates. Use the standalone update playbook when you intentionally want the broader installed package set refreshed.
+Every `vm1.yml` run applies all available Rocky Linux package updates; OS packages are not pinned. A weekly Semaphore schedule of `update_homelab_vms.yml` patches VM1 and then reboots it.
 
 ## License
 

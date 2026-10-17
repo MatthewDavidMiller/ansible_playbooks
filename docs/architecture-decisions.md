@@ -35,7 +35,8 @@ This document records explicit design decisions and rejected alternatives for th
 
 - The maintained flow is `update_homelab_vms.yml`.
 - Creating a separate patch-only playbook would duplicate host selection and standard role execution.
-- Semaphore scheduling is the source of truth for recurring runs.
+- Semaphore scheduling is the source of truth for recurring runs. OS patching is a weekly Semaphore schedule of `update_homelab_vms.yml`, which applies every available package update during convergence and then reboots.
+- OS packages are not pinned. They come from the signed Rocky Linux repositories, unlike container images, which are digest-locked in `artifacts/containers.lock.yml`.
 
 ---
 

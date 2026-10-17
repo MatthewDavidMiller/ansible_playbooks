@@ -417,6 +417,42 @@ class RootlessPodmanPipelineTests(unittest.TestCase):
 
 class AnsibleRegressionTests(unittest.TestCase):
 
+    def test_convergence_applies_the_full_os_update_set(self):
+        tasks = yaml.safe_load(
+            (REPO_ROOT / "roles" / "standard_update_packages" / "tasks" / "main.yml")
+            .read_text(encoding="utf-8")
+        )
+        updates = [
+            task["ansible.builtin.dnf"]
+            for task in tasks
+            if task.get("ansible.builtin.dnf", {}).get("name") == "*"
+        ]
+        self.assertTrue(updates, "no dnf task updates the installed package set")
+        for update in updates:
+            self.assertFalse(
+                update.get("security", False),
+                "the weekly patch run applies every Rocky update, not only errata",
+            )
+        self.assertIs(
+            role_defaults("standard_update_packages")["standard_update_apply_full_updates"],
+            True,
+        )
+
+    def test_weekly_patch_run_converges_vm1_then_reboots(self):
+        plays = yaml.safe_load((REPO_ROOT / "vm1.yml").read_text(encoding="utf-8"))
+        self.assertIn("standard_update_packages", plays[0]["roles"])
+        imports = [
+            play["import_playbook"]
+            for play in yaml.safe_load(
+                (REPO_ROOT / "update_homelab_vms.yml").read_text(encoding="utf-8")
+            )
+        ]
+        self.assertEqual(
+            imports,
+            ["homelab_vms.yml", "reboot_vms.yml"],
+            "kernel and library updates only take effect after the reboot",
+        )
+
     def test_nextcloud_permission_normalization_uses_one_idempotent_walk(self):
         tasks = yaml.safe_load(
             (REPO_ROOT / "roles" / "nextcloud" / "tasks" / "main.yml").read_text(

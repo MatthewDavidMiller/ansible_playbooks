@@ -251,8 +251,7 @@ They are listed here so every maintained role input is discoverable.
 | `standard_ssh_allow_agent_forwarding` | boolean | `false` | Enables SSH agent forwarding. |
 | `standard_ssh_streamlocal_forwarding_mode` | string | `no` | Unix-socket forwarding mode. |
 | `standard_ssh_max_sessions` | integer | `2` | Maximum SSH sessions per connection, from `1` through `100`. |
-| `standard_update_apply_security_updates` | boolean | `true` | Applies security updates during normal convergence. |
-| `standard_update_apply_full_updates` | boolean | `false` | Applies the full installed-package update set. |
+| `standard_update_apply_full_updates` | boolean | `true` | Applies every available package update on each run; set `false` to skip patching for a one-off run. |
 | `standard_update_enable_epel` | boolean | `false` | Enables EPEL and CRB. |
 | `nextcloud_normalize_user_files_permissions` | boolean | `true` | Normalizes permissions below every Nextcloud user's `files` tree. |
 | `nextcloud_user_files_directory_mode` | string | `0770` | Directory mode used during normalization. |

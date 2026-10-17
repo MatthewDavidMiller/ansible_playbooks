@@ -1,12 +1,11 @@
 ---
 # standard_update_packages role defaults
 
-# Normal convergence applies security updates only. Use the dedicated
-# standalone update playbook to apply the wider host update set on demand.
-standard_update_apply_security_updates: true
-
-# Full package-set updates stay behind the dedicated standalone patch workflow.
-standard_update_apply_full_updates: false
+# Apply every available update from the enabled Rocky repositories on each
+# run. OS packages are not pinned; the weekly Semaphore schedule of
+# update_homelab_vms.yml is the patch cadence, and it reboots afterwards.
+# Set false only to skip patching on a one-off run.
+standard_update_apply_full_updates: true
 
 # Enable EPEL only when a maintained workflow explicitly requires it.
 # When true, the role also enables CRB (CodeReady Builder); many EPEL packages

@@ -12,7 +12,7 @@ This document covers the maintained playbooks only. Legacy playbooks are preserv
 
 **Usage:** Configures VM1, the single maintained Rocky Linux 10 service host. Runtime-affecting changes are staged during the play and become live after `reboot_vms.yml`.
 
-**Notes:** `vm1.yml` resolves maintained service images from `artifacts/containers.lock.yml` and pre-pulls them through `standard_podman`. `standard_update_packages` applies security-only OS updates during normal convergence. `nextcloud` must run before `paperless_ngx` and `semaphore` because it owns the shared PostgreSQL and Redis containers. `standard_rclone` must run before `standard_selinux`. All service roles finish before `standard_cleanup`; the final `container_network_migration` coordinator then schedules any queued disruptive migration after every configuration file and unit has been rendered.
+**Notes:** `vm1.yml` resolves maintained service images from `artifacts/containers.lock.yml` and pre-pulls them through `standard_podman`. `standard_update_packages` applies every available Rocky Linux package update during normal convergence. `nextcloud` must run before `paperless_ngx` and `semaphore` because it owns the shared PostgreSQL and Redis containers. `standard_rclone` must run before `standard_selinux`. All service roles finish before `standard_cleanup`; the final `container_network_migration` coordinator then schedules any queued disruptive migration after every configuration file and unit has been rendered.
 
 ---
 
@@ -28,7 +28,7 @@ This document covers the maintained playbooks only. Legacy playbooks are preserv
 
 **Imports:** `homelab_vms.yml` → `reboot_vms.yml`
 
-**Usage:** Preferred end-to-end workflow. Reconfigures the maintained VMs, then reboots them so staged runtime changes take effect.
+**Usage:** Preferred end-to-end workflow and the weekly OS patch run. Reconfigures and fully patches the maintained VMs, then reboots them so staged runtime changes and new kernel and library packages take effect. Schedule it once a week in Semaphore.
 
 ---
 
@@ -37,11 +37,3 @@ This document covers the maintained playbooks only. Legacy playbooks are preserv
 **Target:** `homelab`
 
 **Usage:** Reboots maintained homelab VMs using delayed shutdown so the current Ansible/Semaphore run can finish cleanly before hosts go down.
-
----
-
-## `standalone_tasks/update_vm1_packages.yml`
-
-**Target:** `vm1`
-
-**Usage:** Manual host patching workflow. Switches `standard_update_packages` into full-update mode so installed packages can be advanced beyond security errata when you explicitly choose to do so.

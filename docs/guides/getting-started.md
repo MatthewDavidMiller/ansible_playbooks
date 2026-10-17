@@ -109,13 +109,7 @@ Apply configuration:
 ansible-playbook -i inventory.yml vm1.yml -v
 ```
 
-Apply host package updates from approved repos only when you intend to do a full installed-package refresh:
-
-```bash
-ansible-playbook -i inventory.yml standalone_tasks/update_vm1_packages.yml -v
-```
-
-Normal `vm1.yml` runs apply security-only OS updates.
+Every `vm1.yml` run also applies all available Rocky Linux package updates. For unattended patching, schedule the `update_homelab_vms.yml` template weekly in Semaphore so the host is patched and then rebooted.
 
 ---
 

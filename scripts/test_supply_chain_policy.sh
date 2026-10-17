@@ -94,7 +94,9 @@ assert_no_fixed_match "--privileged" "maintained launch scripts do not run privi
 assert_no_match "[:=][[:space:]]*[^[:space:]'\"]+:latest\\b" "maintained configuration does not use mutable latest tags" roles docs scripts vm1.yml
 assert_no_match "artifact_registry_(host|username|password)" "maintained path does not require registry inventory variables" roles docs scripts vm1.yml
 assert_no_match "state:[[:space:]]*latest" "maintained roles do not perform blanket latest-package convergence outside the update role" roles --glob '!roles/standard_update_packages/**'
-assert_match "security:[[:space:]]*true" "standard_update_packages applies security-only updates during normal convergence" roles/standard_update_packages/tasks/main.yml
+assert_no_match "security:[[:space:]]*true" "standard_update_packages does not restrict OS patching to security errata" roles/standard_update_packages/tasks/main.yml
+assert_match "update_only:[[:space:]]*true" "standard_update_packages applies the full installed-package update set" roles/standard_update_packages/tasks/main.yml
+assert_match "^standard_update_apply_full_updates:[[:space:]]*true$" "full OS updates are enabled during normal convergence" roles/standard_update_packages/defaults/main.yml
 assert_match "crb enable" "standard_update_packages enables CRB when EPEL is enabled" roles/standard_update_packages/tasks/main.yml
 assert_match "standard_update_enable_epel" "CRB enable is gated on EPEL being enabled" roles/standard_update_packages/tasks/main.yml
 assert_match "^password_minimum_length:[[:space:]]+16$" "database password validation has a default minimum length" roles/nextcloud/defaults/main.yml roles/paperless_ngx/defaults/main.yml

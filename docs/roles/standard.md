@@ -30,9 +30,9 @@ Installs and enables the QEMU guest agent so Proxmox can coordinate clean shutdo
 
 ### `standard_update_packages`
 
-Applies security-only OS package updates during normal convergence and keeps broader package refreshes behind a standalone patching playbook.
+Applies every available OS package update from the enabled Rocky Linux repositories during normal convergence.
 
-**Key behavior:** normal `vm1.yml` convergence runs `dnf` security updates for installed packages only; `standalone_tasks/update_vm1_packages.yml` switches the role into full-update mode on demand. When `standard_update_enable_epel` is true, the role installs `epel-release` and enables CRB (CodeReady Builder) so EPEL packages can resolve CRB-provided dependencies such as `python3-pathspec`.
+**Key behavior:** each `vm1.yml` run updates all installed packages with `dnf`; packages are not pinned. The weekly Semaphore run of `update_homelab_vms.yml` provides the patch cadence and the reboot that activates kernel and library updates. When `standard_update_enable_epel` is true, the role installs `epel-release` and enables CRB (CodeReady Builder) so EPEL packages can resolve CRB-provided dependencies such as `python3-pathspec`.
 
 ---
 
