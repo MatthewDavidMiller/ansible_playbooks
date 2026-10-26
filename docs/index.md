@@ -46,6 +46,7 @@ Start with [README.md](../README.md) for the project overview and quick start.
 | [guides/proxmox-setup.md](guides/proxmox-setup.md) | VM provisioning with `scripts/proxmox_initial_setup.py` |
 | [guides/dr-restore.md](guides/dr-restore.md) | Disaster recovery — initial migration to VM1 and restore from backups |
 | [guides/postgres-upgrade.md](guides/postgres-upgrade.md) | PostgreSQL major version upgrade procedure for the shared postgres container |
+| [guides/playbook-runner-migration.md](guides/playbook-runner-migration.md) | Moving playbook runs and schedules from Semaphore to playbook-runner |
 | [`../artifacts/containers.lock.yml`](../artifacts/containers.lock.yml) | Approved container image lock for the maintained VM1 services |
 
 ## Testing & CI/CD

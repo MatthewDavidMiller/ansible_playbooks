@@ -1,0 +1,32 @@
+#!/bin/bash
+set -euo pipefail
+
+# The data directory holds only ciphertext for secrets and inventories, plus
+# run records and logs; the master key is never in it. Every file in it is
+# replaced atomically, so archiving it live yields a consistent copy of each.
+
+umask 077
+
+timestamp=$(date +%m_%d_%Y)
+TMP_DIR=$(mktemp -d /tmp/playbook-runner-backup.XXXXXX)
+trap 'rm -rf "$TMP_DIR"' EXIT
+ARCHIVE="${TMP_DIR}/playbook_runner_${timestamp}.tar.gz"
+BACKUP_LOG=/var/log/playbook_runner_backup.log
+
+/usr/bin/tar -C "{{ playbook_runner_path }}" --numeric-owner -czf "$ARCHIVE" .
+
+{% if backup_local | default(false) %}
+DEST="{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/{{ playbook_runner_backup_location | replace('Nextcloud:', '') }}"
+/usr/bin/install -d -o {{ nextcloud_uid }} -g {{ nextcloud_gid }} -m {{ nextcloud_user_files_directory_mode | default('0770') }} "$DEST"
+/usr/bin/install -o {{ nextcloud_uid }} -g {{ nextcloud_gid }} -m {{ nextcloud_user_files_file_mode | default('0660') }} "$ARCHIVE" "$DEST/"
+/usr/bin/find "$DEST" -type f -name 'playbook_runner_*.tar.gz' -mtime +30 -delete
+if ! /usr/local/bin/nextcloud_scan_path.sh \
+    "{{ nextcloud_homelab_user }}/files/{{ playbook_runner_backup_location | replace('Nextcloud:', '') }}" \
+    >> "$BACKUP_LOG" 2>&1; then
+    echo "[$(date)] ERROR: occ files:scan failed. The archive is on disk but Nextcloud has not indexed it." \
+        >> "$BACKUP_LOG"
+fi
+{% else %}
+/usr/bin/rclone copy "$ARCHIVE" Nextcloud:{{ playbook_runner_backup_location }}
+/usr/bin/rclone delete Nextcloud:{{ playbook_runner_backup_location }} --min-age 30d --include 'playbook_runner_*.tar.gz'
+{% endif %}

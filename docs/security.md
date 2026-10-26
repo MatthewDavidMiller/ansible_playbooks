@@ -28,6 +28,7 @@ Out of scope for the current low-disruption design:
 - Container images are resolved from `artifacts/containers.lock.yml`, deployed as immutable digest refs, pre-pulled by `standard_podman`, and launched with `--pull=never`.
 - Containers use explicit network placement, internal app/backend networks for deny-by-default egress, memory/PID limits, `no-new-privileges`, reduced capabilities, and read-only root filesystems where compatible.
 - Runtime secrets are rendered under `secret_env_dir` as root-owned `0600` env files. Secret-writing tasks use `no_log: true`.
+- playbook-runner, the Ansible control plane once enabled, holds every automation secret. Its vault passwords, SSH keys, and inventories are sealed with AES-256-GCM under a master key that reaches the container only as a Podman secret (never an env var or a file in its data directory or backups). Runs decrypt into a noexec tmpfs, vault passwords reach `ansible-playbook` on inherited pipes, keys load into a per-run `ssh-agent`, memory is capped without swap, and SSH host keys are checked strictly. Its egress network exists because it must reach the git server and every managed host over SSH.
 - Backups use root-owned scripts and restrictive file modes. Temporary backup handling uses private permissions and cleanup traps; remote retention filters must be scoped to files owned by the backup workflow.
 
 ## Change Rules

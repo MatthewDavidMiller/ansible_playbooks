@@ -1,0 +1,20 @@
+[Unit]
+Description=Podman container-playbook_runner.service
+Documentation=man:podman-generate-systemd(1)
+Wants=network.target
+After=network-online.target
+
+[Service]
+Environment=PODMAN_SYSTEMD_UNIT=%n
+Restart=on-failure
+TimeoutStopSec=70
+ExecStartPre=/usr/bin/podman rm --ignore playbook_runner
+ExecStart=/usr/bin/bash /usr/local/bin/playbook_runner.sh
+RestartSec=10
+TimeoutStartSec=300
+ExecStop=/usr/bin/podman stop --ignore playbook_runner
+ExecStopPost=/usr/bin/podman rm --ignore -f playbook_runner
+Type=forking
+
+[Install]
+WantedBy=multi-user.target default.target

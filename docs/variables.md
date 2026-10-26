@@ -134,6 +134,20 @@ When `backup_local: false`, also define the following variables:
 | `semaphore_backup_location` | string | Yes | Local label or rclone backup destination. | `Nextcloud:semaphore_backup` |
 | `semaphore_egress_network` | string | No | Dedicated non-backend outbound SSH network. | `semaphore_egress_net` |
 
+### playbook-runner
+
+| Variable | Type | Required | Description | Example/default |
+|---|---|---|---|---|
+| `playbook_runner_enabled` | boolean | No | Deploy playbook-runner. Requires a `playbook_runner` entry in the image lock. | `false` |
+| `playbook_runner_path` | path | When enabled | Host data directory (owned by uid 10001, mode 0700). | `/srv/playbook-runner` |
+| `playbook_runner_master_key` | string | When enabled, secret | 64 hex digits from `playbook-runner gen-key`. Also keep a copy in Vaultwarden: the stored secrets cannot be recovered without it. | Ansible Vault value |
+| `playbook_runner_admin_password` | string | No, secret | Initial admin password, 12-128 characters. Empty means a one-time setup token is logged instead. | `""` |
+| `playbook_runner_backup_location` | string | When enabled | Local label or rclone backup destination. | `Nextcloud:playbook_runner_backup` |
+| `playbook_runner_known_hosts` | string | No | `known_hosts` entries written once when the runner's file does not exist yet. | `host ssh-ed25519 AAAA...` |
+| `playbook_runner_timezone` | string | No | Zone schedules use and times are shown in. | `America/New_York` |
+| `playbook_runner_keep_runs` | integer | No | Finished runs kept. | `500` |
+| `playbook_runner_egress_network` | string | No | Dedicated non-backend outbound git/SSH network. | `playbook_runner_egress_net` |
+
 ### Navidrome and Vaultwarden
 
 | Variable | Type | Required | Description | Example/default |
@@ -162,7 +176,7 @@ corresponding maps consistent.
 | `route_proxy_traefik_ips` | dictionary | No | Address Traefik claims on each route network; must differ from `route_proxy_container_ips`. |
 | `container_static_ips` | dictionary | No | Static address keyed by container alias. |
 | `container_dns` | dictionary | No | Podman DNS domain plus logical alias map. |
-| `reverse_proxy_deferred_route_networks` | list | No | Route networks whose replacement is deferred to their owning role; default is `semaphore_container_net`. |
+| `reverse_proxy_deferred_route_networks` | list | No | Route networks whose replacement is deferred to their owning role; default is `semaphore_container_net` and `playbook_runner_container_net`. |
 
 The complete default values are:
 
@@ -174,18 +188,21 @@ route_proxy_network_subnets:
   navidrome_container_net: 172.16.1.24/29
   vaultwarden_container_net: 172.16.1.16/29
   semaphore_container_net: 172.16.1.48/29
+  playbook_runner_container_net: 172.16.1.56/29
 route_proxy_container_ips:
   nextcloud_proxy_net: 172.16.1.34
   paperless_proxy_net: 172.16.1.42
   navidrome_container_net: 172.16.1.26
   vaultwarden_container_net: 172.16.1.18
   semaphore_container_net: 172.16.1.50
+  playbook_runner_container_net: 172.16.1.58
 route_proxy_traefik_ips:
   nextcloud_proxy_net: 172.16.1.35
   paperless_proxy_net: 172.16.1.43
   navidrome_container_net: 172.16.1.27
   vaultwarden_container_net: 172.16.1.19
   semaphore_container_net: 172.16.1.51
+  playbook_runner_container_net: 172.16.1.59
 container_static_ips:
   postgres_backend: 172.16.1.2
   redis_backend: 172.16.1.3
@@ -197,6 +214,7 @@ container_static_ips:
   navidrome_proxy: 172.16.1.26
   vaultwarden_proxy: 172.16.1.18
   semaphore_proxy: 172.16.1.50
+  playbook_runner_proxy: 172.16.1.58
 container_dns:
   domain: dns.podman
   aliases:
@@ -211,6 +229,8 @@ container_dns:
     semaphore_backend: semaphore-backend
     semaphore_proxy: semaphore-proxy
     semaphore_egress: semaphore-egress
+    playbook_runner_proxy: playbook-runner-proxy
+    playbook_runner_egress: playbook-runner-egress
     traefik_proxy: traefik-proxy
     traefik_egress: traefik-egress
 ```

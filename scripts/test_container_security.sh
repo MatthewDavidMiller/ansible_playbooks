@@ -236,6 +236,7 @@ assert_file_not_contains "-p " "Paperless: does not publish host ports" roles/pa
 assert_file_not_contains "-p " "Navidrome: does not publish host ports" roles/navidrome/templates/navidrome_container.sh.j2
 assert_file_not_contains "-p " "Vaultwarden: does not publish host ports" roles/vaultwarden/templates/vaultwarden.sh.j2
 assert_file_not_contains "-p " "Semaphore: does not publish host ports" roles/semaphore/templates/semaphore.sh.j2
+assert_file_not_contains "-p " "playbook-runner: does not publish host ports" roles/playbook_runner/templates/playbook_runner.sh.j2
 assert_file_contains "--read-only" "Traefik: read-only root filesystem is configured" roles/reverse_proxy/templates/traefik_container.sh.j2
 assert_file_contains "--read-only" "Postgres: read-only root filesystem is configured" roles/nextcloud/templates/postgres_container.sh.j2
 assert_file_contains "--mount type=tmpfs,destination=/var/run/postgresql,tmpfs-size=16M,tmpfs-mode=0750,U=true" "Postgres: socket directory uses a service-owned tmpfs mount" roles/nextcloud/templates/postgres_container.sh.j2
@@ -245,6 +246,7 @@ assert_file_contains "--read-only" "Navidrome: read-only root filesystem is conf
 assert_file_contains "--user \\{\\{ navidrome_uid \\}\\}:\\{\\{ navidrome_gid \\}\\}" "Navidrome: runs as explicit non-root UID/GID" roles/navidrome/templates/navidrome_container.sh.j2
 assert_file_contains "--read-only" "Vaultwarden: read-only root filesystem is configured" roles/vaultwarden/templates/vaultwarden.sh.j2
 assert_file_contains "--read-only" "Semaphore: read-only root filesystem is configured" roles/semaphore/templates/semaphore.sh.j2
+assert_file_contains "--read-only" "playbook-runner: read-only root filesystem is configured" roles/playbook_runner/templates/playbook_runner.sh.j2
 assert_file_contains "--cap-drop=ALL" "Traefik: drops all capabilities before adding required bind capability" roles/reverse_proxy/templates/traefik_container.sh.j2
 assert_file_contains "--cap-add=NET_BIND_SERVICE" "Traefik: only adds bind-service capability" roles/reverse_proxy/templates/traefik_container.sh.j2
 assert_file_contains "--cap-drop=ALL" "Postgres: drops all capabilities" roles/nextcloud/templates/postgres_container.sh.j2
@@ -253,6 +255,11 @@ assert_file_contains "--cap-drop=ALL" "Paperless: drops all capabilities before 
 assert_file_contains "--cap-drop=ALL" "Navidrome: drops all capabilities" roles/navidrome/templates/navidrome_container.sh.j2
 assert_file_contains "--cap-drop=ALL" "Vaultwarden: drops all capabilities before adding required bind capability" roles/vaultwarden/templates/vaultwarden.sh.j2
 assert_file_contains "--cap-drop=ALL" "Semaphore: drops all capabilities" roles/semaphore/templates/semaphore.sh.j2
+assert_file_contains "--cap-drop=ALL" "playbook-runner: drops all capabilities" roles/playbook_runner/templates/playbook_runner.sh.j2
+assert_file_not_contains "--cap-add" "playbook-runner: adds no capabilities back" roles/playbook_runner/templates/playbook_runner.sh.j2
+assert_file_contains "destination=/run/playbook-runner,tmpfs-size=256M,tmpfs-mode=0700,U=true,noexec" "playbook-runner: run scratch space is a private noexec tmpfs" roles/playbook_runner/templates/playbook_runner.sh.j2
+assert_file_contains "container_dns[.]aliases[.]playbook_runner_proxy" "playbook-runner: proxy DNS alias is dictionary-driven" roles/playbook_runner/templates/playbook_runner.sh.j2
+assert_file_contains "playbook_runner_container_net" "reverse_proxy defaults: defers playbook-runner runtime network replacement" roles/reverse_proxy/defaults/main.yml
 assert_file_contains "--mount type=tmpfs,destination=/home/semaphore,tmpfs-size=32M,tmpfs-mode=0750,U=true" "Semaphore: home directory uses a service-owned tmpfs mount" roles/semaphore/templates/semaphore.sh.j2
 assert_file_contains "--mount type=tmpfs,destination=/tmp/semaphore,tmpfs-size=64M,tmpfs-mode=0750,U=true" "Semaphore: project temp path uses a service-owned tmpfs mount" roles/semaphore/templates/semaphore.sh.j2
 assert_file_not_contains "mode=1777" "Semaphore: project temp path is not world-writable" roles/semaphore/templates/semaphore.sh.j2

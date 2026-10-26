@@ -92,6 +92,18 @@ Deploys Semaphore and backs up its PostgreSQL database into the local Nextcloud 
 
 ---
 
+### `playbook_runner`
+
+Deploys [playbook-runner](https://github.com/MatthewDavidMiller/playbook-runner), the first-party replacement for Semaphore: a web interface that runs and schedules playbooks from this repository. The role is off until `playbook_runner_enabled: true`, and it refuses an empty `playbook_runner_image`, so it does nothing until the image has a reviewed entry in `artifacts/containers.lock.yml`. See [guides/playbook-runner-migration.md](../guides/playbook-runner-migration.md).
+
+**Required variables (when enabled):** `playbook_runner_path`, `playbook_runner_master_key` (64 hex digits), `playbook_runner_backup_location`, `playbook_runner_image`, `secret_env_dir`
+
+**Templates:** `playbook_runner.sh.j2`, `playbook_runner.service.j2`, `backup_playbook_runner.sh.j2`
+
+**Key behavior:** the master key and optional first admin password are rendered to root-only files under `secret_env_dir` and turned into Podman secrets mounted read-only for the container user (uid 10001); the key never appears in an environment variable or the launch script. The runner keeps no database: its data directory holds JSON records, AES-256-GCM-sealed secrets and inventories, and run logs, and the daily backup archives it into the Nextcloud tree (or rclone). Runs execute in a noexec tmpfs, and memory is capped without swap. The container joins only its proxy network and a dedicated egress network for git and SSH, never the backend network. Its proxy network is in `reverse_proxy_deferred_route_networks`, because the runner may be the container running the playbook. An optional `playbook_runner_known_hosts` seeds the managed known_hosts file once; after that it is edited in the interface.
+
+---
+
 ### `backup`
 
 Manages the local Borg backup disk and the daily backup scripts for VM1.

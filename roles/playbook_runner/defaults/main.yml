@@ -1,0 +1,84 @@
+---
+# playbook_runner role defaults
+#
+# playbook-runner is the first-party replacement for Semaphore
+# (https://github.com/MatthewDavidMiller/playbook-runner). The role is off
+# until playbook_runner_enabled is true, and it refuses to run until the
+# image has a reviewed entry in artifacts/containers.lock.yml.
+
+# Deploy playbook-runner on this host
+playbook_runner_enabled: false
+
+# Host directory holding the runner's persistent state (records, sealed
+# secrets, run logs). Owned by the container user, mode 0700.
+playbook_runner_path: ""
+
+# The 256-bit master key, as 64 hex digits (`playbook-runner gen-key`).
+# Every stored secret and inventory is sealed under keys derived from it;
+# keep a copy in Vaultwarden, because the data cannot be recovered without it.
+playbook_runner_master_key: ""
+
+# Optional: the initial admin password (12-128 characters). Empty means the
+# runner logs a one-time setup token on first start instead.
+playbook_runner_admin_password: ""
+
+# Zone schedules are written in and times are shown in
+playbook_runner_timezone: America/New_York
+
+# Optional known_hosts entries written to the runner's managed known_hosts
+# file when that file does not exist yet. Later edits are made in the UI.
+playbook_runner_known_hosts: ""
+
+# Finished runs kept before the oldest are pruned
+playbook_runner_keep_runs: 500
+
+# The container user the image declares
+playbook_runner_uid: "10001"
+playbook_runner_gid: "10001"
+
+# Rclone remote path for runner backup uploads (e.g. "Nextcloud:playbook_runner_backup")
+playbook_runner_backup_location: ""
+
+# When true, backups are written directly to the local Nextcloud data directory
+# instead of being uploaded via rclone.
+backup_local: false
+
+# Path to Nextcloud data root (required when backup_local is true)
+nextcloud_path: ""
+
+# Nextcloud username whose files directory is used as the backup destination
+nextcloud_homelab_user: ""
+
+# UID/GID used by Nextcloud to own files on the host-mounted data path
+nextcloud_uid: "33"
+nextcloud_gid: "33"
+
+# Root-only directory for runtime environment files and secret sources
+secret_env_dir: /etc/homelab/secrets
+
+# Non-internal Podman network used only for the runner's outbound git and
+# SSH automation.
+playbook_runner_egress_network: playbook_runner_egress_net
+
+# Container image resolved from the approved artifact lock in vm1.yml
+playbook_runner_image: ""
+
+# Podman DNS aliases used on VM1 networks.
+container_dns:
+  domain: dns.podman
+  aliases:
+    playbook_runner_proxy: playbook-runner-proxy
+    playbook_runner_egress: playbook-runner-egress
+
+# Deterministic VM1 route proxy network subnet.
+route_proxy_network_subnets:
+  playbook_runner_container_net: 172.16.1.56/29
+
+# Static container IP used with Traefik /etc/hosts overrides.
+container_static_ips:
+  playbook_runner_proxy: 172.16.1.58
+
+# Traefik's address on the runner's proxy network; the runner trusts its
+# X-Forwarded-For for login throttling.
+route_proxy_traefik_ips:
+  playbook_runner_container_net: 172.16.1.59

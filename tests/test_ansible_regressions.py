@@ -271,7 +271,7 @@ class LocalNextcloudBackupTests(unittest.TestCase):
 
     def test_backup_destinations_are_not_recursively_chmodded(self):
         """A recursive mode on the destination also rewrites the backup files."""
-        for role in ("navidrome", "vaultwarden", "semaphore"):
+        for role in ("navidrome", "vaultwarden", "semaphore", "playbook_runner"):
             tasks = yaml.safe_load(
                 (REPO_ROOT / "roles" / role / "tasks" / "main.yml").read_text(
                     encoding="utf-8"
@@ -543,6 +543,10 @@ class SharedContainerNetworkTests(unittest.TestCase):
             "semaphore_container_net": True,
             "{{ semaphore_egress_network }}": False,
         },
+        "playbook_runner": {
+            "playbook_runner_container_net": True,
+            "{{ playbook_runner_egress_network }}": False,
+        },
         "reverse_proxy": {
             "{{ traefik_egress_network }}": False,
             "{{ route_proxy_network_name }}": True,
@@ -571,7 +575,7 @@ class SharedContainerNetworkTests(unittest.TestCase):
                 self.assertNotIn("from_json", body)
 
     def test_service_networks_are_internal(self):
-        """Only the two deliberate egress networks may reach the host network."""
+        """Only the deliberate egress networks may reach the host network."""
         external = {
             (role, name)
             for role, networks in self.EXPECTED_NETWORKS.items()
@@ -582,6 +586,7 @@ class SharedContainerNetworkTests(unittest.TestCase):
             external,
             {
                 ("semaphore", "{{ semaphore_egress_network }}"),
+                ("playbook_runner", "{{ playbook_runner_egress_network }}"),
                 ("reverse_proxy", "{{ traefik_egress_network }}"),
             },
         )
@@ -600,9 +605,9 @@ class SharedContainerNetworkTests(unittest.TestCase):
             route_call["container_network_reconcile_existing"],
         )
         defaults = role_defaults("reverse_proxy")
-        self.assertIn(
-            "semaphore_container_net", defaults["reverse_proxy_deferred_route_networks"]
-        )
+        for network in ("semaphore_container_net", "playbook_runner_container_net"):
+            with self.subTest(network=network):
+                self.assertIn(network, defaults["reverse_proxy_deferred_route_networks"])
 
     def test_reconciliation_defers_replacement_during_staged_runs(self):
         defaults = role_defaults("container_network")
@@ -639,6 +644,73 @@ class SharedContainerNetworkTests(unittest.TestCase):
         )
         request = queue["vars"]["container_network_migration_request"]
         self.assertEqual(request["internal"], "{{ container_network_internal }}")
+
+
+class PlaybookRunnerTests(unittest.TestCase):
+    """Guards for the first-party Semaphore replacement.
+
+    The runner holds every automation secret, so its container is the most
+    sensitive one on VM1: the master key arrives only as a Podman secret,
+    the scratch space that holds decrypted inventories is a noexec tmpfs, and
+    memory is capped without swap so secrets are never paged to disk.
+    """
+
+    def setUp(self):
+        self.tasks = role_tasks("playbook_runner")
+        self.script = (
+            REPO_ROOT / "roles" / "playbook_runner" / "templates" / "playbook_runner.sh.j2"
+        ).read_text(encoding="utf-8")
+
+    def test_role_is_off_unless_enabled(self):
+        self.assertIs(role_defaults("playbook_runner")["playbook_runner_enabled"], False)
+        first = self.tasks[0]
+        self.assertEqual(first.get("ansible.builtin.meta"), "end_role")
+        self.assertIn("playbook_runner_enabled", first["when"])
+
+    def test_runner_image_is_approved_only_when_enabled(self):
+        play = yaml.safe_load((REPO_ROOT / "vm1.yml").read_text(encoding="utf-8"))[0]
+        approved = play["vars"]["approved_container_images"]
+        self.assertIn("[playbook_runner_image] if playbook_runner_enabled", approved)
+        self.assertIn("if 'playbook_runner' in artifact_locked_images", play["vars"]["playbook_runner_image"])
+        roles = play["roles"]
+        self.assertLess(roles.index("nextcloud"), roles.index("playbook_runner"))
+        self.assertLess(roles.index("playbook_runner"), roles.index("standard_cleanup"))
+
+    def test_secret_tasks_hide_their_values(self):
+        for task in self.tasks:
+            text = yaml.safe_dump(task)
+            if "playbook_runner_master_key" in text and (
+                "content" in text or "assert" in text
+            ):
+                with self.subTest(task=task["name"]):
+                    self.assertIs(task.get("no_log"), True)
+            if "playbook_runner_admin_password" in text and "content" in text:
+                with self.subTest(task=task["name"]):
+                    self.assertIs(task.get("no_log"), True)
+
+    def test_master_key_is_a_podman_secret_never_an_env_var(self):
+        self.assertIn("--secret playbook_runner_master_key,target=/run/secrets/", self.script)
+        self.assertIn("mode=0400", self.script)
+        self.assertNotIn("PR_MASTER_KEY", self.script)
+        self.assertNotIn("--env-file", self.script)
+
+    def test_container_is_hardened(self):
+        for flag in (
+            "--pull=never",
+            "--read-only",
+            "--cap-drop=ALL",
+            "--security-opt=no-new-privileges:true",
+            "--memory=512m",
+            "--memory-swap=512m",
+            "destination=/run/playbook-runner,tmpfs-size=256M,tmpfs-mode=0700,U=true,noexec",
+        ):
+            with self.subTest(flag=flag):
+                self.assertIn(flag, self.script)
+        self.assertNotIn("--cap-add", self.script)
+        self.assertNotRegex(self.script, r"(^|\s)-p ")
+
+    def test_runner_never_joins_the_backend_network(self):
+        self.assertNotIn("nextcloud_container_net", self.script)
 
 
 class ContainerNetworkMigrationTests(unittest.TestCase):

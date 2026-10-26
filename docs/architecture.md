@@ -8,7 +8,7 @@ This document covers the maintained VM topology, container/runtime patterns, fir
 
 | VM ID | Name | OS | Services |
 |---|---|---|---|
-| 120 | VM1 | Rocky Linux 10 | Nextcloud, Paperless NGX, Navidrome, Vaultwarden, Semaphore, PostgreSQL 17, Redis, Traefik reverse proxy, Borg backup |
+| 120 | VM1 | Rocky Linux 10 | Nextcloud, Paperless NGX, Navidrome, Vaultwarden, Semaphore, playbook-runner (optional, replacing Semaphore), PostgreSQL 17, Redis, Traefik reverse proxy, Borg backup |
 
 Templates: VMID 400 (Debian 12 cloud-init), VMID 401 (Rocky Linux 10 cloud-init)
 
@@ -37,9 +37,10 @@ VM1 runs all maintained services on a single Rocky Linux 10 host to reduce resou
 | Navidrome | 256 MB |
 | Vaultwarden | 256 MB |
 | Semaphore | 384 MB |
+| playbook-runner (when enabled) | 512 MB |
 | Traefik | 256 MB |
 | OS + overhead | 1.5 GB |
-| **Total hard cap** | **~8.4 GB (fits within VM1's 16 GB allocation)** |
+| **Total hard cap** | **~8.9 GB with playbook-runner (fits within VM1's 16 GB allocation)** |
 
 **Key design decisions:**
 
@@ -53,7 +54,7 @@ VM1 runs all maintained services on a single Rocky Linux 10 host to reduce resou
 
 ## Container Network Isolation
 
-Publicly proxied services have internal proxy-facing Podman networks, while PostgreSQL and Redis stay on an internal backend-only network. Traefik resolves backends through route-declared proxy networks and does not join the database/cache network. Latency-sensitive service names are backed by static container IPs and `/etc/hosts` entries inside client containers, so hot-path database/cache/proxy traffic does not depend on Podman DNS lookup order across multiple networks. Container egress is denied by default except for dedicated egress networks assigned to Traefik and Semaphore.
+Publicly proxied services have internal proxy-facing Podman networks, while PostgreSQL and Redis stay on an internal backend-only network. Traefik resolves backends through route-declared proxy networks and does not join the database/cache network. Latency-sensitive service names are backed by static container IPs and `/etc/hosts` entries inside client containers, so hot-path database/cache/proxy traffic does not depend on Podman DNS lookup order across multiple networks. Container egress is denied by default except for dedicated egress networks assigned to Traefik, Semaphore, and playbook-runner.
 
 **VM1 networks:**
 
@@ -65,10 +66,12 @@ Publicly proxied services have internal proxy-facing Podman networks, while Post
 | `navidrome_container_net` | 172.16.1.24/29 | navidrome (`container_dns.aliases.navidrome_proxy`, .26), traefik (`container_dns.aliases.traefik_proxy`, .27) |
 | `vaultwarden_container_net` | 172.16.1.16/29 | vaultwarden (`container_dns.aliases.vaultwarden_proxy`, .18), traefik (`container_dns.aliases.traefik_proxy`, .19) |
 | `semaphore_container_net` | 172.16.1.48/29 | semaphore (`container_dns.aliases.semaphore_proxy`, .50), traefik (`container_dns.aliases.traefik_proxy`, .51) |
+| `playbook_runner_container_net` | 172.16.1.56/29 | playbook-runner (`container_dns.aliases.playbook_runner_proxy`, .58), traefik (`container_dns.aliases.traefik_proxy`, .59) |
 | `traefik_egress_net` | (auto) | traefik (`container_dns.aliases.traefik_egress`) |
 | `semaphore_egress_net` | (auto) | semaphore (`container_dns.aliases.semaphore_egress`) |
+| `playbook_runner_egress_net` | (auto) | playbook-runner (`container_dns.aliases.playbook_runner_egress`) |
 
-The app/backend networks are created with Podman's `--internal` flag, while the dedicated Traefik and Semaphore egress networks are explicitly non-internal. Every role that owns a network reconciles it by including the shared `container_network` role once per network, so the create/replace rules exist in one implementation rather than once per service. Missing networks are created inline. If an existing network's internal mode or subnet differs from its declaration, non-staged runs remove and recreate it immediately; staged VM1 runs queue the replacement, including the declared internal mode. The drift decision itself is the `homelab_network_needs_replacement` filter, which parses the `podman network inspect` output once and is unit tested against both the current `internal` and legacy `Internal` key spellings. The final `container_network_migration` role schedules `/usr/local/bin/migrate_container_networks.sh` with `systemd-run --on-active=2min`. That delay lets playbooks launched from the Semaphore container finish before the job stops containers and replaces legacy networks. An exit trap always attempts to restore service availability, while stop, replacement, and restart errors make the transient unit fail and remain visible in the migration log at `/var/log/homelab-container-network-migration.log`.
+The app/backend networks are created with Podman's `--internal` flag, while the dedicated Traefik, Semaphore, and playbook-runner egress networks are explicitly non-internal. Every role that owns a network reconciles it by including the shared `container_network` role once per network, so the create/replace rules exist in one implementation rather than once per service. Missing networks are created inline. If an existing network's internal mode or subnet differs from its declaration, non-staged runs remove and recreate it immediately; staged VM1 runs queue the replacement, including the declared internal mode. The drift decision itself is the `homelab_network_needs_replacement` filter, which parses the `podman network inspect` output once and is unit tested against both the current `internal` and legacy `Internal` key spellings. The final `container_network_migration` role schedules `/usr/local/bin/migrate_container_networks.sh` with `systemd-run --on-active=2min`. That delay lets playbooks launched from the Semaphore container finish before the job stops containers and replaces legacy networks. An exit trap always attempts to restore service availability, while stop, replacement, and restart errors make the transient unit fail and remain visible in the migration log at `/var/log/homelab-container-network-migration.log`.
 
 Every member of a route proxy network holds a static address: the service takes its `container_static_ips` entry and Traefik takes its `route_proxy_traefik_ips` entry. Both are required. Podman's IPAM hands a container without a requested address the first free address in the subnet, which is the address the service container requests, so a dynamically addressed Traefik makes whichever container starts second fail with `IPAM error: requested ip address ... is already allocated`. Existing hosts adopt the pinned addresses on the reboot that follows the playbook run.
 

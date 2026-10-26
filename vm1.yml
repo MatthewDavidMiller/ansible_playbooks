@@ -17,15 +17,15 @@
     navidrome_image: "{{ artifact_locked_images.navidrome.upstream_ref | regex_replace(':[^:@/]+$', '') }}@{{ artifact_locked_images.navidrome.approved_digest }}"
     vaultwarden_image: "{{ artifact_locked_images.vaultwarden.upstream_ref | regex_replace(':[^:@/]+$', '') }}@{{ artifact_locked_images.vaultwarden.approved_digest }}"
     semaphore_image: "{{ artifact_locked_images.semaphore.upstream_ref | regex_replace(':[^:@/]+$', '') }}@{{ artifact_locked_images.semaphore.approved_digest }}"
-    approved_container_images:
-      - "{{ traefik_image }}"
-      - "{{ postgres_image }}"
-      - "{{ redis_image }}"
-      - "{{ nextcloud_image }}"
-      - "{{ paperless_image }}"
-      - "{{ navidrome_image }}"
-      - "{{ vaultwarden_image }}"
-      - "{{ semaphore_image }}"
+    # playbook-runner joins the lock once its first release is reviewed; until
+    # then the image is empty and the role, which is off by default, refuses it.
+    playbook_runner_image: >-
+      {{ (artifact_locked_images.playbook_runner.upstream_ref | regex_replace(':[^:@/]+$', '')) ~ '@' ~ artifact_locked_images.playbook_runner.approved_digest
+         if 'playbook_runner' in artifact_locked_images else '' }}
+    approved_container_images: >-
+      {{ [traefik_image, postgres_image, redis_image, nextcloud_image, paperless_image,
+          navidrome_image, vaultwarden_image, semaphore_image]
+         + ([playbook_runner_image] if playbook_runner_enabled | default(false) | bool else []) }}
   module_defaults:
     ansible.posix.firewalld:
       offline: "{{ apply_runtime_changes_on_reboot | bool }}"
@@ -48,5 +48,6 @@
     - navidrome
     - vaultwarden
     - semaphore
+    - playbook_runner
     - standard_cleanup
     - container_network_migration

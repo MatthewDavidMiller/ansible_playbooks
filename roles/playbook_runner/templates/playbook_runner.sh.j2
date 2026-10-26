@@ -1,0 +1,30 @@
+#!/bin/bash
+set -euo pipefail
+
+# The master key (and optional first admin password) arrive as Podman
+# secrets readable only by the container user; the work directory is a
+# noexec tmpfs, so decrypted inventories and agent sockets never reach disk;
+# memory is capped without swap so secrets are never paged out.
+exec /usr/bin/podman run \
+--pull=never \
+--name playbook_runner \
+--network=playbook_runner_container_net:ip={{ container_static_ips.playbook_runner_proxy }},alias={{ container_dns.aliases.playbook_runner_proxy }} \
+--network={{ playbook_runner_egress_network }}:alias={{ container_dns.aliases.playbook_runner_egress }} \
+--volume {{ playbook_runner_path }}:/var/lib/playbook-runner:Z \
+--secret playbook_runner_master_key,target=/run/secrets/playbook_runner_master_key,uid={{ playbook_runner_uid }},gid={{ playbook_runner_gid }},mode=0400 \
+{% if playbook_runner_admin_password | length > 0 %}
+--secret playbook_runner_admin_password,target=/run/secrets/playbook_runner_admin_password,uid={{ playbook_runner_uid }},gid={{ playbook_runner_gid }},mode=0400 \
+--env PR_ADMIN_PASSWORD_FILE=/run/secrets/playbook_runner_admin_password \
+{% endif %}
+--env PR_TIMEZONE={{ playbook_runner_timezone }} \
+--env PR_TRUSTED_PROXIES={{ route_proxy_traefik_ips.playbook_runner_container_net }} \
+--env PR_KEEP_RUNS={{ playbook_runner_keep_runs }} \
+--read-only \
+--mount type=tmpfs,destination=/run/playbook-runner,tmpfs-size=256M,tmpfs-mode=0700,U=true,noexec,nosuid,nodev \
+--tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
+--memory=512m \
+--memory-swap=512m \
+--pids-limit=300 \
+--cap-drop=ALL \
+--security-opt=no-new-privileges:true \
+-d {{ playbook_runner_image }}

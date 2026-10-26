@@ -120,6 +120,8 @@ container_dns:
     semaphore_backend: 'test-semaphore-backend'
     semaphore_proxy: 'test-semaphore-proxy'
     semaphore_egress: 'test-semaphore-egress'
+    playbook_runner_proxy: 'test-playbook-runner-proxy'
+    playbook_runner_egress: 'test-playbook-runner-egress'
     traefik_proxy: 'test-traefik-proxy'
     traefik_egress: 'test-traefik-egress'
 route_proxy_network_subnets:
@@ -137,11 +139,13 @@ container_static_ips:
   paperless_proxy: '172.16.1.42'
   semaphore_backend: '172.16.1.6'
   semaphore_proxy: '172.16.1.50'
+  playbook_runner_proxy: '172.16.1.58'
 route_proxy_container_ips:
   nextcloud_proxy_net: '172.16.1.34'
 route_proxy_traefik_ips:
   nextcloud_proxy_net: '172.16.1.35'
   paperless_proxy_net: '172.16.1.43'
+  playbook_runner_container_net: '172.16.1.59'
 proxy_config:
   - name: 'nextcloud_proxy'
     proxy_fqdn: 'cloud.example.com'
@@ -176,6 +180,15 @@ navidrome_backup_location: 'Nextcloud:navidrome_backup'
 vaultwarden_path: '/srv/vaultwarden'
 vaultwarden_image: 'docker.io/vaultwarden/server@sha256:7777777777777777777777777777777777777777777777777777777777777777'
 vaultwarden_backup_location: 'Nextcloud:vaultwarden_backup'
+playbook_runner_path: '/srv/playbook-runner'
+playbook_runner_image: 'ghcr.io/matthewdavidmiller/playbook-runner@sha256:9999999999999999999999999999999999999999999999999999999999999999'
+playbook_runner_admin_password: 'run;admin "quoted" \\ slash & dollars \$HOME'
+playbook_runner_timezone: 'America/New_York'
+playbook_runner_keep_runs: 500
+playbook_runner_uid: '10001'
+playbook_runner_gid: '10001'
+playbook_runner_egress_network: 'playbook_runner_egress_net'
+playbook_runner_backup_location: 'Nextcloud:playbook_runner_backup'
 user_name: 'ansible'
 EOF
 
@@ -285,6 +298,16 @@ cat > "$tmpdir/render.yml" <<EOF
         src: ${repo_root}/roles/semaphore/templates/backup_semaphore.sh.j2
         dest: ${render_dir}/backup_semaphore.sh
 
+    - name: Render playbook_runner.sh
+      ansible.builtin.template:
+        src: ${repo_root}/roles/playbook_runner/templates/playbook_runner.sh.j2
+        dest: ${render_dir}/playbook_runner.sh
+
+    - name: Render backup_playbook_runner.sh
+      ansible.builtin.template:
+        src: ${repo_root}/roles/playbook_runner/templates/backup_playbook_runner.sh.j2
+        dest: ${render_dir}/backup_playbook_runner.sh
+
     - name: Render migrate_container_networks.sh
       ansible.builtin.template:
         src: ${repo_root}/roles/container_network_migration/templates/migrate_container_networks.sh.j2
@@ -301,6 +324,9 @@ pass "migrate_container_networks.sh passes ShellCheck after rendering"
 
 shellcheck "$render_dir/nextcloud_scan_path.sh"
 pass "nextcloud_scan_path.sh passes ShellCheck after rendering"
+
+shellcheck "$render_dir/playbook_runner.sh" "$render_dir/backup_playbook_runner.sh"
+pass "playbook_runner.sh and backup_playbook_runner.sh pass ShellCheck after rendering"
 
 get_sourced_var() {
   local file="$1"
@@ -498,6 +524,14 @@ assert_line_before "$render_dir/semaphore.sh" "--network=nextcloud_container_net
 assert_line_before "$render_dir/semaphore.sh" "--network=nextcloud_container_net" "--network=semaphore_egress_net" "semaphore.sh attaches backend network before egress network"
 assert_not_contains "$render_dir/semaphore.sh" "podman pull" "semaphore.sh no longer calls podman pull"
 assert_contains "$render_dir/semaphore.sh" "--pull=never" "semaphore.sh uses --pull=never"
+assert_contains "$render_dir/playbook_runner.sh" "--network=playbook_runner_container_net:ip=172.16.1.58,alias=test-playbook-runner-proxy" "playbook_runner.sh joins its proxy network with a static IP and alias"
+assert_contains "$render_dir/playbook_runner.sh" "--network=playbook_runner_egress_net:alias=test-playbook-runner-egress" "playbook_runner.sh joins its egress network"
+assert_not_contains "$render_dir/playbook_runner.sh" "nextcloud_container_net" "playbook_runner.sh stays off the backend network"
+assert_contains "$render_dir/playbook_runner.sh" "--env PR_TRUSTED_PROXIES=172.16.1.59" "playbook_runner.sh trusts only Traefik's address for X-Forwarded-For"
+assert_contains "$render_dir/playbook_runner.sh" "--secret playbook_runner_admin_password,target=/run/secrets/playbook_runner_admin_password" "playbook_runner.sh mounts the admin password as a secret when one is set"
+assert_not_contains "$render_dir/playbook_runner.sh" "run;admin" "playbook_runner.sh never carries the admin password itself"
+assert_contains "$render_dir/playbook_runner.sh" "--pull=never" "playbook_runner.sh uses --pull=never"
+assert_contains "$render_dir/backup_playbook_runner.sh" "/usr/bin/tar -C \"/srv/playbook-runner\"" "backup_playbook_runner.sh archives the data directory"
 assert_contains "$render_dir/semaphore.sh" "--mount type=tmpfs,destination=/home/semaphore,tmpfs-size=32M,tmpfs-mode=0750,U=true" "semaphore.sh mounts service-owned home tmpfs"
 assert_contains "$render_dir/semaphore.sh" "--mount type=tmpfs,destination=/tmp/semaphore,tmpfs-size=64M,tmpfs-mode=0750,U=true" "semaphore.sh mounts service-owned project tmpfs"
 assert_not_contains "$render_dir/semaphore.sh" "mode=1777" "semaphore.sh does not render a world-writable project temp path"
