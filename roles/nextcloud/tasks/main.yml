@@ -171,6 +171,7 @@
       - files
       - -print
   register: nextcloud_user_files_roots
+  check_mode: false
   changed_when: false
   when: nextcloud_normalize_user_files_permissions | bool
 

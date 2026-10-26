@@ -33,6 +33,7 @@
       - inspect
       - "{{ container_network_name }}"
   register: container_network_state
+  check_mode: false
   changed_when: false
   failed_when: false
 

@@ -42,6 +42,7 @@
       - "{{ item }}"
   loop: "{{ approved_container_images | unique }}"
   register: approved_container_image_presence
+  check_mode: false
   changed_when: false
   failed_when: false
 

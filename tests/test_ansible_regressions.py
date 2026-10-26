@@ -784,3 +784,42 @@ class ContainerNetworkMigrationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CheckModeTests(unittest.TestCase):
+    """Check mode skips command, shell, and tempfile tasks, leaving a
+    registered result with no rc, stdout, or path. Tasks whose result feeds
+    later tasks must therefore opt in to running."""
+
+    PROBE_MODULES = {
+        "ansible.builtin.command",
+        "ansible.builtin.shell",
+        "ansible.builtin.tempfile",
+    }
+
+    def iter_tasks(self, tasks):
+        for task in tasks or []:
+            yield task
+            for key in ("block", "rescue", "always"):
+                yield from self.iter_tasks(task.get(key))
+
+    def test_registered_probes_run_in_check_mode(self):
+        offenders = []
+        for path in sorted((REPO_ROOT / "roles").glob("*/tasks/*.yml")):
+            tasks = yaml.safe_load(path.read_text(encoding="utf-8")) or []
+            for task in self.iter_tasks(tasks):
+                module = next((m for m in self.PROBE_MODULES if m in task), None)
+                if module is None or "register" not in task:
+                    continue
+                read_only = (
+                    module == "ansible.builtin.tempfile"
+                    or task.get("changed_when") is False
+                )
+                if read_only and task.get("check_mode") is not False:
+                    offenders.append(f"{path.relative_to(REPO_ROOT)}: {task.get('name')}")
+        self.assertEqual(
+            offenders,
+            [],
+            "Read-only registered tasks need check_mode: false so --check "
+            "does not leave their results empty",
+        )

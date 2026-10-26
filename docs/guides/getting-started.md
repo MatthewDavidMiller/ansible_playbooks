@@ -28,7 +28,7 @@ That builds the image and installs the pre-commit hook. See [../testing.md](../t
 ansible-galaxy collection install -r collections/requirements.yml -p ./collections
 ```
 
-The repo's `ansible.cfg` prefers `./collections`, so the control node uses the pinned collection set from `collections/requirements.yml`.
+The repo's `ansible.cfg` prefers `./collections`, so the control node uses the pinned collection set from `collections/requirements.yml`. It also pins `interpreter_python` to `/usr/bin/python3.12`, the Rocky 10 system Python, so Ansible does not warn about interpreter discovery or switch interpreters if another Python is installed on a managed host.
 
 ---
 

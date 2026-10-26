@@ -47,6 +47,7 @@
 - name: Check installed SELinux modules
   ansible.builtin.command: semodule -l
   register: semodule_list
+  check_mode: false
   changed_when: false
 
 - name: Install Podman BPF SELinux policy from private temporary files
@@ -57,6 +58,7 @@
         state: directory
         prefix: ansible-podman-bpf-
       register: standard_selinux_policy_tmp
+      check_mode: false
 
     - name: Write Podman BPF SELinux policy source
       ansible.builtin.copy:
@@ -107,3 +109,4 @@
         path: "{{ standard_selinux_policy_tmp.path | default('') }}"
         state: absent
       when: standard_selinux_policy_tmp.path | default('') | length > 0
+      check_mode: false
