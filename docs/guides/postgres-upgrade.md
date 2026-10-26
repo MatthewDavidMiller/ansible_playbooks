@@ -1,6 +1,6 @@
 # PostgreSQL Major Version Upgrade Guide
 
-Use this procedure when upgrading the PostgreSQL major version on VM1. The shared `postgres` container hosts databases for three services: Nextcloud, Paperless NGX, and Semaphore.
+Use this procedure when upgrading the PostgreSQL major version on VM1. The shared `postgres` container hosts databases for two services: Nextcloud and Paperless NGX.
 
 ---
 
@@ -16,13 +16,12 @@ PostgreSQL data directories are not compatible between major versions. Two appro
 
 ## Application Compatibility
 
-Before upgrading, verify that all three applications support the target PostgreSQL version:
+Before upgrading, verify that both applications support the target PostgreSQL version:
 
 | Application | Minimum version | Check |
 |---|---|---|
 | Nextcloud | 14 | [System requirements](https://docs.nextcloud.com/server/stable/admin_manual/installation/system_requirements.html) |
 | Paperless-NGX | 14 | [Administration docs](https://docs.paperless-ngx.com/administration/) |
-| Semaphore | Not explicitly documented | [Docker install guide](https://docs.semaphoreui.com/administration-guide/installation/docker) |
 
 ---
 
@@ -33,7 +32,7 @@ Before upgrading, verify that all three applications support the target PostgreS
 Run while all services are still up. This is the safety net if anything goes wrong.
 
 ```bash
-# Full pg_dumpall — captures roles and all three databases
+# Full pg_dumpall — captures roles and both databases
 podman exec postgres pg_dumpall -U <postgres_admin_user> > /root/pg_dumpall_$(date +%Y%m%d).sql
 
 # Verify it is non-empty
@@ -46,7 +45,7 @@ wc -l /root/pg_dumpall_$(date +%Y%m%d).sql
 # Put Nextcloud in maintenance mode before stopping postgres
 podman exec nextcloud php occ maintenance:mode --on
 
-systemctl stop semaphore nextcloud_container paperless_ngx navidrome_container vaultwarden traefik_container
+systemctl stop nextcloud_container paperless_ngx navidrome_container vaultwarden traefik_container
 ```
 
 ### Phase 2 — Final consistent dump and stop postgres
@@ -96,8 +95,6 @@ podman exec postgres psql -U <postgres_admin_user> -d postgres \
     -c "ALTER DATABASE <nextcloud_database_name> REFRESH COLLATION VERSION;"
 podman exec postgres psql -U <postgres_admin_user> -d postgres \
     -c "ALTER DATABASE <paperless_database_name> REFRESH COLLATION VERSION;"
-podman exec postgres psql -U <postgres_admin_user> -d postgres \
-    -c "ALTER DATABASE <semaphore_database_name> REFRESH COLLATION VERSION;"
 
 # Refresh query planner statistics — recommended by PostgreSQL after dump/restore
 podman exec postgres vacuumdb --all --analyze-in-stages -U <postgres_admin_user>
@@ -107,19 +104,17 @@ podman exec postgres vacuumdb --all --analyze-in-stages -U <postgres_admin_user>
 
 ```bash
 systemctl start redis_container nextcloud_container paperless_ngx \
-    navidrome_container vaultwarden semaphore traefik_container
+    navidrome_container vaultwarden traefik_container
 
-# Confirm all three databases are present
+# Confirm both databases are present
 podman exec postgres psql -U <postgres_admin_user> -d postgres -c "\l"
-# Expect: nextcloud, paperless, semaphore, postgres, template0, template1
+# Expect: nextcloud, paperless, postgres, template0, template1
 
 # Take Nextcloud out of maintenance mode
 podman exec nextcloud php occ maintenance:mode --off
 
 # Spot-check application connectivity
-podman logs semaphore 2>&1 | tail -20     # should show successful DB connection
 curl -sk https://<nextcloud_dns_name>/status.php   # expect installed:true, maintenance:false
-curl -sk https://<semaphore_dns_name>/api/ping     # expect 200
 ```
 
 ### Phase 7 — Cleanup (after 24 hours of verified normal operation)

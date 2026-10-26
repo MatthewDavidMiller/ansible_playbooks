@@ -46,7 +46,7 @@ values. Key things to configure include:
 - `management_network` and `ip_ansible` — your management network CIDR and Ansible controller IP; these become the firewalld allowlist
 - `porkbun_api_key` / `porkbun_api_key_secret` — required for DDNS and Traefik DNS-01 certificate issuance
 - `secret_env_dir` — where root-only runtime env files will be rendered on managed hosts
-- VM1 per-service DB credentials (`postgres_admin_user`, `nextcloud_db_user`, `paperless_db_user`, `semaphore_db_user`, and their passwords)
+- VM1 per-service DB credentials (`postgres_admin_user`, `nextcloud_db_user`, `paperless_db_user`, and their passwords)
 - `homelab_domain` — your domain (e.g., `example.com`)
 - `vm1.ansible_host` — VM1's IP address or hostname
 
@@ -109,7 +109,7 @@ Apply configuration:
 ansible-playbook -i inventory.yml vm1.yml -v
 ```
 
-Every `vm1.yml` run also applies all available Rocky Linux package updates. For unattended patching, schedule the `update_homelab_vms.yml` template weekly in Semaphore so the host is patched and then rebooted.
+Every `vm1.yml` run also applies all available Rocky Linux package updates. For unattended patching, schedule the `update_homelab_vms.yml` template weekly in playbook-runner so the host is patched and then rebooted.
 
 ---
 

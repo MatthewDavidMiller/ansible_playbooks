@@ -3,8 +3,8 @@
 # Tests container capability, privilege, and memory flags
 # for the maintained VM1 services before deploying to production via Ansible.
 #
-# Usage: bash scripts/test_container_security.sh [all|static|postgres|redis|nextcloud|traefik|paperless|vaultwarden|semaphore|navidrome]...
-#        bash scripts/test_container_security.sh semaphore 2>&1 | tee /tmp/container_test_results.txt
+# Usage: bash scripts/test_container_security.sh [all|static|postgres|redis|nextcloud|traefik|paperless|vaultwarden|navidrome]...
+#        bash scripts/test_container_security.sh vaultwarden 2>&1 | tee /tmp/container_test_results.txt
 # See docs/testing.md for full descriptions of each test.
 
 set -euo pipefail
@@ -33,7 +33,7 @@ should_run() {
 SELECTED_TESTS=("${@:-all}")
 for selected_test in "${SELECTED_TESTS[@]}"; do
   case "$selected_test" in
-    all|static|postgres|redis|nextcloud|traefik|paperless|vaultwarden|semaphore|navidrome) ;;
+    all|static|postgres|redis|nextcloud|traefik|paperless|vaultwarden|navidrome) ;;
     -h|--help)
       usage
       exit 0
@@ -89,7 +89,6 @@ NEXTCLOUD_IMAGE=${NEXTCLOUD_IMAGE:-$(lock_image_ref nextcloud)}
 TRAEFIK_IMAGE=${TRAEFIK_IMAGE:-$(lock_image_ref traefik)}
 PAPERLESS_IMAGE=${PAPERLESS_IMAGE:-$(lock_image_ref paperless)}
 VAULTWARDEN_IMAGE=${VAULTWARDEN_IMAGE:-$(lock_image_ref vaultwarden)}
-SEMAPHORE_IMAGE=${SEMAPHORE_IMAGE:-$(lock_image_ref semaphore)}
 NAVIDROME_IMAGE=${NAVIDROME_IMAGE:-$(lock_image_ref navidrome)}
 TEST_HELPER_IMAGE=${TEST_HELPER_IMAGE:-$(test_image_ref alpine)}
 [[ "$TEST_HELPER_IMAGE" =~ @sha256:[0-9a-f]{64}$ ]] || {
@@ -129,8 +128,6 @@ cleanup_all_test_containers() {
     test_postgres_mixed_seed \
     test_postgres_roles \
     test_redis \
-    test_semaphore_base \
-    test_semaphore_caps \
     test_traefik_cap \
     test_traefik_nocap \
     test_vaultwarden
@@ -191,8 +188,6 @@ assert_file_contains "container_dns[.]aliases[.]postgres_backend" "Postgres: bac
 assert_file_contains "container_dns[.]aliases[.]redis_backend" "Redis: backend DNS alias is dictionary-driven" roles/nextcloud/templates/redis_container.sh.j2
 assert_file_contains "container_dns[.]aliases[.]navidrome_proxy" "Navidrome: proxy DNS alias is dictionary-driven" roles/navidrome/templates/navidrome_container.sh.j2
 assert_file_contains "container_dns[.]aliases[.]vaultwarden_proxy" "Vaultwarden: proxy DNS alias is dictionary-driven" roles/vaultwarden/templates/vaultwarden.sh.j2
-assert_file_contains "container_dns[.]aliases[.]semaphore_proxy" "Semaphore: proxy DNS alias is dictionary-driven" roles/semaphore/templates/semaphore.sh.j2
-assert_file_contains "container_dns[.]aliases[.]semaphore_backend" "Semaphore: backend DNS alias is dictionary-driven" roles/semaphore/templates/semaphore.sh.j2
 assert_file_contains "container_dns[.]aliases[.]traefik_proxy" "Traefik: proxy DNS alias is dictionary-driven" roles/reverse_proxy/templates/traefik_container.sh.j2
 assert_file_contains "container_dns[.]aliases[.]traefik_egress" "Traefik: egress DNS alias is dictionary-driven" roles/reverse_proxy/templates/traefik_container.sh.j2
 assert_file_contains "container_dns[.]aliases[.]postgres_backend.*container_dns[.]domain" "Nextcloud: uses backend Postgres DNS dictionary" roles/nextcloud/templates/nextcloud.env.j2
@@ -202,7 +197,6 @@ assert_file_contains "redis://.*container_dns[.]aliases[.]redis_backend.*contain
 assert_file_contains "PAPERLESS_SECRET_KEY=.*paperless_secret_key" "Paperless: renders the required 3.0 signing key" roles/paperless_ngx/templates/paperless.env.j2
 assert_file_contains "PAPERLESS_DBENGINE=" "Paperless: declares the database engine explicitly for 3.0" roles/paperless_ngx/templates/paperless.env.j2
 assert_file_contains "PAPERLESS_TRUSTED_PROXIES=.*route_proxy_traefik_ips" "Paperless: trusts only the Traefik proxy hop" roles/paperless_ngx/templates/paperless.env.j2
-assert_file_contains "container_dns[.]aliases[.]postgres_backend.*container_dns[.]domain" "Semaphore: uses backend Postgres DNS dictionary" roles/semaphore/templates/semaphore.env.j2
 assert_file_contains "--add-host=.*route_proxy_container_ips" "Traefik: resolves proxy route names through container hosts entries" roles/reverse_proxy/templates/traefik_container.sh.j2
 assert_file_contains "--add-host=.*container_dns[.]aliases[.]postgres_backend" "Nextcloud: resolves backend Postgres name through a container hosts entry" roles/nextcloud/templates/nextcloud_container.sh.j2
 assert_file_contains "--add-host=.*container_dns[.]aliases[.]redis_backend" "Nextcloud: resolves backend Redis name through a container hosts entry" roles/nextcloud/templates/nextcloud_container.sh.j2
@@ -228,14 +222,12 @@ assert_file_contains "Reconcile route proxy networks" "reverse_proxy: creates ro
 assert_file_contains "Remove drifted container network" "Shared network role: recreates legacy non-internal networks" roles/container_network/tasks/main.yml
 assert_file_contains "Queue container network" "Shared network role: queues disruptive replacements for the final migration job" roles/container_network/tasks/main.yml
 assert_file_contains "reverse_proxy_deferred_route_networks" "reverse_proxy: defers destructive updates for control-plane route networks" roles/reverse_proxy/tasks/main.yml
-assert_file_contains "semaphore_container_net" "reverse_proxy defaults: defers Semaphore runtime network replacement" roles/reverse_proxy/defaults/main.yml
 assert_file_contains "--force" "Shared network role: force-removes attached legacy networks before recreating them" roles/container_network/tasks/main.yml
 assert_file_not_contains "--network=nextcloud_container_net" "Traefik: is not placed on database/cache backend network" roles/reverse_proxy/templates/traefik_container.sh.j2
 assert_file_not_contains "-p " "Nextcloud: does not publish host ports" roles/nextcloud/templates/nextcloud_container.sh.j2
 assert_file_not_contains "-p " "Paperless: does not publish host ports" roles/paperless_ngx/templates/paperless_ngx.sh.j2
 assert_file_not_contains "-p " "Navidrome: does not publish host ports" roles/navidrome/templates/navidrome_container.sh.j2
 assert_file_not_contains "-p " "Vaultwarden: does not publish host ports" roles/vaultwarden/templates/vaultwarden.sh.j2
-assert_file_not_contains "-p " "Semaphore: does not publish host ports" roles/semaphore/templates/semaphore.sh.j2
 assert_file_not_contains "-p " "playbook-runner: does not publish host ports" roles/playbook_runner/templates/playbook_runner.sh.j2
 assert_file_contains "--read-only" "Traefik: read-only root filesystem is configured" roles/reverse_proxy/templates/traefik_container.sh.j2
 assert_file_contains "--read-only" "Postgres: read-only root filesystem is configured" roles/nextcloud/templates/postgres_container.sh.j2
@@ -245,7 +237,6 @@ assert_file_contains "--read-only" "Redis: read-only root filesystem is configur
 assert_file_contains "--read-only" "Navidrome: read-only root filesystem is configured" roles/navidrome/templates/navidrome_container.sh.j2
 assert_file_contains "--user \\{\\{ navidrome_uid \\}\\}:\\{\\{ navidrome_gid \\}\\}" "Navidrome: runs as explicit non-root UID/GID" roles/navidrome/templates/navidrome_container.sh.j2
 assert_file_contains "--read-only" "Vaultwarden: read-only root filesystem is configured" roles/vaultwarden/templates/vaultwarden.sh.j2
-assert_file_contains "--read-only" "Semaphore: read-only root filesystem is configured" roles/semaphore/templates/semaphore.sh.j2
 assert_file_contains "--read-only" "playbook-runner: read-only root filesystem is configured" roles/playbook_runner/templates/playbook_runner.sh.j2
 assert_file_contains "--cap-drop=ALL" "Traefik: drops all capabilities before adding required bind capability" roles/reverse_proxy/templates/traefik_container.sh.j2
 assert_file_contains "--cap-add=NET_BIND_SERVICE" "Traefik: only adds bind-service capability" roles/reverse_proxy/templates/traefik_container.sh.j2
@@ -254,15 +245,11 @@ assert_file_contains "--cap-drop=ALL" "Redis: drops all capabilities before addi
 assert_file_contains "--cap-drop=ALL" "Paperless: drops all capabilities before adding required entrypoint caps" roles/paperless_ngx/templates/paperless_ngx.sh.j2
 assert_file_contains "--cap-drop=ALL" "Navidrome: drops all capabilities" roles/navidrome/templates/navidrome_container.sh.j2
 assert_file_contains "--cap-drop=ALL" "Vaultwarden: drops all capabilities before adding required bind capability" roles/vaultwarden/templates/vaultwarden.sh.j2
-assert_file_contains "--cap-drop=ALL" "Semaphore: drops all capabilities" roles/semaphore/templates/semaphore.sh.j2
 assert_file_contains "--cap-drop=ALL" "playbook-runner: drops all capabilities" roles/playbook_runner/templates/playbook_runner.sh.j2
 assert_file_not_contains "--cap-add" "playbook-runner: adds no capabilities back" roles/playbook_runner/templates/playbook_runner.sh.j2
 assert_file_contains "destination=/run/playbook-runner,tmpfs-size=256M,tmpfs-mode=0700,U=true,noexec" "playbook-runner: run scratch space is a private noexec tmpfs" roles/playbook_runner/templates/playbook_runner.sh.j2
 assert_file_contains "container_dns[.]aliases[.]playbook_runner_proxy" "playbook-runner: proxy DNS alias is dictionary-driven" roles/playbook_runner/templates/playbook_runner.sh.j2
 assert_file_contains "playbook_runner_container_net" "reverse_proxy defaults: defers playbook-runner runtime network replacement" roles/reverse_proxy/defaults/main.yml
-assert_file_contains "--mount type=tmpfs,destination=/home/semaphore,tmpfs-size=32M,tmpfs-mode=0750,U=true" "Semaphore: home directory uses a service-owned tmpfs mount" roles/semaphore/templates/semaphore.sh.j2
-assert_file_contains "--mount type=tmpfs,destination=/tmp/semaphore,tmpfs-size=64M,tmpfs-mode=0750,U=true" "Semaphore: project temp path uses a service-owned tmpfs mount" roles/semaphore/templates/semaphore.sh.j2
-assert_file_not_contains "mode=1777" "Semaphore: project temp path is not world-writable" roles/semaphore/templates/semaphore.sh.j2
 echo ""
 fi
 
@@ -369,10 +356,7 @@ $PODMAN exec test_postgres_migration_seed env PGPASSWORD=oldsharedpass \
   psql -h localhost -U nextcloud_user -d postgres \
   -c "CREATE DATABASE paperless OWNER nextcloud_user;"
 $PODMAN exec test_postgres_migration_seed env PGPASSWORD=oldsharedpass \
-  psql -h localhost -U nextcloud_user -d postgres \
-  -c "CREATE DATABASE semaphore OWNER nextcloud_user;"
-$PODMAN exec test_postgres_migration_seed env PGPASSWORD=oldsharedpass \
-  psql -h localhost -U nextcloud_user -d semaphore \
+  psql -h localhost -U nextcloud_user -d paperless \
   -c "CREATE TABLE access_key (id serial primary key);"
 
 cleanup test_postgres_migration_seed
@@ -396,9 +380,6 @@ cleanup test_postgres_migration_seed
   --env PAPERLESS_DB_NAME=paperless \
   --env PAPERLESS_DB_USER=paperless_user \
   --env PAPERLESS_DB_PASSWORD=plpass \
-  --env SEMAPHORE_DB_NAME=semaphore \
-  --env SEMAPHORE_DB_USER=semaphore_user \
-  --env SEMAPHORE_DB_PASSWORD=sempass \
   --volume "$TEST_PG_MIG_DATA":/var/lib/postgresql/data \
   --volume "$TEST_PG_MIG_INIT":/custom-init \
   --entrypoint /custom-init/db_wrapper.sh \
@@ -416,11 +397,11 @@ $PODMAN exec test_postgres_migration env PGPASSWORD=plpass \
   psql -h localhost -U paperless_user -d paperless -c "CREATE TABLE migration_smoke(id int);" \
   >/dev/null 2>&1 && pass "Postgres migration: paperless role owns migrated database" \
   || fail "Postgres migration: paperless role cannot manage migrated database"
-$PODMAN exec test_postgres_migration env PGPASSWORD=sempass \
-  psql -h localhost -U semaphore_user -d semaphore \
-  -c "INSERT INTO access_key DEFAULT VALUES; CREATE TABLE migration_smoke(id int);" \
-  >/dev/null 2>&1 && pass "Postgres migration: semaphore role owns migrated database and serial-backed sequences" \
-  || fail "Postgres migration: semaphore role cannot manage migrated database objects after sequence ownership migration"
+$PODMAN exec test_postgres_migration env PGPASSWORD=plpass \
+  psql -h localhost -U paperless_user -d paperless \
+  -c "INSERT INTO access_key DEFAULT VALUES;" \
+  >/dev/null 2>&1 && pass "Postgres migration: paperless role owns migrated serial-backed sequences" \
+  || fail "Postgres migration: paperless role cannot manage migrated sequences after sequence ownership migration"
 
 cleanup test_postgres_migration
 cleanup_dir "$TEST_PG_MIG_DATA"
@@ -459,9 +440,6 @@ sleep 15
 $PODMAN exec test_postgres_legacy_seed env PGPASSWORD=legacysecret \
   psql -h localhost -U postgres -d postgres \
   -c "CREATE DATABASE paperless OWNER postgres;"
-$PODMAN exec test_postgres_legacy_seed env PGPASSWORD=legacysecret \
-  psql -h localhost -U postgres -d postgres \
-  -c "CREATE DATABASE semaphore OWNER postgres;"
 
 cleanup test_postgres_legacy_seed
 
@@ -484,9 +462,6 @@ cleanup test_postgres_legacy_seed
   --env PAPERLESS_DB_NAME=paperless \
   --env PAPERLESS_DB_USER=paperless_user \
   --env PAPERLESS_DB_PASSWORD=plpass \
-  --env SEMAPHORE_DB_NAME=semaphore \
-  --env SEMAPHORE_DB_USER=semaphore_user \
-  --env SEMAPHORE_DB_PASSWORD=sempass \
   --volume "$TEST_PG_LEGACY_DATA":/var/lib/postgresql/data \
   --volume "$TEST_PG_LEGACY_INIT":/custom-init \
   --entrypoint /custom-init/db_wrapper.sh \
@@ -508,10 +483,6 @@ $PODMAN exec test_postgres_legacy_migration env PGPASSWORD=plpass \
   psql -h localhost -U paperless_user -d paperless -c "CREATE TABLE migration_smoke(id int);" \
   >/dev/null 2>&1 && pass "Postgres legacy migration: paperless role owns migrated database" \
   || fail "Postgres legacy migration: paperless role cannot manage migrated database"
-$PODMAN exec test_postgres_legacy_migration env PGPASSWORD=sempass \
-  psql -h localhost -U semaphore_user -d semaphore -c "CREATE TABLE migration_smoke(id int);" \
-  >/dev/null 2>&1 && pass "Postgres legacy migration: semaphore role owns migrated database" \
-  || fail "Postgres legacy migration: semaphore role cannot manage migrated database"
 
 cleanup test_postgres_legacy_migration
 cleanup_dir "$TEST_PG_LEGACY_DATA"
@@ -551,9 +522,6 @@ sleep 15
 $PODMAN exec test_postgres_custom_seed env PGPASSWORD=legacysecret \
   psql -h localhost -U legacy_admin -d postgres \
   -c "CREATE DATABASE paperless OWNER legacy_admin;"
-$PODMAN exec test_postgres_custom_seed env PGPASSWORD=legacysecret \
-  psql -h localhost -U legacy_admin -d postgres \
-  -c "CREATE DATABASE semaphore OWNER legacy_admin;"
 
 cleanup test_postgres_custom_seed
 
@@ -578,9 +546,6 @@ cleanup test_postgres_custom_seed
   --env PAPERLESS_DB_NAME=paperless \
   --env PAPERLESS_DB_USER=paperless_user \
   --env PAPERLESS_DB_PASSWORD=plpass \
-  --env SEMAPHORE_DB_NAME=semaphore \
-  --env SEMAPHORE_DB_USER=semaphore_user \
-  --env SEMAPHORE_DB_PASSWORD=sempass \
   --volume "$TEST_PG_CUSTOM_DATA":/var/lib/postgresql/data \
   --volume "$TEST_PG_CUSTOM_INIT":/custom-init \
   --entrypoint /custom-init/db_wrapper.sh \
@@ -602,10 +567,6 @@ $PODMAN exec test_postgres_custom_migration env PGPASSWORD=plpass \
   psql -h localhost -U paperless_user -d paperless -c "CREATE TABLE migration_smoke(id int);" \
   >/dev/null 2>&1 && pass "Postgres custom migration: paperless role owns migrated database" \
   || fail "Postgres custom migration: paperless role cannot manage migrated database"
-$PODMAN exec test_postgres_custom_migration env PGPASSWORD=sempass \
-  psql -h localhost -U semaphore_user -d semaphore -c "CREATE TABLE migration_smoke(id int);" \
-  >/dev/null 2>&1 && pass "Postgres custom migration: semaphore role owns migrated database" \
-  || fail "Postgres custom migration: semaphore role cannot manage migrated database"
 
 cleanup test_postgres_custom_migration
 cleanup_dir "$TEST_PG_CUSTOM_DATA"
@@ -650,15 +611,9 @@ $PODMAN exec test_postgres_mixed_seed env PGPASSWORD=adminpass \
   -c "CREATE ROLE paperless_user LOGIN PASSWORD 'plpass';"
 $PODMAN exec test_postgres_mixed_seed env PGPASSWORD=adminpass \
   psql -h localhost -U postgres_admin -d postgres \
-  -c "CREATE ROLE semaphore_user LOGIN PASSWORD 'sempass';"
-$PODMAN exec test_postgres_mixed_seed env PGPASSWORD=adminpass \
-  psql -h localhost -U postgres_admin -d postgres \
   -c "CREATE DATABASE paperless OWNER paperless_user;"
 $PODMAN exec test_postgres_mixed_seed env PGPASSWORD=adminpass \
-  psql -h localhost -U postgres_admin -d postgres \
-  -c "CREATE DATABASE semaphore OWNER semaphore_user;"
-$PODMAN exec test_postgres_mixed_seed env PGPASSWORD=adminpass \
-  psql -h localhost -U postgres_admin -d semaphore \
+  psql -h localhost -U postgres_admin -d paperless \
   -c "CREATE TABLE django_migrations (id serial primary key, app text, name text, applied timestamptz);"
 
 cleanup test_postgres_mixed_seed
@@ -682,9 +637,6 @@ cleanup test_postgres_mixed_seed
   --env PAPERLESS_DB_NAME=paperless \
   --env PAPERLESS_DB_USER=paperless_user \
   --env PAPERLESS_DB_PASSWORD=plpass \
-  --env SEMAPHORE_DB_NAME=semaphore \
-  --env SEMAPHORE_DB_USER=semaphore_user \
-  --env SEMAPHORE_DB_PASSWORD=sempass \
   --volume "$TEST_PG_MIXED_DATA":/var/lib/postgresql/data \
   --volume "$TEST_PG_MIXED_INIT":/custom-init \
   --entrypoint /custom-init/db_wrapper.sh \
@@ -694,11 +646,11 @@ sleep 20
 $PODMAN inspect --format='{{.State.Status}}' test_postgres_mixed_migration 2>/dev/null \
   | grep -q running && pass "Postgres mixed migration: wrapper starts with existing service-owned databases" \
   || fail "Postgres mixed migration: wrapper failed with existing service-owned databases"
-$PODMAN exec test_postgres_mixed_migration env PGPASSWORD=sempass \
-  psql -h localhost -U semaphore_user -d semaphore \
+$PODMAN exec test_postgres_mixed_migration env PGPASSWORD=plpass \
+  psql -h localhost -U paperless_user -d paperless \
   -c "SELECT * FROM django_migrations; INSERT INTO django_migrations(app, name) VALUES ('main', '0001_initial');" \
-  >/dev/null 2>&1 && pass "Postgres mixed migration: semaphore role can access legacy admin-owned tables after normalization" \
-  || fail "Postgres mixed migration: semaphore role still cannot access legacy admin-owned tables"
+  >/dev/null 2>&1 && pass "Postgres mixed migration: paperless role can access legacy admin-owned tables after normalization" \
+  || fail "Postgres mixed migration: paperless role still cannot access legacy admin-owned tables"
 
 cleanup test_postgres_mixed_migration
 cleanup_dir "$TEST_PG_MIXED_DATA"
@@ -876,76 +828,6 @@ check_running test_vaultwarden "Vaultwarden: starts with cap-drop=ALL + NET_BIND
 
 cleanup test_vaultwarden
 rm -rf "$TEST_VW_DIR"
-echo ""
-fi
-
-# ---------------------------------------------------------------------------
-if should_run semaphore; then
-echo "--- TEST-08: Semaphore ---"
-TEST_SEM_DIR=$(mktemp -d)
-TEST_SEM_STATE_DIR=$(mktemp -d)
-cat > "$TEST_SEM_DIR/ssh_known_hosts" <<'EOF'
-127.0.0.1 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITestOnlyPlaceholderKnownHostKey
-EOF
-chown_test_path 1001:0 "$TEST_SEM_DIR" -R
-chown_test_path 1001:0 "$TEST_SEM_STATE_DIR" -R
-
-# U=true as above: Podman chowns the tmpfs to the container's own user.
-SEMAPHORE_PROJECT_TMP_MOUNT=(--mount type=tmpfs,destination=/tmp/semaphore,tmpfs-size=64M,tmpfs-mode=0750,U=true)
-SEMAPHORE_HOME_TMP_MOUNT=(--mount type=tmpfs,destination=/home/semaphore,tmpfs-size=32M,tmpfs-mode=0750,U=true)
-
-# Test A: baseline
-"${ENGINE_RUN[@]}" -d --name test_semaphore_base \
-  -e SEMAPHORE_DB_DIALECT=sqlite \
-  -e SEMAPHORE_ADMIN=admin \
-  -e SEMAPHORE_ADMIN_PASSWORD=Admin1234! \
-  -e SEMAPHORE_ADMIN_NAME=Admin \
-  -e SEMAPHORE_ADMIN_EMAIL=admin@test.local \
-  -e SEMAPHORE_ACCESS_KEY_ENCRYPTION=aabbccddaabbccddaabbccddaabbccdd \
-  "$SEMAPHORE_IMAGE"
-sleep 8
-$PODMAN inspect --format='{{.State.Status}}' test_semaphore_base \
-  | grep -q running && pass "Semaphore: baseline starts" || fail "Semaphore: baseline failed"
-cleanup test_semaphore_base
-
-# Test B: with cap-drop=ALL
-"${ENGINE_RUN[@]}" -d --name test_semaphore_caps \
-  --cap-drop=ALL \
-  --security-opt=no-new-privileges:true \
-  --read-only \
-  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
-  "${SEMAPHORE_HOME_TMP_MOUNT[@]}" \
-  "${SEMAPHORE_PROJECT_TMP_MOUNT[@]}" \
-  --memory=512m --memory-swap=512m \
-  --pids-limit=300 \
-  --volume "$TEST_SEM_DIR":/etc/semaphore \
-  --volume "$TEST_SEM_STATE_DIR":/var/lib/semaphore \
-  -e SEMAPHORE_DB_DIALECT=sqlite \
-  -e SEMAPHORE_ADMIN=admin \
-  -e SEMAPHORE_ADMIN_PASSWORD=Admin1234! \
-  -e SEMAPHORE_ADMIN_NAME=Admin \
-  -e SEMAPHORE_ADMIN_EMAIL=admin@test.local \
-  -e SEMAPHORE_ACCESS_KEY_ENCRYPTION=aabbccddaabbccddaabbccddaabbccdd \
-  -e ANSIBLE_SSH_ARGS="-o UserKnownHostsFile=/etc/ssh/ssh_known_hosts -o StrictHostKeyChecking=yes" \
-  "$SEMAPHORE_IMAGE"
-sleep 8
-$PODMAN inspect --format='{{.State.Status}}' test_semaphore_caps 2>/dev/null \
-  | grep -q running \
-  && pass "Semaphore: starts with cap-drop=ALL + read-only rootfs + writable config mount" \
-  || fail "Semaphore: failed with cap-drop=ALL + read-only rootfs + writable config mount"
-$PODMAN exec test_semaphore_caps sh -c 'mkdir /tmp/semaphore/project_1 && rmdir /tmp/semaphore/project_1' \
-  >/dev/null 2>&1 \
-  && pass "Semaphore: can create project work directories on read-only rootfs" \
-  || fail "Semaphore: cannot create project work directories on read-only rootfs"
-$PODMAN exec test_semaphore_caps sh -c 'mkdir -p "$HOME/.ansible/cp"' \
-  >/dev/null 2>&1 \
-  && pass "Semaphore: Ansible home runtime directory is writable on read-only rootfs" \
-  || fail "Semaphore: Ansible home runtime directory is not writable on read-only rootfs"
-echo "--- Semaphore cap-drop logs (last 20 lines) ---"
-$PODMAN logs test_semaphore_caps 2>&1 | tail -20
-cleanup test_semaphore_caps
-cleanup_dir "$TEST_SEM_DIR"
-cleanup_dir "$TEST_SEM_STATE_DIR"
 echo ""
 fi
 

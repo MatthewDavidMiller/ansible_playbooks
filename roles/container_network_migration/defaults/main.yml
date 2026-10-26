@@ -1,4 +1,4 @@
 ---
-# Delay gives a playbook launched from Semaphore time to exit before its
+# Delay gives a playbook launched from playbook-runner time to exit before its
 # container and networks are restarted.
 container_network_migration_delay: 2min

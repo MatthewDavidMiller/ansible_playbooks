@@ -50,7 +50,7 @@ VM1 runs the service stack. All variables in this section need real values for
 | `traefik_dashboard_basic_auth_users` | list | Yes, secret | One or more `user:htpasswd-hash` entries. | `["admin:$apr1$..."]` |
 | `traefik_acme_email` | string | Yes | ACME account email address. | `admin@example.com` |
 | `proxy_config` | list | Yes | Dynamic routes; see [Proxy entries](#proxy-entries). | One entry per exposed service |
-| `container_service_names` | string | Yes | Space-separated systemd service order used by Traefik and deferred network migration. | `postgres_container redis_container nextcloud_container paperless_ngx navidrome_container vaultwarden semaphore` |
+| `container_service_names` | string | Yes | Space-separated systemd service order used by Traefik and deferred network migration. | `postgres_container redis_container nextcloud_container paperless_ngx navidrome_container vaultwarden` |
 | `container_network_migration_delay` | string | No | Positive systemd time span before a queued network migration starts. | `2min` |
 | `traefik_egress_network` | string | No | Dedicated non-internal Traefik egress network. | `traefik_egress_net` |
 
@@ -119,21 +119,6 @@ When `backup_local: false`, also define the following variables:
 | `secret_key_minimum_length` | integer | No | Minimum accepted length for `paperless_secret_key`. | `32` |
 | `paperless_dns_name` | string | Yes | Public Paperless FQDN. | `paperless.example.com` |
 
-### Semaphore
-
-| Variable | Type | Required | Description | Example/default |
-|---|---|---|---|---|
-| `semaphore_database_name` | string | Yes | PostgreSQL database name. | `semaphore` |
-| `semaphore_db_user` | string | Yes | PostgreSQL application role. | `semaphore_user` |
-| `semaphore_db_password` | string | Yes, secret | Database password. | Ansible Vault value |
-| `semaphore_admin_name` | string | Yes | Initial Semaphore administrator name. | `admin` |
-| `semaphore_admin_email` | string | Yes | Valid administrator email address. | `admin@example.com` |
-| `semaphore_admin_password` | string | Yes, secret | Initial administrator password. | Ansible Vault value |
-| `semaphore_encryption_key` | string | Yes, secret | Access-key encryption key; at least 32 characters. | Ansible Vault value |
-| `semaphore_known_hosts` | string | Yes | Complete pinned SSH `known_hosts` entries mounted into Semaphore. | `host ssh-ed25519 AAAA...` |
-| `semaphore_backup_location` | string | Yes | Local label or rclone backup destination. | `Nextcloud:semaphore_backup` |
-| `semaphore_egress_network` | string | No | Dedicated non-backend outbound SSH network. | `semaphore_egress_net` |
-
 ### playbook-runner
 
 | Variable | Type | Required | Description | Example/default |
@@ -176,7 +161,7 @@ corresponding maps consistent.
 | `route_proxy_traefik_ips` | dictionary | No | Address Traefik claims on each route network; must differ from `route_proxy_container_ips`. |
 | `container_static_ips` | dictionary | No | Static address keyed by container alias. |
 | `container_dns` | dictionary | No | Podman DNS domain plus logical alias map. |
-| `reverse_proxy_deferred_route_networks` | list | No | Route networks whose replacement is deferred to their owning role; default is `semaphore_container_net` and `playbook_runner_container_net`. |
+| `reverse_proxy_deferred_route_networks` | list | No | Route networks whose replacement is deferred to their owning role; default is `playbook_runner_container_net`. |
 
 The complete default values are:
 
@@ -187,33 +172,28 @@ route_proxy_network_subnets:
   paperless_proxy_net: 172.16.1.40/29
   navidrome_container_net: 172.16.1.24/29
   vaultwarden_container_net: 172.16.1.16/29
-  semaphore_container_net: 172.16.1.48/29
   playbook_runner_container_net: 172.16.1.56/29
 route_proxy_container_ips:
   nextcloud_proxy_net: 172.16.1.34
   paperless_proxy_net: 172.16.1.42
   navidrome_container_net: 172.16.1.26
   vaultwarden_container_net: 172.16.1.18
-  semaphore_container_net: 172.16.1.50
   playbook_runner_container_net: 172.16.1.58
 route_proxy_traefik_ips:
   nextcloud_proxy_net: 172.16.1.35
   paperless_proxy_net: 172.16.1.43
   navidrome_container_net: 172.16.1.27
   vaultwarden_container_net: 172.16.1.19
-  semaphore_container_net: 172.16.1.51
   playbook_runner_container_net: 172.16.1.59
 container_static_ips:
   postgres_backend: 172.16.1.2
   redis_backend: 172.16.1.3
   nextcloud_backend: 172.16.1.4
   paperless_backend: 172.16.1.5
-  semaphore_backend: 172.16.1.6
   nextcloud_proxy: 172.16.1.34
   paperless_proxy: 172.16.1.42
   navidrome_proxy: 172.16.1.26
   vaultwarden_proxy: 172.16.1.18
-  semaphore_proxy: 172.16.1.50
   playbook_runner_proxy: 172.16.1.58
 container_dns:
   domain: dns.podman
@@ -226,9 +206,6 @@ container_dns:
     paperless_proxy: paperless-proxy
     navidrome_proxy: navidrome-proxy
     vaultwarden_proxy: vaultwarden-proxy
-    semaphore_backend: semaphore-backend
-    semaphore_proxy: semaphore-proxy
-    semaphore_egress: semaphore-egress
     playbook_runner_proxy: playbook-runner-proxy
     playbook_runner_egress: playbook-runner-egress
     traefik_proxy: traefik-proxy
@@ -280,7 +257,7 @@ They are listed here so every maintained role input is discoverable.
 
 `apply_runtime_changes_on_reboot`, `approved_container_images`,
 `traefik_image`, `postgres_image`, `redis_image`, `nextcloud_image`,
-`paperless_image`, `navidrome_image`, `vaultwarden_image`, `semaphore_image`,
+`paperless_image`, `navidrome_image`, `vaultwarden_image`, `playbook_runner_image`,
 and `standard_ssh_allow_users` are assembled by the maintained playbooks.
 Container image values come from `artifacts/containers.lock.yml`; do not
 override them in inventory.

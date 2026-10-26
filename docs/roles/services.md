@@ -38,7 +38,7 @@ Deploys the shared PostgreSQL container, Redis container, and Nextcloud itself.
 
 **Templates:** `postgres_container.sh.j2`, `postgres_container.service.j2`, `redis_container.sh.j2`, `redis_container.service.j2`, `nextcloud_container.sh.j2`, `nextcloud_container.service.j2`, `nextcloud_configure.sh.j2`, `nextcloud_configure.service.j2`, `postgres.env.j2`, `nextcloud.env.j2`
 
-**Key behavior:** owns the shared database layer for Nextcloud, Paperless, and Semaphore, reconciles its internal backend and proxy networks through the shared [`container_network`](standard.md#container_network) role, normalizes directory and file modes in one walk of each configured user files tree, reporting only how many files that walk fixed, keeps the `container_file_t` file context rule for its mounted volume so host-written backups are labeled correctly at creation, reconciles persistent `config.php` values after Nextcloud starts, and must run before those consumers.
+**Key behavior:** owns the shared database layer for Nextcloud and Paperless, reconciles its internal backend and proxy networks through the shared [`container_network`](standard.md#container_network) role, normalizes directory and file modes in one walk of each configured user files tree, reporting only how many files that walk fixed, keeps the `container_file_t` file context rule for its mounted volume so host-written backups are labeled correctly at creation, reconciles persistent `config.php` values after Nextcloud starts, and must run before those consumers.
 
 ---
 
@@ -80,21 +80,9 @@ Deploys Vaultwarden and its SQLite-backed backup workflow.
 
 ---
 
-### `semaphore`
-
-Deploys Semaphore and backs up its PostgreSQL database into the local Nextcloud data tree when `backup_local: true`.
-
-**Required variables:** `semaphore_database_name`, `semaphore_db_user`, `semaphore_db_password`, `semaphore_admin_name`, `semaphore_admin_email`, `semaphore_admin_password`, `semaphore_encryption_key` (at least 32 characters), `semaphore_known_hosts`, `semaphore_backup_location`, `semaphore_image`, `secret_env_dir`
-
-**Templates:** `semaphore.sh.j2`, `semaphore.service.j2`, `semaphore.env.j2`, `backup_semaphore.sh.j2`, `ssh_known_hosts.j2`
-
-**Key behavior:** reconciles the Semaphore proxy and egress networks through the shared [`container_network`](standard.md#container_network) role. The final [`container_network_migration`](standard.md#container_network_migration) role owns cross-service scheduling and recovery.
-
----
-
 ### `playbook_runner`
 
-Deploys [playbook-runner](https://github.com/MatthewDavidMiller/playbook-runner), the first-party replacement for Semaphore: a web interface that runs and schedules playbooks from this repository. The role is off by default; `vm1.yml` enables it. It refuses an empty `playbook_runner_image`, so the image must have a reviewed entry in `artifacts/containers.lock.yml` (it does, as a [first-party image](../guides/container-image-updates.md#first-party-images)). See [guides/playbook-runner-migration.md](../guides/playbook-runner-migration.md).
+Deploys [playbook-runner](https://github.com/MatthewDavidMiller/playbook-runner), a first-party web interface that runs and schedules playbooks from this repository. `vm1.yml` enables the role (`playbook_runner_enabled`). It refuses an empty `playbook_runner_image`, so the image must have a reviewed entry in `artifacts/containers.lock.yml` (it does, as a [first-party image](../guides/container-image-updates.md#first-party-images)). See [guides/playbook-runner-migration.md](../guides/playbook-runner-migration.md).
 
 **Required variables (when enabled):** `playbook_runner_path`, `playbook_runner_master_key` (64 hex digits), `playbook_runner_backup_location`, `playbook_runner_image`, `secret_env_dir`
 
@@ -118,7 +106,7 @@ Manages the local Borg backup disk and the daily backup scripts for VM1.
 
 ### Indexing local backups into Nextcloud
 
-With `backup_local: true`, the `navidrome`, `vaultwarden`, and `semaphore` backup scripts write their dumps directly into `{{ nextcloud_path }}/data/<nextcloud_homelab_user>/files/...` as `nextcloud_uid:nextcloud_gid`. A file placed there is invisible to Nextcloud clients until it is added to the file cache, so each script passes its destination to `/usr/local/bin/nextcloud_scan_path.sh`.
+With `backup_local: true`, the `navidrome`, `vaultwarden`, and `playbook_runner` backup scripts write their dumps directly into `{{ nextcloud_path }}/data/<nextcloud_homelab_user>/files/...` as `nextcloud_uid:nextcloud_gid`. A file placed there is invisible to Nextcloud clients until it is added to the file cache, so each script passes its destination to `/usr/local/bin/nextcloud_scan_path.sh`.
 
 Ownership and mode are not sufficient on their own. Podman's `:Z` relabel only covers what exists when the container starts, so a dump the host writes from cron afterwards takes the policy default for that path, `default_t`, which the container is denied `getattr` on. `occ files:scan` then reports `Error during scan: stat(): stat failed`, skips the file, and still exits zero. The `nextcloud` role therefore carries a persistent `container_file_t` rule for `nextcloud_path`, so every host-written backup is labeled correctly when it is created; see [SELinux](../architecture.md#selinux).
 
@@ -145,4 +133,4 @@ The scan-helper and file-mode properties are covered by `tests/test_ansible_regr
 
 ### `ansible`
 
-Installs the host-side Ansible runtime and supporting dependencies used by Semaphore-triggered jobs on VM1.
+Installs the host-side Ansible runtime and supporting dependencies used by playbook-runner jobs on VM1.

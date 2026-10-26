@@ -89,11 +89,6 @@ resolve_bootstrap_role() {
         return 0
     fi
 
-    if can_connect "$SEMAPHORE_DB_USER" "$SEMAPHORE_DB_PASSWORD"; then
-        set_bootstrap_role "$SEMAPHORE_DB_USER" "$SEMAPHORE_DB_PASSWORD" "localhost"
-        return 0
-    fi
-
     if can_connect_local_postgres; then
         set_bootstrap_role "postgres" "" ""
         return 0
@@ -319,7 +314,7 @@ SQL
 
 if ! resolve_bootstrap_role; then
     echo "[ERROR] Could not authenticate to the existing PostgreSQL cluster with any known bootstrap credential." >&2
-    echo "[ERROR] Tried postgres_admin, the optional legacy bootstrap role, the configured Nextcloud/Paperless/Semaphore DB users, and the legacy local postgres role." >&2
+    echo "[ERROR] Tried postgres_admin, the optional legacy bootstrap role, the configured Nextcloud/Paperless DB users, and the legacy local postgres role." >&2
     exit 1
 fi
 
@@ -327,11 +322,9 @@ ensure_admin_role
 
 ensure_role "$NEXTCLOUD_DB_USER" "$NEXTCLOUD_DB_PASSWORD"
 ensure_role "$PAPERLESS_DB_USER" "$PAPERLESS_DB_PASSWORD"
-ensure_role "$SEMAPHORE_DB_USER" "$SEMAPHORE_DB_PASSWORD"
 
 ensure_database "$NEXTCLOUD_DB_NAME" "$NEXTCLOUD_DB_USER"
 ensure_database "$PAPERLESS_DB_NAME" "$PAPERLESS_DB_USER"
-ensure_database "$SEMAPHORE_DB_NAME" "$SEMAPHORE_DB_USER"
 
 echo "[INFO] Database setup complete."
 wait $POSTGRES_PID

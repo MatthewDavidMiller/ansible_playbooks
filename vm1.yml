@@ -9,8 +9,6 @@
     nextcloud_uid: "33"
     nextcloud_gid: "33"
     apply_runtime_changes_on_reboot: true
-    # playbook-runner runs beside Semaphore until it has carried a weekly
-    # patch cycle; see docs/guides/playbook-runner-migration.md.
     playbook_runner_enabled: true
     traefik_image: "{{ artifact_locked_images.traefik.upstream_ref | regex_replace(':[^:@/]+$', '') }}@{{ artifact_locked_images.traefik.approved_digest }}"
     postgres_image: "{{ artifact_locked_images.postgres.upstream_ref | regex_replace(':[^:@/]+$', '') }}@{{ artifact_locked_images.postgres.approved_digest }}"
@@ -19,7 +17,6 @@
     paperless_image: "{{ artifact_locked_images.paperless.upstream_ref | regex_replace(':[^:@/]+$', '') }}@{{ artifact_locked_images.paperless.approved_digest }}"
     navidrome_image: "{{ artifact_locked_images.navidrome.upstream_ref | regex_replace(':[^:@/]+$', '') }}@{{ artifact_locked_images.navidrome.approved_digest }}"
     vaultwarden_image: "{{ artifact_locked_images.vaultwarden.upstream_ref | regex_replace(':[^:@/]+$', '') }}@{{ artifact_locked_images.vaultwarden.approved_digest }}"
-    semaphore_image: "{{ artifact_locked_images.semaphore.upstream_ref | regex_replace(':[^:@/]+$', '') }}@{{ artifact_locked_images.semaphore.approved_digest }}"
     # Empty only if the lock has no playbook_runner entry, which the role and
     # standard_podman both refuse while the runner is enabled.
     playbook_runner_image: >-
@@ -27,7 +24,7 @@
          if 'playbook_runner' in artifact_locked_images else '' }}
     approved_container_images: >-
       {{ [traefik_image, postgres_image, redis_image, nextcloud_image, paperless_image,
-          navidrome_image, vaultwarden_image, semaphore_image]
+          navidrome_image, vaultwarden_image]
          + ([playbook_runner_image] if playbook_runner_enabled | default(false) | bool else []) }}
   module_defaults:
     ansible.posix.firewalld:
@@ -50,7 +47,6 @@
     - paperless_ngx
     - navidrome
     - vaultwarden
-    - semaphore
     - playbook_runner
     - standard_cleanup
     - container_network_migration

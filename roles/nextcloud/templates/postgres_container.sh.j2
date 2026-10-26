@@ -27,9 +27,6 @@ exec /usr/bin/podman run \
 --env PAPERLESS_DB_NAME \
 --env PAPERLESS_DB_USER \
 --env PAPERLESS_DB_PASSWORD \
---env SEMAPHORE_DB_NAME \
---env SEMAPHORE_DB_USER \
---env SEMAPHORE_DB_PASSWORD \
 --env TZ \
 --entrypoint /custom-init/db_wrapper.sh \
 --memory=2g \

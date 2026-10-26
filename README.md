@@ -52,7 +52,7 @@ make test-full
 
 See [docs/testing.md](docs/testing.md) for what each target runs and how the toolbox is built.
 
-Every `vm1.yml` run applies all available Rocky Linux package updates; OS packages are not pinned. A weekly Semaphore schedule of `update_homelab_vms.yml` patches VM1 and then reboots it.
+Every `vm1.yml` run applies all available Rocky Linux package updates; OS packages are not pinned. A weekly playbook-runner schedule of `update_homelab_vms.yml` patches VM1 and then reboots it.
 
 ## License
 

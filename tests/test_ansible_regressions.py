@@ -227,8 +227,8 @@ class LocalNextcloudBackupTests(unittest.TestCase):
                 command,
                 r"\|\s*wc -l",
                 "restorecon -v prints a line per relabeled file, and returning the "
-                "whole data tree's worth kills the Ansible worker Semaphore runs "
-                "inside its memory-capped container",
+                "whole data tree's worth kills the Ansible worker the runner "
+                "container runs inside its memory-capped container",
             )
 
     def test_scan_helper_confirms_the_path_reached_the_file_cache(self):
@@ -271,7 +271,7 @@ class LocalNextcloudBackupTests(unittest.TestCase):
 
     def test_backup_destinations_are_not_recursively_chmodded(self):
         """A recursive mode on the destination also rewrites the backup files."""
-        for role in ("navidrome", "vaultwarden", "semaphore", "playbook_runner"):
+        for role in ("navidrome", "vaultwarden", "playbook_runner"):
             tasks = yaml.safe_load(
                 (REPO_ROOT / "roles" / role / "tasks" / "main.yml").read_text(
                     encoding="utf-8"
@@ -470,8 +470,8 @@ class AnsibleRegressionTests(unittest.TestCase):
             command,
             r"\|\s*wc -l",
             "-print emits a line per fixed file, and returning a populated tree's "
-            "worth kills the Ansible worker Semaphore runs inside its "
-            "memory-capped container",
+            "worth kills the Ansible worker the runner container runs "
+            "inside its memory-capped container",
         )
 
         with tempfile.TemporaryDirectory() as directory:
@@ -539,10 +539,6 @@ class SharedContainerNetworkTests(unittest.TestCase):
         "navidrome": {"navidrome_container_net": True},
         "paperless_ngx": {"paperless_proxy_net": True},
         "vaultwarden": {"vaultwarden_container_net": True},
-        "semaphore": {
-            "semaphore_container_net": True,
-            "{{ semaphore_egress_network }}": False,
-        },
         "playbook_runner": {
             "playbook_runner_container_net": True,
             "{{ playbook_runner_egress_network }}": False,
@@ -585,16 +581,15 @@ class SharedContainerNetworkTests(unittest.TestCase):
         self.assertEqual(
             external,
             {
-                ("semaphore", "{{ semaphore_egress_network }}"),
                 ("playbook_runner", "{{ playbook_runner_egress_network }}"),
                 ("reverse_proxy", "{{ traefik_egress_network }}"),
             },
         )
 
     def test_control_plane_networks_are_created_but_not_replaced_by_the_proxy(self):
-        """Replacing semaphore_container_net from reverse_proxy would cut the
-        Semaphore container running the playbook, so only the semaphore role
-        may repair drift on it."""
+        """Replacing playbook_runner_container_net from reverse_proxy would cut the
+        playbook-runner container running the playbook, so only the
+        playbook_runner role may repair drift on it."""
         route_call = next(
             call
             for call in network_reconcile_calls("reverse_proxy")
@@ -605,9 +600,10 @@ class SharedContainerNetworkTests(unittest.TestCase):
             route_call["container_network_reconcile_existing"],
         )
         defaults = role_defaults("reverse_proxy")
-        for network in ("semaphore_container_net", "playbook_runner_container_net"):
-            with self.subTest(network=network):
-                self.assertIn(network, defaults["reverse_proxy_deferred_route_networks"])
+        self.assertIn(
+            "playbook_runner_container_net",
+            defaults["reverse_proxy_deferred_route_networks"],
+        )
 
     def test_reconciliation_defers_replacement_during_staged_runs(self):
         defaults = role_defaults("container_network")
@@ -647,7 +643,7 @@ class SharedContainerNetworkTests(unittest.TestCase):
 
 
 class PlaybookRunnerTests(unittest.TestCase):
-    """Guards for the first-party Semaphore replacement.
+    """Guards for the first-party Ansible web UI and scheduler.
 
     The runner holds every automation secret, so its container is the most
     sensitive one on VM1: the master key arrives only as a Podman secret,
@@ -726,16 +722,16 @@ class ContainerNetworkMigrationTests(unittest.TestCase):
         roles = playbook[0]["roles"]
 
         self.assertGreater(
-            roles.index("container_network_migration"), roles.index("semaphore")
+            roles.index("container_network_migration"), roles.index("playbook_runner")
         )
         self.assertGreater(
             roles.index("container_network_migration"), roles.index("standard_cleanup")
         )
 
-        semaphore_tasks = (
-            REPO_ROOT / "roles" / "semaphore" / "tasks" / "main.yml"
+        runner_tasks = (
+            REPO_ROOT / "roles" / "playbook_runner" / "tasks" / "main.yml"
         ).read_text(encoding="utf-8")
-        self.assertNotIn("Schedule deferred container network migration", semaphore_tasks)
+        self.assertNotIn("Schedule deferred container network migration", runner_tasks)
 
     def test_migration_always_attempts_service_recovery(self):
         self.assertIn("trap finish EXIT", self.script)

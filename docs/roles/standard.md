@@ -32,7 +32,7 @@ Installs and enables the QEMU guest agent so Proxmox can coordinate clean shutdo
 
 Applies every available OS package update from the enabled Rocky Linux repositories during normal convergence.
 
-**Key behavior:** each `vm1.yml` run updates all installed packages with `dnf`; packages are not pinned. The weekly Semaphore run of `update_homelab_vms.yml` provides the patch cadence and the reboot that activates kernel and library updates. When `standard_update_enable_epel` is true, the role installs `epel-release` and enables CRB (CodeReady Builder) so EPEL packages can resolve CRB-provided dependencies such as `python3-pathspec`.
+**Key behavior:** each `vm1.yml` run updates all installed packages with `dnf`; packages are not pinned. The weekly playbook-runner run of `update_homelab_vms.yml` provides the patch cadence and the reboot that activates kernel and library updates. When `standard_update_enable_epel` is true, the role installs `epel-release` and enables CRB (CodeReady Builder) so EPEL packages can resolve CRB-provided dependencies such as `python3-pathspec`.
 
 ---
 
@@ -44,7 +44,7 @@ Sets the system timezone to `America/New_York`.
 
 ### `standard_cron`
 
-Installs and enables the platform cron service, and removes any legacy OS-level patching cron jobs so Semaphore remains the scheduling source of truth.
+Installs and enables the platform cron service, and removes any legacy OS-level patching cron jobs so playbook-runner remains the scheduling source of truth.
 
 ---
 
@@ -126,7 +126,7 @@ requests retain the desired internal mode, so egress networks remain external.
 Set `container_network_reconcile_existing: false` when another role owns the
 network's lifecycle — `reverse_proxy` uses this for
 `reverse_proxy_deferred_route_networks` so it never tears down the network
-carrying the Semaphore container that is running the playbook.
+carrying the playbook-runner container that is running the playbook.
 
 **Usage:**
 

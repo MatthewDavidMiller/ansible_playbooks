@@ -145,7 +145,7 @@
 
 # restorecon -v prints a line per relabeled file, and the first run after the
 # rule above relabels the whole data tree. Returning that as task output kills
-# the forked Ansible worker Semaphore runs inside its 384 MB swapless container
+# the forked Ansible worker inside a small swapless runner container
 # ("A worker was found in a dead state"), so the count is taken in the pipeline
 # and only the total comes back.
 - name: Restore SELinux contexts on the Nextcloud data tree

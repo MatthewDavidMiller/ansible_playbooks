@@ -17,7 +17,8 @@ For VM provisioning details see [proxmox-setup.md](proxmox-setup.md).
 | Nextcloud user files | Borg archive on second NVMe disk (backup role, daily) | `{{ borg_backup_path }}` on VM1 |
 | Vaultwarden SQLite DB | Local install into Nextcloud data dir as `nextcloud_uid:nextcloud_gid` (`backup_local: true`) | `{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/<vaultwarden_backup_location>` |
 | Navidrome DB | Local install into Nextcloud data dir as `nextcloud_uid:nextcloud_gid` (`backup_local: true`) | `{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/<navidrome_backup_location>` |
-| Semaphore DB | `pg_dump` staged locally, then installed into Nextcloud data dir as `nextcloud_uid:nextcloud_gid` (`backup_local: true`) | `{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/<semaphore_backup_location>` |
+| playbook-runner data (ciphertext only) | Daily tar archive, installed into Nextcloud data dir as `nextcloud_uid:nextcloud_gid` (`backup_local: true`) | `{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/<playbook_runner_backup_location>` |
+| playbook-runner master key | Not in any backup by design; kept in Vaultwarden and the external inventory | n/a |
 | Navidrome music | Local bind-mount of Nextcloud data dir — source is Nextcloud user files (backed up by Borg above) | n/a |
 | Traefik/Let's Encrypt certificates | Regeneratable via DNS-01 challenge | n/a |
 | Redis | Cache only — acceptable loss | n/a |
@@ -85,7 +86,7 @@ The existing Ansible playbooks support this without changes: mounts are UUID-bas
 
 | Disk | Inventory variable | Contains |
 |---|---|---|
-| Nextcloud data disk | `nextcloud_disk` → `nextcloud_path` | User files, config.php, apps, local Borg archive (`nextcloud_borg_backup_path`) with SQL dumps and Paperless exports, plus Vaultwarden/Navidrome/Semaphore backup files stored inside `nextcloud_path/data/` |
+| Nextcloud data disk | `nextcloud_disk` → `nextcloud_path` | User files, config.php, apps, local Borg archive (`nextcloud_borg_backup_path`) with SQL dumps and Paperless exports, plus Vaultwarden/Navidrome/playbook-runner backup files stored inside `nextcloud_path/data/` |
 | Borg backup disk | `backup_disk` → `borg_backup_path` | Full daily Borg snapshots of the entire `nextcloud_path` directory tree |
 
 The live PostgreSQL data directory (`postgres_path`) is on the OS disk — it is a separate configured path, not under `nextcloud_path`, so it is not on the data disk and is not carried over when you move the disk to a new VM. Databases must be restored from the SQL dumps in the Borg archive.
@@ -178,7 +179,7 @@ cp -r /restore_staging<paperless_export_path>/<DATE>/ <paperless_export_path>/
 podman exec paperless document_importer /usr/src/paperless/export/<DATE>
 ```
 
-### Step 4: Restore Navidrome, Vaultwarden, Semaphore
+### Step 4: Restore Navidrome, Vaultwarden, playbook-runner
 
 These backup files are stored inside `nextcloud_path/data/<nextcloud_homelab_user>/files/` and are already available on the mounted disk. Follow [Steps 3–5](#step-3-restore-navidrome) of the main DR guide below.
 
@@ -332,25 +333,24 @@ systemctl start vaultwarden
 
 ---
 
-## Step 5: Restore Semaphore
+## Step 5: Restore playbook-runner
 
-**5a. Locate the SQL dump in the Nextcloud data directory:**
+The runner needs the master key as well as its data. The key is not in any backup; take it from Vaultwarden (or the external inventory) and set `playbook_runner_master_key` before running `vm1.yml`, which provisions it as a Podman secret. With a wrong or missing key the runner refuses to start rather than serve data it cannot decrypt.
+
+**5a. Locate the newest archive in the Nextcloud data directory:**
 ```bash
-ls <nextcloud_path>/data/<nextcloud_homelab_user>/files/<semaphore_backup_location>/
+ls <nextcloud_path>/data/<nextcloud_homelab_user>/files/<playbook_runner_backup_location>/
 ```
 
-**5b. Restore the Semaphore database:**
+**5b. Stop the runner, unpack the archive over its data directory, restart:**
 ```bash
-podman exec postgres psql -h localhost -U <postgres_admin_user> -d postgres -c "DROP DATABASE IF EXISTS <semaphore_database_name>;"
-podman exec postgres psql -h localhost -U <postgres_admin_user> -d postgres -c "CREATE DATABASE <semaphore_database_name> OWNER <semaphore_db_user>;"
-podman exec -i postgres psql -h localhost -U <postgres_admin_user> -d <semaphore_database_name> \
-    < <nextcloud_path>/data/<nextcloud_homelab_user>/files/<semaphore_backup_location>/semaphore_db_<DATE>.sql
+systemctl stop playbook_runner
+tar -C <playbook_runner_path> --numeric-owner -xzf \
+    <nextcloud_path>/data/<nextcloud_homelab_user>/files/<playbook_runner_backup_location>/playbook_runner_<DATE>.tar.gz
+systemctl start playbook_runner
 ```
 
-**5c. Restart Semaphore:**
-```bash
-systemctl restart semaphore
-```
+Runs that were in progress when the archive was taken show as `interrupted`.
 
 ---
 
@@ -364,7 +364,7 @@ DNS already points to VM1's IP. If you provisioned the replacement VM with a dif
 | `paperless.<top_domain>` | Paperless NGX |
 | `navidrome.<top_domain>` | Navidrome |
 | `vault.<top_domain>` | Vaultwarden |
-| `semaphore.<top_domain>` | Semaphore |
+| `<playbook_runner_fqdn>` | playbook-runner |
 
 Traefik will issue fresh per-service certificates via DNS-01 challenge if the existing `acme.json` state does not carry over.
 
@@ -378,6 +378,6 @@ Confirm each service is functional:
 - [ ] Paperless documents are present and searchable
 - [ ] Navidrome music library is visible (populated from Nextcloud user files restored in Step 2g)
 - [ ] Vaultwarden vault unlocks with existing credentials
-- [ ] Semaphore projects and inventories are present
+- [ ] playbook-runner shows its secrets, inventories, templates, and schedules, and a check-mode run of `vm1.yml` succeeds
 - [ ] Traefik issued valid TLS certificates (check browser padlock)
 - [ ] Backup scripts are running: `crontab -l`

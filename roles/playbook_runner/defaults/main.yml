@@ -1,7 +1,7 @@
 ---
 # playbook_runner role defaults
 #
-# playbook-runner is the first-party replacement for Semaphore
+# playbook-runner is the first-party Ansible web UI and scheduler
 # (https://github.com/MatthewDavidMiller/playbook-runner). The role is off
 # until playbook_runner_enabled is true, and it refuses to run until the
 # image has a reviewed entry in artifacts/containers.lock.yml.

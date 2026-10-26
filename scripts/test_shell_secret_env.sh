@@ -42,28 +42,12 @@ paperless_secret_key=$(cat <<'EOF'
 pl;secret "quoted" \ slash & dollars $HOME and 'single'
 EOF
 )
-semaphore_db_password=$(cat <<'EOF'
-sem;db "quoted" \ slash & dollars $HOME and 'single'
-EOF
-)
 nextcloud_admin_password=$(cat <<'EOF'
 nc;admin "quoted" \ slash & dollars $HOME and 'single'
 EOF
 )
-semaphore_admin_password=$(cat <<'EOF'
-sem;admin "quoted" \ slash & dollars $HOME and 'single'
-EOF
-)
-semaphore_encryption_key=$(cat <<'EOF'
-enc;key "quoted" \ slash & dollars $HOME and 'single'
-EOF
-)
 nextcloud_trusted_domains=$(cat <<'EOF'
 cloud.example.com cloud-alt.example.com
-EOF
-)
-semaphore_ssh_args=$(cat <<'EOF'
--o UserKnownHostsFile=/etc/semaphore/ssh_known_hosts -o StrictHostKeyChecking=yes
 EOF
 )
 
@@ -84,9 +68,6 @@ paperless_database_name: 'paperless-db'
 paperless_db_user: 'paperless-user'
 paperless_db_password: 'pl;db "quoted" \ slash & dollars \$HOME and ''single'''
 paperless_secret_key: 'pl;secret "quoted" \ slash & dollars \$HOME and ''single'''
-semaphore_database_name: 'semaphore-db'
-semaphore_db_user: 'semaphore-user'
-semaphore_db_password: 'sem;db "quoted" \ slash & dollars \$HOME and ''single'''
 nextcloud_admin_user: 'nextcloud-admin'
 nextcloud_admin_password: 'nc;admin "quoted" \ slash & dollars \$HOME and ''single'''
 nextcloud_trusted_domains: 'cloud.example.com cloud-alt.example.com'
@@ -95,11 +76,6 @@ nextcloud_homelab_user: 'admin'
 nextcloud_uid: '33'
 nextcloud_gid: '33'
 paperless_dns_name: 'paperless.example.com'
-semaphore_admin_name: 'sem-admin'
-semaphore_admin_email: 'sem-admin@example.com'
-semaphore_admin_password: 'sem;admin "quoted" \ slash & dollars \$HOME and ''single'''
-semaphore_encryption_key: 'enc;key "quoted" \ slash & dollars \$HOME and ''single'''
-semaphore_backup_location: 'Nextcloud:semaphore_backup'
 traefik_image: 'docker.io/traefik@sha256:1111111111111111111111111111111111111111111111111111111111111111'
 traefik_egress_network: 'traefik_egress_net'
 traefik_dashboard_basic_auth_users:
@@ -117,9 +93,6 @@ container_dns:
     nextcloud_proxy: 'test-nextcloud-proxy'
     paperless_backend: 'test-paperless-backend'
     paperless_proxy: 'test-paperless-proxy'
-    semaphore_backend: 'test-semaphore-backend'
-    semaphore_proxy: 'test-semaphore-proxy'
-    semaphore_egress: 'test-semaphore-egress'
     playbook_runner_proxy: 'test-playbook-runner-proxy'
     playbook_runner_egress: 'test-playbook-runner-egress'
     traefik_proxy: 'test-traefik-proxy'
@@ -129,7 +102,6 @@ route_proxy_network_subnets:
   paperless_proxy_net: '172.16.1.40/29'
   navidrome_container_net: '172.16.1.24/29'
   vaultwarden_container_net: '172.16.1.16/29'
-  semaphore_container_net: '172.16.1.48/29'
 container_static_ips:
   postgres_backend: '172.16.1.2'
   redis_backend: '172.16.1.3'
@@ -137,8 +109,6 @@ container_static_ips:
   nextcloud_proxy: '172.16.1.34'
   paperless_backend: '172.16.1.5'
   paperless_proxy: '172.16.1.42'
-  semaphore_backend: '172.16.1.6'
-  semaphore_proxy: '172.16.1.50'
   playbook_runner_proxy: '172.16.1.58'
 route_proxy_container_ips:
   nextcloud_proxy_net: '172.16.1.34'
@@ -153,7 +123,7 @@ proxy_config:
     proxy_upstream_protocol: 'http'
     container_destination: '{{ container_dns.aliases.nextcloud_proxy }}.{{ container_dns.domain }}'
     proxy_network: 'nextcloud_proxy_net'
-container_service_names: 'postgres_container redis_container nextcloud_container paperless_ngx navidrome_container vaultwarden semaphore'
+container_service_names: 'postgres_container redis_container nextcloud_container paperless_ngx navidrome_container vaultwarden'
 container_network_migrations:
   - name: 'nextcloud_proxy_net'
     subnet: '172.16.1.32/29'
@@ -172,8 +142,6 @@ paperless_media_path: '/srv/paperless/media'
 paperless_export_path: '/srv/paperless/export'
 paperless_consume_path: '/srv/paperless/consume'
 backup_local: true
-semaphore_image: 'docker.io/semaphoreui/semaphore@sha256:8888888888888888888888888888888888888888888888888888888888888888'
-semaphore_egress_network: 'semaphore_egress_net'
 navidrome_path: '/srv/navidrome'
 navidrome_image: 'docker.io/deluan/navidrome@sha256:6666666666666666666666666666666666666666666666666666666666666666'
 navidrome_backup_location: 'Nextcloud:navidrome_backup'
@@ -222,11 +190,6 @@ cat > "$tmpdir/render.yml" <<EOF
       ansible.builtin.template:
         src: ${repo_root}/roles/paperless_ngx/templates/paperless.env.j2
         dest: ${render_dir}/paperless.env
-
-    - name: Render semaphore.env
-      ansible.builtin.template:
-        src: ${repo_root}/roles/semaphore/templates/semaphore.env.j2
-        dest: ${render_dir}/semaphore.env
 
     - name: Render traefik_container.sh
       ansible.builtin.template:
@@ -278,11 +241,6 @@ cat > "$tmpdir/render.yml" <<EOF
         src: ${repo_root}/roles/paperless_ngx/templates/paperless_ngx.sh.j2
         dest: ${render_dir}/paperless_ngx.sh
 
-    - name: Render semaphore.sh
-      ansible.builtin.template:
-        src: ${repo_root}/roles/semaphore/templates/semaphore.sh.j2
-        dest: ${render_dir}/semaphore.sh
-
     - name: Render backup_navidrome.sh
       ansible.builtin.template:
         src: ${repo_root}/roles/navidrome/templates/backup_navidrome.sh.j2
@@ -292,11 +250,6 @@ cat > "$tmpdir/render.yml" <<EOF
       ansible.builtin.template:
         src: ${repo_root}/roles/vaultwarden/templates/backup_db.j2
         dest: ${render_dir}/backup_vaultwarden.sh
-
-    - name: Render backup_semaphore.sh
-      ansible.builtin.template:
-        src: ${repo_root}/roles/semaphore/templates/backup_semaphore.sh.j2
-        dest: ${render_dir}/backup_semaphore.sh
 
     - name: Render playbook_runner.sh
       ansible.builtin.template:
@@ -408,7 +361,6 @@ assert_sourced_var "$render_dir/traefik.env" "PORKBUN_SECRET_API_KEY" "$porkbun_
 assert_sourced_var "$render_dir/postgres.env" "POSTGRES_PASSWORD" "$postgres_admin_password" "postgres.env preserves POSTGRES_PASSWORD"
 assert_sourced_var "$render_dir/postgres.env" "NEXTCLOUD_DB_PASSWORD" "$nextcloud_db_password" "postgres.env preserves NEXTCLOUD_DB_PASSWORD"
 assert_sourced_var "$render_dir/postgres.env" "PAPERLESS_DB_PASSWORD" "$paperless_db_password" "postgres.env preserves PAPERLESS_DB_PASSWORD"
-assert_sourced_var "$render_dir/postgres.env" "SEMAPHORE_DB_PASSWORD" "$semaphore_db_password" "postgres.env preserves SEMAPHORE_DB_PASSWORD"
 assert_sourced_var "$render_dir/nextcloud.env" "NEXTCLOUD_ADMIN_PASSWORD" "$nextcloud_admin_password" "nextcloud.env preserves NEXTCLOUD_ADMIN_PASSWORD"
 assert_sourced_var "$render_dir/nextcloud.env" "NEXTCLOUD_TRUSTED_DOMAINS" "$nextcloud_trusted_domains" "nextcloud.env preserves NEXTCLOUD_TRUSTED_DOMAINS"
 assert_sourced_var "$render_dir/nextcloud.env" "POSTGRES_HOST" "test-postgres-backend.test.dns.podman" "nextcloud.env uses the backend Postgres alias"
@@ -420,10 +372,6 @@ assert_sourced_var "$render_dir/paperless.env" "PAPERLESS_REDIS" "redis://test-r
 assert_sourced_var "$render_dir/paperless.env" "PAPERLESS_SECRET_KEY" "$paperless_secret_key" "paperless.env preserves PAPERLESS_SECRET_KEY"
 assert_sourced_var "$render_dir/paperless.env" "PAPERLESS_DBENGINE" "postgresql" "paperless.env declares the PostgreSQL engine explicitly"
 assert_sourced_var "$render_dir/paperless.env" "PAPERLESS_TRUSTED_PROXIES" "172.16.1.43" "paperless.env trusts only the Traefik proxy hop"
-assert_sourced_var "$render_dir/semaphore.env" "SEMAPHORE_DB_HOST" "test-postgres-backend.test.dns.podman" "semaphore.env uses the backend Postgres alias"
-assert_sourced_var "$render_dir/semaphore.env" "SEMAPHORE_ADMIN_PASSWORD" "$semaphore_admin_password" "semaphore.env preserves SEMAPHORE_ADMIN_PASSWORD"
-assert_sourced_var "$render_dir/semaphore.env" "SEMAPHORE_ACCESS_KEY_ENCRYPTION" "$semaphore_encryption_key" "semaphore.env preserves SEMAPHORE_ACCESS_KEY_ENCRYPTION"
-assert_sourced_var "$render_dir/semaphore.env" "ANSIBLE_SSH_ARGS" "$semaphore_ssh_args" "semaphore.env preserves ANSIBLE_SSH_ARGS"
 
 assert_not_contains "$render_dir/traefik_container.sh" "--env-file" "traefik_container.sh no longer uses --env-file"
 assert_contains "$render_dir/traefik_container.sh" '. "/etc/homelab/secrets/traefik.env"' "traefik_container.sh sources traefik.env"
@@ -441,7 +389,7 @@ assert_line_before "$render_dir/traefik_container.sh" "--network=nextcloud_proxy
 assert_not_contains "$render_dir/traefik_container.sh" "--network=nextcloud_container_net" "traefik_container.sh does not join backend network"
 assert_not_contains "$render_dir/traefik_container.sh" "podman pull" "traefik_container.sh no longer calls podman pull"
 assert_contains "$render_dir/traefik_container.sh" "--pull=never" "traefik_container.sh uses --pull=never"
-assert_contains "$render_dir/traefik_container.service" "After=network-online.target postgres_container.service redis_container.service nextcloud_container.service paperless_ngx.service navidrome_container.service vaultwarden.service semaphore.service" "traefik_container.service orders after rendered backend service units"
+assert_contains "$render_dir/traefik_container.service" "After=network-online.target postgres_container.service redis_container.service nextcloud_container.service paperless_ngx.service navidrome_container.service vaultwarden.service" "traefik_container.service orders after rendered backend service units"
 assert_contains "$render_dir/security.yml" "dashboard-basic-auth:" "security.yml defines dashboard BasicAuth middleware"
 assert_contains "$render_dir/security.yml" "basicAuth:" "security.yml renders Traefik BasicAuth config"
 assert_contains "$render_dir/security.yml" 'admin:$apr1$example$T2v8QdKqzJ8D7c4s1bYhZ/' "security.yml renders configured dashboard user hash"
@@ -452,7 +400,6 @@ assert_contains "$render_dir/postgres_container.sh" '. "/etc/homelab/secrets/pos
 assert_contains "$render_dir/postgres_container.sh" "--env POSTGRES_PASSWORD" "postgres_container.sh passes POSTGRES_PASSWORD"
 assert_contains "$render_dir/postgres_container.sh" "--env NEXTCLOUD_DB_PASSWORD" "postgres_container.sh passes NEXTCLOUD_DB_PASSWORD"
 assert_contains "$render_dir/postgres_container.sh" "--env PAPERLESS_DB_PASSWORD" "postgres_container.sh passes PAPERLESS_DB_PASSWORD"
-assert_contains "$render_dir/postgres_container.sh" "--env SEMAPHORE_DB_PASSWORD" "postgres_container.sh passes SEMAPHORE_DB_PASSWORD"
 assert_contains "$render_dir/postgres_container.sh" "--network=nextcloud_container_net:ip=172.16.1.2,alias=test-postgres-backend" "postgres_container.sh joins backend network with a static IP and alias"
 assert_not_contains "$render_dir/postgres_container.sh" "podman pull" "postgres_container.sh no longer calls podman pull"
 assert_contains "$render_dir/postgres_container.sh" "--pull=never" "postgres_container.sh uses --pull=never"
@@ -511,19 +458,6 @@ assert_contains "$render_dir/paperless_ngx.sh" "--add-host=test-redis-backend.te
 assert_not_contains "$render_dir/paperless_ngx.sh" "podman pull" "paperless_ngx.sh no longer calls podman pull"
 assert_contains "$render_dir/paperless_ngx.sh" "--pull=never" "paperless_ngx.sh uses --pull=never"
 
-assert_not_contains "$render_dir/semaphore.sh" "--env-file" "semaphore.sh no longer uses --env-file"
-assert_contains "$render_dir/semaphore.sh" '. "/etc/homelab/secrets/semaphore.env"' "semaphore.sh sources semaphore.env"
-assert_contains "$render_dir/semaphore.sh" "--env SEMAPHORE_ADMIN_PASSWORD" "semaphore.sh passes SEMAPHORE_ADMIN_PASSWORD"
-assert_contains "$render_dir/semaphore.sh" "--env SEMAPHORE_ACCESS_KEY_ENCRYPTION" "semaphore.sh passes SEMAPHORE_ACCESS_KEY_ENCRYPTION"
-assert_contains "$render_dir/semaphore.sh" "--env ANSIBLE_SSH_ARGS" "semaphore.sh passes ANSIBLE_SSH_ARGS"
-assert_contains "$render_dir/semaphore.sh" "--network=semaphore_container_net:ip=172.16.1.50,alias=test-semaphore-proxy" "semaphore.sh joins proxy network with a static IP and alias"
-assert_contains "$render_dir/semaphore.sh" "--network=nextcloud_container_net:ip=172.16.1.6,alias=test-semaphore-backend" "semaphore.sh joins backend network with a static IP and alias"
-assert_contains "$render_dir/semaphore.sh" "--network=semaphore_egress_net:alias=test-semaphore-egress" "semaphore.sh joins egress network with an alias"
-assert_contains "$render_dir/semaphore.sh" "--add-host=test-postgres-backend.test.dns.podman:172.16.1.2" "semaphore.sh resolves Postgres alias through /etc/hosts"
-assert_line_before "$render_dir/semaphore.sh" "--network=nextcloud_container_net" "--network=semaphore_container_net" "semaphore.sh attaches backend network before proxy network"
-assert_line_before "$render_dir/semaphore.sh" "--network=nextcloud_container_net" "--network=semaphore_egress_net" "semaphore.sh attaches backend network before egress network"
-assert_not_contains "$render_dir/semaphore.sh" "podman pull" "semaphore.sh no longer calls podman pull"
-assert_contains "$render_dir/semaphore.sh" "--pull=never" "semaphore.sh uses --pull=never"
 assert_contains "$render_dir/playbook_runner.sh" "--network=playbook_runner_container_net:ip=172.16.1.58,alias=test-playbook-runner-proxy" "playbook_runner.sh joins its proxy network with a static IP and alias"
 assert_contains "$render_dir/playbook_runner.sh" "--network=playbook_runner_egress_net:alias=test-playbook-runner-egress" "playbook_runner.sh joins its egress network"
 assert_not_contains "$render_dir/playbook_runner.sh" "nextcloud_container_net" "playbook_runner.sh stays off the backend network"
@@ -532,9 +466,6 @@ assert_contains "$render_dir/playbook_runner.sh" "--secret playbook_runner_admin
 assert_not_contains "$render_dir/playbook_runner.sh" "run;admin" "playbook_runner.sh never carries the admin password itself"
 assert_contains "$render_dir/playbook_runner.sh" "--pull=never" "playbook_runner.sh uses --pull=never"
 assert_contains "$render_dir/backup_playbook_runner.sh" "/usr/bin/tar -C \"/srv/playbook-runner\"" "backup_playbook_runner.sh archives the data directory"
-assert_contains "$render_dir/semaphore.sh" "--mount type=tmpfs,destination=/home/semaphore,tmpfs-size=32M,tmpfs-mode=0750,U=true" "semaphore.sh mounts service-owned home tmpfs"
-assert_contains "$render_dir/semaphore.sh" "--mount type=tmpfs,destination=/tmp/semaphore,tmpfs-size=64M,tmpfs-mode=0750,U=true" "semaphore.sh mounts service-owned project tmpfs"
-assert_not_contains "$render_dir/semaphore.sh" "mode=1777" "semaphore.sh does not render a world-writable project temp path"
 
 assert_contains "$render_dir/backup_navidrome.sh" '/usr/bin/install -d -o 33 -g 33 -m 0770 "$DEST"' "backup_navidrome.sh creates the Nextcloud destination with Nextcloud ownership"
 assert_contains "$render_dir/backup_navidrome.sh" '/usr/bin/install -o 33 -g 33 -m 0660 "$backup_file" "$DEST/"' "backup_navidrome.sh installs backups with the normalized Nextcloud file mode"
@@ -544,11 +475,8 @@ assert_contains "$render_dir/backup_vaultwarden.sh" '/usr/bin/install -d -o 33 -
 assert_contains "$render_dir/backup_vaultwarden.sh" '/usr/bin/install -o 33 -g 33 -m 0660 "$BACKUP_FILE" "$DEST/"' "backup_vaultwarden.sh installs backups with the normalized Nextcloud file mode"
 assert_not_contains "$render_dir/backup_vaultwarden.sh" '/usr/bin/cp "$BACKUP_FILE" "$DEST/"' "backup_vaultwarden.sh no longer copies backups as root"
 
-assert_contains "$render_dir/backup_semaphore.sh" '/usr/bin/install -d -o 33 -g 33 -m 0770 "$DEST"' "backup_semaphore.sh creates the Nextcloud destination with Nextcloud ownership"
-assert_contains "$render_dir/backup_semaphore.sh" '/usr/bin/install -o 33 -g 33 -m 0660 "$DUMP_FILE" "$DEST/"' "backup_semaphore.sh installs backups with the normalized Nextcloud file mode"
-assert_not_contains "$render_dir/backup_semaphore.sh" '/usr/bin/cp "$DUMP_FILE" "$DEST/"' "backup_semaphore.sh no longer copies backups as root"
 
-for backup_script in backup_navidrome.sh backup_vaultwarden.sh backup_semaphore.sh; do
+for backup_script in backup_navidrome.sh backup_vaultwarden.sh; do
   assert_contains "$render_dir/$backup_script" \
     '/usr/local/bin/nextcloud_scan_path.sh' \
     "$backup_script uses the managed Nextcloud scan helper"

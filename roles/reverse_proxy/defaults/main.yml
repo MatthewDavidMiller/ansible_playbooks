@@ -14,14 +14,12 @@ route_proxy_network_subnets:
   paperless_proxy_net: 172.16.1.40/29
   navidrome_container_net: 172.16.1.24/29
   vaultwarden_container_net: 172.16.1.16/29
-  semaphore_container_net: 172.16.1.48/29
   playbook_runner_container_net: 172.16.1.56/29
 
 # Route networks that can carry the Ansible control-plane container.
 # The reverse_proxy role may create these when absent, but destructive
 # replacement is deferred to the owning service role later in the play.
 reverse_proxy_deferred_route_networks:
-  - semaphore_container_net
   - playbook_runner_container_net
 
 # Fully-qualified domain name for the Traefik dashboard
@@ -54,7 +52,6 @@ container_dns:
     paperless_proxy: paperless-proxy
     navidrome_proxy: navidrome-proxy
     vaultwarden_proxy: vaultwarden-proxy
-    semaphore_proxy: semaphore-proxy
     playbook_runner_proxy: playbook-runner-proxy
     traefik_proxy: traefik-proxy
     traefik_egress: traefik-egress
@@ -69,7 +66,6 @@ route_proxy_traefik_ips:
   paperless_proxy_net: 172.16.1.43
   navidrome_container_net: 172.16.1.27
   vaultwarden_container_net: 172.16.1.19
-  semaphore_container_net: 172.16.1.51
   playbook_runner_container_net: 172.16.1.59
 
 # Static container IPs used by Traefik /etc/hosts entries for proxied
@@ -79,7 +75,6 @@ route_proxy_container_ips:
   paperless_proxy_net: 172.16.1.42
   navidrome_container_net: 172.16.1.26
   vaultwarden_container_net: 172.16.1.18
-  semaphore_container_net: 172.16.1.50
   playbook_runner_container_net: 172.16.1.58
 
 # Management network CIDR allowed to reach the Traefik dashboard (used in ip-allowlist middleware)

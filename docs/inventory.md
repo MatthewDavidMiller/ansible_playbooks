@@ -32,7 +32,7 @@ Applied to the maintained homelab inventory.
 
 ## `vm1` Host
 
-VM1 is the single maintained service host. It runs Traefik, PostgreSQL, Redis, Nextcloud, Paperless NGX, Navidrome, Vaultwarden, Semaphore, and the local backup workflow.
+VM1 is the single maintained service host. It runs Traefik, PostgreSQL, Redis, Nextcloud, Paperless NGX, Navidrome, Vaultwarden, playbook-runner, and the local backup workflow.
 
 | Variable | Type | Description | Example |
 |---|---|---|---|
@@ -79,15 +79,6 @@ VM1 is the single maintained service host. It runs Traefik, PostgreSQL, Redis, N
 | `password_minimum_length` | integer | Minimum length enforced for the PostgreSQL admin, Nextcloud DB, and Paperless DB passwords | `16` |
 | `secret_key_minimum_length` | integer | Minimum length enforced for `paperless_secret_key` | `32` |
 | `paperless_dns_name` | string | Paperless public FQDN | `paperless.example.com` |
-| `semaphore_database_name` | string | Semaphore database name | `semaphore` |
-| `semaphore_db_user` | string | Semaphore DB role | `semaphore_user` |
-| `semaphore_db_password` | string | Semaphore DB password | `secret` |
-| `semaphore_admin_name` | string | Semaphore admin username | `admin` |
-| `semaphore_admin_email` | string | Semaphore admin email | `admin@example.com` |
-| `semaphore_admin_password` | string | Semaphore admin password | `secret` |
-| `semaphore_encryption_key` | string | Semaphore encryption key, at least 32 characters | `abc123...` |
-| `semaphore_known_hosts` | string | Known-host block mounted into Semaphore | `192.168.1.10 ssh-ed25519 AAAA...` |
-| `semaphore_backup_location` | string | Local or rclone destination label | `Nextcloud:semaphore_backup` |
 | `navidrome_path` | path | Navidrome base directory | `/opt/navidrome` |
 | `navidrome_backup_location` | string | Navidrome backup destination label | `Nextcloud:navidrome_backup` |
 | `navidrome_local_music_path` | path | Optional host path mounted as `/music` | `/opt/nextcloud/data/admin/files/Music` |
@@ -96,7 +87,7 @@ VM1 is the single maintained service host. It runs Traefik, PostgreSQL, Redis, N
 | `vaultwarden_path` | path | Vaultwarden base directory | `/opt/vaultwarden` |
 | `vaultwarden_backup_location` | string | Vaultwarden backup destination label | `Nextcloud:vaultwarden_backup` |
 | `vaultwarden_signups_allowed` | boolean | Public signup toggle | `false` |
-| `container_service_names` | string | Space-separated container service names used by Traefik ordering and deferred network migration restart order | `postgres_container redis_container nextcloud_container paperless_ngx navidrome_container vaultwarden semaphore` |
+| `container_service_names` | string | Space-separated container service names used by Traefik ordering and deferred network migration restart order | `postgres_container redis_container nextcloud_container paperless_ngx navidrome_container vaultwarden` |
 | `container_network_migration_delay` | string | Delay before the final coordinator runs a queued network migration | `2min` |
 | `backup_host` | string | Backup server IP in CIDR form | `192.168.1.50/32` |
 | `borg_backup_path` | path | Borg repository root on the backup disk | `/opt/borg_backup` |
@@ -119,7 +110,7 @@ Maintained container images are resolved in `vm1.yml` from `artifacts/containers
 |---|---|---|
 | `{service}_path` | Root data directory for a service | `nextcloud_path` |
 | `{service}_database_name` | Database name | `paperless_database_name` |
-| `{service}_db_user` | Per-service PostgreSQL application user | `semaphore_db_user` |
+| `{service}_db_user` | Per-service PostgreSQL application user | `paperless_db_user` |
 | `{service}_db_password` | Per-service PostgreSQL application password | `nextcloud_db_password` |
 | `{service}_dns_name` | Public FQDN | `paperless_dns_name` |
 | `{service}_backup_location` | Backup destination label | `vaultwarden_backup_location` |
@@ -155,11 +146,11 @@ Latency-sensitive service names are also written into container `/etc/hosts` wit
 
 The maintained roles define a `container_dns` dictionary with `domain` and `aliases` keys. Override that dictionary in inventory if you need different names.
 
-When `apply_runtime_changes_on_reboot` is true and a route proxy network already exists without Podman's `--internal` flag, the role queues that network for deferred replacement instead of removing it during the active Ansible connection. The final `semaphore` role writes and schedules a short-delay migration job so Semaphore can finish the play before its own container or route networks are interrupted.
+When `apply_runtime_changes_on_reboot` is true and a route proxy network already exists without Podman's `--internal` flag, the role queues that network for deferred replacement instead of removing it during the active Ansible connection. The final `container_network_migration` role writes and schedules a short-delay migration job so playbook-runner can finish the play before its own container or route networks are interrupted.
 
 Do not use backend-only database/cache networks such as `nextcloud_container_net` as route proxy networks. Nextcloud and Paperless use dedicated proxy networks for ingress while remaining attached to the backend network for PostgreSQL and Redis.
 
-Container egress is denied by default through internal app/backend networks. Traefik uses `traefik_egress_network` for ACME DNS-01 and outbound proxy needs; Semaphore uses `semaphore_egress_network` for SSH automation.
+Container egress is denied by default through internal app/backend networks. Traefik uses `traefik_egress_network` for ACME DNS-01 and outbound proxy needs; playbook-runner uses `playbook_runner_egress_network` for git and SSH automation.
 
 ## Traefik Dashboard BasicAuth
 

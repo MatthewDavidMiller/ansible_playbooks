@@ -10,8 +10,8 @@ This document records explicit design decisions and rejected alternatives for th
 
 **Rationale:**
 
-- Real inventory with credentials is managed externally in Semaphore, not in this repo.
-- Real inventory is injected by Semaphore and is not stored in this repository.
+- Real inventory with credentials is managed externally in playbook-runner, not in this repo.
+- Real inventory is injected by playbook-runner and is not stored in this repository.
 - Vault would add coordination overhead without protecting an actual checked-in secret source.
 
 ---
@@ -22,7 +22,7 @@ This document records explicit design decisions and rejected alternatives for th
 
 **Rationale:**
 
-- Semaphore manages inventory injection as one unit.
+- playbook-runner manages inventory injection as one unit.
 - A single externally managed inventory is easier to document and reason about.
 
 ---
@@ -35,7 +35,7 @@ This document records explicit design decisions and rejected alternatives for th
 
 - The maintained flow is `update_homelab_vms.yml`.
 - Creating a separate patch-only playbook would duplicate host selection and standard role execution.
-- Semaphore scheduling is the source of truth for recurring runs. OS patching is a weekly Semaphore schedule of `update_homelab_vms.yml`, which applies every available package update during convergence and then reboots.
+- playbook-runner scheduling is the source of truth for recurring runs. OS patching is a weekly playbook-runner schedule of `update_homelab_vms.yml`, which applies every available package update during convergence and then reboots.
 - OS packages are not pinned. They come from the signed Rocky Linux repositories, unlike container images, which are digest-locked in `artifacts/containers.lock.yml`.
 
 ---
@@ -46,7 +46,7 @@ This document records explicit design decisions and rejected alternatives for th
 
 **Rationale:**
 
-- Older cron-driven patch workflows should not coexist with Semaphore scheduling.
+- Older cron-driven patch workflows should not coexist with playbook-runner scheduling.
 - The removal is part of the migration to a single scheduler model.
 
 ---
@@ -114,7 +114,7 @@ This document records explicit design decisions and rejected alternatives for th
 
 ## Decision: Single Shared PostgreSQL 17 Container
 
-**Decision:** Consolidate Nextcloud, Paperless, and Semaphore into one PostgreSQL 17 container while giving each app its own role and password.
+**Decision:** Consolidate Nextcloud and Paperless into one PostgreSQL 17 container while giving each app its own role and password.
 
 **Rationale:**
 
@@ -133,3 +133,16 @@ This document records explicit design decisions and rejected alternatives for th
 - The age gate protects against a compromised or broken *upstream* release by giving the wider community a day to notice it. A first-party image has no upstream; waiting a day after our own release only delays a fix we chose to ship.
 - The release is gated before it is pushed: `make release` in the image's repository runs its full test suite and its runtime tests under VM1's container flags.
 - The exemption is explicit per entry and confined to our own namespace, so a third-party image cannot inherit it, and every other control (digest pin, Trivy scan, runtime tests) still applies.
+
+---
+
+## Decision: playbook-runner Replaces Semaphore
+
+**Decision:** The Ansible web UI and scheduler on VM1 is playbook-runner, a first-party Rust program, and the `semaphore` role was removed. Semaphore, its PostgreSQL database and role, its backend-network membership, and its backup job no longer exist.
+
+**Rationale:**
+
+- This project used a small part of Semaphore: an external inventory, vault passwords and SSH keys, manual runs, and one weekly schedule. A purpose-built tool does that with far less code to trust.
+- playbook-runner needs no database, so the shared PostgreSQL container serves only Nextcloud and Paperless and Semaphore's backend-network access is gone.
+- It has no third-party Rust crates, encrypts every secret and inventory at rest with a master key held outside the data volume, and carries its Ansible collections in the image so a run never downloads anything.
+- The image is first-party, so it follows the exemption above.

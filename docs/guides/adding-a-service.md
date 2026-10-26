@@ -15,7 +15,7 @@ Use the existing active service roles as reference:
 - `roles/paperless_ngx/`
 - `roles/navidrome/`
 - `roles/vaultwarden/`
-- `roles/semaphore/`
+- `roles/playbook_runner/`
 
 ---
 

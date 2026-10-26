@@ -8,7 +8,7 @@ This document covers the maintained VM topology, container/runtime patterns, fir
 
 | VM ID | Name | OS | Services |
 |---|---|---|---|
-| 120 | VM1 | Rocky Linux 10 | Nextcloud, Paperless NGX, Navidrome, Vaultwarden, Semaphore, playbook-runner (optional, replacing Semaphore), PostgreSQL 17, Redis, Traefik reverse proxy, Borg backup |
+| 120 | VM1 | Rocky Linux 10 | Nextcloud, Paperless NGX, Navidrome, Vaultwarden, playbook-runner, PostgreSQL 17, Redis, Traefik reverse proxy, Borg backup |
 
 Templates: VMID 400 (Debian 12 cloud-init), VMID 401 (Rocky Linux 10 cloud-init)
 
@@ -36,8 +36,7 @@ VM1 runs all maintained services on a single Rocky Linux 10 host to reduce resou
 | Paperless NGX (OCR) | 1.5 GB |
 | Navidrome | 256 MB |
 | Vaultwarden | 256 MB |
-| Semaphore | 384 MB |
-| playbook-runner (when enabled) | 512 MB |
+| playbook-runner | 512 MB |
 | Traefik | 256 MB |
 | OS + overhead | 1.5 GB |
 | **Total hard cap** | **~8.9 GB with playbook-runner (fits within VM1's 16 GB allocation)** |
@@ -46,7 +45,7 @@ VM1 runs all maintained services on a single Rocky Linux 10 host to reduce resou
 
 - Traefik joins only route-declared proxy networks plus its dedicated egress network; it is not a member of the backend database/cache network.
 - SELinux stays enforcing.
-- PostgreSQL is shared across Nextcloud, Paperless, and Semaphore, but each application gets its own role and password.
+- PostgreSQL is shared across Nextcloud and Paperless, but each application gets its own role and password.
 - Runtime secrets are rendered to root-only env files in `secret_env_dir`.
 - The Traefik dashboard requires both management-source allowlisting and BasicAuth.
 
@@ -54,24 +53,22 @@ VM1 runs all maintained services on a single Rocky Linux 10 host to reduce resou
 
 ## Container Network Isolation
 
-Publicly proxied services have internal proxy-facing Podman networks, while PostgreSQL and Redis stay on an internal backend-only network. Traefik resolves backends through route-declared proxy networks and does not join the database/cache network. Latency-sensitive service names are backed by static container IPs and `/etc/hosts` entries inside client containers, so hot-path database/cache/proxy traffic does not depend on Podman DNS lookup order across multiple networks. Container egress is denied by default except for dedicated egress networks assigned to Traefik, Semaphore, and playbook-runner.
+Publicly proxied services have internal proxy-facing Podman networks, while PostgreSQL and Redis stay on an internal backend-only network. Traefik resolves backends through route-declared proxy networks and does not join the database/cache network. Latency-sensitive service names are backed by static container IPs and `/etc/hosts` entries inside client containers, so hot-path database/cache/proxy traffic does not depend on Podman DNS lookup order across multiple networks. Container egress is denied by default except for dedicated egress networks assigned to Traefik and playbook-runner.
 
 **VM1 networks:**
 
 | Network | Subnet | Members |
 |---|---|---|
-| `nextcloud_container_net` | 172.16.1.0/28 | postgres (`container_dns.aliases.postgres_backend`), redis (`container_dns.aliases.redis_backend`), nextcloud (`container_dns.aliases.nextcloud_backend`), paperless (`container_dns.aliases.paperless_backend`), semaphore (`container_dns.aliases.semaphore_backend`) |
+| `nextcloud_container_net` | 172.16.1.0/28 | postgres (`container_dns.aliases.postgres_backend`), redis (`container_dns.aliases.redis_backend`), nextcloud (`container_dns.aliases.nextcloud_backend`), paperless (`container_dns.aliases.paperless_backend`) |
 | `nextcloud_proxy_net` | 172.16.1.32/29 | nextcloud (`container_dns.aliases.nextcloud_proxy`, .34), traefik (`container_dns.aliases.traefik_proxy`, .35) |
 | `paperless_proxy_net` | 172.16.1.40/29 | paperless (`container_dns.aliases.paperless_proxy`, .42), traefik (`container_dns.aliases.traefik_proxy`, .43) |
 | `navidrome_container_net` | 172.16.1.24/29 | navidrome (`container_dns.aliases.navidrome_proxy`, .26), traefik (`container_dns.aliases.traefik_proxy`, .27) |
 | `vaultwarden_container_net` | 172.16.1.16/29 | vaultwarden (`container_dns.aliases.vaultwarden_proxy`, .18), traefik (`container_dns.aliases.traefik_proxy`, .19) |
-| `semaphore_container_net` | 172.16.1.48/29 | semaphore (`container_dns.aliases.semaphore_proxy`, .50), traefik (`container_dns.aliases.traefik_proxy`, .51) |
 | `playbook_runner_container_net` | 172.16.1.56/29 | playbook-runner (`container_dns.aliases.playbook_runner_proxy`, .58), traefik (`container_dns.aliases.traefik_proxy`, .59) |
 | `traefik_egress_net` | (auto) | traefik (`container_dns.aliases.traefik_egress`) |
-| `semaphore_egress_net` | (auto) | semaphore (`container_dns.aliases.semaphore_egress`) |
 | `playbook_runner_egress_net` | (auto) | playbook-runner (`container_dns.aliases.playbook_runner_egress`) |
 
-The app/backend networks are created with Podman's `--internal` flag, while the dedicated Traefik, Semaphore, and playbook-runner egress networks are explicitly non-internal. Every role that owns a network reconciles it by including the shared `container_network` role once per network, so the create/replace rules exist in one implementation rather than once per service. Missing networks are created inline. If an existing network's internal mode or subnet differs from its declaration, non-staged runs remove and recreate it immediately; staged VM1 runs queue the replacement, including the declared internal mode. The drift decision itself is the `homelab_network_needs_replacement` filter, which parses the `podman network inspect` output once and is unit tested against both the current `internal` and legacy `Internal` key spellings. The final `container_network_migration` role schedules `/usr/local/bin/migrate_container_networks.sh` with `systemd-run --on-active=2min`. That delay lets playbooks launched from the Semaphore container finish before the job stops containers and replaces legacy networks. An exit trap always attempts to restore service availability, while stop, replacement, and restart errors make the transient unit fail and remain visible in the migration log at `/var/log/homelab-container-network-migration.log`.
+The app/backend networks are created with Podman's `--internal` flag, while the dedicated Traefik and playbook-runner egress networks are explicitly non-internal. Every role that owns a network reconciles it by including the shared `container_network` role once per network, so the create/replace rules exist in one implementation rather than once per service. Missing networks are created inline. If an existing network's internal mode or subnet differs from its declaration, non-staged runs remove and recreate it immediately; staged VM1 runs queue the replacement, including the declared internal mode. The drift decision itself is the `homelab_network_needs_replacement` filter, which parses the `podman network inspect` output once and is unit tested against both the current `internal` and legacy `Internal` key spellings. The final `container_network_migration` role schedules `/usr/local/bin/migrate_container_networks.sh` with `systemd-run --on-active=2min`. That delay lets playbooks launched from the playbook-runner container finish before the job stops containers and replaces legacy networks. An exit trap always attempts to restore service availability, while stop, replacement, and restart errors make the transient unit fail and remain visible in the migration log at `/var/log/homelab-container-network-migration.log`.
 
 Every member of a route proxy network holds a static address: the service takes its `container_static_ips` entry and Traefik takes its `route_proxy_traefik_ips` entry. Both are required. Podman's IPAM hands a container without a requested address the first free address in the subnet, which is the address the service container requests, so a dynamically addressed Traefik makes whichever container starts second fail with `IPAM error: requested ip address ... is already allocated`. Existing hosts adopt the pinned addresses on the reboot that follows the playbook run.
 
@@ -117,7 +114,7 @@ Rocky Linux 10 ships with SELinux in enforcing mode (targeted policy). The `stan
 
 All container volume mounts use `:Z`, which relabels the volume when the container starts. That covers content the container itself writes, but not content the host writes afterwards: a path outside the shipped file context rules defaults to `default_t`, which containers are denied `getattr` on. Any volume the host also writes into therefore needs a persistent rule.
 
-The Nextcloud data disk is the one such volume, because the daily service backups install their dumps into it from cron. The `nextcloud` role owns that rule (`nextcloud_path(/.*)?` as `container_file_t`) and restores contexts on the data tree, because both are only correct once the role has mounted the disk. `restorecon` runs without `-F` so the MCS categories `:Z` applied survive, and its per-file `-v` output is counted in the pipeline rather than returned, because a full relabel of the data tree is more output than the memory-capped Semaphore container can hold. The Borg repository paths have the same exposure and are handled manually during restores; see [guides/dr-restore.md](guides/dr-restore.md).
+The Nextcloud data disk is the one such volume, because the daily service backups install their dumps into it from cron. The `nextcloud` role owns that rule (`nextcloud_path(/.*)?` as `container_file_t`) and restores contexts on the data tree, because both are only correct once the role has mounted the disk. `restorecon` runs without `-F` so the MCS categories `:Z` applied survive, and its per-file `-v` output is counted in the pipeline rather than returned, because a full relabel of the data tree is more output than the memory-capped runner container can hold. The Borg repository paths have the same exposure and are handled manually during restores; see [guides/dr-restore.md](guides/dr-restore.md).
 
 Host-level contexts unrelated to a specific role go through `standard_selinux_extra_fcontexts` instead.
 
@@ -146,6 +143,6 @@ Most standard roles run first, in this order, before any service roles:
 8. `standard_rclone`
 9. `standard_selinux`
 
-Service roles follow. `nextcloud` must run before `paperless_ngx` and `semaphore` because it owns the shared PostgreSQL 17 and Redis containers.
+Service roles follow. `nextcloud` must run before `paperless_ngx` because it owns the shared PostgreSQL 17 and Redis containers.
 
 `standard_cleanup` runs after every service role, so Podman image prune only sees the currently deployed images as in use and does not delete the latest cached image before services restart. The orchestration-only `container_network_migration` role runs last so a queued disruptive migration is scheduled only after all host changes finish.

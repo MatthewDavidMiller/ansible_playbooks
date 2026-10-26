@@ -49,14 +49,6 @@ artifact_locked_images:
     internal_repo: homelab/vaultwarden
     signature_required: false
     notes: Approved via scripts/promote_artifacts.py
-  semaphore:
-    upstream_ref: public.ecr.aws/semaphore/server:v2.19.16
-    approved_tag: v2.19.16
-    approved_digest: sha256:3707a971a57fdc5ac99a184bf83f2efb7d00cbeec8fb08a16a8028f77229e141
-    internal_repo: homelab/semaphore
-    signature_required: false
-    notes: Approved newer no-regression image via scripts/promote_artifacts.py; Critical
-      findings were also present in the previous digest.
   playbook_runner:
     upstream_ref: ghcr.io/matthewdavidmiller/playbook-runner:0.2.1
     approved_tag: 0.2.1

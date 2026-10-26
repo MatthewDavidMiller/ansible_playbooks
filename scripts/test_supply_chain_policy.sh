@@ -133,7 +133,7 @@ assert_match "Reconcile route proxy networks" "reverse_proxy reconciles route pr
 assert_match "Remove drifted container network" "shared network role recreates legacy non-internal networks" roles/container_network/tasks/main.yml
 assert_match "Queue container network" "shared network role queues disruptive network replacements" roles/container_network/tasks/main.yml
 assert_match "reverse_proxy_deferred_route_networks" "reverse_proxy defers destructive updates for control-plane route networks" roles/reverse_proxy/tasks/main.yml
-assert_match "semaphore_container_net" "reverse_proxy defers Semaphore runtime network replacement by default" roles/reverse_proxy/defaults/main.yml
+assert_match "playbook_runner_container_net" "reverse_proxy defers playbook-runner runtime network replacement by default" roles/reverse_proxy/defaults/main.yml
 assert_match "Schedule deferred container network migration" "dedicated coordinator schedules disruptive network replacement at the end of VM1 runs" roles/container_network_migration/tasks/main.yml
 assert_match "systemd-run" "dedicated coordinator uses a delayed background job for final network migration" roles/container_network_migration/tasks/main.yml
 assert_match "trap finish EXIT" "deferred network migration always attempts service recovery" roles/container_network_migration/templates/migrate_container_networks.sh.j2
@@ -147,7 +147,7 @@ assert_match "network.get\(\"subnets\"\)" \
 assert_match_each "name: container_network" \
   "service roles reconcile their networks through the shared role" \
   roles/nextcloud/tasks/main.yml roles/navidrome/tasks/main.yml \
-  roles/paperless_ngx/tasks/main.yml roles/semaphore/tasks/main.yml \
+  roles/paperless_ngx/tasks/main.yml roles/playbook_runner/tasks/main.yml \
   roles/vaultwarden/tasks/main.yml roles/reverse_proxy/tasks/main.yml
 assert_no_fixed_match "from_json | first" \
   "roles do not re-implement inline container network reconciliation" \
@@ -170,7 +170,7 @@ assert_task_has_no_log roles/reverse_proxy/tasks/main.yml 'dest:.*secret_env_dir
 assert_task_has_no_log roles/nextcloud/tasks/main.yml 'dest:.*secret_env_dir.*/postgres[.]env' "PostgreSQL env rendering uses no_log"
 assert_task_has_no_log roles/nextcloud/tasks/main.yml 'dest:.*secret_env_dir.*/nextcloud[.]env' "Nextcloud env rendering uses no_log"
 assert_task_has_no_log roles/paperless_ngx/tasks/main.yml 'dest:.*secret_env_dir.*/paperless[.]env' "Paperless env rendering uses no_log"
-assert_task_has_no_log roles/semaphore/tasks/main.yml 'dest:.*secret_env_dir.*/semaphore[.]env' "Semaphore env rendering uses no_log"
+assert_task_has_no_log roles/playbook_runner/tasks/main.yml 'dest:.*secret_env_dir.*/playbook_runner_master_key' "playbook-runner master key rendering uses no_log"
 assert_task_has_no_log roles/standard_rclone/tasks/main.yml 'dest:.*/root/[.]config/rclone/rclone[.]conf' "rclone config rendering uses no_log"
 
 echo "=== Supply chain policy checks passed ==="
