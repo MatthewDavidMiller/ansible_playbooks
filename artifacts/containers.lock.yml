@@ -58,10 +58,10 @@ artifact_locked_images:
     notes: Approved newer no-regression image via scripts/promote_artifacts.py; Critical
       findings were also present in the previous digest.
   playbook_runner:
-    upstream_ref: ghcr.io/matthewdavidmiller/playbook-runner:0.2.0
-    approved_tag: 0.2.0
+    upstream_ref: ghcr.io/matthewdavidmiller/playbook-runner:0.2.1
+    approved_tag: 0.2.1
     internal_repo: homelab/playbook-runner
     signature_required: false
     first_party: true
     notes: Approved via scripts/promote_artifacts.py
-    approved_digest: sha256:01e6ff00e55f18d1429264261327a3ef8640c0c898f9e0dee0f33b37e8d82d7d
+    approved_digest: sha256:6f31a11d6debf50241904ec7b827a1c91c23306645ef8545899799b963215b76
