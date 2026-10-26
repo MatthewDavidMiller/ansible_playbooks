@@ -353,5 +353,56 @@ class PromotionPolicyTests(unittest.TestCase):
             self.assertEqual(entry["approved_digest"], new_digest)
 
 
+    def _changed_digest_run(self, upstream: str, first_party: bool) -> int:
+        """Reviews a lock entry whose image changed one hour ago."""
+        with tempfile.TemporaryDirectory() as directory:
+            lock_file = Path(directory) / "lock.yml"
+            lock_file.write_text(
+                "artifact_locked_images:\n"
+                "  app:\n"
+                f"    upstream_ref: {upstream}:1.0.0\n"
+                "    approved_tag: '1.0.0'\n"
+                "    internal_repo: homelab/app\n"
+                f"    approved_digest: sha256:{'a' * 64}\n"
+                "    signature_required: false\n"
+                f"    first_party: {'true' if first_party else 'false'}\n",
+                encoding="utf-8",
+            )
+            fresh = promote.ImageInspection(
+                "sha256:" + "b" * 64, datetime.now(timezone.utc) - timedelta(hours=1)
+            )
+            argv = [
+                "promote_artifacts.py", "--lock-file", str(lock_file), "--service", "app",
+                "--skip-scan", "--skip-signature-verify", "--keep-pinned-tag",
+            ]
+            with (
+                mock.patch.object(sys, "argv", argv),
+                mock.patch.object(promote, "resolve_tool_command", return_value=(["skopeo"], "local")),
+                mock.patch.object(promote, "inspect_image", return_value=fresh),
+                redirect_stdout(io.StringIO()),
+            ):
+                return promote.main()
+
+    def test_first_party_images_skip_the_age_gate(self):
+        self.assertEqual(
+            self._changed_digest_run("ghcr.io/matthewdavidmiller/playbook-runner", True), 0
+        )
+
+    def test_third_party_images_keep_the_age_gate(self):
+        with self.assertRaises(SystemExit):
+            self._changed_digest_run("ghcr.io/matthewdavidmiller/playbook-runner", False)
+        with self.assertRaises(SystemExit):
+            self._changed_digest_run("registry.example/app", False)
+
+    def test_first_party_is_refused_outside_our_namespace(self):
+        entry = {"upstream_ref": "ghcr.io/someone-else/app:1.0", "internal_repo": "x", "first_party": True}
+        with self.assertRaises(SystemExit):
+            promote.validate_lock_entry(entry, "app")
+        with self.assertRaises(SystemExit):
+            promote.validate_lock_entry(dict(entry, first_party="yes"), "app")
+        entry["upstream_ref"] = "ghcr.io/MatthewDavidMiller/playbook-runner:0.1.0"
+        self.assertIs(promote.validate_lock_entry(entry, "app"), entry)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -34,6 +34,13 @@ SCAN_SEVERITIES = "MEDIUM,HIGH,CRITICAL"
 # making, so currency is the policy and findings are reported instead.
 MAX_EXCEPTION_DAYS = 30
 MINIMUM_IMAGE_AGE_HOURS = 24
+# Images this project builds itself. The 24-hour age gate exists to let the
+# wider community catch a compromised or broken third-party release before it
+# reaches VM1; for an image built and released from our own repository there
+# is no upstream to wait on, and the release is gated by that repository's own
+# tests instead. A lock entry opts in with `first_party: true`, and only an
+# image under one of these prefixes may do so.
+FIRST_PARTY_IMAGE_PREFIXES = ("ghcr.io/matthewdavidmiller/",)
 SHA256_DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
 FALLBACK_TOOL_IMAGES = {
     "skopeo": "quay.io/skopeo/stable@sha256:abded792af33493f9aaa08132f564d3f9c12818193c0adc0a62f44ed84a04eda",
@@ -255,7 +262,18 @@ def validate_lock_entry(entry: object, service: str) -> dict:
         raise SystemExit(f"{service}: signature_required must be a boolean")
     if entry.get("signature_required"):
         signature_verification_args(entry, service)
+    if not isinstance(entry.get("first_party", False), bool):
+        raise SystemExit(f"{service}: first_party must be a boolean")
+    if entry.get("first_party") and not is_first_party_image(entry["upstream_ref"]):
+        raise SystemExit(
+            f"{service}: first_party is only allowed for images under "
+            f"{', '.join(FIRST_PARTY_IMAGE_PREFIXES)}"
+        )
     return entry
+
+
+def is_first_party_image(upstream_ref: str) -> bool:
+    return upstream_ref.lower().startswith(FIRST_PARTY_IMAGE_PREFIXES)
 
 
 def parse_policy_date(value: object, field: str, service: str) -> date:
@@ -733,8 +751,11 @@ def main() -> int:
                 created = inspection.created
                 if created is None:
                     raise SystemExit(f"Failed to read image creation time for {upstream_ref}")
-                validate_minimum_image_age(created, service)
-                print(f"[{service}] created={created.isoformat()} age=PASS")
+                if entry.get("first_party"):
+                    print(f"[{service}] created={created.isoformat()} age=SKIP (first-party image)")
+                else:
+                    validate_minimum_image_age(created, service)
+                    print(f"[{service}] created={created.isoformat()} age=PASS")
 
             if args.registry:
                 internal_ref = f"{args.registry}/{entry['internal_repo']}"

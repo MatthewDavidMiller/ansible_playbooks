@@ -671,6 +671,7 @@ class PlaybookRunnerTests(unittest.TestCase):
         play = yaml.safe_load((REPO_ROOT / "vm1.yml").read_text(encoding="utf-8"))[0]
         approved = play["vars"]["approved_container_images"]
         self.assertIn("[playbook_runner_image] if playbook_runner_enabled", approved)
+        self.assertIs(play["vars"]["playbook_runner_enabled"], True, "VM1 runs playbook-runner")
         self.assertIn("if 'playbook_runner' in artifact_locked_images", play["vars"]["playbook_runner_image"])
         roles = play["roles"]
         self.assertLess(roles.index("nextcloud"), roles.index("playbook_runner"))

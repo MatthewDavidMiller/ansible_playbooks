@@ -8,7 +8,7 @@ The deploy path stays pinned to immutable digests in [`artifacts/containers.lock
 
 1. List the upstream tags and select the newest release of the major line already pinned.
 2. Resolve the exact digest with `skopeo`.
-3. Require a changed image's recorded creation time to be at least 24 hours old.
+3. Require a changed image's recorded creation time to be at least 24 hours old, unless it is a [first-party image](#first-party-images).
 4. Verify the image signature with `cosign` when `signature_required: true` and the lock entry pins the expected signer metadata.
 5. Scan the image with `trivy` for fix-available `MEDIUM`, `HIGH`, and `CRITICAL` vulnerabilities, and fail only on a Critical the current digest does not already have.
 6. Write the tag and digest back, then run the repo's policy and container-hardening tests before deployment.
@@ -28,6 +28,23 @@ Selection is deliberately narrow. A candidate must share the current tag's exact
 The tool never crosses a major. It reports newer majors as `held-back` and stays on the pinned line, because a major is where upstream may break the configuration these roles render — Paperless 3.0 required a new `PAPERLESS_SECRET_KEY`, and PostgreSQL majors need the whole procedure in [postgres-upgrade.md](postgres-upgrade.md).
 
 Taking one is a deliberate act: edit `upstream_ref` and `approved_tag` to the new major, run the review, then run `make test-full` so the runtime container tests start the image for real before it reaches VM1.
+
+### First-party images
+
+Images this project builds and releases itself — currently only
+`ghcr.io/matthewdavidmiller/playbook-runner` — are exempt from the 24-hour
+age gate. The gate exists so the wider community has a day to catch a
+compromised or broken third-party release before VM1 runs it; for our own
+image there is no upstream to wait on, and the release is already gated by
+its repository's full test suite and by its runtime tests under VM1's
+container flags (`make release` runs both before it pushes).
+
+The exemption is explicit and narrow. A lock entry opts in with
+`first_party: true`, and the review tool refuses that flag on any image
+outside `FIRST_PARTY_IMAGE_PREFIXES` in `scripts/promote_artifacts.py`
+(`ghcr.io/matthewdavidmiller/`), so a third-party image cannot be exempted
+by mistake. Everything else still applies to first-party images: digest
+pinning, the Trivy scan and its no-new-Critical rule, and the runtime tests.
 
 ## Tooling
 
@@ -91,7 +108,7 @@ python3 scripts/promote_artifacts.py --write --service traefik
 Treat each update as approved only after all of the following are true:
 
 - `skopeo` resolved the expected upstream tag to a digest.
-- The candidate image's recorded creation time is at least 24 hours old. Younger images are not eligible for promotion.
+- The candidate image's recorded creation time is at least 24 hours old. Younger images are not eligible for promotion. First-party images are exempt; see below.
 - `cosign verify` succeeded for services that require signatures and have pinned signer metadata in the lock file.
 - `trivy` introduced no Critical finding that the digest being replaced did not already carry. Remaining findings are reported, not blocking — review `logs/container-vulnerability-findings.log` and see [container-vulnerability-policy.md](container-vulnerability-policy.md) for why currency wins over standing findings.
 - Any local VEX/ignore use is digest-specific, service-specific, time-bounded, and backed by runtime hardening or network containment.

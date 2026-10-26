@@ -94,7 +94,7 @@ Deploys Semaphore and backs up its PostgreSQL database into the local Nextcloud 
 
 ### `playbook_runner`
 
-Deploys [playbook-runner](https://github.com/MatthewDavidMiller/playbook-runner), the first-party replacement for Semaphore: a web interface that runs and schedules playbooks from this repository. The role is off until `playbook_runner_enabled: true`, and it refuses an empty `playbook_runner_image`, so it does nothing until the image has a reviewed entry in `artifacts/containers.lock.yml`. See [guides/playbook-runner-migration.md](../guides/playbook-runner-migration.md).
+Deploys [playbook-runner](https://github.com/MatthewDavidMiller/playbook-runner), the first-party replacement for Semaphore: a web interface that runs and schedules playbooks from this repository. The role is off by default; `vm1.yml` enables it. It refuses an empty `playbook_runner_image`, so the image must have a reviewed entry in `artifacts/containers.lock.yml` (it does, as a [first-party image](../guides/container-image-updates.md#first-party-images)). See [guides/playbook-runner-migration.md](../guides/playbook-runner-migration.md).
 
 **Required variables (when enabled):** `playbook_runner_path`, `playbook_runner_master_key` (64 hex digits), `playbook_runner_backup_location`, `playbook_runner_image`, `secret_env_dir`
 

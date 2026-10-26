@@ -14,46 +14,32 @@ cycle; only then is Semaphore removed.
 
 ## 1. Release and lock the image
 
-In the playbook-runner repository:
+Done for 0.1.0. Each later release follows the same steps. In the
+playbook-runner repository:
 
 ```bash
-gh auth refresh -s write:packages          # once
-podman login ghcr.io                       # with a write:packages token
+gh auth token | podman login ghcr.io -u MatthewDavidMiller --password-stdin
 make release
 ```
 
+The `ghcr.io/matthewdavidmiller/playbook-runner` package is public, because
 VM1 pulls images anonymously (the supply-chain policy refuses registry
-credentials in inventory), so make the
-`ghcr.io/matthewdavidmiller/playbook-runner` *package* public in its GitHub
-package settings. The image holds no secrets; the repository can stay
-private.
-
-Then add the entry here and let the review tool resolve, age-check, scan,
-and pin the digest:
-
-```yaml
-# artifacts/containers.lock.yml
-  playbook_runner:
-    upstream_ref: ghcr.io/matthewdavidmiller/playbook-runner:0.1.0
-    approved_tag: 0.1.0
-    internal_repo: homelab/playbook-runner
-    signature_required: false
-    notes: First-party image built from github.com/MatthewDavidMiller/playbook-runner
-```
+credentials in inventory). The image holds no secrets; the repository stays
+private. Then pin the new digest here:
 
 ```bash
 bash scripts/review_container_updates.sh --service playbook_runner
 ```
 
-The review refuses an image less than 24 hours old, so lock the release a
-day after pushing it.
+The lock entry carries `first_party: true`, so the review skips the 24-hour
+age gate that applies to third-party images; see
+[container-image-updates.md](container-image-updates.md#first-party-images).
 
 ## 2. Inventory
 
-Add to the externally managed inventory:
+`vm1.yml` enables the role. Add to the externally managed inventory:
 
 ```yaml
-playbook_runner_enabled: true
 playbook_runner_path: /srv/playbook-runner      # any safe absolute path
 playbook_runner_master_key: !vault |            # playbook-runner gen-key
   ...

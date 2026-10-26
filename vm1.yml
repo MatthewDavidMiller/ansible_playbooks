@@ -9,6 +9,9 @@
     nextcloud_uid: "33"
     nextcloud_gid: "33"
     apply_runtime_changes_on_reboot: true
+    # playbook-runner runs beside Semaphore until it has carried a weekly
+    # patch cycle; see docs/guides/playbook-runner-migration.md.
+    playbook_runner_enabled: true
     traefik_image: "{{ artifact_locked_images.traefik.upstream_ref | regex_replace(':[^:@/]+$', '') }}@{{ artifact_locked_images.traefik.approved_digest }}"
     postgres_image: "{{ artifact_locked_images.postgres.upstream_ref | regex_replace(':[^:@/]+$', '') }}@{{ artifact_locked_images.postgres.approved_digest }}"
     redis_image: "{{ artifact_locked_images.redis.upstream_ref | regex_replace(':[^:@/]+$', '') }}@{{ artifact_locked_images.redis.approved_digest }}"
@@ -17,8 +20,8 @@
     navidrome_image: "{{ artifact_locked_images.navidrome.upstream_ref | regex_replace(':[^:@/]+$', '') }}@{{ artifact_locked_images.navidrome.approved_digest }}"
     vaultwarden_image: "{{ artifact_locked_images.vaultwarden.upstream_ref | regex_replace(':[^:@/]+$', '') }}@{{ artifact_locked_images.vaultwarden.approved_digest }}"
     semaphore_image: "{{ artifact_locked_images.semaphore.upstream_ref | regex_replace(':[^:@/]+$', '') }}@{{ artifact_locked_images.semaphore.approved_digest }}"
-    # playbook-runner joins the lock once its first release is reviewed; until
-    # then the image is empty and the role, which is off by default, refuses it.
+    # Empty only if the lock has no playbook_runner entry, which the role and
+    # standard_podman both refuse while the runner is enabled.
     playbook_runner_image: >-
       {{ (artifact_locked_images.playbook_runner.upstream_ref | regex_replace(':[^:@/]+$', '')) ~ '@' ~ artifact_locked_images.playbook_runner.approved_digest
          if 'playbook_runner' in artifact_locked_images else '' }}

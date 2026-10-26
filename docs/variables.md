@@ -138,11 +138,11 @@ When `backup_local: false`, also define the following variables:
 
 | Variable | Type | Required | Description | Example/default |
 |---|---|---|---|---|
-| `playbook_runner_enabled` | boolean | No | Deploy playbook-runner. Requires a `playbook_runner` entry in the image lock. | `false` |
-| `playbook_runner_path` | path | When enabled | Host data directory (owned by uid 10001, mode 0700). | `/srv/playbook-runner` |
-| `playbook_runner_master_key` | string | When enabled, secret | 64 hex digits from `playbook-runner gen-key`. Also keep a copy in Vaultwarden: the stored secrets cannot be recovered without it. | Ansible Vault value |
+| `playbook_runner_enabled` | boolean | Set by `vm1.yml` | Deploy playbook-runner. `vm1.yml` sets it to `true` as a play variable, so it cannot be overridden from inventory. | `true` on VM1 |
+| `playbook_runner_path` | path | Yes | Host data directory (owned by uid 10001, mode 0700). | `/srv/playbook-runner` |
+| `playbook_runner_master_key` | string | Yes, secret | 64 hex digits from `playbook-runner gen-key`. Also keep a copy in Vaultwarden: the stored secrets cannot be recovered without it. | Ansible Vault value |
 | `playbook_runner_admin_password` | string | No, secret | Initial admin password, 12-128 characters. Empty means a one-time setup token is logged instead. | `""` |
-| `playbook_runner_backup_location` | string | When enabled | Local label or rclone backup destination. | `Nextcloud:playbook_runner_backup` |
+| `playbook_runner_backup_location` | string | Yes | Local label or rclone backup destination. | `Nextcloud:playbook_runner_backup` |
 | `playbook_runner_known_hosts` | string | No | `known_hosts` entries written once when the runner's file does not exist yet. | `host ssh-ed25519 AAAA...` |
 | `playbook_runner_timezone` | string | No | Zone schedules use and times are shown in. | `America/New_York` |
 | `playbook_runner_keep_runs` | integer | No | Finished runs kept. | `500` |

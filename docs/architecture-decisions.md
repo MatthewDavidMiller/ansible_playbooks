@@ -121,3 +121,15 @@ This document records explicit design decisions and rejected alternatives for th
 - Saves memory and operational overhead.
 - Simplifies backup and restore.
 - Preserves service isolation through separate Podman networks and per-service credentials.
+
+---
+
+## Decision: First-Party Images Skip the 24-Hour Age Gate
+
+**Decision:** An image this project builds and releases itself is exempt from the review tool's 24-hour minimum image age. The lock entry opts in with `first_party: true`, which the tool accepts only for images under `ghcr.io/matthewdavidmiller/`.
+
+**Rationale:**
+
+- The age gate protects against a compromised or broken *upstream* release by giving the wider community a day to notice it. A first-party image has no upstream; waiting a day after our own release only delays a fix we chose to ship.
+- The release is gated before it is pushed: `make release` in the image's repository runs its full test suite and its runtime tests under VM1's container flags.
+- The exemption is explicit per entry and confined to our own namespace, so a third-party image cannot inherit it, and every other control (digest pin, Trivy scan, runtime tests) still applies.
