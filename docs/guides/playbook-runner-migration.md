@@ -115,7 +115,9 @@ explanation; edit that one by hand.
 It removes:
 
 - the `semaphore_*` variables: password, admin, encryption key, known hosts,
-  backup location, egress network, and image;
+  backup location, egress network, image, and the legacy
+  `semaphore_postgres_path`, which pointed at Semaphore's own PostgreSQL data
+  directory before the shared container existed;
 - the `semaphore_container_net` entries from `route_proxy_network_subnets`,
   `route_proxy_container_ips`, `route_proxy_traefik_ips`, and
   `reverse_proxy_deferred_route_networks`;
@@ -130,6 +132,11 @@ touched. If you may want Semaphore's data later, note the value of
 `semaphore_backup_location` first, since the helper removes it, and confirm a
 recent dump exists in that folder under
 `<nextcloud_path>/data/<nextcloud_homelab_user>/files/`.
+
+If you had `semaphore_postgres_path`, check whether that old directory still
+exists on VM1 (`ls <that path>`). Nothing in this repository has used it since
+Semaphore moved into the shared PostgreSQL container, and no playbook removes
+it; delete it by hand once you are sure it holds nothing you need.
 
 **2. Run `vm1.yml`, then reboot VM1.** The PostgreSQL and Traefik launch
 scripts lose their Semaphore settings, and the reboot applies them, so Traefik

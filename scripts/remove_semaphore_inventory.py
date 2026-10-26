@@ -42,6 +42,11 @@ REMOVED_VARS = (
     "semaphore_backup_location",
     "semaphore_egress_network",
     "semaphore_image",
+    # From before Semaphore moved into the shared PostgreSQL container; nothing
+    # reads them any more, but an older inventory may still carry them.
+    "semaphore_postgres_path",
+    "semaphore_database_user",
+    "semaphore_database_user_password",
 )
 ROUTE_NETWORK = "semaphore_container_net"
 SERVICE_NAMES = {"semaphore", "semaphore.service"}

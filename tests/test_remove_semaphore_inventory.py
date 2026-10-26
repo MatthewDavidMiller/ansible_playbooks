@@ -39,6 +39,7 @@ all:
       # semaphore_proxy: this is data, not a key
     semaphore_backup_location: Nextcloud:semaphore_backup
     semaphore_egress_network: semaphore_egress_net
+    semaphore_postgres_path: /srv/old-semaphore-postgres
     paperless_db_user: pl_user
     route_proxy_network_subnets:
       nextcloud_proxy_net: 172.16.1.32/29
@@ -124,6 +125,7 @@ class RemoveSemaphoreInventoryTests(unittest.TestCase):
             "semaphore_known_hosts",
             "semaphore_backup_location",
             "semaphore_egress_network",
+            "semaphore_postgres_path",
         ):
             self.assertNotIn(gone, variables)
         self.assertEqual(
