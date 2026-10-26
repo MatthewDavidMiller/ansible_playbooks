@@ -37,3 +37,16 @@ This document covers the maintained playbooks only. Legacy playbooks are preserv
 **Target:** `homelab`
 
 **Usage:** Reboots maintained homelab VMs using delayed shutdown so the current Ansible/playbook-runner run can finish cleanly before hosts go down.
+
+---
+
+## `retire_semaphore.yml`
+
+**Target:** `vm1`
+
+**Usage:** One-shot cleanup of the Semaphore install that `vm1.yml` no longer manages. Run it once, after `vm1.yml` has converged and VM1 has rebooted. It stops and removes the Semaphore service, container, image, launch and backup scripts, backup cron entry, config, state, secrets file, and log, removes its two Podman networks and its Traefik route file, and drops its PostgreSQL database and role. Every task is safe to repeat. It is not part of `update_homelab_vms.yml`, because it deletes a database. See [guides/playbook-runner-migration.md](guides/playbook-runner-migration.md#4-retire-semaphore).
+
+**Inventory:** keep `semaphore_database_name`, `semaphore_db_user`, and `postgres_admin_user` until it has run; without the first two the database and role are left in place and the play says so. `semaphore_egress_network` and `secret_env_dir` are optional and default to their old values. The final Semaphore dumps in the Nextcloud tree are not touched.
+
+**Failure:** removing a network fails while a container still uses it. That means Traefik has not restarted since `vm1.yml` dropped the route; reboot VM1 and run it again.
+

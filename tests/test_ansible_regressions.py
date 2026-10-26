@@ -819,3 +819,55 @@ class CheckModeTests(unittest.TestCase):
             "Read-only registered tasks need check_mode: false so --check "
             "does not leave their results empty",
         )
+
+
+class RetireSemaphoreTests(unittest.TestCase):
+    """The one-shot cleanup for the retired Semaphore install."""
+
+    def setUp(self):
+        self.play = yaml.safe_load(
+            (REPO_ROOT / "retire_semaphore.yml").read_text(encoding="utf-8")
+        )[0]
+        self.tasks = {task["name"]: task for task in self.play["tasks"]}
+
+    def test_it_is_never_part_of_the_weekly_chain(self):
+        """It deletes a database, so it must be run on purpose."""
+        for playbook in ("vm1.yml", "homelab_vms.yml", "update_homelab_vms.yml"):
+            with self.subTest(playbook=playbook):
+                self.assertNotIn(
+                    "retire_semaphore",
+                    (REPO_ROOT / playbook).read_text(encoding="utf-8"),
+                )
+
+    def test_read_only_probes_run_in_check_mode(self):
+        for name in ("List Semaphore images", "Check for Semaphore networks"):
+            with self.subTest(task=name):
+                self.assertIs(self.tasks[name]["check_mode"], False)
+
+    def test_database_is_dropped_only_when_it_is_named(self):
+        conditions = self.tasks["Drop the Semaphore database and role"]["when"]
+        self.assertIn("retire_semaphore_database | length > 0", conditions)
+        self.assertIn("retire_semaphore_db_user | length > 0", conditions)
+
+    def test_names_are_validated_before_anything_is_removed(self):
+        self.assertEqual(
+            next(iter(self.tasks)), "Validate cleanup inputs"
+        )
+
+    def test_it_removes_every_artifact_the_role_created(self):
+        paths = "\n".join(self.play["vars"]["retire_semaphore_paths"])
+        for artifact in (
+            "semaphore.service",
+            "semaphore.sh",
+            "backup_semaphore.sh",
+            "/etc/semaphore",
+            "/var/lib/semaphore",
+            "semaphore.env",
+            "semaphore_backup.log",
+        ):
+            with self.subTest(artifact=artifact):
+                self.assertIn(artifact, paths)
+        self.assertEqual(
+            self.tasks["Remove the Semaphore backup cron entry"]["ansible.builtin.cron"],
+            {"name": "Backup Semaphore", "state": "absent"},
+        )

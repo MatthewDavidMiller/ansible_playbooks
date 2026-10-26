@@ -1,0 +1,195 @@
+---
+# One-shot cleanup of what the retired semaphore role left on VM1. vm1.yml no
+# longer deploys Semaphore, so nothing else removes its service, container,
+# image, networks, state, route file, or database. Every task is safe to
+# repeat, and the play does nothing on a host that is already clean.
+#
+# Run it after vm1.yml has converged and the host has rebooted, so Traefik no
+# longer holds Semaphore's proxy network. Keep semaphore_database_name,
+# semaphore_db_user, and postgres_admin_user in the inventory until it has
+# run: without the first two the database is left in place and a message says
+# so. The last daily dumps stay in the Nextcloud tree; they are not touched.
+- name: Remove the retired Semaphore install from vm1
+  hosts: vm1
+  vars:
+    retire_semaphore_secret_env_dir: "{{ secret_env_dir | default('/etc/homelab/secrets') }}"
+    retire_semaphore_networks:
+      - semaphore_container_net
+      - "{{ semaphore_egress_network | default('semaphore_egress_net') }}"
+    retire_semaphore_database: "{{ semaphore_database_name | default('') }}"
+    retire_semaphore_db_user: "{{ semaphore_db_user | default('') }}"
+    retire_semaphore_paths:
+      - /etc/systemd/system/semaphore.service
+      - /usr/local/bin/semaphore.sh
+      - /usr/local/bin/backup_semaphore.sh
+      - /etc/semaphore
+      - /var/lib/semaphore
+      - "{{ retire_semaphore_secret_env_dir }}/semaphore.env"
+      - /var/log/semaphore_backup.log
+  tasks:
+    - name: Validate cleanup inputs
+      ansible.builtin.assert:
+        that:
+          - retire_semaphore_secret_env_dir | homelab_safe_absolute_path
+          - retire_semaphore_networks | map('homelab_safe_name') | list | min
+          - retire_semaphore_database | length == 0 or retire_semaphore_database | homelab_safe_name
+          - retire_semaphore_db_user | length == 0 or retire_semaphore_db_user | homelab_safe_name
+          - (retire_semaphore_database | length == 0 and retire_semaphore_db_user | length == 0)
+            or postgres_admin_user | default('') | homelab_safe_name
+        fail_msg: Cleanup inputs must be safe names and paths, and dropping the database needs postgres_admin_user.
+      no_log: true
+
+    - name: Stop and disable the Semaphore service
+      ansible.builtin.systemd:
+        name: semaphore.service
+        state: stopped
+        enabled: false
+      become: true
+      register: retire_semaphore_service
+      failed_when:
+        - retire_semaphore_service is failed
+        - "'could not be found' not in (retire_semaphore_service.msg | default(''))"
+
+    - name: Remove the Semaphore container
+      ansible.builtin.command:
+        argv:
+          - podman
+          - rm
+          - --ignore
+          - --force
+          - semaphore
+      become: true
+      register: retire_semaphore_container
+      changed_when: retire_semaphore_container.stdout | trim | length > 0
+
+    - name: Remove the Semaphore backup cron entry
+      ansible.builtin.cron:
+        name: Backup Semaphore
+        state: absent
+      become: true
+
+    - name: Remove Semaphore files, scripts, state, and secrets
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop: "{{ retire_semaphore_paths }}"
+      become: true
+
+    - name: Reload systemd after removing the Semaphore unit
+      ansible.builtin.systemd:
+        daemon_reload: true
+      become: true
+
+    - name: List Semaphore images
+      ansible.builtin.command:
+        argv:
+          - podman
+          - images
+          - --format
+          - "{% raw %}{{.ID}} {{.Repository}}{% endraw %}"
+      become: true
+      register: retire_semaphore_images
+      changed_when: false
+      check_mode: false
+
+    - name: Remove Semaphore images
+      ansible.builtin.command:
+        argv:
+          - podman
+          - rmi
+          - --force
+          - "{{ item }}"
+      loop: >-
+        {{ retire_semaphore_images.stdout_lines
+           | select('search', 'semaphore')
+           | map('split', ' ')
+           | map('first')
+           | unique
+           | list }}
+      become: true
+      changed_when: true
+
+    - name: Check for Semaphore networks
+      ansible.builtin.command:
+        argv:
+          - podman
+          - network
+          - exists
+          - "{{ item }}"
+      loop: "{{ retire_semaphore_networks }}"
+      become: true
+      register: retire_semaphore_network_presence
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    # Podman refuses to remove a network a container still uses. That means
+    # Traefik has not restarted since vm1.yml dropped the route; reboot, then
+    # run this again.
+    - name: Remove Semaphore networks
+      ansible.builtin.command:
+        argv:
+          - podman
+          - network
+          - rm
+          - "{{ item.item }}"
+      loop: "{{ retire_semaphore_network_presence.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      become: true
+      when: item.rc == 0
+      changed_when: true
+
+    - name: Find the Semaphore Traefik route file
+      ansible.builtin.find:
+        paths: "{{ traefik_path }}/config"
+        patterns: "*.yml"
+        excludes:
+          - tls.yml
+          - security.yml
+          - dashboard.yml
+        contains: semaphore
+      become: true
+      register: retire_semaphore_routes
+      when: traefik_path | default('') | length > 0
+
+    - name: Remove the Semaphore Traefik route file
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ retire_semaphore_routes.files | default([]) }}"
+      loop_control:
+        label: "{{ item.path }}"
+      become: true
+
+    - name: Drop the Semaphore database and role
+      ansible.builtin.command:
+        argv:
+          - podman
+          - exec
+          - postgres
+          - psql
+          - -h
+          - localhost
+          - -U
+          - "{{ postgres_admin_user }}"
+          - -d
+          - postgres
+          - -c
+          - DROP DATABASE IF EXISTS "{{ retire_semaphore_database }}";
+          - -c
+          - DROP ROLE IF EXISTS "{{ retire_semaphore_db_user }}";
+      become: true
+      register: retire_semaphore_drop
+      changed_when: retire_semaphore_drop.stderr.count('skipping') < 2
+      when:
+        - retire_semaphore_database | length > 0
+        - retire_semaphore_db_user | length > 0
+
+    - name: Report that the Semaphore database was left in place
+      ansible.builtin.debug:
+        msg: >-
+          semaphore_database_name and semaphore_db_user are not set, so the
+          Semaphore database and role were not dropped. Drop them with psql
+          in the postgres container if they still exist.
+      when: retire_semaphore_database | length == 0 or retire_semaphore_db_user | length == 0

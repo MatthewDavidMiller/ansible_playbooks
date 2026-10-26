@@ -89,14 +89,13 @@ Run `vm1.yml` in check mode from the runner before relying on it.
 
 ## 4. Retire Semaphore
 
-Semaphore's role is gone from `vm1.yml`, so Ansible no longer manages or
-removes anything it created. Remove it by hand, in this order.
+`vm1.yml` no longer deploys Semaphore, so nothing in it removes what an earlier
+run created. [`retire_semaphore.yml`](../playbooks.md#retire_semaphoreyml)
+does, once.
 
-**1. Clean the inventory** before the next run, or validation fails on the
-leftover entries. Delete:
+**1. Update the inventory.** Delete these so validation passes on the next
+`vm1.yml` run:
 
-- the `semaphore_*` variables (database, admin, encryption key, known hosts,
-  backup location, egress network) and `semaphore_image` if set;
 - the `semaphore_container_net` entries from `route_proxy_network_subnets`,
   `route_proxy_container_ips`, and `route_proxy_traefik_ips`;
 - the `semaphore_backend`, `semaphore_proxy`, and `semaphore_egress` entries
@@ -104,47 +103,25 @@ leftover entries. Delete:
 - the Semaphore route from `proxy_config`, and `semaphore` from
   `container_service_names`.
 
-**2. Run `vm1.yml` and reboot.** The PostgreSQL and Traefik launch scripts
-lose their Semaphore settings, and the reboot applies them. Do the rest after
-the reboot, so Traefik no longer holds the Semaphore network.
+**Keep** `semaphore_database_name`, `semaphore_db_user`, and
+`postgres_admin_user` until step 3; the cleanup uses them to drop the
+database. Also confirm a recent dump exists under
+`<nextcloud_path>/data/<nextcloud_homelab_user>/files/<semaphore_backup_location>/`
+if you may want Semaphore's data later.
 
-**3. Remove Semaphore from VM1** as root:
+**2. Run `vm1.yml`, then reboot VM1.** The PostgreSQL and Traefik launch
+scripts lose their Semaphore settings, and the reboot applies them, so Traefik
+no longer holds the Semaphore network.
 
-```bash
-# Service, launch scripts, and the daily backup cron entry
-systemctl disable --now semaphore.service
-rm -f /etc/systemd/system/semaphore.service /usr/local/bin/semaphore.sh \
-      /usr/local/bin/backup_semaphore.sh
-systemctl daemon-reload
-crontab -l | grep -v 'Backup Semaphore\|backup_semaphore.sh' | crontab -
+**3. Run `retire_semaphore.yml`** (in playbook-runner, add it as a template
+and run it once, or run `ansible-playbook -i inventory.yml retire_semaphore.yml`
+from a workstation). It removes the service, container, image, scripts,
+backup cron entry, config, state, secrets file, log, both networks, the
+Traefik route file, and the database and role. Run it in check mode first to
+see what it would change.
 
-# Container, image, config, state, and secrets
-podman rm -f semaphore 2>/dev/null
-podman images --format '{{.ID}} {{.Repository}}' | awk '/semaphore/ {print $1}' | xargs -r podman rmi -f
-rm -rf /etc/semaphore /var/lib/semaphore <secret_env_dir>/semaphore.env \
-      /var/log/semaphore_backup.log
-
-# Networks (fails while a container still uses them)
-podman network rm semaphore_container_net <semaphore_egress_network>
-
-# The Traefik route file; list the directory to find it by route name
-ls <traefik_path>/config/
-rm <traefik_path>/config/<semaphore_route_name>.yml
-```
-
-**4. Drop the database and role** from the shared PostgreSQL container:
-
-```bash
-podman exec postgres psql -h localhost -U <postgres_admin_user> -d postgres \
-    -c "DROP DATABASE IF EXISTS <semaphore_database_name>;" \
-    -c "DROP ROLE IF EXISTS <semaphore_db_user>;"
-```
-
-**5. Keep or delete the backups.** The last Semaphore dumps stay in
-`<nextcloud_path>/data/<nextcloud_homelab_user>/files/<semaphore_backup_location>/`.
-Keep them until you are sure nothing in Semaphore is needed, then delete the
-directory and run `occ files:scan` for that user.
-
-**6. Outside VM1:** delete the Semaphore DNS record, and remove its
-entries from any monitoring or bookmarks. The certificate in Traefik's
-`acme.json` expires on its own and needs no action.
+**4. Finish up.** Delete the remaining `semaphore_*` variables from the
+inventory and the playbook-runner template, delete the old dumps when you no
+longer need them (then run `occ files:scan` for that user), and delete the
+Semaphore DNS record. The certificate in Traefik's `acme.json` expires on its
+own.

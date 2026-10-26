@@ -39,7 +39,7 @@ missing_tool() {
   MISSING_TOOLS+=("$1")
 }
 
-SYNTAX_CHECK_PLAYBOOKS=(vm1.yml homelab_vms.yml update_homelab_vms.yml reboot_vms.yml)
+SYNTAX_CHECK_PLAYBOOKS=(vm1.yml homelab_vms.yml update_homelab_vms.yml reboot_vms.yml retire_semaphore.yml)
 # A throwaway inline inventory: --syntax-check parses the play and its role
 # tree, and needs the target group names to resolve, not real hosts.
 SYNTAX_CHECK_INVENTORY='vm1,homelab,'
