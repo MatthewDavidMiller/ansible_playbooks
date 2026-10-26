@@ -14,7 +14,7 @@ cycle; only then is Semaphore removed.
 
 ## 1. Release and lock the image
 
-Done for 0.1.0. Each later release follows the same steps. In the
+Done for the first release. Each later release follows the same steps. In the
 playbook-runner repository:
 
 ```bash
