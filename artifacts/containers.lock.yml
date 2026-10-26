@@ -50,10 +50,10 @@ artifact_locked_images:
     signature_required: false
     notes: Approved via scripts/promote_artifacts.py
   playbook_runner:
-    upstream_ref: ghcr.io/matthewdavidmiller/playbook-runner:0.2.1
-    approved_tag: 0.2.1
+    upstream_ref: ghcr.io/matthewdavidmiller/playbook-runner:0.3.0
+    approved_tag: 0.3.0
     internal_repo: homelab/playbook-runner
     signature_required: false
     first_party: true
     notes: Approved via scripts/promote_artifacts.py
-    approved_digest: sha256:6f31a11d6debf50241904ec7b827a1c91c23306645ef8545899799b963215b76
+    approved_digest: sha256:6ac9400cf1219000ac5446210ff8b44d5c1bba5529ee50bfb52b240027a73093
