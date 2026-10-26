@@ -93,21 +93,43 @@ Run `vm1.yml` in check mode from the runner before relying on it.
 run created. [`retire_semaphore.yml`](../playbooks.md#retire_semaphoreyml)
 does, once.
 
-**1. Update the inventory.** Delete these so validation passes on the next
-`vm1.yml` run:
+**1. Update the inventory.** Run the helper on your inventory file. It
+previews by default, prints variable names and line numbers but never values,
+and only changes the file with `--write`:
 
+```bash
+python3 scripts/remove_semaphore_inventory.py /path/to/inventory.yml          # preview
+python3 scripts/remove_semaphore_inventory.py /path/to/inventory.yml --write  # apply
+```
+
+It edits the text in place, so comments, ordering, and `!vault` blocks are
+untouched, and it keeps a private `0600` copy of the original next to the file
+(delete that copy once you have checked the result; it holds the same secrets).
+Before writing, it parses the file before and after and refuses unless the
+only difference is the Semaphore settings, and it refuses if anything left in
+the file still refers to a variable it would remove, such as a
+`"{{ semaphore_known_hosts }}"` template. It needs `python3` with PyYAML. A
+file it cannot check (flow-style mappings, quoted keys) is left alone with an
+explanation; edit that one by hand.
+
+It removes:
+
+- the `semaphore_*` variables: password, admin, encryption key, known hosts,
+  backup location, egress network, and image;
 - the `semaphore_container_net` entries from `route_proxy_network_subnets`,
-  `route_proxy_container_ips`, and `route_proxy_traefik_ips`;
+  `route_proxy_container_ips`, `route_proxy_traefik_ips`, and
+  `reverse_proxy_deferred_route_networks`;
 - the `semaphore_backend`, `semaphore_proxy`, and `semaphore_egress` entries
   from `container_static_ips` and `container_dns.aliases`;
 - the Semaphore route from `proxy_config`, and `semaphore` from
   `container_service_names`.
 
-**Keep** `semaphore_database_name`, `semaphore_db_user`, and
-`postgres_admin_user` until step 3; the cleanup uses them to drop the
-database. Also confirm a recent dump exists under
-`<nextcloud_path>/data/<nextcloud_homelab_user>/files/<semaphore_backup_location>/`
-if you may want Semaphore's data later.
+By default it **keeps** `semaphore_database_name` and `semaphore_db_user`,
+which step 3 needs to drop the database. `postgres_admin_user` is never
+touched. If you may want Semaphore's data later, note the value of
+`semaphore_backup_location` first, since the helper removes it, and confirm a
+recent dump exists in that folder under
+`<nextcloud_path>/data/<nextcloud_homelab_user>/files/`.
 
 **2. Run `vm1.yml`, then reboot VM1.** The PostgreSQL and Traefik launch
 scripts lose their Semaphore settings, and the reboot applies them, so Traefik
@@ -120,8 +142,8 @@ backup cron entry, config, state, secrets file, log, both networks, the
 Traefik route file, and the database and role. Run it in check mode first to
 see what it would change.
 
-**4. Finish up.** Delete the remaining `semaphore_*` variables from the
-inventory and the playbook-runner template, delete the old dumps when you no
+**4. Finish up.** Run the helper again with `--all` to remove the last two
+variables, delete the cleanup template from playbook-runner, delete the old dumps when you no
 longer need them (then run `occ files:scan` for that user), and delete the
 Semaphore DNS record. The certificate in Traefik's `acme.json` expires on its
 own.
