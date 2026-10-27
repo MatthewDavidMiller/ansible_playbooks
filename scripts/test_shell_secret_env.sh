@@ -174,7 +174,6 @@ music_server_uid: '10001'
 music_server_gid: '10001'
 music_server_music_gid: '33'
 music_server_backup_location: 'Nextcloud:music_server_backup'
-nextcloud_homelab_user: 'admin'
 user_name: 'ansible'
 EOF
 
