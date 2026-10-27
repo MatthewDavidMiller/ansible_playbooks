@@ -161,14 +161,33 @@ Report those as music-server issues before retiring Navidrome.
 `podman stats music_server` shows the memory in use. The default 512 MiB
 (`music_server_memory`) has plenty of headroom.
 
-## 5. Retire Navidrome (Phase B)
+## 5. Retire Navidrome
 
-Once music-server has replaced Navidrome in daily use, a follow-up change to
-this repository:
-- removes the `navidrome` role, its lock entry, and its `vm1.yml` wiring;
-- removes its route dictionary entries;
-- adds a `retire_navidrome.yml` playbook that removes the container, unit,
-  scripts, cron job, route file, image, and network from VM1.
+Done in the repository: the `navidrome` role, its lock entry, its
+`vm1.yml` wiring, and its addresses and route in `network/vm1.yml` are gone.
+That stops `vm1.yml` from managing Navidrome, but it does not remove what
+earlier runs put on VM1. `retire_navidrome.yml` does:
 
-The Navidrome data directory and its old backups are kept until deleted by
-hand. Remove the Navidrome inventory variables and DNS record, and the old server in play:Sub.
+1. Run `vm1.yml` (or `update_homelab_vms.yml`) and let VM1 reboot, so
+   Traefik restarts without Navidrome's route and network.
+2. Check what the cleanup would do, then run it:
+
+   ```bash
+   ansible-playbook -i <inventory> retire_navidrome.yml --check --diff
+   ansible-playbook -i <inventory> retire_navidrome.yml
+   ```
+
+   It stops and removes the service, container, image, scripts, cron job,
+   logs, network, and Traefik route file, and turns off the
+   `virt_use_fusefs` SELinux boolean that only Navidrome's old rclone mount
+   needed. Every step is safe to repeat. If removing the network fails,
+   Traefik still holds it: reboot and run the playbook again.
+
+3. Navidrome's data directory (`navidrome_path`) is kept. To remove it as
+   well, run once more with `-e retire_navidrome_remove_data=true` while
+   `navidrome_path` is still in the inventory. The music and the old
+   database dumps in Nextcloud are never touched.
+4. Remove the `navidrome_*` variables from the inventory, the `navidrome`
+   DNS record from Porkbun, and the old server from play:Sub. The old dumps
+   under `navidrome_backup_location` in Nextcloud can be deleted by hand
+   once you no longer want them.

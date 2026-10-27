@@ -1,0 +1,192 @@
+---
+# One-shot cleanup of what the retired navidrome role left on VM1. vm1.yml no
+# longer deploys Navidrome, so nothing else removes its service, container,
+# image, network, scripts, cron entry, logs, or Traefik route file. Every task
+# is safe to repeat, and the play does nothing on a host that is already
+# clean.
+#
+# Run it after vm1.yml has converged and the host has rebooted, so Traefik no
+# longer holds Navidrome's proxy network.
+#
+# Navidrome's data directory (its database and backup staging) is kept unless
+# retire_navidrome_remove_data is true and navidrome_path is still in the
+# inventory. The music itself is the Nextcloud Music folder, which this never
+# touches, and the last daily database dumps stay in the Nextcloud tree.
+#
+# It also turns off the virt_use_fusefs SELinux boolean, which vm1.yml set
+# only for Navidrome's old rclone music mount; no remaining container uses a
+# FUSE filesystem. Set retire_navidrome_disable_fusefs to false to keep it.
+- name: Remove the retired Navidrome install from vm1
+  hosts: vm1
+  vars:
+    retire_navidrome_remove_data: false
+    retire_navidrome_disable_fusefs: true
+    retire_navidrome_data_path: "{{ navidrome_path | default('') }}"
+    retire_navidrome_networks:
+      - navidrome_container_net
+    retire_navidrome_paths:
+      - /etc/systemd/system/navidrome_container.service
+      - /usr/local/bin/navidrome_container.sh
+      - /usr/local/bin/backup_navidrome.sh
+      - /var/log/navidrome_backup.log
+      - /var/log/rclone-navidrome-cleanup.log
+  tasks:
+    - name: Validate cleanup inputs
+      ansible.builtin.assert:
+        that:
+          - retire_navidrome_networks | map('homelab_safe_name') | list | min
+          - retire_navidrome_paths | map('homelab_safe_absolute_path') | list | min
+          - not (retire_navidrome_remove_data | bool) or retire_navidrome_data_path | homelab_safe_absolute_path
+          - not (retire_navidrome_remove_data | bool) or retire_navidrome_data_path not in ['/opt', '/srv', '/var', '/home']
+          - not (retire_navidrome_remove_data | bool) or 'nextcloud' not in retire_navidrome_data_path
+        fail_msg: >-
+          Cleanup inputs must be safe names and paths. Removing the data needs
+          navidrome_path set to Navidrome's own directory, never a parent
+          directory or anything under Nextcloud.
+
+    - name: Stop and disable the Navidrome service
+      ansible.builtin.systemd:
+        name: navidrome_container.service
+        state: stopped
+        enabled: false
+      become: true
+      register: retire_navidrome_service
+      failed_when:
+        - retire_navidrome_service is failed
+        - "'could not be found' not in (retire_navidrome_service.msg | default(''))"
+
+    - name: Remove the Navidrome container
+      ansible.builtin.command:
+        argv:
+          - podman
+          - rm
+          - --ignore
+          - --force
+          - navidrome
+      become: true
+      register: retire_navidrome_container
+      changed_when: retire_navidrome_container.stdout | trim | length > 0
+
+    - name: Remove the Navidrome backup cron entry
+      ansible.builtin.cron:
+        name: Backup navidrome daily
+        state: absent
+      become: true
+
+    - name: Remove Navidrome unit, scripts, and logs
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop: "{{ retire_navidrome_paths }}"
+      become: true
+
+    - name: Reload systemd after removing the Navidrome unit
+      ansible.builtin.systemd:
+        daemon_reload: true
+      become: true
+
+    - name: List Navidrome images
+      ansible.builtin.command:
+        argv:
+          - podman
+          - images
+          - --format
+          - "{% raw %}{{.ID}} {{.Repository}}{% endraw %}"
+      become: true
+      register: retire_navidrome_images
+      changed_when: false
+      check_mode: false
+
+    - name: Remove Navidrome images
+      ansible.builtin.command:
+        argv:
+          - podman
+          - rmi
+          - --force
+          - "{{ item }}"
+      loop: >-
+        {{ retire_navidrome_images.stdout_lines
+           | select('search', 'navidrome')
+           | map('split', ' ')
+           | map('first')
+           | unique
+           | list }}
+      become: true
+      changed_when: true
+
+    - name: Check for the Navidrome network
+      ansible.builtin.command:
+        argv:
+          - podman
+          - network
+          - exists
+          - "{{ item }}"
+      loop: "{{ retire_navidrome_networks }}"
+      become: true
+      register: retire_navidrome_network_presence
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    # Podman refuses to remove a network a container still uses. That means
+    # Traefik has not restarted since vm1.yml dropped the route; reboot, then
+    # run this again.
+    - name: Remove the Navidrome network
+      ansible.builtin.command:
+        argv:
+          - podman
+          - network
+          - rm
+          - "{{ item.item }}"
+      loop: "{{ retire_navidrome_network_presence.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      become: true
+      when: item.rc == 0
+      changed_when: true
+
+    - name: Find the Navidrome Traefik route file
+      ansible.builtin.find:
+        paths: "{{ traefik_path }}/config"
+        patterns: "*.yml"
+        excludes:
+          - tls.yml
+          - security.yml
+          - dashboard.yml
+        contains: navidrome
+      become: true
+      register: retire_navidrome_routes
+      when: traefik_path | default('') | length > 0
+
+    - name: Remove the Navidrome Traefik route file
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ retire_navidrome_routes.files | default([]) }}"
+      loop_control:
+        label: "{{ item.path }}"
+      become: true
+
+    - name: Turn off container FUSE access, which only Navidrome used
+      ansible.posix.seboolean:
+        name: virt_use_fusefs
+        state: false
+        persistent: true
+      become: true
+      when: retire_navidrome_disable_fusefs | bool
+
+    - name: Remove the Navidrome data directory
+      ansible.builtin.file:
+        path: "{{ retire_navidrome_data_path }}"
+        state: absent
+      become: true
+      when: retire_navidrome_remove_data | bool
+
+    - name: Report that the Navidrome data directory was kept
+      ansible.builtin.debug:
+        msg: >-
+          Navidrome's data directory ({{ retire_navidrome_data_path | default('navidrome_path', true) }})
+          was kept. Delete it by hand, or run again with
+          -e retire_navidrome_remove_data=true while navidrome_path is still
+          in the inventory.
+      when: not (retire_navidrome_remove_data | bool)

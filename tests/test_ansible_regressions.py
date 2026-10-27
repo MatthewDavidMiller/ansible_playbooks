@@ -993,6 +993,85 @@ class CheckModeTests(unittest.TestCase):
         )
 
 
+class RetireNavidromeTests(unittest.TestCase):
+    """The one-shot cleanup for the retired Navidrome install."""
+
+    def setUp(self):
+        self.play = yaml.safe_load(
+            (REPO_ROOT / "retire_navidrome.yml").read_text(encoding="utf-8")
+        )[0]
+        self.tasks = {task["name"]: task for task in self.play["tasks"]}
+
+    def test_it_is_never_part_of_the_weekly_chain(self):
+        """It can delete a data directory, so it must be run on purpose."""
+        for playbook in ("vm1.yml", "homelab_vms.yml", "update_homelab_vms.yml"):
+            with self.subTest(playbook=playbook):
+                self.assertNotIn(
+                    "retire_navidrome",
+                    (REPO_ROOT / playbook).read_text(encoding="utf-8"),
+                )
+
+    def test_names_are_validated_before_anything_is_removed(self):
+        self.assertEqual(next(iter(self.tasks)), "Validate cleanup inputs")
+
+    def test_read_only_probes_run_in_check_mode(self):
+        for name in ("List Navidrome images", "Check for the Navidrome network"):
+            with self.subTest(task=name):
+                self.assertIs(self.tasks[name]["check_mode"], False)
+
+    def test_data_is_kept_unless_asked(self):
+        self.assertIs(self.play["vars"]["retire_navidrome_remove_data"], False)
+        self.assertEqual(
+            self.tasks["Remove the Navidrome data directory"]["when"],
+            "retire_navidrome_remove_data | bool",
+        )
+        checks = "\n".join(self.tasks["Validate cleanup inputs"]["ansible.builtin.assert"]["that"])
+        self.assertIn("'nextcloud' not in retire_navidrome_data_path", checks)
+        self.assertIn("homelab_safe_absolute_path", checks)
+
+    def test_it_removes_every_artifact_the_role_created(self):
+        paths = "\n".join(self.play["vars"]["retire_navidrome_paths"])
+        for artifact in (
+            "navidrome_container.service",
+            "navidrome_container.sh",
+            "backup_navidrome.sh",
+            "navidrome_backup.log",
+            "rclone-navidrome-cleanup.log",
+        ):
+            with self.subTest(artifact=artifact):
+                self.assertIn(artifact, paths)
+        self.assertEqual(
+            self.tasks["Remove the Navidrome backup cron entry"]["ansible.builtin.cron"],
+            {"name": "Backup navidrome daily", "state": "absent"},
+        )
+        self.assertEqual(self.play["vars"]["retire_navidrome_networks"], ["navidrome_container_net"])
+
+    def test_navidrome_is_gone_from_the_maintained_tree(self):
+        """Only the retirement playbook, its guide, and history may name it."""
+        allowed = {
+            "retire_navidrome.yml",
+            "docs/guides/music-server-migration.md",
+            "docs/architecture-decisions.md",
+            "docs/playbooks.md",
+            "docs/archive.md",
+            "docs/index.md",
+            "network/vm1.yml",
+            "tests/test_ansible_regressions.py",
+        }
+        tracked = subprocess.run(
+            ["git", "ls-files"], cwd=REPO_ROOT, capture_output=True, text=True, check=True
+        ).stdout.split()
+        for name in tracked:
+            path = REPO_ROOT / name
+            if name in allowed or not path.is_file() or path.suffix not in {".yml", ".yaml", ".j2", ".sh", ".py", ".md", ".cfg"}:
+                continue
+            text = path.read_text(encoding="utf-8", errors="replace").lower()
+            # Naming the retirement playbook itself (e.g. in lint.sh) is fine.
+            text = text.replace("retire_navidrome", "")
+            with self.subTest(path=name):
+                self.assertFalse("navidrome" in text, f"{name} still mentions Navidrome")
+
+
 class RetireSemaphoreTests(unittest.TestCase):
     """The one-shot cleanup for the retired Semaphore install."""
 

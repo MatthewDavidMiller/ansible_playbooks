@@ -40,6 +40,18 @@ This document covers the maintained playbooks only. Legacy playbooks are preserv
 
 ---
 
+## `retire_navidrome.yml`
+
+**Target:** `vm1`
+
+**Usage:** One-shot cleanup of the Navidrome install that `vm1.yml` no longer manages, now that music-server serves the library. Run it once, after `vm1.yml` has converged and VM1 has rebooted. It stops and removes the Navidrome service, container, image, launch and backup scripts, backup cron entry, and logs, removes its Podman network and its Traefik route file, and turns off the `virt_use_fusefs` SELinux boolean that only Navidrome's old rclone mount needed. Every task is safe to repeat. It is not part of `update_homelab_vms.yml`. See [guides/music-server-migration.md](guides/music-server-migration.md#5-retire-navidrome).
+
+**Data:** Navidrome's data directory is kept. To delete it too, run with `-e retire_navidrome_remove_data=true` while `navidrome_path` is still in the inventory; the play refuses a path under Nextcloud or a bare parent such as `/opt`. The music (the Nextcloud `Music` folder) and the final database dumps in the Nextcloud tree are never touched. `-e retire_navidrome_disable_fusefs=false` leaves the SELinux boolean as it is.
+
+**Failure:** removing the network fails while a container still uses it. That means Traefik has not restarted since `vm1.yml` dropped the route; reboot VM1 and run it again.
+
+---
+
 ## `retire_semaphore.yml`
 
 **Target:** `vm1`
