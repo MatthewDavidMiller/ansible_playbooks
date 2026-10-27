@@ -1057,6 +1057,8 @@ class RetireNavidromeTests(unittest.TestCase):
             "docs/index.md",
             "network/vm1.yml",
             "tests/test_ansible_regressions.py",
+            "scripts/remove_navidrome_inventory.py",
+            "tests/test_remove_navidrome_inventory.py",
         }
         tracked = subprocess.run(
             ["git", "ls-files"], cwd=REPO_ROOT, capture_output=True, text=True, check=True
@@ -1066,8 +1068,8 @@ class RetireNavidromeTests(unittest.TestCase):
             if name in allowed or not path.is_file() or path.suffix not in {".yml", ".yaml", ".j2", ".sh", ".py", ".md", ".cfg"}:
                 continue
             text = path.read_text(encoding="utf-8", errors="replace").lower()
-            # Naming the retirement playbook itself (e.g. in lint.sh) is fine.
-            text = text.replace("retire_navidrome", "")
+            # Naming the retirement tools themselves (e.g. in lint.sh) is fine.
+            text = text.replace("retire_navidrome", "").replace("remove_navidrome_inventory", "")
             with self.subTest(path=name):
                 self.assertFalse("navidrome" in text, f"{name} still mentions Navidrome")
 

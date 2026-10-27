@@ -187,7 +187,22 @@ earlier runs put on VM1. `retire_navidrome.yml` does:
    well, run once more with `-e retire_navidrome_remove_data=true` while
    `navidrome_path` is still in the inventory. The music and the old
    database dumps in Nextcloud are never touched.
-4. Remove the `navidrome_*` variables from the inventory, the `navidrome`
-   DNS record from Porkbun, and the old server from play:Sub. The old dumps
-   under `navidrome_backup_location` in Nextcloud can be deleted by hand
-   once you no longer want them.
+4. Remove what Navidrome left in the inventory with the helper. It deletes
+   the `navidrome_*` variables and Navidrome's entries in the route
+   dictionaries, `container_dns.aliases`, `proxy_config`, and
+   `container_service_names`, leaves everything else (comments and vaulted
+   values included) exactly as it was, and prints names and line numbers,
+   never values:
+
+   ```bash
+   python3 scripts/remove_navidrome_inventory.py /path/to/inventory.yml          # preview
+   python3 scripts/remove_navidrome_inventory.py /path/to/inventory.yml --write  # apply
+   ```
+
+   It keeps `navidrome_path`, which step 3 needs; once you are done with
+   the data directory, run it again with `--all --write`. `--write` keeps a
+   mode-0600 copy of the original beside it; delete that once you have
+   checked the result.
+5. Remove the `navidrome` DNS record from Porkbun and the old server from
+   play:Sub. The old dumps under `navidrome_backup_location` in Nextcloud
+   can be deleted by hand once you no longer want them.
