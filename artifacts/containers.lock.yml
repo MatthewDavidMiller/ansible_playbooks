@@ -57,3 +57,11 @@ artifact_locked_images:
     first_party: true
     notes: Approved via scripts/promote_artifacts.py
     approved_digest: sha256:6ac9400cf1219000ac5446210ff8b44d5c1bba5529ee50bfb52b240027a73093
+  music_server:
+    upstream_ref: ghcr.io/matthewdavidmiller/music-server:0.1.0
+    approved_tag: 0.1.0
+    internal_repo: homelab/music-server
+    signature_required: false
+    first_party: true
+    approved_digest: sha256:e2d2e201d5aad558cbcce415f4b05c3fdca454a58895aa479654ef117386cc0c
+    notes: Approved via scripts/promote_artifacts.py

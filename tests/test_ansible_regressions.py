@@ -1,4 +1,5 @@
 from pathlib import Path
+import ipaddress
 import re
 import shlex
 import subprocess
@@ -271,7 +272,7 @@ class LocalNextcloudBackupTests(unittest.TestCase):
 
     def test_backup_destinations_are_not_recursively_chmodded(self):
         """A recursive mode on the destination also rewrites the backup files."""
-        for role in ("navidrome", "vaultwarden", "playbook_runner"):
+        for role in ("navidrome", "vaultwarden", "playbook_runner", "music_server"):
             tasks = yaml.safe_load(
                 (REPO_ROOT / "roles" / role / "tasks" / "main.yml").read_text(
                     encoding="utf-8"
@@ -543,6 +544,7 @@ class SharedContainerNetworkTests(unittest.TestCase):
             "playbook_runner_container_net": True,
             "{{ playbook_runner_egress_network }}": False,
         },
+        "music_server": {"music_server_container_net": True},
         "reverse_proxy": {
             "{{ traefik_egress_network }}": False,
             "{{ route_proxy_network_name }}": True,
@@ -708,6 +710,177 @@ class PlaybookRunnerTests(unittest.TestCase):
 
     def test_runner_never_joins_the_backend_network(self):
         self.assertNotIn("nextcloud_container_net", self.script)
+
+
+class NetworkPlanTests(unittest.TestCase):
+    """Guards for network/vm1.yml, the one VM1 container address plan.
+
+    It replaced the route dictionaries every inventory had to repeat in full
+    (inventory values replace role defaults rather than merging with them).
+    """
+
+    def setUp(self):
+        self.plan = yaml.safe_load((REPO_ROOT / "network" / "vm1.yml").read_text(encoding="utf-8"))
+
+    def test_vm1_loads_the_plan(self):
+        play = yaml.safe_load((REPO_ROOT / "vm1.yml").read_text(encoding="utf-8"))[0]
+        self.assertIn("network/vm1.yml", play["vars_files"])
+
+    def test_every_route_network_has_both_addresses_inside_its_subnet(self):
+        subnets = self.plan["route_proxy_network_subnets"]
+        services = self.plan["route_proxy_container_ips"]
+        traefik = self.plan["route_proxy_traefik_ips"]
+        self.assertEqual(set(subnets), set(services))
+        self.assertEqual(set(subnets), set(traefik))
+        for net, cidr in subnets.items():
+            network = ipaddress.ip_network(cidr)
+            with self.subTest(network=net):
+                self.assertIn(ipaddress.ip_address(services[net]), network)
+                self.assertIn(ipaddress.ip_address(traefik[net]), network)
+                self.assertNotEqual(services[net], traefik[net])
+
+    def test_subnets_do_not_overlap_each_other_or_the_backend(self):
+        networks = [ipaddress.ip_network(c) for c in self.plan["route_proxy_network_subnets"].values()]
+        networks.append(ipaddress.ip_network("172.16.1.0/28"))
+        for i, a in enumerate(networks):
+            for b in networks[i + 1 :]:
+                with self.subTest(a=str(a), b=str(b)):
+                    self.assertFalse(a.overlaps(b))
+
+    def test_no_address_is_assigned_twice(self):
+        static = self.plan["container_static_ips"]
+        traefik = list(self.plan["route_proxy_traefik_ips"].values())
+        self.assertEqual(len(set(static.values())), len(static))
+        self.assertFalse(set(static.values()) & set(traefik))
+        self.assertTrue(set(self.plan["route_proxy_container_ips"].values()) <= set(static.values()))
+
+    def test_routes_cover_every_route_network(self):
+        routes = self.plan["proxy_config"]
+        names = [r["name"] for r in routes]
+        self.assertEqual(len(set(names)), len(names))
+        self.assertEqual(
+            {r["proxy_network"] for r in routes}, set(self.plan["route_proxy_network_subnets"])
+        )
+        for route in routes:
+            with self.subTest(route=route["name"]):
+                self.assertTrue(route["proxy_fqdn"].endswith(".{{ homelab_internal_domain }}"))
+                self.assertIn("container_dns.aliases.", route["container_destination"])
+
+    def test_every_route_is_management_only(self):
+        """VM1 serves only the user LAN and the VPN (management_network)."""
+        for route in self.plan["proxy_config"]:
+            with self.subTest(route=route["name"]):
+                self.assertIs(route.get("proxy_management_only"), True)
+
+    def test_music_route_is_unlogged(self):
+        route = next(r for r in self.plan["proxy_config"] if r["name"] == "music_server_proxy")
+        self.assertIs(route["proxy_access_log"], False)
+
+    def test_role_defaults_agree_with_the_plan(self):
+        keys = (
+            "route_proxy_network_subnets",
+            "route_proxy_container_ips",
+            "route_proxy_traefik_ips",
+            "container_static_ips",
+        )
+        for role_dir in sorted((REPO_ROOT / "roles").iterdir()):
+            defaults_file = role_dir / "defaults" / "main.yml"
+            if not defaults_file.exists():
+                continue
+            defaults = yaml.safe_load(defaults_file.read_text(encoding="utf-8")) or {}
+            for key in keys:
+                for name, value in (defaults.get(key) or {}).items():
+                    with self.subTest(role=role_dir.name, key=key, name=name):
+                        self.assertEqual(self.plan[key].get(name), value)
+            for alias, value in ((defaults.get("container_dns") or {}).get("aliases") or {}).items():
+                with self.subTest(role=role_dir.name, alias=alias):
+                    self.assertEqual(self.plan["container_dns"]["aliases"].get(alias), value)
+
+
+class MusicServerTests(unittest.TestCase):
+    """Guards for the first-party Subsonic server that replaces Navidrome.
+
+    Its users file carries every account's password, so it arrives only as a
+    Podman secret; the music is mounted read-only; and the container has no
+    network but the internal one Traefik reaches it on.
+    """
+
+    def setUp(self):
+        self.tasks = role_tasks("music_server")
+        self.script = (
+            REPO_ROOT / "roles" / "music_server" / "templates" / "music_server.sh.j2"
+        ).read_text(encoding="utf-8")
+
+    def test_role_is_off_unless_enabled(self):
+        self.assertIs(role_defaults("music_server")["music_server_enabled"], False)
+        first = self.tasks[0]
+        self.assertEqual(first.get("ansible.builtin.meta"), "end_role")
+        self.assertIn("music_server_enabled", first["when"])
+
+    def test_vm1_enables_it_only_with_a_locked_image(self):
+        play = yaml.safe_load((REPO_ROOT / "vm1.yml").read_text(encoding="utf-8"))[0]
+        locked = "'approved_digest' in artifact_locked_images.music_server | default({})"
+        self.assertIn(locked, play["vars"]["music_server_enabled"])
+        self.assertIn(f"if {locked}", play["vars"]["music_server_image"])
+        self.assertIn("[music_server_image] if music_server_enabled", play["vars"]["approved_container_images"])
+        roles = play["roles"]
+        self.assertLess(roles.index("reverse_proxy"), roles.index("music_server"))
+        self.assertLess(roles.index("nextcloud"), roles.index("music_server"))
+        self.assertLess(roles.index("music_server"), roles.index("standard_cleanup"))
+
+    def test_vm1_orders_its_unit_only_when_enabled(self):
+        play = yaml.safe_load((REPO_ROOT / "vm1.yml").read_text(encoding="utf-8"))[0]
+        names = play["vars"]["container_service_names"]
+        self.assertIn("['music_server'] if music_server_enabled", names)
+        self.assertIn("['playbook_runner'] if playbook_runner_enabled", names)
+        for unit in ("postgres_container", "redis_container", "nextcloud_container", "paperless_ngx", "navidrome_container", "vaultwarden"):
+            with self.subTest(unit=unit):
+                self.assertIn(f"'{unit}'", names)
+
+    def test_secret_tasks_hide_their_values(self):
+        for task in self.tasks:
+            text = yaml.safe_dump(task)
+            if ("music_server_master_key" in text or "music_server_users" in text) and (
+                "content" in text or "assert" in text
+            ):
+                with self.subTest(task=task["name"]):
+                    self.assertIs(task.get("no_log"), True)
+
+    def test_secrets_are_podman_secrets_never_env_vars(self):
+        self.assertIn("--secret music_server_master_key,target=/run/secrets/", self.script)
+        self.assertIn("--secret music_server_users,target=/run/secrets/", self.script)
+        self.assertNotIn("MS_MASTER_KEY", self.script)
+        self.assertNotIn("--env-file", self.script)
+
+    def test_container_is_hardened(self):
+        for flag in (
+            "--pull=never",
+            "--read-only",
+            "--cap-drop=ALL",
+            "--security-opt=no-new-privileges:true",
+            "--memory={{ music_server_memory }}",
+            "--memory-swap={{ music_server_memory }}",
+            "--tmpfs /tmp:rw,noexec,nosuid,nodev",
+            ":/music:ro,z",
+        ):
+            with self.subTest(flag=flag):
+                self.assertIn(flag, self.script)
+        self.assertNotIn("--cap-add", self.script)
+        self.assertNotRegex(self.script, r"(^|\s)-p ")
+        self.assertEqual(role_defaults("music_server")["music_server_memory"], "512m")
+
+    def test_only_the_internal_route_network(self):
+        self.assertEqual(self.script.count("--network="), 1)
+        self.assertIn("--network=music_server_container_net:", self.script)
+
+    def test_routes_can_leave_the_access_log(self):
+        """Subsonic credentials travel in the query string, which Traefik's
+        access log records unless the route opts out."""
+        template = (
+            REPO_ROOT / "roles" / "reverse_proxy" / "templates" / "service_proxy.yml.j2"
+        ).read_text(encoding="utf-8")
+        self.assertIn("proxy_access_log", template)
+        self.assertIn("accessLogs: false", template)
 
 
 class ContainerNetworkMigrationTests(unittest.TestCase):

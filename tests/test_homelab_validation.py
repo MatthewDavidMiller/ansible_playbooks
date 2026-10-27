@@ -9,6 +9,7 @@ from filter_plugins.homelab_validation import (
     homelab_network_needs_replacement,
     homelab_safe_absolute_path,
     homelab_safe_name,
+    homelab_valid_hostname,
     homelab_valid_ipv4_address,
     homelab_valid_ipv4_cidr,
 )
@@ -71,6 +72,11 @@ class HomelabValidationTests(unittest.TestCase):
         self.assertFalse(homelab_safe_name("-option"))
         self.assertFalse(homelab_safe_name("."))
         self.assertFalse(homelab_safe_name(".."))
+        self.assertTrue(homelab_valid_hostname("music.example.lan"))
+        self.assertTrue(homelab_valid_hostname("playbook-runner.home.example.com"))
+        for bad in ("music.", ".example.lan", "music", "music..lan", "-x.lan", "a b.lan", "x_y.lan", ""):
+            with self.subTest(hostname=bad):
+                self.assertFalse(homelab_valid_hostname(bad))
         self.assertTrue(homelab_immutable_image("registry.example/app@sha256:" + "a" * 64))
         self.assertFalse(homelab_immutable_image("registry.example/app:latest"))
         self.assertFalse(homelab_immutable_image("registry.example/app@sha256:" + "A" * 64))

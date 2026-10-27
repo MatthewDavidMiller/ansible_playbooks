@@ -95,6 +95,7 @@ container_dns:
     paperless_proxy: 'test-paperless-proxy'
     playbook_runner_proxy: 'test-playbook-runner-proxy'
     playbook_runner_egress: 'test-playbook-runner-egress'
+    music_server_proxy: 'test-music-server-proxy'
     traefik_proxy: 'test-traefik-proxy'
     traefik_egress: 'test-traefik-egress'
 route_proxy_network_subnets:
@@ -110,12 +111,14 @@ container_static_ips:
   paperless_backend: '172.16.1.5'
   paperless_proxy: '172.16.1.42'
   playbook_runner_proxy: '172.16.1.58'
+  music_server_proxy: '172.16.1.50'
 route_proxy_container_ips:
   nextcloud_proxy_net: '172.16.1.34'
 route_proxy_traefik_ips:
   nextcloud_proxy_net: '172.16.1.35'
   paperless_proxy_net: '172.16.1.43'
   playbook_runner_container_net: '172.16.1.59'
+  music_server_container_net: '172.16.1.51'
 proxy_config:
   - name: 'nextcloud_proxy'
     proxy_fqdn: 'cloud.example.com'
@@ -157,6 +160,21 @@ playbook_runner_uid: '10001'
 playbook_runner_gid: '10001'
 playbook_runner_egress_network: 'playbook_runner_egress_net'
 playbook_runner_backup_location: 'Nextcloud:playbook_runner_backup'
+music_server_path: '/srv/music-server'
+music_server_music_path: '/srv/nextcloud/data/admin/files/Music'
+music_server_image: 'ghcr.io/matthewdavidmiller/music-server@sha256:8888888888888888888888888888888888888888888888888888888888888888'
+music_server_users:
+  - name: 'alice'
+    password: 'music;pw "quoted" \\ slash & dollars \$HOME'
+    admin: true
+music_server_scan_interval_minutes: 60
+music_server_max_transcodes: 2
+music_server_memory: '512m'
+music_server_uid: '10001'
+music_server_gid: '10001'
+music_server_music_gid: '33'
+music_server_backup_location: 'Nextcloud:music_server_backup'
+nextcloud_homelab_user: 'admin'
 user_name: 'ansible'
 EOF
 
@@ -261,6 +279,21 @@ cat > "$tmpdir/render.yml" <<EOF
         src: ${repo_root}/roles/playbook_runner/templates/backup_playbook_runner.sh.j2
         dest: ${render_dir}/backup_playbook_runner.sh
 
+    - name: Render music_server.sh
+      ansible.builtin.template:
+        src: ${repo_root}/roles/music_server/templates/music_server.sh.j2
+        dest: ${render_dir}/music_server.sh
+
+    - name: Render music_server.service
+      ansible.builtin.template:
+        src: ${repo_root}/roles/music_server/templates/music_server.service.j2
+        dest: ${render_dir}/music_server.service
+
+    - name: Render backup_music_server.sh
+      ansible.builtin.template:
+        src: ${repo_root}/roles/music_server/templates/backup_music_server.sh.j2
+        dest: ${render_dir}/backup_music_server.sh
+
     - name: Render migrate_container_networks.sh
       ansible.builtin.template:
         src: ${repo_root}/roles/container_network_migration/templates/migrate_container_networks.sh.j2
@@ -280,6 +313,9 @@ pass "nextcloud_scan_path.sh passes ShellCheck after rendering"
 
 shellcheck "$render_dir/playbook_runner.sh" "$render_dir/backup_playbook_runner.sh"
 pass "playbook_runner.sh and backup_playbook_runner.sh pass ShellCheck after rendering"
+
+shellcheck "$render_dir/music_server.sh" "$render_dir/backup_music_server.sh"
+pass "music_server.sh and backup_music_server.sh pass ShellCheck after rendering"
 
 get_sourced_var() {
   local file="$1"
@@ -467,6 +503,17 @@ assert_not_contains "$render_dir/playbook_runner.sh" "run;admin" "playbook_runne
 assert_contains "$render_dir/playbook_runner.sh" "--pull=never" "playbook_runner.sh uses --pull=never"
 assert_contains "$render_dir/backup_playbook_runner.sh" "/usr/bin/tar -C \"/srv/playbook-runner\"" "backup_playbook_runner.sh archives the data directory"
 
+assert_contains "$render_dir/music_server.sh" "--network=music_server_container_net:ip=172.16.1.50,alias=test-music-server-proxy" "music_server.sh joins its proxy network with a static IP and alias"
+assert_not_contains "$render_dir/music_server.sh" "nextcloud_container_net" "music_server.sh stays off the backend network"
+assert_contains "$render_dir/music_server.sh" "--env MS_TRUSTED_PROXIES=172.16.1.51" "music_server.sh trusts only Traefik's address for X-Forwarded-For"
+assert_contains "$render_dir/music_server.sh" "--volume /srv/nextcloud/data/admin/files/Music:/music:ro,z" "music_server.sh mounts the music read-only"
+assert_contains "$render_dir/music_server.sh" "--secret music_server_users,target=/run/secrets/music_server_users" "music_server.sh mounts the users file as a secret"
+assert_not_contains "$render_dir/music_server.sh" "music;pw" "music_server.sh never carries a password itself"
+assert_contains "$render_dir/music_server.sh" "--pull=never" "music_server.sh uses --pull=never"
+assert_contains "$render_dir/music_server.service" "After=nextcloud_container.service" "music_server.service starts after Nextcloud when the music is in its data directory"
+assert_contains "$render_dir/backup_music_server.sh" "/usr/bin/tar -C \"/srv/music-server/data\"" "backup_music_server.sh archives only the data directory"
+assert_contains "$render_dir/backup_music_server.sh" '/usr/bin/install -o 33 -g 33 -m 0660 "$ARCHIVE" "$DEST/"' "backup_music_server.sh installs backups with the normalized Nextcloud file mode"
+
 assert_contains "$render_dir/backup_navidrome.sh" '/usr/bin/install -d -o 33 -g 33 -m 0770 "$DEST"' "backup_navidrome.sh creates the Nextcloud destination with Nextcloud ownership"
 assert_contains "$render_dir/backup_navidrome.sh" '/usr/bin/install -o 33 -g 33 -m 0660 "$backup_file" "$DEST/"' "backup_navidrome.sh installs backups with the normalized Nextcloud file mode"
 assert_not_contains "$render_dir/backup_navidrome.sh" '/usr/bin/cp "$LOCAL_BACKUP_DIR"/*.db "$DEST/"' "backup_navidrome.sh no longer copies backups as root"
@@ -476,7 +523,7 @@ assert_contains "$render_dir/backup_vaultwarden.sh" '/usr/bin/install -o 33 -g 3
 assert_not_contains "$render_dir/backup_vaultwarden.sh" '/usr/bin/cp "$BACKUP_FILE" "$DEST/"' "backup_vaultwarden.sh no longer copies backups as root"
 
 
-for backup_script in backup_navidrome.sh backup_vaultwarden.sh; do
+for backup_script in backup_navidrome.sh backup_vaultwarden.sh backup_music_server.sh; do
   assert_contains "$render_dir/$backup_script" \
     '/usr/local/bin/nextcloud_scan_path.sh' \
     "$backup_script uses the managed Nextcloud scan helper"

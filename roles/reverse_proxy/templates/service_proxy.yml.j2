@@ -5,6 +5,10 @@ http:
       entryPoints:
         - websecure
       service: "{{ config_name.name }}"
+{% if not (config_name.proxy_access_log | default(true)) %}
+      observability:
+        accessLogs: false
+{% endif %}
       tls:
         certResolver: porkbun
       middlewares:

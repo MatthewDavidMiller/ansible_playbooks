@@ -1,0 +1,87 @@
+---
+# music_server role defaults
+#
+# music-server is the first-party Subsonic music server
+# (https://github.com/MatthewDavidMiller/music-server). The role is off until
+# music_server_enabled is true, and it refuses to run until the image has a
+# reviewed entry in artifacts/containers.lock.yml.
+
+# Deploy music-server on this host
+music_server_enabled: false
+
+# Host directory holding data/ (sealed roster and user data, backed up) and
+# cache/ (library index and resized covers, rebuildable).
+music_server_path: ""
+
+# The library, mounted read-only. On VM1 this is the Nextcloud Music folder:
+# <nextcloud_path>/data/<nextcloud_homelab_user>/files/Music
+music_server_music_path: ""
+
+# The 256-bit master key, as 64 hex digits (`music-server gen-key`). The
+# roster and every user's playlists, stars, and plays are sealed under keys
+# derived from it; keep a copy in Vaultwarden.
+music_server_master_key: ""
+
+# The accounts, from Vault. Each entry: {name, password, admin}. Names are
+# 1-64 of A-Z a-z 0-9 . _ -; passwords 8-128 characters; at least one admin.
+# A name removed here is disabled on the next start, its data kept.
+music_server_users: []
+
+# Rescan interval in minutes; 0 scans only at startup and on request
+music_server_scan_interval_minutes: 60
+
+# Concurrent ffmpeg transcodes (0-8)
+music_server_max_transcodes: 2
+
+# Container memory ceiling, also used as the swap ceiling (no swap)
+music_server_memory: 512m
+
+# The container user the image declares
+music_server_uid: "10001"
+music_server_gid: "10001"
+
+# Supplementary group that can read the music. Nextcloud's files are
+# 0660/0770 for uid/gid 33.
+music_server_music_gid: "33"
+
+# Rclone remote path for backup uploads (e.g. "Nextcloud:music_server_backup")
+music_server_backup_location: ""
+
+# When true, backups are written directly to the local Nextcloud data directory
+# instead of being uploaded via rclone.
+backup_local: false
+
+# Path to Nextcloud data root (required when backup_local is true)
+nextcloud_path: ""
+
+# Nextcloud username whose files directory is used as the backup destination
+nextcloud_homelab_user: ""
+
+# UID/GID used by Nextcloud to own files on the host-mounted data path
+nextcloud_uid: "33"
+nextcloud_gid: "33"
+
+# Root-only directory for runtime environment files and secret sources
+secret_env_dir: /etc/homelab/secrets
+
+# Container image resolved from the approved artifact lock in vm1.yml
+music_server_image: ""
+
+# Podman DNS aliases used on VM1 networks.
+container_dns:
+  domain: dns.podman
+  aliases:
+    music_server_proxy: music-server-proxy
+
+# Deterministic VM1 route proxy network subnet.
+route_proxy_network_subnets:
+  music_server_container_net: 172.16.1.48/29
+
+# Static container IP used with Traefik /etc/hosts overrides.
+container_static_ips:
+  music_server_proxy: 172.16.1.50
+
+# Traefik's address on the music network; the server trusts its
+# X-Forwarded-For for login throttling.
+route_proxy_traefik_ips:
+  music_server_container_net: 172.16.1.51

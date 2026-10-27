@@ -146,3 +146,16 @@ This document records explicit design decisions and rejected alternatives for th
 - playbook-runner needs no database, so the shared PostgreSQL container serves only Nextcloud and Paperless and Semaphore's backend-network access is gone.
 - It has no third-party Rust crates, encrypts every secret and inventory at rest with a master key held outside the data volume, and carries its Ansible collections in the image so a run never downloads anything.
 - The image is first-party, so it follows the exemption above.
+
+## Decision: music-server Replaces Navidrome
+
+**Decision:** Music streaming on VM1 moves from Navidrome to music-server, a first-party Rust Subsonic server. Phase A runs it beside Navidrome on its own route. Phase B removes the `navidrome` role once play:Sub has been checked against it.
+
+**Rationale:**
+
+- The project used a small part of Navidrome: play:Sub over the Subsonic API, playlists, and transcoding for mobile data. A purpose-built server does that with far less code to trust.
+- It has no third-party Rust crates and no database. Per-user data is sealed under a master key held outside the data volume.
+- Accounts are declared in the inventory (a Vault list rendered into a Podman secret), not created by hand in a web UI.
+- ffmpeg, from the official Alpine image, is the one third-party program in the image. It runs only as a supervised subprocess.
+- The image is first-party, so it follows the first-party image exemption.
+- No history is migrated from `navidrome.db`; that would need a SQLite parser for a one-time import.

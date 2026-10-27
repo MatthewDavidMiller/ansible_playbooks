@@ -32,7 +32,7 @@ Applied to the maintained homelab inventory.
 
 ## `vm1` Host
 
-VM1 is the single maintained service host. It runs Traefik, PostgreSQL, Redis, Nextcloud, Paperless NGX, Navidrome, Vaultwarden, playbook-runner, and the local backup workflow.
+VM1 is the single maintained service host. It runs Traefik, PostgreSQL, Redis, Nextcloud, Paperless NGX, Navidrome, music-server (once its image is locked; it replaces Navidrome), Vaultwarden, playbook-runner, and the local backup workflow.
 
 | Variable | Type | Description | Example |
 |---|---|---|---|
@@ -44,10 +44,8 @@ VM1 is the single maintained service host. It runs Traefik, PostgreSQL, Redis, N
 | `traefik_dashboard_fqdn` | string | FQDN for the Traefik dashboard | `traefik.example.com` |
 | `traefik_dashboard_basic_auth_users` | list | htpasswd-style BasicAuth users for the Traefik dashboard | `["admin:$apr1$..."]` |
 | `traefik_acme_email` | string | ACME account email | `admin@example.com` |
-| `proxy_config` | list | Traefik dynamic route definitions | — |
-| `route_proxy_container_ips` | dict | Static backend IP per Traefik route proxy network, used for `/etc/hosts` resolution inside Traefik | `{nextcloud_proxy_net: 172.16.1.34}` |
-| `route_proxy_traefik_ips` | dict | Static IP Traefik itself claims per route proxy network; must differ from the backend IP on that network | `{nextcloud_proxy_net: 172.16.1.35}` |
-| `container_static_ips` | dict | Static IPs for latency-sensitive container aliases on backend and proxy networks | `{postgres_backend: 172.16.1.2}` |
+| `homelab_internal_domain` | string | Internal DNS domain every route sits under; routes are `<service>.<this domain>` | `example.lan` |
+| `proxy_config` | list | Set by [`network/vm1.yml`](../network/vm1.yml), not inventory: the Traefik routes | — |
 | `postgres_path` | path | Shared PostgreSQL data directory | `/opt/postgres` |
 | `nextcloud_path` | path | Nextcloud base directory | `/opt/nextcloud` |
 | `nextcloud_disk` | string | UUID entry for the Nextcloud data disk | `UUID=...` |
@@ -87,7 +85,7 @@ VM1 is the single maintained service host. It runs Traefik, PostgreSQL, Redis, N
 | `vaultwarden_path` | path | Vaultwarden base directory | `/opt/vaultwarden` |
 | `vaultwarden_backup_location` | string | Vaultwarden backup destination label | `Nextcloud:vaultwarden_backup` |
 | `vaultwarden_signups_allowed` | boolean | Public signup toggle | `false` |
-| `container_service_names` | string | Space-separated container service names used by Traefik ordering and deferred network migration restart order | `postgres_container redis_container nextcloud_container paperless_ngx navidrome_container vaultwarden` |
+| `container_service_names` | string | Set by `vm1.yml`, not inventory: the container units Traefik orders after and the deferred network migration restarts | `postgres_container redis_container nextcloud_container paperless_ngx navidrome_container vaultwarden` |
 | `container_network_migration_delay` | string | Delay before the final coordinator runs a queued network migration | `2min` |
 | `backup_host` | string | Backup server IP in CIDR form | `192.168.1.50/32` |
 | `borg_backup_path` | path | Borg repository root on the backup disk | `/opt/borg_backup` |
@@ -119,7 +117,7 @@ Maintained container images are resolved in `vm1.yml` from `artifacts/containers
 
 ## `proxy_config` Object Schema
 
-Each `proxy_config` entry renders one Traefik dynamic config file in `{{ traefik_path }}/config/`.
+Each `proxy_config` entry renders one Traefik dynamic config file in `{{ traefik_path }}/config/`, named after the entry. VM1's entries live in [`network/vm1.yml`](../network/vm1.yml); edit them there. Renaming an entry leaves the old route file on VM1.
 
 | Field | Type | Required | Description | Example |
 |---|---|---|---|---|
@@ -131,6 +129,7 @@ Each `proxy_config` entry renders one Traefik dynamic config file in `{{ traefik
 | `proxy_network` | string | Yes | Internal Podman network shared by Traefik and this backend | `nextcloud_proxy_net` |
 | `proxy_allow_encoded_slash` | boolean | No | Enable encoded-slash forwarding when needed | `true` |
 | `proxy_management_only` | boolean | No | Restrict the route to the management network | `true` |
+| `proxy_access_log` | boolean | No | `false` keeps the route out of Traefik's access log; set it on routes whose clients put credentials in the query string (music-server's Subsonic API) | `false` |
 
 All entries use the generic `service_proxy.yml.j2` template.
 
@@ -144,7 +143,7 @@ Every container on a route proxy network requests a static address: the service 
 
 Latency-sensitive service names are also written into container `/etc/hosts` with static IPs from `container_static_ips` and `route_proxy_container_ips`. Podman DNS aliases remain present for observability and fallback, but normal database/cache/proxy traffic should resolve locally without depending on multi-network DNS order.
 
-The maintained roles define a `container_dns` dictionary with `domain` and `aliases` keys. Override that dictionary in inventory if you need different names.
+The route network subnets, the static addresses on both sides, and the `container_dns` names are not inventory settings: they come from the address plan in [`network/vm1.yml`](../network/vm1.yml), which `vm1.yml` loads ahead of inventory. Delete any copies of `route_proxy_network_subnets`, `route_proxy_container_ips`, `route_proxy_traefik_ips`, `container_static_ips`, or `container_dns` left in an inventory.
 
 When `apply_runtime_changes_on_reboot` is true and a route proxy network already exists without Podman's `--internal` flag, the role queues that network for deferred replacement instead of removing it during the active Ansible connection. The final `container_network_migration` role writes and schedules a short-delay migration job so playbook-runner can finish the play before its own container or route networks are interrupted.
 

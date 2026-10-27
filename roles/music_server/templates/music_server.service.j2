@@ -1,0 +1,25 @@
+[Unit]
+Description=Podman container-music_server.service
+Documentation=man:podman-generate-systemd(1)
+Wants=network-online.target
+After=network-online.target
+RequiresMountsFor={{ music_server_music_path }}
+{% if nextcloud_path | default('', true) and music_server_music_path.startswith(nextcloud_path ~ '/data/') %}
+After=nextcloud_container.service
+{% endif %}
+
+[Service]
+Environment=PODMAN_SYSTEMD_UNIT=%n
+Restart=on-failure
+TimeoutStopSec=70
+ExecStartPre=/usr/bin/podman rm --ignore music_server
+ExecStartPre=/usr/bin/bash -c 'for attempt in {1..60}; do [ -d "$1" ] && [ -r "$1" ] && exit 0; sleep 5; done; echo "Timed out waiting for the music path: $1" >&2; exit 1' _ {{ music_server_music_path | quote }}
+ExecStart=/usr/bin/bash /usr/local/bin/music_server.sh
+RestartSec=10
+TimeoutStartSec=300
+ExecStop=/usr/bin/podman stop --ignore music_server
+ExecStopPost=/usr/bin/podman rm --ignore -f music_server
+Type=forking
+
+[Install]
+WantedBy=multi-user.target default.target

@@ -26,7 +26,7 @@ Use the existing active service roles as reference:
 - Use `podman run --pull=never`; `standard_podman` is responsible for pre-pulling approved digest refs.
 - Use `:Z` on container-mounted host paths.
 - Put the service on its own Podman network when it needs isolation, and create it by including the shared [`container_network`](../roles/standard.md#container_network) role. Do not re-implement `podman network inspect`/`create` in the service role; `tests/test_ansible_regressions.py` fails the build if a role does.
-- If the service is proxied by Traefik, add an entry to `proxy_config` instead of creating a per-service reverse-proxy template.
+- If the service is proxied by Traefik, add an entry to `proxy_config` in [`network/vm1.yml`](../../network/vm1.yml), with `proxy_fqdn: "<name>.{{ homelab_internal_domain }}"`, instead of creating a per-service reverse-proxy template.
 - Add the service image to `artifacts/containers.lock.yml` and to `approved_container_images` resolution in `vm1.yml`.
 
 ---
@@ -35,7 +35,7 @@ Use the existing active service roles as reference:
 
 - Add the role to `vm1.yml` in the correct order.
 - Add required variables to the `vm1` host entry in `inventory.yml`.
-- If Traefik must reach the service, add a dedicated internal proxy network and reference it with the route's `proxy_network`.
+- If Traefik must reach the service, add a dedicated internal proxy network and reference it with the route's `proxy_network`. Give it a free `/29` in [`network/vm1.yml`](../../network/vm1.yml): its subnet, the service's address (in both `route_proxy_container_ips` and `container_static_ips`), Traefik's address, and the DNS alias. Mirror those entries in the role's own `defaults/main.yml`; the tests check that the two agree.
 - If the service depends on PostgreSQL or Redis, place it after `nextcloud`.
 - If the role changes live runtime behavior that VM1 stages until reboot, guard immediate-start behavior with `apply_runtime_changes_on_reboot`.
 

@@ -32,7 +32,7 @@ Start with [README.md](../README.md) for the project overview and quick start.
 | [inventory.md](inventory.md) | Full inventory variable reference |
 | [variables.md](variables.md) | Required, conditional, and optional variables to define or override |
 | [roles/standard.md](roles/standard.md) | Standard infrastructure roles (`standard_ssh`, `standard_firewalld`, `standard_selinux`, etc.) |
-| [roles/services.md](roles/services.md) | Service roles (`nextcloud`, `vaultwarden`, `playbook_runner`, `reverse_proxy`, etc.) |
+| [roles/services.md](roles/services.md) | Service roles (`nextcloud`, `vaultwarden`, `playbook_runner`, `music_server`, `reverse_proxy`, etc.) |
 | [archive.md](archive.md) | How to browse the separate historical `archive` branch |
 
 ## Guides
@@ -47,6 +47,7 @@ Start with [README.md](../README.md) for the project overview and quick start.
 | [guides/dr-restore.md](guides/dr-restore.md) | Disaster recovery — initial migration to VM1 and restore from backups |
 | [guides/postgres-upgrade.md](guides/postgres-upgrade.md) | PostgreSQL major version upgrade procedure for the shared postgres container |
 | [guides/playbook-runner-migration.md](guides/playbook-runner-migration.md) | Setting up playbook-runner and removing the old Semaphore install from VM1 |
+| [guides/music-server-migration.md](guides/music-server-migration.md) | Setting up music-server beside Navidrome, then retiring Navidrome |
 | [`../artifacts/containers.lock.yml`](../artifacts/containers.lock.yml) | Approved container image lock for the maintained VM1 services |
 
 ## Testing & CI/CD

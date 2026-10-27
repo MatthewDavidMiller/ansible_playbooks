@@ -24,11 +24,13 @@ Out of scope for the current low-disruption design:
 - Firewalld keeps a drop-by-default model and rejects `0.0.0.0/0` for management and Ansible source CIDRs.
 - SELinux remains enforcing on maintained VMs. Host-specific SELinux exceptions should be explicit variables, not ad hoc permissive mode.
 - SSH is allowlisted to `user_name`, disables agent and stream-local forwarding, and defaults to no TCP forwarding.
+- Every VM1 service route (`network/vm1.yml`) is management-only: Traefik answers only clients inside `management_network`, the user LAN and the VPN. A guard in `tests/test_ansible_regressions.py` fails the build if a route drops it.
 - Traefik is the only intended public ingress on ports `80` and `443`. Dashboard/admin routes require management-source allowlisting and BasicAuth.
 - Container images are resolved from `artifacts/containers.lock.yml`, deployed as immutable digest refs, pre-pulled by `standard_podman`, and launched with `--pull=never`.
 - Containers use explicit network placement, internal app/backend networks for deny-by-default egress, memory/PID limits, `no-new-privileges`, reduced capabilities, and read-only root filesystems where compatible.
 - Runtime secrets are rendered under `secret_env_dir` as root-owned `0600` env files. Secret-writing tasks use `no_log: true`.
 - playbook-runner, the Ansible control plane once enabled, holds every automation secret. Its vault passwords, SSH keys, and inventories are sealed with AES-256-GCM under a master key that reaches the container only as a Podman secret (never an env var or a file in its data directory or backups). Runs decrypt into a noexec tmpfs, vault passwords reach `ansible-playbook` on inherited pipes, keys load into a per-run `ssh-agent`, memory is capped without swap, and SSH host keys are checked strictly. Its egress network exists because it must reach the git server and every managed host over SSH.
+- music-server holds every listener's password in memory, because Subsonic's token scheme needs the plain password on the server. The passwords reach it only in the users file, a Podman secret; its data directory and backups hold only sealed playlists and play history. Its route sets `proxy_access_log: false`, because Subsonic apps put credentials in the query string. ffmpeg is the one program it runs, supervised, with a fixed argument vector. The music is mounted read-only, and the container has no egress.
 - Backups use root-owned scripts and restrictive file modes. Temporary backup handling uses private permissions and cleanup traps; remote retention filters must be scoped to files owned by the backup workflow.
 
 ## Change Rules

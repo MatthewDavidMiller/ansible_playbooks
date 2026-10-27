@@ -1,0 +1,205 @@
+---
+- name: Skip music-server unless it is enabled
+  ansible.builtin.meta: end_role
+  when: not (music_server_enabled | bool)
+
+- name: Validate music-server inputs before changing the host
+  ansible.builtin.assert:
+    that:
+      - music_server_master_key is match('^[0-9a-fA-F]{64}$')
+      - music_server_users | length > 0
+      - music_server_users | length <= 50
+      - music_server_users | map(attribute='name') | list | unique | length == music_server_users | length
+      - music_server_users | selectattr('admin', 'defined') | selectattr('admin') | list | length > 0
+      - music_server_users | rejectattr('name', 'match', '^[A-Za-z0-9._-]{1,64}$') | list | length == 0
+      - music_server_users | map(attribute='password') | map('length') | min >= 8
+      - music_server_users | map(attribute='password') | map('length') | max <= 128
+      - music_server_path | homelab_safe_absolute_path
+      - music_server_music_path | homelab_safe_absolute_path
+      - secret_env_dir | homelab_safe_absolute_path
+      - music_server_image | homelab_immutable_digest_ref
+      - music_server_uid is match('^[0-9]+$')
+      - music_server_gid is match('^[0-9]+$')
+      - music_server_music_gid is match('^[0-9]+$')
+      - music_server_scan_interval_minutes | int >= 0
+      - music_server_max_transcodes | int >= 0
+      - music_server_max_transcodes | int <= 8
+      - music_server_memory is match('^[0-9]+[mg]$')
+      - route_proxy_network_subnets.music_server_container_net | homelab_valid_ipv4_cidr
+      - container_static_ips.music_server_proxy | homelab_container_assignable_ip(route_proxy_network_subnets.music_server_container_net)
+      - route_proxy_traefik_ips.music_server_container_net | homelab_container_assignable_ip(route_proxy_network_subnets.music_server_container_net)
+      - not (backup_local | bool) or nextcloud_path | homelab_safe_absolute_path
+      - not (backup_local | bool) or nextcloud_homelab_user | homelab_safe_name
+    fail_msg: >-
+      Configure a 64-hex-digit master key; 1-50 users with unique safe names,
+      8-128 character passwords, and at least one admin; safe paths; an
+      immutable image (lock music_server in artifacts/containers.lock.yml);
+      and a valid network.
+  no_log: true
+
+- name: Reconcile music-server proxy network
+  ansible.builtin.include_role:
+    name: container_network
+  vars:
+    container_network_name: music_server_container_net
+    container_network_subnet: "{{ route_proxy_network_subnets.music_server_container_net }}"
+
+- name: Create music-server secret directory
+  ansible.builtin.file:
+    path: "{{ secret_env_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Create music-server directory
+  ansible.builtin.file:
+    path: "{{ music_server_path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Create music-server data and cache directories
+  ansible.builtin.file:
+    path: "{{ music_server_path }}/{{ item }}"
+    state: directory
+    owner: "{{ music_server_uid }}"
+    group: "{{ music_server_gid }}"
+    mode: "0700"
+  loop:
+    - data
+    - cache
+
+# Both secrets are rendered to root-only source files first so the Podman
+# secrets are only replaced when a value actually changes.
+- name: Music-server master key source
+  ansible.builtin.copy:
+    content: "{{ music_server_master_key | lower }}\n"
+    dest: "{{ secret_env_dir }}/music_server_master_key"
+    owner: root
+    group: root
+    mode: "0600"
+  register: music_server_master_key_file
+  no_log: true
+
+- name: Music-server users file source
+  ansible.builtin.copy:
+    content: >-
+      {{ {'version': 1, 'users': music_server_users
+          | map('dict2items') | map('selectattr', 'key', 'in', ['name', 'password', 'admin'])
+          | map('items2dict') | list} | to_json }}
+    dest: "{{ secret_env_dir }}/music_server_users.json"
+    owner: root
+    group: root
+    mode: "0600"
+  register: music_server_users_file
+  no_log: true
+
+- name: Check for the music-server Podman secrets
+  ansible.builtin.command:
+    argv:
+      - podman
+      - secret
+      - exists
+      - "{{ item }}"
+  loop:
+    - music_server_master_key
+    - music_server_users
+  register: music_server_secret_presence
+  check_mode: false
+  changed_when: false
+  failed_when: false
+
+- name: Create the music-server master key secret
+  ansible.builtin.command:
+    argv:
+      - podman
+      - secret
+      - create
+      - --replace
+      - music_server_master_key
+      - "{{ secret_env_dir }}/music_server_master_key"
+  when: music_server_master_key_file is changed or music_server_secret_presence.results[0].rc != 0
+  changed_when: true
+
+- name: Create the music-server users secret
+  ansible.builtin.command:
+    argv:
+      - podman
+      - secret
+      - create
+      - --replace
+      - music_server_users
+      - "{{ secret_env_dir }}/music_server_users.json"
+  when: music_server_users_file is changed or music_server_secret_presence.results[1].rc != 0
+  changed_when: true
+
+- name: Music-server service
+  ansible.builtin.template:
+    src: music_server.service.j2
+    dest: /etc/systemd/system/music_server.service
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Enable music-server
+  ansible.builtin.systemd:
+    name: music_server.service
+    enabled: true
+    daemon_reload: true
+
+- name: Music-server script
+  ansible.builtin.template:
+    src: music_server.sh.j2
+    dest: /usr/local/bin/music_server.sh
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Create music-server Nextcloud backup destination
+  ansible.builtin.file:
+    path: "{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/{{ music_server_backup_location | replace('Nextcloud:', '') }}"
+    state: directory
+    owner: "{{ nextcloud_uid }}"
+    group: "{{ nextcloud_gid }}"
+    mode: "0770"
+  when: backup_local | default(false)
+
+- name: Repair music-server Nextcloud backup destination ownership
+  ansible.builtin.file:
+    path: "{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/{{ music_server_backup_location | replace('Nextcloud:', '') }}"
+    state: directory
+    owner: "{{ nextcloud_uid }}"
+    group: "{{ nextcloud_gid }}"
+    recurse: true
+  when: backup_local | default(false)
+
+- name: Backup music-server script
+  ansible.builtin.template:
+    src: backup_music_server.sh.j2
+    dest: /usr/local/bin/backup_music_server.sh
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Backup music-server daily
+  ansible.builtin.cron:
+    name: Backup music-server
+    special_time: daily
+    job: /usr/bin/bash /usr/local/bin/backup_music_server.sh
+
+# The users file is read at startup, so a changed one needs a restart.
+- name: Restart music-server for changed accounts or key
+  ansible.builtin.systemd:
+    name: music_server.service
+    state: restarted
+  when:
+    - not (apply_runtime_changes_on_reboot | default(false) | bool)
+    - music_server_users_file is changed or music_server_master_key_file is changed
+
+- name: Start music-server
+  ansible.builtin.systemd:
+    name: music_server.service
+    state: started
+  when: not (apply_runtime_changes_on_reboot | default(false) | bool)

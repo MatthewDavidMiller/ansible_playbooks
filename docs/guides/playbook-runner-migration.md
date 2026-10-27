@@ -50,23 +50,12 @@ playbook_runner_known_hosts: "host ssh-ed25519 AAAA..."   # pinned SSH host keys
 Store the master key in Vaultwarden as well. Without it the runner's stored
 secrets cannot be recovered.
 
-The route dictionaries in inventory replace the role defaults, so add the
-runner's entries to each (values from [variables.md](../variables.md)):
-`route_proxy_network_subnets`, `route_proxy_container_ips`,
-`route_proxy_traefik_ips`, `container_static_ips`, and `container_dns`.
-Then add a route and the service order:
-
-```yaml
-proxy_config:
-  - name: playbook_runner_proxy
-    proxy_fqdn: runner.example.com
-    proxy_upstream_protocol: http
-    container_destination: "{{ container_dns.aliases.playbook_runner_proxy }}.{{ container_dns.domain }}"
-    proxy_upstream_port: "8080"
-    proxy_network: playbook_runner_container_net
-    proxy_management_only: true
-container_service_names: "... vaultwarden playbook_runner"
-```
+The network addresses, DNS aliases, and Traefik route come from the
+repository's plan, [`network/vm1.yml`](../../network/vm1.yml), and `vm1.yml`
+adds `playbook_runner` to `container_service_names` itself, so the inventory
+needs none of them. The route is
+`playbook-runner.<homelab_internal_domain>`, restricted to
+`management_network`.
 
 ## 3. Deploy and configure
 

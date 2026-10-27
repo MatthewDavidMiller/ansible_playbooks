@@ -148,7 +148,8 @@ assert_match_each "name: container_network" \
   "service roles reconcile their networks through the shared role" \
   roles/nextcloud/tasks/main.yml roles/navidrome/tasks/main.yml \
   roles/paperless_ngx/tasks/main.yml roles/playbook_runner/tasks/main.yml \
-  roles/vaultwarden/tasks/main.yml roles/reverse_proxy/tasks/main.yml
+  roles/vaultwarden/tasks/main.yml roles/music_server/tasks/main.yml \
+  roles/reverse_proxy/tasks/main.yml
 assert_no_fixed_match "from_json | first" \
   "roles do not re-implement inline container network reconciliation" \
   roles
@@ -171,6 +172,8 @@ assert_task_has_no_log roles/nextcloud/tasks/main.yml 'dest:.*secret_env_dir.*/p
 assert_task_has_no_log roles/nextcloud/tasks/main.yml 'dest:.*secret_env_dir.*/nextcloud[.]env' "Nextcloud env rendering uses no_log"
 assert_task_has_no_log roles/paperless_ngx/tasks/main.yml 'dest:.*secret_env_dir.*/paperless[.]env' "Paperless env rendering uses no_log"
 assert_task_has_no_log roles/playbook_runner/tasks/main.yml 'dest:.*secret_env_dir.*/playbook_runner_master_key' "playbook-runner master key rendering uses no_log"
+assert_task_has_no_log roles/music_server/tasks/main.yml 'dest:.*secret_env_dir.*/music_server_master_key' "music-server master key rendering uses no_log"
+assert_task_has_no_log roles/music_server/tasks/main.yml 'dest:.*secret_env_dir.*/music_server_users[.]json' "music-server users file rendering uses no_log"
 assert_task_has_no_log roles/standard_rclone/tasks/main.yml 'dest:.*/root/[.]config/rclone/rclone[.]conf' "rclone config rendering uses no_log"
 
 echo "=== Supply chain policy checks passed ==="

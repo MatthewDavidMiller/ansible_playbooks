@@ -3,6 +3,9 @@
   hosts: vm1
   vars_files:
     - artifacts/containers.lock.yml
+    # The container address plan. It outranks inventory on purpose: the
+    # addresses are part of the deployment, not per-site settings.
+    - network/vm1.yml
   vars:
     standard_ssh_allow_users:
       - "{{ user_name }}"
@@ -10,6 +13,10 @@
     nextcloud_gid: "33"
     apply_runtime_changes_on_reboot: true
     playbook_runner_enabled: true
+    # music-server runs beside Navidrome until it replaces it; it turns on
+    # once the image has a reviewed lock entry
+    # (docs/guides/music-server-migration.md).
+    music_server_enabled: "{{ 'approved_digest' in artifact_locked_images.music_server | default({}) }}"
     traefik_image: "{{ artifact_locked_images.traefik.upstream_ref | regex_replace(':[^:@/]+$', '') }}@{{ artifact_locked_images.traefik.approved_digest }}"
     postgres_image: "{{ artifact_locked_images.postgres.upstream_ref | regex_replace(':[^:@/]+$', '') }}@{{ artifact_locked_images.postgres.approved_digest }}"
     redis_image: "{{ artifact_locked_images.redis.upstream_ref | regex_replace(':[^:@/]+$', '') }}@{{ artifact_locked_images.redis.approved_digest }}"
@@ -22,10 +29,23 @@
     playbook_runner_image: >-
       {{ (artifact_locked_images.playbook_runner.upstream_ref | regex_replace(':[^:@/]+$', '')) ~ '@' ~ artifact_locked_images.playbook_runner.approved_digest
          if 'playbook_runner' in artifact_locked_images else '' }}
+    music_server_image: >-
+      {{ (artifact_locked_images.music_server.upstream_ref | regex_replace(':[^:@/]+$', '')) ~ '@' ~ artifact_locked_images.music_server.approved_digest
+         if 'approved_digest' in artifact_locked_images.music_server | default({}) else '' }}
+    # The container units, in start order. Traefik starts after all of them,
+    # and the deferred network migration stops and restarts them. A role
+    # that is off has no unit, so it is listed only when enabled. Set here
+    # rather than in inventory, which it outranks.
+    container_service_names: >-
+      {{ (['postgres_container', 'redis_container', 'nextcloud_container', 'paperless_ngx',
+           'navidrome_container', 'vaultwarden']
+          + (['playbook_runner'] if playbook_runner_enabled | bool else [])
+          + (['music_server'] if music_server_enabled | bool else [])) | join(' ') }}
     approved_container_images: >-
       {{ [traefik_image, postgres_image, redis_image, nextcloud_image, paperless_image,
           navidrome_image, vaultwarden_image]
-         + ([playbook_runner_image] if playbook_runner_enabled | default(false) | bool else []) }}
+         + ([playbook_runner_image] if playbook_runner_enabled | default(false) | bool else [])
+         + ([music_server_image] if music_server_enabled | default(false) | bool else []) }}
   module_defaults:
     ansible.posix.firewalld:
       offline: "{{ apply_runtime_changes_on_reboot | bool }}"
@@ -48,5 +68,6 @@
     - navidrome
     - vaultwarden
     - playbook_runner
+    - music_server
     - standard_cleanup
     - container_network_migration

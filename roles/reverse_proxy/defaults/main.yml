@@ -15,6 +15,7 @@ route_proxy_network_subnets:
   navidrome_container_net: 172.16.1.24/29
   vaultwarden_container_net: 172.16.1.16/29
   playbook_runner_container_net: 172.16.1.56/29
+  music_server_container_net: 172.16.1.48/29
 
 # Route networks that can carry the Ansible control-plane container.
 # The reverse_proxy role may create these when absent, but destructive
@@ -53,6 +54,7 @@ container_dns:
     navidrome_proxy: navidrome-proxy
     vaultwarden_proxy: vaultwarden-proxy
     playbook_runner_proxy: playbook-runner-proxy
+    music_server_proxy: music-server-proxy
     traefik_proxy: traefik-proxy
     traefik_egress: traefik-egress
 
@@ -67,6 +69,7 @@ route_proxy_traefik_ips:
   navidrome_container_net: 172.16.1.27
   vaultwarden_container_net: 172.16.1.19
   playbook_runner_container_net: 172.16.1.59
+  music_server_container_net: 172.16.1.51
 
 # Static container IPs used by Traefik /etc/hosts entries for proxied
 # backends. Keys match proxy_config[*].proxy_network.
@@ -76,6 +79,7 @@ route_proxy_container_ips:
   navidrome_container_net: 172.16.1.26
   vaultwarden_container_net: 172.16.1.18
   playbook_runner_container_net: 172.16.1.58
+  music_server_container_net: 172.16.1.50
 
 # Management network CIDR allowed to reach the Traefik dashboard (used in ip-allowlist middleware)
 management_network: []
@@ -83,7 +87,16 @@ management_network: []
 # Ansible controller IP/CIDR also allowed to reach the Traefik dashboard
 ip_ansible: ""
 
+# The internal DNS domain every route name sits under (e.g. "example.lan").
+# vm1.yml's routes (network/vm1.yml) are <service>.<this domain>.
+homelab_internal_domain: ""
+
 # List of proxy config objects; each entry generates one Traefik dynamic config file.
+# On VM1 the list comes from network/vm1.yml, which outranks inventory.
 # Required keys per entry: name, proxy_fqdn, proxy_upstream_protocol,
 #                          container_destination, proxy_upstream_port, proxy_network
+# Optional: proxy_management_only, proxy_allow_encoded_slash, and
+#           proxy_access_log (false keeps the route out of Traefik's access
+#           log, for services whose clients put credentials in the query
+#           string, such as Subsonic apps on music-server)
 proxy_config: []

@@ -49,8 +49,9 @@ VM1 runs the service stack. All variables in this section need real values for
 | `traefik_dashboard_fqdn` | string | Yes | Unique dashboard hostname. | `traefik.example.com` |
 | `traefik_dashboard_basic_auth_users` | list | Yes, secret | One or more `user:htpasswd-hash` entries. | `["admin:$apr1$..."]` |
 | `traefik_acme_email` | string | Yes | ACME account email address. | `admin@example.com` |
-| `proxy_config` | list | Yes | Dynamic routes; see [Proxy entries](#proxy-entries). | One entry per exposed service |
-| `container_service_names` | string | Yes | Space-separated systemd service order used by Traefik and deferred network migration. | `postgres_container redis_container nextcloud_container paperless_ngx navidrome_container vaultwarden` |
+| `homelab_internal_domain` | string | Yes | Internal DNS domain the Traefik routes sit under; VM1's routes are `<service>.<this domain>` (`nextcloud`, `paperless`, `navidrome`, `vaultwarden`, `playbook-runner`, `music`). | `example.lan` |
+| `proxy_config` | list | Set by `network/vm1.yml` | Dynamic routes; see [Proxy entries](#proxy-entries). VM1's list lives in `network/vm1.yml`, which outranks inventory. | One entry per exposed service |
+| `container_service_names` | string | Set by `vm1.yml` | Space-separated systemd service order used by Traefik and deferred network migration. `vm1.yml` builds it, adding `playbook_runner` and `music_server` only when their roles are enabled; an inventory value is ignored. | `postgres_container redis_container nextcloud_container paperless_ngx navidrome_container vaultwarden` |
 | `container_network_migration_delay` | string | No | Positive systemd time span before a queued network migration starts. | `2min` |
 | `traefik_egress_network` | string | No | Dedicated non-internal Traefik egress network. | `traefik_egress_net` |
 
@@ -133,6 +134,21 @@ When `backup_local: false`, also define the following variables:
 | `playbook_runner_keep_runs` | integer | No | Finished runs kept. | `500` |
 | `playbook_runner_egress_network` | string | No | Dedicated non-backend outbound git/SSH network. | `playbook_runner_egress_net` |
 
+### music-server
+
+| Variable | Type | Required | Description | Example/default |
+|---|---|---|---|---|
+| `music_server_enabled` | boolean | Set by `vm1.yml` | Deploy music-server. `vm1.yml` sets it to true once `artifacts/containers.lock.yml` has a reviewed `music_server` digest. | derived |
+| `music_server_path` | path | Yes | Host directory holding `data/` (sealed, backed up) and `cache/` (rebuildable). | `/srv/music-server` |
+| `music_server_music_path` | path | Yes | The library, mounted read-only. | `{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/Music` |
+| `music_server_master_key` | string | Yes, secret | 64 hex digits from `music-server gen-key`. Keep a copy in Vaultwarden. | Ansible Vault value |
+| `music_server_users` | list | Yes, secret | Accounts: `{name, password, admin}`. 1-50 entries, unique names of `A-Z a-z 0-9 . _ -`, 8-128 character passwords, at least one admin. A removed name is disabled with its data kept. | Ansible Vault value |
+| `music_server_backup_location` | string | Yes | Local label or rclone backup destination. | `Nextcloud:music_server_backup` |
+| `music_server_scan_interval_minutes` | integer | No | Library rescan interval; `0` scans only at startup. | `60` |
+| `music_server_max_transcodes` | integer | No | Concurrent ffmpeg transcodes (0-8). | `2` |
+| `music_server_memory` | string | No | Container memory ceiling, without swap. | `512m` |
+| `music_server_music_gid` | string | No | Supplementary group that can read the music (Nextcloud's). | `33` |
+
 ### Navidrome and Vaultwarden
 
 | Variable | Type | Required | Description | Example/default |
@@ -148,69 +164,22 @@ When `backup_local: false`, also define the following variables:
 
 ## Network maps
 
-The maintained defaults below are valid as one coordinated set. Define the
-complete maps in inventory only when the default address space conflicts with
-the environment. Do not change one address without keeping its subnet and
-corresponding maps consistent.
+VM1's container address plan lives in [`network/vm1.yml`](../network/vm1.yml),
+which `vm1.yml` loads with `vars_files`. That outranks inventory, so these
+dictionaries are not set in inventory at all; an inventory copy is ignored and
+can be deleted. To change an address, edit the plan file and keep each
+network's subnet, service address, and Traefik address consistent;
+`tests/test_ansible_regressions.py` checks that they are.
 
 | Variable | Type | Required | Description |
 |---|---|---|---|
 | `nextcloud_backend_network_subnet` | string | No | Shared PostgreSQL/Redis/Nextcloud backend subnet; default `172.16.1.0/28`. |
-| `route_proxy_network_subnets` | dictionary | No | Internal subnet keyed by each route network. |
-| `route_proxy_container_ips` | dictionary | No | Backend address keyed by route network for Traefik `/etc/hosts`. |
-| `route_proxy_traefik_ips` | dictionary | No | Address Traefik claims on each route network; must differ from `route_proxy_container_ips`. |
-| `container_static_ips` | dictionary | No | Static address keyed by container alias. |
-| `container_dns` | dictionary | No | Podman DNS domain plus logical alias map. |
+| `route_proxy_network_subnets` | dictionary | Set by `network/vm1.yml` | Internal subnet keyed by each route network. |
+| `route_proxy_container_ips` | dictionary | Set by `network/vm1.yml` | Backend address keyed by route network for Traefik `/etc/hosts`. |
+| `route_proxy_traefik_ips` | dictionary | Set by `network/vm1.yml` | Address Traefik claims on each route network; must differ from `route_proxy_container_ips`. |
+| `container_static_ips` | dictionary | Set by `network/vm1.yml` | Static address keyed by container alias. |
+| `container_dns` | dictionary | Set by `network/vm1.yml` | Podman DNS domain plus logical alias map. |
 | `reverse_proxy_deferred_route_networks` | list | No | Route networks whose replacement is deferred to their owning role; default is `playbook_runner_container_net`. |
-
-The complete default values are:
-
-```yaml
-nextcloud_backend_network_subnet: 172.16.1.0/28
-route_proxy_network_subnets:
-  nextcloud_proxy_net: 172.16.1.32/29
-  paperless_proxy_net: 172.16.1.40/29
-  navidrome_container_net: 172.16.1.24/29
-  vaultwarden_container_net: 172.16.1.16/29
-  playbook_runner_container_net: 172.16.1.56/29
-route_proxy_container_ips:
-  nextcloud_proxy_net: 172.16.1.34
-  paperless_proxy_net: 172.16.1.42
-  navidrome_container_net: 172.16.1.26
-  vaultwarden_container_net: 172.16.1.18
-  playbook_runner_container_net: 172.16.1.58
-route_proxy_traefik_ips:
-  nextcloud_proxy_net: 172.16.1.35
-  paperless_proxy_net: 172.16.1.43
-  navidrome_container_net: 172.16.1.27
-  vaultwarden_container_net: 172.16.1.19
-  playbook_runner_container_net: 172.16.1.59
-container_static_ips:
-  postgres_backend: 172.16.1.2
-  redis_backend: 172.16.1.3
-  nextcloud_backend: 172.16.1.4
-  paperless_backend: 172.16.1.5
-  nextcloud_proxy: 172.16.1.34
-  paperless_proxy: 172.16.1.42
-  navidrome_proxy: 172.16.1.26
-  vaultwarden_proxy: 172.16.1.18
-  playbook_runner_proxy: 172.16.1.58
-container_dns:
-  domain: dns.podman
-  aliases:
-    postgres_backend: postgres-backend
-    redis_backend: redis-backend
-    nextcloud_backend: nextcloud-backend
-    nextcloud_proxy: nextcloud-proxy
-    paperless_backend: paperless-backend
-    paperless_proxy: paperless-proxy
-    navidrome_proxy: navidrome-proxy
-    vaultwarden_proxy: vaultwarden-proxy
-    playbook_runner_proxy: playbook-runner-proxy
-    playbook_runner_egress: playbook-runner-egress
-    traefik_proxy: traefik-proxy
-    traefik_egress: traefik-egress
-```
 
 ### Proxy entries
 
@@ -257,7 +226,7 @@ They are listed here so every maintained role input is discoverable.
 
 `apply_runtime_changes_on_reboot`, `approved_container_images`,
 `traefik_image`, `postgres_image`, `redis_image`, `nextcloud_image`,
-`paperless_image`, `navidrome_image`, `vaultwarden_image`, `playbook_runner_image`,
+`paperless_image`, `navidrome_image`, `vaultwarden_image`, `playbook_runner_image`, `music_server_image`,
 and `standard_ssh_allow_users` are assembled by the maintained playbooks.
 Container image values come from `artifacts/containers.lock.yml`; do not
 override them in inventory.

@@ -250,6 +250,14 @@ assert_file_not_contains "--cap-add" "playbook-runner: adds no capabilities back
 assert_file_contains "destination=/run/playbook-runner,tmpfs-size=256M,tmpfs-mode=0700,U=true,noexec" "playbook-runner: run scratch space is a private noexec tmpfs" roles/playbook_runner/templates/playbook_runner.sh.j2
 assert_file_contains "container_dns[.]aliases[.]playbook_runner_proxy" "playbook-runner: proxy DNS alias is dictionary-driven" roles/playbook_runner/templates/playbook_runner.sh.j2
 assert_file_contains "playbook_runner_container_net" "reverse_proxy defaults: defers playbook-runner runtime network replacement" roles/reverse_proxy/defaults/main.yml
+assert_file_not_contains "-p " "music-server: does not publish host ports" roles/music_server/templates/music_server.sh.j2
+assert_file_contains "--read-only" "music-server: read-only root filesystem is configured" roles/music_server/templates/music_server.sh.j2
+assert_file_contains "--user \\{\\{ music_server_uid \\}\\}:\\{\\{ music_server_gid \\}\\}" "music-server: runs as explicit non-root UID/GID" roles/music_server/templates/music_server.sh.j2
+assert_file_contains "--cap-drop=ALL" "music-server: drops all capabilities" roles/music_server/templates/music_server.sh.j2
+assert_file_not_contains "--cap-add" "music-server: adds no capabilities back" roles/music_server/templates/music_server.sh.j2
+assert_file_contains "/music:ro,z" "music-server: mounts the music read-only" roles/music_server/templates/music_server.sh.j2
+assert_file_contains "mode=0400" "music-server: secrets are readable only by the container user" roles/music_server/templates/music_server.sh.j2
+assert_file_contains "container_dns[.]aliases[.]music_server_proxy" "music-server: proxy DNS alias is dictionary-driven" roles/music_server/templates/music_server.sh.j2
 echo ""
 fi
 

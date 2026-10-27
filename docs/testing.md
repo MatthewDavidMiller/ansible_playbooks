@@ -195,7 +195,7 @@ For the full workflow and install references, see [guides/container-image-update
 - Service launch scripts source the correct file under `secret_env_dir` before `podman run`.
 - Each sourced variable expected by a container is passed with `--env VAR_NAME`.
 - Service launch scripts use `podman run --pull=never` and no longer call standalone `podman pull`.
-- Local backup scripts for Navidrome, Vaultwarden, and playbook-runner render ownership-preserving `install` commands for the Nextcloud data tree when `backup_local: true`.
+- Local backup scripts for Navidrome, Vaultwarden, playbook-runner, and music-server render ownership-preserving `install` commands for the Nextcloud data tree when `backup_local: true`.
 - The shared targeted Nextcloud scan helper renders the expected UID/GID, absolute `occ` path, serialization, retry, and semantic-error checks, and every local service backup calls it.
 
 It runs as part of `make test`. To run it alone:

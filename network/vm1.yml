@@ -1,0 +1,131 @@
+---
+# VM1's container address plan and routes: every Podman network subnet,
+# static container address, DNS alias, and Traefik route, in one place.
+#
+# vm1.yml loads this file with vars_files, which outranks inventory, so these
+# values are the plan; the inventory no longer needs (and cannot override)
+# them. Change an address here, in the same commit as anything that depends
+# on it. tests/test_ansible_regressions.py checks that every address sits in
+# its network's subnet, that none is used twice, and that each role's own
+# defaults agree with this file.
+#
+# 172.16.1.0/28 is nextcloud_container_net (the backend network); the /29
+# blocks after it are all taken up to 172.16.1.63, so the next free block is
+# 172.16.1.64/29.
+
+# Internal Podman networks Traefik shares with one service each.
+route_proxy_network_subnets:
+  nextcloud_proxy_net: 172.16.1.32/29
+  paperless_proxy_net: 172.16.1.40/29
+  navidrome_container_net: 172.16.1.24/29
+  vaultwarden_container_net: 172.16.1.16/29
+  playbook_runner_container_net: 172.16.1.56/29
+  music_server_container_net: 172.16.1.48/29
+
+# The service's address on each route network, written into Traefik's
+# /etc/hosts. Keys match proxy_config[*].proxy_network.
+route_proxy_container_ips:
+  nextcloud_proxy_net: 172.16.1.34
+  paperless_proxy_net: 172.16.1.42
+  navidrome_container_net: 172.16.1.26
+  vaultwarden_container_net: 172.16.1.18
+  playbook_runner_container_net: 172.16.1.58
+  music_server_container_net: 172.16.1.50
+
+# Traefik's own address on each route network. Pinned so Podman's IPAM
+# cannot hand Traefik the address the service asks for.
+route_proxy_traefik_ips:
+  nextcloud_proxy_net: 172.16.1.35
+  paperless_proxy_net: 172.16.1.43
+  navidrome_container_net: 172.16.1.27
+  vaultwarden_container_net: 172.16.1.19
+  playbook_runner_container_net: 172.16.1.59
+  music_server_container_net: 172.16.1.51
+
+# Every container's static address, by alias. The backend entries are on
+# nextcloud_container_net (172.16.1.0/28); the proxy entries repeat
+# route_proxy_container_ips.
+container_static_ips:
+  postgres_backend: 172.16.1.2
+  redis_backend: 172.16.1.3
+  nextcloud_backend: 172.16.1.4
+  paperless_backend: 172.16.1.5
+  nextcloud_proxy: 172.16.1.34
+  paperless_proxy: 172.16.1.42
+  navidrome_proxy: 172.16.1.26
+  vaultwarden_proxy: 172.16.1.18
+  playbook_runner_proxy: 172.16.1.58
+  music_server_proxy: 172.16.1.50
+
+container_dns:
+  domain: dns.podman
+  aliases:
+    postgres_backend: postgres-backend
+    redis_backend: redis-backend
+    nextcloud_backend: nextcloud-backend
+    nextcloud_proxy: nextcloud-proxy
+    paperless_backend: paperless-backend
+    paperless_proxy: paperless-proxy
+    navidrome_proxy: navidrome-proxy
+    vaultwarden_proxy: vaultwarden-proxy
+    playbook_runner_proxy: playbook-runner-proxy
+    playbook_runner_egress: playbook-runner-egress
+    music_server_proxy: music-server-proxy
+    traefik_proxy: traefik-proxy
+    traefik_egress: traefik-egress
+
+# Traefik's routes, one per service. Every name is <service>.<internal
+# domain>; homelab_internal_domain (e.g. example.lan) is the one per-site
+# value, set in inventory. Route names are also the names of Traefik's route
+# files, so renaming one leaves the old file behind on VM1.
+#
+# Every route is management-only: Traefik answers only clients inside
+# management_network (the user LAN and the VPN), so nothing is reachable from
+# the internet even if a port forward is added by mistake.
+proxy_config:
+  - name: nextcloud
+    proxy_fqdn: "nextcloud.{{ homelab_internal_domain }}"
+    proxy_upstream_protocol: http
+    proxy_upstream_port: "80"
+    proxy_network: nextcloud_proxy_net
+    container_destination: "{{ container_dns.aliases.nextcloud_proxy }}.{{ container_dns.domain }}"
+    proxy_management_only: true
+    proxy_allow_encoded_slash: true
+  - name: paperless_ngx
+    proxy_fqdn: "paperless.{{ homelab_internal_domain }}"
+    proxy_upstream_protocol: http
+    proxy_upstream_port: "8000"
+    proxy_network: paperless_proxy_net
+    container_destination: "{{ container_dns.aliases.paperless_proxy }}.{{ container_dns.domain }}"
+    proxy_management_only: true
+  - name: navidrome
+    proxy_fqdn: "navidrome.{{ homelab_internal_domain }}"
+    proxy_upstream_protocol: http
+    proxy_upstream_port: "4533"
+    proxy_network: navidrome_container_net
+    container_destination: "{{ container_dns.aliases.navidrome_proxy }}.{{ container_dns.domain }}"
+    proxy_management_only: true
+  - name: vaultwarden
+    proxy_fqdn: "vaultwarden.{{ homelab_internal_domain }}"
+    proxy_upstream_protocol: http
+    proxy_upstream_port: "80"
+    proxy_network: vaultwarden_container_net
+    container_destination: "{{ container_dns.aliases.vaultwarden_proxy }}.{{ container_dns.domain }}"
+    proxy_management_only: true
+  - name: playbook_runner_proxy
+    proxy_fqdn: "playbook-runner.{{ homelab_internal_domain }}"
+    proxy_upstream_protocol: http
+    proxy_upstream_port: "8080"
+    proxy_network: playbook_runner_container_net
+    container_destination: "{{ container_dns.aliases.playbook_runner_proxy }}.{{ container_dns.domain }}"
+    proxy_management_only: true
+  # Subsonic apps put credentials in the query string, so this route stays
+  # out of Traefik's access log.
+  - name: music_server_proxy
+    proxy_fqdn: "music.{{ homelab_internal_domain }}"
+    proxy_upstream_protocol: http
+    proxy_upstream_port: "8080"
+    proxy_network: music_server_container_net
+    container_destination: "{{ container_dns.aliases.music_server_proxy }}.{{ container_dns.domain }}"
+    proxy_management_only: true
+    proxy_access_log: false

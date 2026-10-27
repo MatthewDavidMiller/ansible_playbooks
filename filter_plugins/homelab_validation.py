@@ -10,6 +10,7 @@ from pathlib import PurePosixPath
 
 _DIGEST_REF = re.compile(r"^\S+@sha256:[0-9a-f]{64}$")
 _SAFE_NAME = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_.-]*$")
+_HOSTNAME_LABEL = re.compile(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?")
 
 
 def homelab_valid_ipv4_cidr(value: object, reject_default: bool = True) -> bool:
@@ -70,6 +71,18 @@ def homelab_immutable_image(value: object) -> bool:
 def homelab_safe_name(value: object) -> bool:
     text = str(value)
     return text not in {".", ".."} and bool(_SAFE_NAME.fullmatch(text))
+
+
+def homelab_valid_hostname(value: object) -> bool:
+    """A DNS name of at least two labels (RFC 1123), such as music.example.lan.
+
+    It rejects the leading dot an empty domain variable leaves behind.
+    """
+    text = str(value)
+    if len(text) > 253 or text.endswith("."):
+        return False
+    labels = text.split(".")
+    return len(labels) >= 2 and all(_HOSTNAME_LABEL.fullmatch(label) for label in labels)
 
 
 def _first_inspected_network(inspect_output: object) -> dict:
@@ -134,5 +147,6 @@ class FilterModule:
             "homelab_immutable_image": homelab_immutable_image,
             "homelab_immutable_digest_ref": homelab_immutable_image,
             "homelab_safe_name": homelab_safe_name,
+            "homelab_valid_hostname": homelab_valid_hostname,
             "homelab_network_needs_replacement": homelab_network_needs_replacement,
         }

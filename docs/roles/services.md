@@ -20,7 +20,7 @@ Updates the VM1 Porkbun A record when the WAN IP changes.
 
 Deploys Traefik v3 for HTTPS termination and service routing on VM1.
 
-**Required variables:** `traefik_path`, `traefik_egress_network`, `traefik_dashboard_fqdn`, `traefik_dashboard_basic_auth_users`, `traefik_acme_email`, `proxy_config`, `container_service_names`, `management_network`, `ip_ansible`, `secret_env_dir`, `traefik_image`
+**Required variables:** `traefik_path`, `traefik_egress_network`, `traefik_dashboard_fqdn`, `traefik_dashboard_basic_auth_users`, `traefik_acme_email`, `homelab_internal_domain`, `proxy_config` (from `network/vm1.yml`), `container_service_names`, `management_network`, `ip_ansible`, `secret_env_dir`, `traefik_image`
 
 **Templates:** `traefik_container.sh.j2`, `traefik_container.service.j2`, `traefik.yml.j2`, `tls.yml.j2`, `security.yml.j2`, `dashboard.yml.j2`, `service_proxy.yml.j2`, `traefik.env.j2`
 
@@ -92,6 +92,18 @@ Deploys [playbook-runner](https://github.com/MatthewDavidMiller/playbook-runner)
 
 ---
 
+### `music_server`
+
+Deploys [music-server](https://github.com/MatthewDavidMiller/music-server), the first-party Subsonic server that replaces Navidrome. `vm1.yml` enables the role once `artifacts/containers.lock.yml` has a reviewed `music_server` digest; until then it is skipped, so Navidrome keeps serving. See [guides/music-server-migration.md](../guides/music-server-migration.md).
+
+**Required variables (when enabled):** `music_server_path`, `music_server_music_path`, `music_server_master_key` (64 hex digits), `music_server_users`, `music_server_backup_location`, `music_server_image`, `secret_env_dir`
+
+**Templates:** `music_server.sh.j2`, `music_server.service.j2`, `backup_music_server.sh.j2`
+
+**Key behavior:** the master key and the users file (every account's password) are rendered to root-only files under `secret_env_dir` and turned into Podman secrets mounted read-only for the container user (uid 10001). Neither appears in an environment variable or the launch script. The server reads the users file at startup and keeps the passwords in memory only; the roster and each user's playlists, stars, and plays are AES-256-GCM sealed in `data/`, which the daily backup archives (`cache/` is rebuildable and skipped). A changed users file or key restarts the service on non-staged runs. The music is mounted read-only and readable through `--group-add {{ music_server_music_gid }}`, and the unit waits for it after Nextcloud. The container joins only its internal route network: it needs no egress. Set `proxy_access_log: false` on its route; Subsonic apps send credentials in the query string.
+
+---
+
 ### `backup`
 
 Manages the local Borg backup disk and the daily backup scripts for VM1.
@@ -106,7 +118,7 @@ Manages the local Borg backup disk and the daily backup scripts for VM1.
 
 ### Indexing local backups into Nextcloud
 
-With `backup_local: true`, the `navidrome`, `vaultwarden`, and `playbook_runner` backup scripts write their dumps directly into `{{ nextcloud_path }}/data/<nextcloud_homelab_user>/files/...` as `nextcloud_uid:nextcloud_gid`. A file placed there is invisible to Nextcloud clients until it is added to the file cache, so each script passes its destination to `/usr/local/bin/nextcloud_scan_path.sh`.
+With `backup_local: true`, the `navidrome`, `vaultwarden`, `playbook_runner`, and `music_server` backup scripts write their dumps directly into `{{ nextcloud_path }}/data/<nextcloud_homelab_user>/files/...` as `nextcloud_uid:nextcloud_gid`. A file placed there is invisible to Nextcloud clients until it is added to the file cache, so each script passes its destination to `/usr/local/bin/nextcloud_scan_path.sh`.
 
 Ownership and mode are not sufficient on their own. Podman's `:Z` relabel only covers what exists when the container starts, so a dump the host writes from cron afterwards takes the policy default for that path, `default_t`, which the container is denied `getattr` on. `occ files:scan` then reports `Error during scan: stat(): stat failed`, skips the file, and still exits zero. The `nextcloud` role therefore carries a persistent `container_file_t` rule for `nextcloud_path`, so every host-written backup is labeled correctly when it is created; see [SELinux](../architecture.md#selinux).
 
