@@ -8,7 +8,7 @@ This document covers the maintained VM topology, container/runtime patterns, fir
 
 | VM ID | Name | OS | Services |
 |---|---|---|---|
-| 120 | VM1 | Rocky Linux 10 | Nextcloud, Paperless NGX, Navidrome, music-server, Vaultwarden, playbook-runner, PostgreSQL 17, Redis, Traefik reverse proxy, Borg backup |
+| 120 | VM1 | Rocky Linux 10 | Nextcloud, Paperless NGX, music-server, Vaultwarden, playbook-runner, PostgreSQL 17, Redis, Traefik reverse proxy, Borg backup |
 
 Templates: VMID 400 (Debian 12 cloud-init), VMID 401 (Rocky Linux 10 cloud-init)
 
@@ -34,13 +34,12 @@ VM1 runs all maintained services on a single Rocky Linux 10 host to reduce resou
 | PostgreSQL 17 (shared engine, per-service roles) | 2.0 GB |
 | Redis | 256 MB |
 | Paperless NGX (OCR) | 1.5 GB |
-| Navidrome | 256 MB |
 | Vaultwarden | 256 MB |
 | playbook-runner | 512 MB |
-| music-server (replaces Navidrome) | 512 MB |
+| music-server | 512 MB |
 | Traefik | 256 MB |
 | OS + overhead | 1.5 GB |
-| **Total hard cap** | **~9.4 GB with playbook-runner and music-server beside Navidrome; ~9.2 GB once Navidrome is retired (fits within VM1's 16 GB allocation)** |
+| **Total hard cap** | **~9.2 GB (fits within VM1's 16 GB allocation)** |
 
 **Key design decisions:**
 
@@ -63,7 +62,6 @@ Publicly proxied services have internal proxy-facing Podman networks, while Post
 | `nextcloud_container_net` | 172.16.1.0/28 | postgres (`container_dns.aliases.postgres_backend`), redis (`container_dns.aliases.redis_backend`), nextcloud (`container_dns.aliases.nextcloud_backend`), paperless (`container_dns.aliases.paperless_backend`) |
 | `nextcloud_proxy_net` | 172.16.1.32/29 | nextcloud (`container_dns.aliases.nextcloud_proxy`, .34), traefik (`container_dns.aliases.traefik_proxy`, .35) |
 | `paperless_proxy_net` | 172.16.1.40/29 | paperless (`container_dns.aliases.paperless_proxy`, .42), traefik (`container_dns.aliases.traefik_proxy`, .43) |
-| `navidrome_container_net` | 172.16.1.24/29 | navidrome (`container_dns.aliases.navidrome_proxy`, .26), traefik (`container_dns.aliases.traefik_proxy`, .27) |
 | `vaultwarden_container_net` | 172.16.1.16/29 | vaultwarden (`container_dns.aliases.vaultwarden_proxy`, .18), traefik (`container_dns.aliases.traefik_proxy`, .19) |
 | `playbook_runner_container_net` | 172.16.1.56/29 | playbook-runner (`container_dns.aliases.playbook_runner_proxy`, .58), traefik (`container_dns.aliases.traefik_proxy`, .59) |
 | `music_server_container_net` | 172.16.1.48/29 | music-server (`container_dns.aliases.music_server_proxy`, .50), traefik (`container_dns.aliases.traefik_proxy`, .51) |

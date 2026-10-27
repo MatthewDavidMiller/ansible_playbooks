@@ -49,9 +49,9 @@ VM1 runs the service stack. All variables in this section need real values for
 | `traefik_dashboard_fqdn` | string | Yes | Unique dashboard hostname. | `traefik.example.com` |
 | `traefik_dashboard_basic_auth_users` | list | Yes, secret | One or more `user:htpasswd-hash` entries. | `["admin:$apr1$..."]` |
 | `traefik_acme_email` | string | Yes | ACME account email address. | `admin@example.com` |
-| `homelab_internal_domain` | string | Yes | Internal DNS domain the Traefik routes sit under; VM1's routes are `<service>.<this domain>` (`nextcloud`, `paperless`, `navidrome`, `vaultwarden`, `playbook-runner`, `music`). | `example.lan` |
+| `homelab_internal_domain` | string | Yes | Internal DNS domain the Traefik routes sit under; VM1's routes are `<service>.<this domain>` (`nextcloud`, `paperless`, `vaultwarden`, `playbook-runner`, `music`). | `example.lan` |
 | `proxy_config` | list | Set by `network/vm1.yml` | Dynamic routes; see [Proxy entries](#proxy-entries). VM1's list lives in `network/vm1.yml`, which outranks inventory. | One entry per exposed service |
-| `container_service_names` | string | Set by `vm1.yml` | Space-separated systemd service order used by Traefik and deferred network migration. `vm1.yml` builds it, adding `playbook_runner` and `music_server` only when their roles are enabled; an inventory value is ignored. | `postgres_container redis_container nextcloud_container paperless_ngx navidrome_container vaultwarden` |
+| `container_service_names` | string | Set by `vm1.yml` | Space-separated systemd service order used by Traefik and deferred network migration. `vm1.yml` builds it, adding `playbook_runner` and `music_server` only when their roles are enabled; an inventory value is ignored. | `postgres_container redis_container nextcloud_container paperless_ngx vaultwarden` |
 | `container_network_migration_delay` | string | No | Positive systemd time span before a queued network migration starts. | `2min` |
 | `traefik_egress_network` | string | No | Dedicated non-internal Traefik egress network. | `traefik_egress_net` |
 
@@ -101,8 +101,8 @@ When `backup_local: false`, also define the following variables:
 | `nextcloud_webdav_path` | string | Yes | Full Nextcloud WebDAV URL. | `https://nextcloud.example.com/remote.php/dav/files/example_user` |
 | `nextcloud_rclone_user` | string | Yes | Nextcloud account used by the rclone remote. | `example_user` |
 | `nextcloud_rclone_pass` | string | Yes, secret | Prefer a Nextcloud app password. | Ansible Vault value |
-| `nextcloud_webdav_user` | string | Yes | WebDAV account rendered for Navidrome's DAV configuration. | `example_user` |
-| `nextcloud_webdav_pass` | string | Yes, secret | WebDAV/app password rendered for Navidrome. | Ansible Vault value |
+| `nextcloud_webdav_user` | string | Yes | WebDAV account rendered into the rclone configuration. | `example_user` |
+| `nextcloud_webdav_pass` | string | Yes, secret | WebDAV/app password rendered into the rclone configuration. | Ansible Vault value |
 
 ### Paperless NGX
 
@@ -149,15 +149,10 @@ When `backup_local: false`, also define the following variables:
 | `music_server_memory` | string | No | Container memory ceiling, without swap. | `512m` |
 | `music_server_music_gid` | string | No | Supplementary group that can read the music (Nextcloud's). | `33` |
 
-### Navidrome and Vaultwarden
+### Vaultwarden
 
 | Variable | Type | Required | Description | Example/default |
 |---|---|---|---|---|
-| `navidrome_path` | path | Yes | Navidrome data root. | `/path/to/navidrome` |
-| `navidrome_backup_location` | string | Yes | Local label or rclone backup destination. | `Nextcloud:navidrome_backup` |
-| `navidrome_local_music_path` | path | No | Read-only host music library; an empty value uses `navidrome_path/music`. | `""` |
-| `navidrome_uid` | string | No | Numeric container/host UID. | `33` |
-| `navidrome_gid` | string | No | Numeric container/host GID. | `33` |
 | `vaultwarden_path` | path | Yes | Vaultwarden data root. | `/path/to/vaultwarden` |
 | `vaultwarden_backup_location` | string | Yes | Local label or rclone backup destination. | `Nextcloud:vaultwarden_backup` |
 | `vaultwarden_signups_allowed` | boolean | No | Must remain `false`; the role rejects public signup. | `false` |
@@ -226,7 +221,7 @@ They are listed here so every maintained role input is discoverable.
 
 `apply_runtime_changes_on_reboot`, `approved_container_images`,
 `traefik_image`, `postgres_image`, `redis_image`, `nextcloud_image`,
-`paperless_image`, `navidrome_image`, `vaultwarden_image`, `playbook_runner_image`, `music_server_image`,
+`paperless_image`, `vaultwarden_image`, `playbook_runner_image`, `music_server_image`,
 and `standard_ssh_allow_users` are assembled by the maintained playbooks.
 Container image values come from `artifacts/containers.lock.yml`; do not
 override them in inventory.

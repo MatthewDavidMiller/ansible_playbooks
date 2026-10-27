@@ -13,7 +13,7 @@ Use the existing active service roles as reference:
 - `roles/reverse_proxy/`
 - `roles/nextcloud/`
 - `roles/paperless_ngx/`
-- `roles/navidrome/`
+- `roles/music_server/`
 - `roles/vaultwarden/`
 - `roles/playbook_runner/`
 

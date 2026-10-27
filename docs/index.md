@@ -47,7 +47,7 @@ Start with [README.md](../README.md) for the project overview and quick start.
 | [guides/dr-restore.md](guides/dr-restore.md) | Disaster recovery — initial migration to VM1 and restore from backups |
 | [guides/postgres-upgrade.md](guides/postgres-upgrade.md) | PostgreSQL major version upgrade procedure for the shared postgres container |
 | [guides/playbook-runner-migration.md](guides/playbook-runner-migration.md) | Setting up playbook-runner and removing the old Semaphore install from VM1 |
-| [guides/music-server-migration.md](guides/music-server-migration.md) | Setting up music-server beside Navidrome, then retiring Navidrome |
+| [guides/music-server-migration.md](guides/music-server-migration.md) | Setting up music-server and retiring Navidrome from VM1 |
 | [`../artifacts/containers.lock.yml`](../artifacts/containers.lock.yml) | Approved container image lock for the maintained VM1 services |
 
 ## Testing & CI/CD

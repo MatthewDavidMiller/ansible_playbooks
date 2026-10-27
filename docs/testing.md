@@ -123,7 +123,7 @@ The script validates the current VM1 hardening profile:
 5. Traefik still requires `NET_BIND_SERVICE` under a real kernel.
 6. Paperless NGX starts with its reduced capability set and without privilege errors.
 7. Vaultwarden starts with `NET_BIND_SERVICE` and `SIGNUPS_ALLOWED=false`.
-8. Navidrome starts as explicit non-root UID/GID `33:33` with `cap-drop=ALL`.
+8. music-server starts as UID/GID `10001` with `cap-drop=ALL`, a read-only root, and its secrets, and answers its health check.
 
 By default the script now reads the approved image refs from `artifacts/containers.lock.yml`, converts them to digest-pinned `repo@sha256:...` refs, and tests those exact images. It still accepts image override env vars when you need to test a candidate image before writing it into the lock file:
 
@@ -144,7 +144,7 @@ POSTGRES_IMAGE=public.ecr.aws/docker/library/postgres@sha256:2203e6282d9e7de7c24
 REDIS_IMAGE=public.ecr.aws/docker/library/redis@sha256:0a972391db0b24ec336e35d1bc98b237237e26f82bf5120cf2f6b1688d1df973 \
 NEXTCLOUD_IMAGE=public.ecr.aws/docker/library/nextcloud@sha256:e15ff2ff02d04bf272940bb63f2157599bc9440d45b688cc60f09b72be7ae717 \
 PAPERLESS_IMAGE=ghcr.io/paperless-ngx/paperless-ngx@sha256:6c86cad803970ea782683a8e80e7403444c5bf3cf70de63b4d3c8e87500db92f \
-NAVIDROME_IMAGE=docker.io/deluan/navidrome@sha256:c4b5cb36a790b3eb63ca6a68bbe2fe149c2d7fa2e586f7a480e61db630e6664b \
+MUSIC_SERVER_IMAGE=ghcr.io/matthewdavidmiller/music-server@sha256:e2d2e201d5aad558cbcce415f4b05c3fdca454a58895aa479654ef117386cc0c \
 VAULTWARDEN_IMAGE=ghcr.io/dani-garcia/vaultwarden@sha256:d626d04934cd1192ad8ced1adb975099fca78cec33ab467d2d3c923cde7f3b0c \
 bash scripts/test_container_security.sh
 ```
@@ -195,7 +195,7 @@ For the full workflow and install references, see [guides/container-image-update
 - Service launch scripts source the correct file under `secret_env_dir` before `podman run`.
 - Each sourced variable expected by a container is passed with `--env VAR_NAME`.
 - Service launch scripts use `podman run --pull=never` and no longer call standalone `podman pull`.
-- Local backup scripts for Navidrome, Vaultwarden, playbook-runner, and music-server render ownership-preserving `install` commands for the Nextcloud data tree when `backup_local: true`.
+- Local backup scripts for Vaultwarden, playbook-runner, and music-server render ownership-preserving `install` commands for the Nextcloud data tree when `backup_local: true`.
 - The shared targeted Nextcloud scan helper renders the expected UID/GID, absolute `occ` path, serialization, retry, and semantic-error checks, and every local service backup calls it.
 
 It runs as part of `make test`. To run it alone:
@@ -213,7 +213,7 @@ It runs as part of `make test`. To run it alone:
 - `scripts/test_supply_chain_policy.sh` reports `PASS` for immutable image refs, approved collection installs, and pinned provisioning inputs.
 - `scripts/test_supply_chain_policy.sh` also enforces core SSH, firewall, proxy, backup, and secret-rendering guardrails.
 - `scripts/promote_artifacts.py --check-tools` reports either native binaries or the pinned container fallback for `skopeo`, `cosign`, and `trivy`.
-- VM1 container tests report `PASS` for PostgreSQL, Redis, Nextcloud, Traefik, Paperless, Vaultwarden, and Navidrome.
+- VM1 container tests report `PASS` for PostgreSQL, Redis, Nextcloud, Traefik, Paperless, Vaultwarden, and music-server.
 - `make lint` and `make test` end with an explicit pass line; any missing linter fails the run instead of being skipped.
 
 ---

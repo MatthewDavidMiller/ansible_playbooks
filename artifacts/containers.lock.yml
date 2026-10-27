@@ -35,13 +35,6 @@ artifact_locked_images:
     internal_repo: homelab/paperless-ngx
     signature_required: false
     notes: Approved via scripts/promote_artifacts.py
-  navidrome:
-    upstream_ref: docker.io/deluan/navidrome:0.64.2
-    approved_tag: 0.64.2
-    approved_digest: sha256:38dc2727bfcfd5ede290f8ada114fc90368146f265ae4701ddddbcbe2a44ee52
-    internal_repo: homelab/navidrome
-    signature_required: false
-    notes: Approved via scripts/promote_artifacts.py
   vaultwarden:
     upstream_ref: ghcr.io/dani-garcia/vaultwarden:1.37.4
     approved_tag: 1.37.4

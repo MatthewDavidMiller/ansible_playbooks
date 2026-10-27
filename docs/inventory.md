@@ -32,7 +32,7 @@ Applied to the maintained homelab inventory.
 
 ## `vm1` Host
 
-VM1 is the single maintained service host. It runs Traefik, PostgreSQL, Redis, Nextcloud, Paperless NGX, Navidrome, music-server (once its image is locked; it replaces Navidrome), Vaultwarden, playbook-runner, and the local backup workflow.
+VM1 is the single maintained service host. It runs Traefik, PostgreSQL, Redis, Nextcloud, Paperless NGX, music-server, Vaultwarden, playbook-runner, and the local backup workflow.
 
 | Variable | Type | Description | Example |
 |---|---|---|---|
@@ -77,15 +77,10 @@ VM1 is the single maintained service host. It runs Traefik, PostgreSQL, Redis, N
 | `password_minimum_length` | integer | Minimum length enforced for the PostgreSQL admin, Nextcloud DB, and Paperless DB passwords | `16` |
 | `secret_key_minimum_length` | integer | Minimum length enforced for `paperless_secret_key` | `32` |
 | `paperless_dns_name` | string | Paperless public FQDN | `paperless.example.com` |
-| `navidrome_path` | path | Navidrome base directory | `/opt/navidrome` |
-| `navidrome_backup_location` | string | Navidrome backup destination label | `Nextcloud:navidrome_backup` |
-| `navidrome_local_music_path` | path | Optional host path mounted as `/music` | `/opt/nextcloud/data/admin/files/Music` |
-| `navidrome_uid` | string | Navidrome runtime UID | `33` |
-| `navidrome_gid` | string | Navidrome runtime GID | `33` |
 | `vaultwarden_path` | path | Vaultwarden base directory | `/opt/vaultwarden` |
 | `vaultwarden_backup_location` | string | Vaultwarden backup destination label | `Nextcloud:vaultwarden_backup` |
 | `vaultwarden_signups_allowed` | boolean | Public signup toggle | `false` |
-| `container_service_names` | string | Set by `vm1.yml`, not inventory: the container units Traefik orders after and the deferred network migration restarts | `postgres_container redis_container nextcloud_container paperless_ngx navidrome_container vaultwarden` |
+| `container_service_names` | string | Set by `vm1.yml`, not inventory: the container units Traefik orders after and the deferred network migration restarts | `postgres_container redis_container nextcloud_container paperless_ngx vaultwarden` |
 | `container_network_migration_delay` | string | Delay before the final coordinator runs a queued network migration | `2min` |
 | `backup_host` | string | Backup server IP in CIDR form | `192.168.1.50/32` |
 | `borg_backup_path` | path | Borg repository root on the backup disk | `/opt/borg_backup` |

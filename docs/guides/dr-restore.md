@@ -16,10 +16,12 @@ For VM provisioning details see [proxmox-setup.md](proxmox-setup.md).
 | Paperless document exports | Included in Borg archive above | same |
 | Nextcloud user files | Borg archive on second NVMe disk (backup role, daily) | `{{ borg_backup_path }}` on VM1 |
 | Vaultwarden SQLite DB | Local install into Nextcloud data dir as `nextcloud_uid:nextcloud_gid` (`backup_local: true`) | `{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/<vaultwarden_backup_location>` |
-| Navidrome DB | Local install into Nextcloud data dir as `nextcloud_uid:nextcloud_gid` (`backup_local: true`) | `{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/<navidrome_backup_location>` |
+| music-server data (sealed roster, playlists, stars, plays) | Daily tar archive, installed into Nextcloud data dir as `nextcloud_uid:nextcloud_gid` (`backup_local: true`) | `{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/<music_server_backup_location>` |
 | playbook-runner data (ciphertext only) | Daily tar archive, installed into Nextcloud data dir as `nextcloud_uid:nextcloud_gid` (`backup_local: true`) | `{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/<playbook_runner_backup_location>` |
 | playbook-runner master key | Not in any backup by design; kept in Vaultwarden and the external inventory | n/a |
-| Navidrome music | Local bind-mount of Nextcloud data dir — source is Nextcloud user files (backed up by Borg above) | n/a |
+| music-server master key and accounts | Not in any backup by design; `music_server_master_key` and `music_server_users` live in the vaulted inventory, the key also in Vaultwarden | n/a |
+| Music library | Read-only bind-mount of the Nextcloud `Music` folder — source is Nextcloud user files (backed up by Borg above) | n/a |
+| music-server index and covers | Rebuilt by the first scan | n/a |
 | Traefik/Let's Encrypt certificates | Regeneratable via DNS-01 challenge | n/a |
 | Redis | Cache only — acceptable loss | n/a |
 | Proxmox node config | Script on Proxmox host → rclone daily | `Nextcloud:<proxmox_backup_location>` |
@@ -86,7 +88,7 @@ The existing Ansible playbooks support this without changes: mounts are UUID-bas
 
 | Disk | Inventory variable | Contains |
 |---|---|---|
-| Nextcloud data disk | `nextcloud_disk` → `nextcloud_path` | User files, config.php, apps, local Borg archive (`nextcloud_borg_backup_path`) with SQL dumps and Paperless exports, plus Vaultwarden/Navidrome/playbook-runner backup files stored inside `nextcloud_path/data/` |
+| Nextcloud data disk | `nextcloud_disk` → `nextcloud_path` | User files, config.php, apps, local Borg archive (`nextcloud_borg_backup_path`) with SQL dumps and Paperless exports, plus Vaultwarden/music-server/playbook-runner backup files stored inside `nextcloud_path/data/` |
 | Borg backup disk | `backup_disk` → `borg_backup_path` | Full daily Borg snapshots of the entire `nextcloud_path` directory tree |
 
 The live PostgreSQL data directory (`postgres_path`) is on the OS disk — it is a separate configured path, not under `nextcloud_path`, so it is not on the data disk and is not carried over when you move the disk to a new VM. Databases must be restored from the SQL dumps in the Borg archive.
@@ -179,9 +181,9 @@ cp -r /restore_staging<paperless_export_path>/<DATE>/ <paperless_export_path>/
 podman exec paperless document_importer /usr/src/paperless/export/<DATE>
 ```
 
-### Step 4: Restore Navidrome, Vaultwarden, playbook-runner
+### Step 4: Restore music-server, Vaultwarden, playbook-runner
 
-These backup files are stored inside `nextcloud_path/data/<nextcloud_homelab_user>/files/` and are already available on the mounted disk. Follow [Steps 3–5](#step-3-restore-navidrome) of the main DR guide below.
+These backup files are stored inside `nextcloud_path/data/<nextcloud_homelab_user>/files/` and are already available on the mounted disk. Follow [Steps 3–5](#step-3-restore-music-server) of the main DR guide below.
 
 ### Step 5: Rescan Nextcloud file index
 
@@ -298,21 +300,22 @@ podman exec nextcloud php occ files:scan --all
 
 ---
 
-## Step 3: Restore Navidrome
+## Step 3: Restore music-server
 
-On VM1, Navidrome's music library is a local bind-mount of `<nextcloud_path>/data/<nextcloud_homelab_user>/files/Music` — it will be available automatically once Nextcloud user files are restored (Step 2g). Only the database needs to be restored.
+The music library is a read-only bind-mount of `<nextcloud_path>/data/<nextcloud_homelab_user>/files/Music`, so it is back once Nextcloud user files are restored (Step 2g). Only the data directory needs restoring: the sealed roster and each user's playlists, stars, and plays. The cache (library index and resized covers) rebuilds on the first scan.
 
-**3a. Copy backup from the Nextcloud data directory:**
+The inventory must still carry the same `music_server_master_key` (also in Vaultwarden); without it the archive cannot be opened. Accounts and passwords come from `music_server_users` in the inventory, not the archive.
+
+**3a. Stop the service and unpack the newest archive:**
 ```bash
-cp <nextcloud_path>/data/<nextcloud_homelab_user>/files/<navidrome_backup_location>/<latest>.db /restore_staging/
+systemctl stop music_server
+tar -xzf <nextcloud_path>/data/<nextcloud_homelab_user>/files/<music_server_backup_location>/music_server_<latest>.tar.gz \
+    -C <music_server_path>/data
+chown -R 10001:10001 <music_server_path>/data
+systemctl start music_server
 ```
 
-**3b. Stop Navidrome, restore the database, restart:**
-```bash
-systemctl stop navidrome_container
-cp /restore_staging/<latest>.db <navidrome_path>/data/navidrome.db
-systemctl start navidrome_container
-```
+**3b. Confirm:** `podman logs music_server` reports the accounts and a finished scan.
 
 ---
 
@@ -362,7 +365,7 @@ DNS already points to VM1's IP. If you provisioned the replacement VM with a dif
 |---|---|
 | `nextcloud.<top_domain>` | Nextcloud |
 | `paperless.<top_domain>` | Paperless NGX |
-| `navidrome.<top_domain>` | Navidrome |
+| `music.<homelab_internal_domain>` | music-server |
 | `vault.<top_domain>` | Vaultwarden |
 | `<playbook_runner_fqdn>` | playbook-runner |
 
@@ -376,7 +379,7 @@ Confirm each service is functional:
 
 - [ ] Nextcloud loads and user files are visible
 - [ ] Paperless documents are present and searchable
-- [ ] Navidrome music library is visible (populated from Nextcloud user files restored in Step 2g)
+- [ ] music-server's status page shows the library (populated from Nextcloud user files restored in Step 2g), and play:Sub shows each user's playlists
 - [ ] Vaultwarden vault unlocks with existing credentials
 - [ ] playbook-runner shows its secrets, inventories, templates, and schedules, and a check-mode run of `vm1.yml` succeeds
 - [ ] Traefik issued valid TLS certificates (check browser padlock)

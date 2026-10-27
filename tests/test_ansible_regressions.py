@@ -272,7 +272,7 @@ class LocalNextcloudBackupTests(unittest.TestCase):
 
     def test_backup_destinations_are_not_recursively_chmodded(self):
         """A recursive mode on the destination also rewrites the backup files."""
-        for role in ("navidrome", "vaultwarden", "playbook_runner", "music_server"):
+        for role in ("vaultwarden", "playbook_runner", "music_server"):
             tasks = yaml.safe_load(
                 (REPO_ROOT / "roles" / role / "tasks" / "main.yml").read_text(
                     encoding="utf-8"
@@ -537,7 +537,6 @@ class SharedContainerNetworkTests(unittest.TestCase):
     #: Networks each role owns, and whether Podman must create them --internal.
     EXPECTED_NETWORKS = {
         "nextcloud": {"nextcloud_container_net": True, "nextcloud_proxy_net": True},
-        "navidrome": {"navidrome_container_net": True},
         "paperless_ngx": {"paperless_proxy_net": True},
         "vaultwarden": {"vaultwarden_container_net": True},
         "playbook_runner": {
@@ -798,7 +797,7 @@ class NetworkPlanTests(unittest.TestCase):
 
 
 class MusicServerTests(unittest.TestCase):
-    """Guards for the first-party Subsonic server that replaces Navidrome.
+    """Guards for the first-party Subsonic music server.
 
     Its users file carries every account's password, so it arrives only as a
     Podman secret; the music is mounted read-only; and the container has no
@@ -833,7 +832,7 @@ class MusicServerTests(unittest.TestCase):
         names = play["vars"]["container_service_names"]
         self.assertIn("['music_server'] if music_server_enabled", names)
         self.assertIn("['playbook_runner'] if playbook_runner_enabled", names)
-        for unit in ("postgres_container", "redis_container", "nextcloud_container", "paperless_ngx", "navidrome_container", "vaultwarden"):
+        for unit in ("postgres_container", "redis_container", "nextcloud_container", "paperless_ngx", "vaultwarden"):
             with self.subTest(unit=unit):
                 self.assertIn(f"'{unit}'", names)
 

@@ -13,16 +13,13 @@
     nextcloud_gid: "33"
     apply_runtime_changes_on_reboot: true
     playbook_runner_enabled: true
-    # music-server runs beside Navidrome until it replaces it; it turns on
-    # once the image has a reviewed lock entry
-    # (docs/guides/music-server-migration.md).
+    # music-server turns on once its image has a reviewed lock entry.
     music_server_enabled: "{{ 'approved_digest' in artifact_locked_images.music_server | default({}) }}"
     traefik_image: "{{ artifact_locked_images.traefik.upstream_ref | regex_replace(':[^:@/]+$', '') }}@{{ artifact_locked_images.traefik.approved_digest }}"
     postgres_image: "{{ artifact_locked_images.postgres.upstream_ref | regex_replace(':[^:@/]+$', '') }}@{{ artifact_locked_images.postgres.approved_digest }}"
     redis_image: "{{ artifact_locked_images.redis.upstream_ref | regex_replace(':[^:@/]+$', '') }}@{{ artifact_locked_images.redis.approved_digest }}"
     nextcloud_image: "{{ artifact_locked_images.nextcloud.upstream_ref | regex_replace(':[^:@/]+$', '') }}@{{ artifact_locked_images.nextcloud.approved_digest }}"
     paperless_image: "{{ artifact_locked_images.paperless.upstream_ref | regex_replace(':[^:@/]+$', '') }}@{{ artifact_locked_images.paperless.approved_digest }}"
-    navidrome_image: "{{ artifact_locked_images.navidrome.upstream_ref | regex_replace(':[^:@/]+$', '') }}@{{ artifact_locked_images.navidrome.approved_digest }}"
     vaultwarden_image: "{{ artifact_locked_images.vaultwarden.upstream_ref | regex_replace(':[^:@/]+$', '') }}@{{ artifact_locked_images.vaultwarden.approved_digest }}"
     # Empty only if the lock has no playbook_runner entry, which the role and
     # standard_podman both refuse while the runner is enabled.
@@ -38,12 +35,12 @@
     # rather than in inventory, which it outranks.
     container_service_names: >-
       {{ (['postgres_container', 'redis_container', 'nextcloud_container', 'paperless_ngx',
-           'navidrome_container', 'vaultwarden']
+           'vaultwarden']
           + (['playbook_runner'] if playbook_runner_enabled | bool else [])
           + (['music_server'] if music_server_enabled | bool else [])) | join(' ') }}
     approved_container_images: >-
       {{ [traefik_image, postgres_image, redis_image, nextcloud_image, paperless_image,
-          navidrome_image, vaultwarden_image]
+          vaultwarden_image]
          + ([playbook_runner_image] if playbook_runner_enabled | default(false) | bool else [])
          + ([music_server_image] if music_server_enabled | default(false) | bool else []) }}
   module_defaults:
@@ -65,7 +62,6 @@
     - reverse_proxy
     - nextcloud
     - paperless_ngx
-    - navidrome
     - vaultwarden
     - playbook_runner
     - music_server

@@ -45,7 +45,7 @@ wc -l /root/pg_dumpall_$(date +%Y%m%d).sql
 # Put Nextcloud in maintenance mode before stopping postgres
 podman exec nextcloud php occ maintenance:mode --on
 
-systemctl stop nextcloud_container paperless_ngx navidrome_container vaultwarden traefik_container
+systemctl stop nextcloud_container paperless_ngx vaultwarden traefik_container
 ```
 
 ### Phase 2 — Final consistent dump and stop postgres
@@ -104,7 +104,7 @@ podman exec postgres vacuumdb --all --analyze-in-stages -U <postgres_admin_user>
 
 ```bash
 systemctl start redis_container nextcloud_container paperless_ngx \
-    navidrome_container vaultwarden traefik_container
+    vaultwarden traefik_container
 
 # Confirm both databases are present
 podman exec postgres psql -U <postgres_admin_user> -d postgres -c "\l"

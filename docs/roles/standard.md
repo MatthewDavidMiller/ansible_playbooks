@@ -131,12 +131,12 @@ carrying the playbook-runner container that is running the playbook.
 **Usage:**
 
 ```yaml
-- name: Reconcile Navidrome proxy network
+- name: Reconcile music-server proxy network
   ansible.builtin.include_role:
     name: container_network
   vars:
-    container_network_name: navidrome_container_net
-    container_network_subnet: "{{ route_proxy_network_subnets.navidrome_container_net }}"
+    container_network_name: music_server_container_net
+    container_network_subnet: "{{ route_proxy_network_subnets.music_server_container_net }}"
 ```
 
 ---

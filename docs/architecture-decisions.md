@@ -149,7 +149,7 @@ This document records explicit design decisions and rejected alternatives for th
 
 ## Decision: music-server Replaces Navidrome
 
-**Decision:** Music streaming on VM1 moves from Navidrome to music-server, a first-party Rust Subsonic server. Phase A runs it beside Navidrome on its own route. Phase B removes the `navidrome` role once play:Sub has been checked against it.
+**Decision:** Music streaming on VM1 moves from Navidrome to music-server, a first-party Rust Subsonic server. It ran beside Navidrome on its own route until play:Sub had been checked against it; the `navidrome` role was then removed, and `retire_navidrome.yml` cleans the old install off VM1.
 
 **Rationale:**
 

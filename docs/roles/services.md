@@ -58,16 +58,6 @@ Deploys Paperless NGX on top of the PostgreSQL and Redis containers created by `
 
 ---
 
-### `navidrome`
-
-Deploys Navidrome with an explicit non-root runtime user and a local backup workflow.
-
-**Required variables:** `navidrome_path`, `navidrome_backup_location`, `navidrome_uid`, `navidrome_gid`, `navidrome_image`
-
-**Key behavior:** reconciles the Navidrome proxy network through the shared [`container_network`](standard.md#container_network) role, and either bind-mounts `navidrome_local_music_path` or falls back to the role's own music path. With `backup_local: true` the daily backup installs the SQLite dumps into the Nextcloud data tree and then re-indexes them; see [Indexing local backups into Nextcloud](#indexing-local-backups-into-nextcloud).
-
----
-
 ### `vaultwarden`
 
 Deploys Vaultwarden and its SQLite-backed backup workflow.
@@ -94,7 +84,7 @@ Deploys [playbook-runner](https://github.com/MatthewDavidMiller/playbook-runner)
 
 ### `music_server`
 
-Deploys [music-server](https://github.com/MatthewDavidMiller/music-server), the first-party Subsonic server that replaces Navidrome. `vm1.yml` enables the role once `artifacts/containers.lock.yml` has a reviewed `music_server` digest; until then it is skipped, so Navidrome keeps serving. See [guides/music-server-migration.md](../guides/music-server-migration.md).
+Deploys [music-server](https://github.com/MatthewDavidMiller/music-server), the first-party Subsonic music server. `vm1.yml` enables the role once `artifacts/containers.lock.yml` has a reviewed `music_server` digest. See [guides/music-server-migration.md](../guides/music-server-migration.md).
 
 **Required variables (when enabled):** `music_server_path`, `music_server_music_path`, `music_server_master_key` (64 hex digits), `music_server_users`, `music_server_backup_location`, `music_server_image`, `secret_env_dir`
 
@@ -118,7 +108,7 @@ Manages the local Borg backup disk and the daily backup scripts for VM1.
 
 ### Indexing local backups into Nextcloud
 
-With `backup_local: true`, the `navidrome`, `vaultwarden`, `playbook_runner`, and `music_server` backup scripts write their dumps directly into `{{ nextcloud_path }}/data/<nextcloud_homelab_user>/files/...` as `nextcloud_uid:nextcloud_gid`. A file placed there is invisible to Nextcloud clients until it is added to the file cache, so each script passes its destination to `/usr/local/bin/nextcloud_scan_path.sh`.
+With `backup_local: true`, the `vaultwarden`, `playbook_runner`, and `music_server` backup scripts write their dumps directly into `{{ nextcloud_path }}/data/<nextcloud_homelab_user>/files/...` as `nextcloud_uid:nextcloud_gid`. A file placed there is invisible to Nextcloud clients until it is added to the file cache, so each script passes its destination to `/usr/local/bin/nextcloud_scan_path.sh`.
 
 Ownership and mode are not sufficient on their own. Podman's `:Z` relabel only covers what exists when the container starts, so a dump the host writes from cron afterwards takes the policy default for that path, `default_t`, which the container is denied `getattr` on. `occ files:scan` then reports `Error during scan: stat(): stat failed`, skips the file, and still exits zero. The `nextcloud` role therefore carries a persistent `container_file_t` rule for `nextcloud_path`, so every host-written backup is labeled correctly when it is created; see [SELinux](../architecture.md#selinux).
 
@@ -135,7 +125,7 @@ The helper runs in these stages:
 
 Every `occ` call runs under `timeout`, so a hung command is killed instead of holding the shared lock and the cron job all night. After the retry budget is exhausted, the helper returns failure and the calling service records the failure in its backup log. The service backup remains non-fatal because the dump itself is already safely on disk.
 
-Navidrome prunes its destination on the same schedule, so it scans after pruning: one scan then indexes both the new dump and the removals, instead of leaving deleted backups in the file cache until the next full scan.
+music-server and playbook-runner prune their destinations on the same schedule, so they scan after pruning: one scan then indexes both the new dump and the removals, instead of leaving deleted backups in the file cache until the next full scan.
 
 Dumps are installed with `nextcloud_user_files_directory_mode` and `nextcloud_user_files_file_mode` rather than literal modes. The `nextcloud` role normalizes every file under `data/<user>/files` to those modes on each run, so a script that writes a different mode leaves each backup wrong until the next playbook run silently corrects it. For the same reason the per-service "Repair … ownership" tasks set ownership only: a recursive `mode` would also rewrite the backup files themselves.
 

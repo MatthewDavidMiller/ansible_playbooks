@@ -9,15 +9,13 @@
 # its network's subnet, that none is used twice, and that each role's own
 # defaults agree with this file.
 #
-# 172.16.1.0/28 is nextcloud_container_net (the backend network); the /29
-# blocks after it are all taken up to 172.16.1.63, so the next free block is
-# 172.16.1.64/29.
+# 172.16.1.0/28 is nextcloud_container_net (the backend network). Free /29
+# blocks: 172.16.1.24/29 (Navidrome's, retired) and 172.16.1.64/29 onwards.
 
 # Internal Podman networks Traefik shares with one service each.
 route_proxy_network_subnets:
   nextcloud_proxy_net: 172.16.1.32/29
   paperless_proxy_net: 172.16.1.40/29
-  navidrome_container_net: 172.16.1.24/29
   vaultwarden_container_net: 172.16.1.16/29
   playbook_runner_container_net: 172.16.1.56/29
   music_server_container_net: 172.16.1.48/29
@@ -27,7 +25,6 @@ route_proxy_network_subnets:
 route_proxy_container_ips:
   nextcloud_proxy_net: 172.16.1.34
   paperless_proxy_net: 172.16.1.42
-  navidrome_container_net: 172.16.1.26
   vaultwarden_container_net: 172.16.1.18
   playbook_runner_container_net: 172.16.1.58
   music_server_container_net: 172.16.1.50
@@ -37,7 +34,6 @@ route_proxy_container_ips:
 route_proxy_traefik_ips:
   nextcloud_proxy_net: 172.16.1.35
   paperless_proxy_net: 172.16.1.43
-  navidrome_container_net: 172.16.1.27
   vaultwarden_container_net: 172.16.1.19
   playbook_runner_container_net: 172.16.1.59
   music_server_container_net: 172.16.1.51
@@ -52,7 +48,6 @@ container_static_ips:
   paperless_backend: 172.16.1.5
   nextcloud_proxy: 172.16.1.34
   paperless_proxy: 172.16.1.42
-  navidrome_proxy: 172.16.1.26
   vaultwarden_proxy: 172.16.1.18
   playbook_runner_proxy: 172.16.1.58
   music_server_proxy: 172.16.1.50
@@ -66,7 +61,6 @@ container_dns:
     nextcloud_proxy: nextcloud-proxy
     paperless_backend: paperless-backend
     paperless_proxy: paperless-proxy
-    navidrome_proxy: navidrome-proxy
     vaultwarden_proxy: vaultwarden-proxy
     playbook_runner_proxy: playbook-runner-proxy
     playbook_runner_egress: playbook-runner-egress
@@ -97,13 +91,6 @@ proxy_config:
     proxy_upstream_port: "8000"
     proxy_network: paperless_proxy_net
     container_destination: "{{ container_dns.aliases.paperless_proxy }}.{{ container_dns.domain }}"
-    proxy_management_only: true
-  - name: navidrome
-    proxy_fqdn: "navidrome.{{ homelab_internal_domain }}"
-    proxy_upstream_protocol: http
-    proxy_upstream_port: "4533"
-    proxy_network: navidrome_container_net
-    container_destination: "{{ container_dns.aliases.navidrome_proxy }}.{{ container_dns.domain }}"
     proxy_management_only: true
   - name: vaultwarden
     proxy_fqdn: "vaultwarden.{{ homelab_internal_domain }}"

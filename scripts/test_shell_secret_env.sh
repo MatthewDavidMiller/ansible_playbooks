@@ -101,7 +101,6 @@ container_dns:
 route_proxy_network_subnets:
   nextcloud_proxy_net: '172.16.1.32/29'
   paperless_proxy_net: '172.16.1.40/29'
-  navidrome_container_net: '172.16.1.24/29'
   vaultwarden_container_net: '172.16.1.16/29'
 container_static_ips:
   postgres_backend: '172.16.1.2'
@@ -126,7 +125,7 @@ proxy_config:
     proxy_upstream_protocol: 'http'
     container_destination: '{{ container_dns.aliases.nextcloud_proxy }}.{{ container_dns.domain }}'
     proxy_network: 'nextcloud_proxy_net'
-container_service_names: 'postgres_container redis_container nextcloud_container paperless_ngx navidrome_container vaultwarden'
+container_service_names: 'postgres_container redis_container nextcloud_container paperless_ngx vaultwarden'
 container_network_migrations:
   - name: 'nextcloud_proxy_net'
     subnet: '172.16.1.32/29'
@@ -145,9 +144,6 @@ paperless_media_path: '/srv/paperless/media'
 paperless_export_path: '/srv/paperless/export'
 paperless_consume_path: '/srv/paperless/consume'
 backup_local: true
-navidrome_path: '/srv/navidrome'
-navidrome_image: 'docker.io/deluan/navidrome@sha256:6666666666666666666666666666666666666666666666666666666666666666'
-navidrome_backup_location: 'Nextcloud:navidrome_backup'
 vaultwarden_path: '/srv/vaultwarden'
 vaultwarden_image: 'docker.io/vaultwarden/server@sha256:7777777777777777777777777777777777777777777777777777777777777777'
 vaultwarden_backup_location: 'Nextcloud:vaultwarden_backup'
@@ -257,11 +253,6 @@ cat > "$tmpdir/render.yml" <<EOF
       ansible.builtin.template:
         src: ${repo_root}/roles/paperless_ngx/templates/paperless_ngx.sh.j2
         dest: ${render_dir}/paperless_ngx.sh
-
-    - name: Render backup_navidrome.sh
-      ansible.builtin.template:
-        src: ${repo_root}/roles/navidrome/templates/backup_navidrome.sh.j2
-        dest: ${render_dir}/backup_navidrome.sh
 
     - name: Render backup_vaultwarden.sh
       ansible.builtin.template:
@@ -424,7 +415,7 @@ assert_line_before "$render_dir/traefik_container.sh" "--network=nextcloud_proxy
 assert_not_contains "$render_dir/traefik_container.sh" "--network=nextcloud_container_net" "traefik_container.sh does not join backend network"
 assert_not_contains "$render_dir/traefik_container.sh" "podman pull" "traefik_container.sh no longer calls podman pull"
 assert_contains "$render_dir/traefik_container.sh" "--pull=never" "traefik_container.sh uses --pull=never"
-assert_contains "$render_dir/traefik_container.service" "After=network-online.target postgres_container.service redis_container.service nextcloud_container.service paperless_ngx.service navidrome_container.service vaultwarden.service" "traefik_container.service orders after rendered backend service units"
+assert_contains "$render_dir/traefik_container.service" "After=network-online.target postgres_container.service redis_container.service nextcloud_container.service paperless_ngx.service vaultwarden.service" "traefik_container.service orders after rendered backend service units"
 assert_contains "$render_dir/security.yml" "dashboard-basic-auth:" "security.yml defines dashboard BasicAuth middleware"
 assert_contains "$render_dir/security.yml" "basicAuth:" "security.yml renders Traefik BasicAuth config"
 assert_contains "$render_dir/security.yml" 'admin:$apr1$example$T2v8QdKqzJ8D7c4s1bYhZ/' "security.yml renders configured dashboard user hash"
@@ -513,16 +504,13 @@ assert_contains "$render_dir/music_server.service" "After=nextcloud_container.se
 assert_contains "$render_dir/backup_music_server.sh" "/usr/bin/tar -C \"/srv/music-server/data\"" "backup_music_server.sh archives only the data directory"
 assert_contains "$render_dir/backup_music_server.sh" '/usr/bin/install -o 33 -g 33 -m 0660 "$ARCHIVE" "$DEST/"' "backup_music_server.sh installs backups with the normalized Nextcloud file mode"
 
-assert_contains "$render_dir/backup_navidrome.sh" '/usr/bin/install -d -o 33 -g 33 -m 0770 "$DEST"' "backup_navidrome.sh creates the Nextcloud destination with Nextcloud ownership"
-assert_contains "$render_dir/backup_navidrome.sh" '/usr/bin/install -o 33 -g 33 -m 0660 "$backup_file" "$DEST/"' "backup_navidrome.sh installs backups with the normalized Nextcloud file mode"
-assert_not_contains "$render_dir/backup_navidrome.sh" '/usr/bin/cp "$LOCAL_BACKUP_DIR"/*.db "$DEST/"' "backup_navidrome.sh no longer copies backups as root"
 
 assert_contains "$render_dir/backup_vaultwarden.sh" '/usr/bin/install -d -o 33 -g 33 -m 0770 "$DEST"' "backup_vaultwarden.sh creates the Nextcloud destination with Nextcloud ownership"
 assert_contains "$render_dir/backup_vaultwarden.sh" '/usr/bin/install -o 33 -g 33 -m 0660 "$BACKUP_FILE" "$DEST/"' "backup_vaultwarden.sh installs backups with the normalized Nextcloud file mode"
 assert_not_contains "$render_dir/backup_vaultwarden.sh" '/usr/bin/cp "$BACKUP_FILE" "$DEST/"' "backup_vaultwarden.sh no longer copies backups as root"
 
 
-for backup_script in backup_navidrome.sh backup_vaultwarden.sh backup_music_server.sh; do
+for backup_script in backup_vaultwarden.sh backup_music_server.sh; do
   assert_contains "$render_dir/$backup_script" \
     '/usr/local/bin/nextcloud_scan_path.sh' \
     "$backup_script uses the managed Nextcloud scan helper"

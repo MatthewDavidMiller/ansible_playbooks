@@ -146,7 +146,7 @@ assert_match "network.get\(\"subnets\"\)" \
   filter_plugins/homelab_validation.py
 assert_match_each "name: container_network" \
   "service roles reconcile their networks through the shared role" \
-  roles/nextcloud/tasks/main.yml roles/navidrome/tasks/main.yml \
+  roles/nextcloud/tasks/main.yml \
   roles/paperless_ngx/tasks/main.yml roles/playbook_runner/tasks/main.yml \
   roles/vaultwarden/tasks/main.yml roles/music_server/tasks/main.yml \
   roles/reverse_proxy/tasks/main.yml

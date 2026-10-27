@@ -11,12 +11,6 @@
     policy: targeted
     state: enforcing
 
-- name: Allow container FUSE filesystem access (rclone music mount for Navidrome)
-  ansible.posix.seboolean:
-    name: virt_use_fusefs
-    state: true
-    persistent: true
-
 - name: Allow containers to manage cgroups (Podman + systemd)
   ansible.posix.seboolean:
     name: container_manage_cgroup

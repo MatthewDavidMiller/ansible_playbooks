@@ -3,7 +3,7 @@
 # Tests container capability, privilege, and memory flags
 # for the maintained VM1 services before deploying to production via Ansible.
 #
-# Usage: bash scripts/test_container_security.sh [all|static|postgres|redis|nextcloud|traefik|paperless|vaultwarden|navidrome]...
+# Usage: bash scripts/test_container_security.sh [all|static|postgres|redis|nextcloud|traefik|paperless|vaultwarden|music_server]...
 #        bash scripts/test_container_security.sh vaultwarden 2>&1 | tee /tmp/container_test_results.txt
 # See docs/testing.md for full descriptions of each test.
 
@@ -33,7 +33,7 @@ should_run() {
 SELECTED_TESTS=("${@:-all}")
 for selected_test in "${SELECTED_TESTS[@]}"; do
   case "$selected_test" in
-    all|static|postgres|redis|nextcloud|traefik|paperless|vaultwarden|navidrome) ;;
+    all|static|postgres|redis|nextcloud|traefik|paperless|vaultwarden|music_server) ;;
     -h|--help)
       usage
       exit 0
@@ -89,7 +89,7 @@ NEXTCLOUD_IMAGE=${NEXTCLOUD_IMAGE:-$(lock_image_ref nextcloud)}
 TRAEFIK_IMAGE=${TRAEFIK_IMAGE:-$(lock_image_ref traefik)}
 PAPERLESS_IMAGE=${PAPERLESS_IMAGE:-$(lock_image_ref paperless)}
 VAULTWARDEN_IMAGE=${VAULTWARDEN_IMAGE:-$(lock_image_ref vaultwarden)}
-NAVIDROME_IMAGE=${NAVIDROME_IMAGE:-$(lock_image_ref navidrome)}
+MUSIC_SERVER_IMAGE=${MUSIC_SERVER_IMAGE:-$(lock_image_ref music_server)}
 TEST_HELPER_IMAGE=${TEST_HELPER_IMAGE:-$(test_image_ref alpine)}
 [[ "$TEST_HELPER_IMAGE" =~ @sha256:[0-9a-f]{64}$ ]] || {
   echo "TEST_HELPER_IMAGE must be an immutable digest reference" >&2
@@ -114,7 +114,7 @@ cleanup_dir() {
 cleanup_all_test_containers() {
   local name
   for name in \
-    test_navidrome \
+    test_music_server \
     test_nextcloud \
     test_paperless \
     test_postgres \
@@ -186,7 +186,6 @@ assert_file_contains "container_dns[.]aliases[.]paperless_proxy" "Paperless: pro
 assert_file_contains "container_dns[.]aliases[.]paperless_backend" "Paperless: backend DNS alias is dictionary-driven" roles/paperless_ngx/templates/paperless_ngx.sh.j2
 assert_file_contains "container_dns[.]aliases[.]postgres_backend" "Postgres: backend DNS alias is dictionary-driven" roles/nextcloud/templates/postgres_container.sh.j2
 assert_file_contains "container_dns[.]aliases[.]redis_backend" "Redis: backend DNS alias is dictionary-driven" roles/nextcloud/templates/redis_container.sh.j2
-assert_file_contains "container_dns[.]aliases[.]navidrome_proxy" "Navidrome: proxy DNS alias is dictionary-driven" roles/navidrome/templates/navidrome_container.sh.j2
 assert_file_contains "container_dns[.]aliases[.]vaultwarden_proxy" "Vaultwarden: proxy DNS alias is dictionary-driven" roles/vaultwarden/templates/vaultwarden.sh.j2
 assert_file_contains "container_dns[.]aliases[.]traefik_proxy" "Traefik: proxy DNS alias is dictionary-driven" roles/reverse_proxy/templates/traefik_container.sh.j2
 assert_file_contains "container_dns[.]aliases[.]traefik_egress" "Traefik: egress DNS alias is dictionary-driven" roles/reverse_proxy/templates/traefik_container.sh.j2
@@ -226,7 +225,6 @@ assert_file_contains "--force" "Shared network role: force-removes attached lega
 assert_file_not_contains "--network=nextcloud_container_net" "Traefik: is not placed on database/cache backend network" roles/reverse_proxy/templates/traefik_container.sh.j2
 assert_file_not_contains "-p " "Nextcloud: does not publish host ports" roles/nextcloud/templates/nextcloud_container.sh.j2
 assert_file_not_contains "-p " "Paperless: does not publish host ports" roles/paperless_ngx/templates/paperless_ngx.sh.j2
-assert_file_not_contains "-p " "Navidrome: does not publish host ports" roles/navidrome/templates/navidrome_container.sh.j2
 assert_file_not_contains "-p " "Vaultwarden: does not publish host ports" roles/vaultwarden/templates/vaultwarden.sh.j2
 assert_file_not_contains "-p " "playbook-runner: does not publish host ports" roles/playbook_runner/templates/playbook_runner.sh.j2
 assert_file_contains "--read-only" "Traefik: read-only root filesystem is configured" roles/reverse_proxy/templates/traefik_container.sh.j2
@@ -234,8 +232,6 @@ assert_file_contains "--read-only" "Postgres: read-only root filesystem is confi
 assert_file_contains "--mount type=tmpfs,destination=/var/run/postgresql,tmpfs-size=16M,tmpfs-mode=0750,U=true" "Postgres: socket directory uses a service-owned tmpfs mount" roles/nextcloud/templates/postgres_container.sh.j2
 assert_file_not_contains "\\{\\{ postgres_path \\}\\}/run:/var/run/postgresql" "Postgres: socket directory is not host-persisted" roles/nextcloud/templates/postgres_container.sh.j2
 assert_file_contains "--read-only" "Redis: read-only root filesystem is configured" roles/nextcloud/templates/redis_container.sh.j2
-assert_file_contains "--read-only" "Navidrome: read-only root filesystem is configured" roles/navidrome/templates/navidrome_container.sh.j2
-assert_file_contains "--user \\{\\{ navidrome_uid \\}\\}:\\{\\{ navidrome_gid \\}\\}" "Navidrome: runs as explicit non-root UID/GID" roles/navidrome/templates/navidrome_container.sh.j2
 assert_file_contains "--read-only" "Vaultwarden: read-only root filesystem is configured" roles/vaultwarden/templates/vaultwarden.sh.j2
 assert_file_contains "--read-only" "playbook-runner: read-only root filesystem is configured" roles/playbook_runner/templates/playbook_runner.sh.j2
 assert_file_contains "--cap-drop=ALL" "Traefik: drops all capabilities before adding required bind capability" roles/reverse_proxy/templates/traefik_container.sh.j2
@@ -243,7 +239,6 @@ assert_file_contains "--cap-add=NET_BIND_SERVICE" "Traefik: only adds bind-servi
 assert_file_contains "--cap-drop=ALL" "Postgres: drops all capabilities" roles/nextcloud/templates/postgres_container.sh.j2
 assert_file_contains "--cap-drop=ALL" "Redis: drops all capabilities before adding required filesystem caps" roles/nextcloud/templates/redis_container.sh.j2
 assert_file_contains "--cap-drop=ALL" "Paperless: drops all capabilities before adding required entrypoint caps" roles/paperless_ngx/templates/paperless_ngx.sh.j2
-assert_file_contains "--cap-drop=ALL" "Navidrome: drops all capabilities" roles/navidrome/templates/navidrome_container.sh.j2
 assert_file_contains "--cap-drop=ALL" "Vaultwarden: drops all capabilities before adding required bind capability" roles/vaultwarden/templates/vaultwarden.sh.j2
 assert_file_contains "--cap-drop=ALL" "playbook-runner: drops all capabilities" roles/playbook_runner/templates/playbook_runner.sh.j2
 assert_file_not_contains "--cap-add" "playbook-runner: adds no capabilities back" roles/playbook_runner/templates/playbook_runner.sh.j2
@@ -840,31 +835,44 @@ echo ""
 fi
 
 # ---------------------------------------------------------------------------
-if should_run navidrome; then
-echo "--- TEST-09: Navidrome ---"
-TEST_ND_DATA=$(mktemp -d)
-TEST_ND_MUSIC=$(mktemp -d)
-chmod 0770 "$TEST_ND_DATA"
-chown_test_path 33:33 "$TEST_ND_DATA"
+if should_run music_server; then
+echo "--- TEST-09: music-server ---"
+TEST_MS_DIR=$(mktemp -d)
+mkdir -p "$TEST_MS_DIR/music" "$TEST_MS_DIR/data" "$TEST_MS_DIR/cache" "$TEST_MS_DIR/secrets"
+printf '%064d\n' 7 | tr 0 7 > "$TEST_MS_DIR/secrets/key"
+printf '%s\n' '{"version":1,"users":[{"name":"admin","password":"runtime-test-pw","admin":true}]}' \
+  > "$TEST_MS_DIR/secrets/users"
+chmod -R a+rX "$TEST_MS_DIR/music" "$TEST_MS_DIR/secrets"
+chown_test_path 10001:10001 "$TEST_MS_DIR/data"
+chown_test_path 10001:10001 "$TEST_MS_DIR/cache"
 
-"${ENGINE_RUN[@]}" -d --name test_navidrome \
-  --user "33:33" \
+# The flags roles/music_server renders, with the secrets as read-only mounts
+# in place of Podman secrets.
+"${ENGINE_RUN[@]}" -d --name test_music_server \
+  --user "10001:10001" \
+  --group-add 33 \
   --cap-drop=ALL \
   --security-opt=no-new-privileges:true \
   --read-only \
-  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=16m \
-  --memory=256m --memory-swap=256m \
+  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
+  --memory=512m --memory-swap=512m \
   --pids-limit=200 \
-  --volume "$TEST_ND_MUSIC":/music:ro \
-  --volume "$TEST_ND_DATA":/data \
-  -e ND_LOGLEVEL=info \
-  "$NAVIDROME_IMAGE"
+  --volume "$TEST_MS_DIR/music":/music:ro \
+  --volume "$TEST_MS_DIR/data":/var/lib/music-server \
+  --volume "$TEST_MS_DIR/cache":/var/cache/music-server \
+  --volume "$TEST_MS_DIR/secrets/key":/run/secrets/music_server_master_key:ro \
+  --volume "$TEST_MS_DIR/secrets/users":/run/secrets/music_server_users:ro \
+  "$MUSIC_SERVER_IMAGE"
 
-check_running test_navidrome "Navidrome: starts with explicit non-root 33:33 + cap-drop=ALL"
+check_running test_music_server "music-server: starts as 10001 with cap-drop=ALL, read-only, and no-new-privileges"
+if $PODMAN exec test_music_server music-server healthcheck; then
+  pass "music-server: answers its health check"
+else
+  fail "music-server: health check failed"
+fi
 
-cleanup test_navidrome
-cleanup_dir "$TEST_ND_DATA"
-rm -rf "$TEST_ND_MUSIC"
+cleanup test_music_server
+cleanup_dir "$TEST_MS_DIR"
 echo ""
 fi
 

@@ -12,7 +12,6 @@ traefik_egress_network: traefik_egress_net
 route_proxy_network_subnets:
   nextcloud_proxy_net: 172.16.1.32/29
   paperless_proxy_net: 172.16.1.40/29
-  navidrome_container_net: 172.16.1.24/29
   vaultwarden_container_net: 172.16.1.16/29
   playbook_runner_container_net: 172.16.1.56/29
   music_server_container_net: 172.16.1.48/29
@@ -51,7 +50,6 @@ container_dns:
   aliases:
     nextcloud_proxy: nextcloud-proxy
     paperless_proxy: paperless-proxy
-    navidrome_proxy: navidrome-proxy
     vaultwarden_proxy: vaultwarden-proxy
     playbook_runner_proxy: playbook-runner-proxy
     music_server_proxy: music-server-proxy
@@ -66,7 +64,6 @@ container_dns:
 route_proxy_traefik_ips:
   nextcloud_proxy_net: 172.16.1.35
   paperless_proxy_net: 172.16.1.43
-  navidrome_container_net: 172.16.1.27
   vaultwarden_container_net: 172.16.1.19
   playbook_runner_container_net: 172.16.1.59
   music_server_container_net: 172.16.1.51
@@ -76,7 +73,6 @@ route_proxy_traefik_ips:
 route_proxy_container_ips:
   nextcloud_proxy_net: 172.16.1.34
   paperless_proxy_net: 172.16.1.42
-  navidrome_container_net: 172.16.1.26
   vaultwarden_container_net: 172.16.1.18
   playbook_runner_container_net: 172.16.1.58
   music_server_container_net: 172.16.1.50
