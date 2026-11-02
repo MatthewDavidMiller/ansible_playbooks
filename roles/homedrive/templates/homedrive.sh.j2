@@ -1,0 +1,35 @@
+#!/bin/bash
+set -euo pipefail
+
+# The users file (with every password) arrives as a Podman secret readable
+# only by the container user. The store is the container's only writable
+# data; the server refuses to start unless it holds a store.id, so an
+# unmounted disk is never written to. Memory is capped without swap so the
+# passwords held in memory are never paged out. The only network is the
+# internal one Traefik reaches it on.
+exec /usr/bin/podman run \
+--pull=never \
+--name homedrive \
+--network=homedrive_container_net:ip={{ container_static_ips.homedrive_proxy }},alias={{ container_dns.aliases.homedrive_proxy }} \
+--user {{ homedrive_uid }}:{{ homedrive_gid }} \
+--volume {{ homedrive_path }}:/var/lib/homedrive:Z \
+{% if homedrive_export_path | length > 0 %}
+--volume {{ homedrive_export_path }}:/srv/exports:z \
+{% endif %}
+--secret homedrive_users,target=/run/secrets/homedrive_users,uid={{ homedrive_uid }},gid={{ homedrive_gid }},mode=0400 \
+--env HD_TRUSTED_PROXIES={{ route_proxy_traefik_ips.homedrive_container_net }} \
+--env HD_SECURE_COOKIES=true \
+--env HD_MIN_FREE_GB={{ homedrive_min_free_gb }} \
+--env HD_KEEP_ALL_DAYS={{ homedrive_keep_all_days }} \
+--env HD_TRASH_DAYS={{ homedrive_trash_days }} \
+{% if homedrive_exports | length > 0 %}
+--env HD_EXPORTS={{ homedrive_exports | quote }} \
+{% endif %}
+--read-only \
+--tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
+--memory={{ homedrive_memory }} \
+--memory-swap={{ homedrive_memory }} \
+--pids-limit=200 \
+--cap-drop=ALL \
+--security-opt=no-new-privileges:true \
+-d {{ homedrive_image }}

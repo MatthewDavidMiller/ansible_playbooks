@@ -2,20 +2,21 @@
 # backup role defaults (Borg backup)
 
 # Path to the Borg repository directory (on the backup disk)
-borg_backup_path: ""
+borg_backup_path: /borg_backups
 
 # Block device identifier for the backup disk mount (e.g. "UUID=xxxx-xxxx")
 backup_disk: ""
 
 # When true, Nextcloud runs on this host so backups use a direct local path.
 # When false, Nextcloud is mounted remotely via SSHFS before backup.
-backup_local: false
+backup_local: true
 
 # Path where the SSHFS mount is created for remote Nextcloud access (required when backup_local is false)
 ssh_mount_path: ""
 
-# Path to the Nextcloud data directory (required when backup_local is true)
-nextcloud_path: ""
+# Path to the Nextcloud data directory, read when backup_local is true. Keep
+# in step with the nextcloud role's default.
+nextcloud_path: /data_drive/nextcloud
 
 # Hostname or IP of the remote Nextcloud server (required when backup_local is false)
 nextcloud_host: ""

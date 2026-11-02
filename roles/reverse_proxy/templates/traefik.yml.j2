@@ -27,6 +27,9 @@ entryPoints:
           permanent: true
   websecure:
     address: ":443"
+    transport:
+      respondingTimeouts:
+        readTimeout: "{{ traefik_read_timeout | default('60s') }}"
     http:
 {% if ns.encoded_slash_enabled %}
       encodedCharacters:

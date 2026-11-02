@@ -43,7 +43,7 @@ MINIMUM_IMAGE_AGE_HOURS = 24
 FIRST_PARTY_IMAGE_PREFIXES = ("ghcr.io/matthewdavidmiller/",)
 SHA256_DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
 FALLBACK_TOOL_IMAGES = {
-    "skopeo": "quay.io/skopeo/stable@sha256:abded792af33493f9aaa08132f564d3f9c12818193c0adc0a62f44ed84a04eda",
+    "skopeo": "quay.io/skopeo/stable@sha256:ad1d2e25cf0234bb50476e753a8fc9debd4f0582cdd2ab6fd7bad9bacdfe3b9b",
     "cosign": "ghcr.io/sigstore/cosign/cosign@sha256:6bbe0d281d955c79f85b325f0f7e651c1bcab5a4fa4ad4903d74955178a3b2eb",
     "trivy": "public.ecr.aws/aquasecurity/trivy@sha256:016eae51fdcf989332a5404af7e8f625cd5d95d7c0907a221d080a996f556500",
 }
@@ -121,6 +121,24 @@ def docker_config_uses_external_helpers(config_path: Path) -> bool:
     return bool(data.get("credsStore") or data.get("credHelpers"))
 
 
+def registry_auth_file() -> Path | None:
+    """The credentials `podman login` left, in Podman's own lookup order.
+
+    A Docker config that defers to a credential helper holds no credentials
+    a container could use, so it is skipped.
+    """
+    candidates = []
+    if os.environ.get("REGISTRY_AUTH_FILE"):
+        candidates.append(Path(os.environ["REGISTRY_AUTH_FILE"]))
+    if os.environ.get("XDG_RUNTIME_DIR"):
+        candidates.append(Path(os.environ["XDG_RUNTIME_DIR"]) / "containers" / "auth.json")
+    candidates.append(Path.home() / ".config" / "containers" / "auth.json")
+    docker_config = Path.home() / ".docker" / "config.json"
+    if not docker_config_uses_external_helpers(docker_config):
+        candidates.append(docker_config)
+    return next((path for path in candidates if path.is_file()), None)
+
+
 @functools.lru_cache(maxsize=None)
 def resolve_tool_command(name: str) -> tuple[tuple[str, ...], str]:
     """Locate a tool, preferring a native binary over the pinned container.
@@ -162,13 +180,23 @@ def resolve_tool_command(name: str) -> tuple[tuple[str, ...], str]:
         argv.extend(["--tmpfs", "/root/.cache:rw,noexec,nosuid,nodev,size=128m"])
     argv.extend(["--security-opt", "label=disable"])
 
-    # Registry credentials, in the two formats the tools inside the container
-    # read. The Docker config format is what skopeo and trivy look for; Podman
-    # writes its own auth.json under ~/.config/containers.
-    docker_config = Path.home() / ".docker" / "config.json"
-    if not docker_config_uses_external_helpers(docker_config):
-        add_mount(argv, Path.home() / ".docker", "/root/.docker")
-    add_mount(argv, Path.home() / ".config" / "containers", "/root/.config/containers")
+    # Registry credentials, for private images. The file is named explicitly:
+    # the skopeo image sets REGISTRY_AUTH_FILE to an empty /tmp/auth.json, so a
+    # credentials directory mounted at a default path is never read and a
+    # private image is fetched anonymously and refused. skopeo reads
+    # REGISTRY_AUTH_FILE; trivy and cosign read DOCKER_CONFIG/config.json.
+    auth_file = registry_auth_file()
+    if auth_file is not None:
+        argv.extend(
+            [
+                "-v",
+                f"{auth_file}:/root/.registry-auth/config.json:ro",
+                "--env",
+                "REGISTRY_AUTH_FILE=/root/.registry-auth/config.json",
+                "--env",
+                "DOCKER_CONFIG=/root/.registry-auth",
+            ]
+        )
 
     if name == "trivy":
         trivy_cache_dir = trivy_cache_path()

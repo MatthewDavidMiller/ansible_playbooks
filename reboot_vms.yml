@@ -1,7 +1,12 @@
 ---
-- hosts: homelab
+# playbook-runner lives on VM1, so ansible.builtin.reboot would take the
+# runner down while it waited. The delay lets the run finish and record its
+# result first. The command stays in the foreground, without async: shutdown
+# returns at once, and a failure (no sudo, say) must fail the run rather than
+# report a reboot that was never scheduled.
+- name: Reboot homelab VMs
+  hosts: homelab
   tasks:
-    - name: Reboot machine
-      ansible.builtin.command: shutdown -r +1
-      async: 40
-      poll: 0
+    - name: Schedule the reboot one minute from now
+      ansible.builtin.command: /usr/sbin/shutdown -r +1
+      changed_when: true

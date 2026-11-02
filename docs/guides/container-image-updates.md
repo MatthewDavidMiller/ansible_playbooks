@@ -31,8 +31,8 @@ Taking one is a deliberate act: edit `upstream_ref` and `approved_tag` to the ne
 
 ### First-party images
 
-Images this project builds and releases itself — currently only
-`ghcr.io/matthewdavidmiller/playbook-runner` — are exempt from the 24-hour
+Images this project builds and releases itself — playbook-runner,
+music-server and homedrive under `ghcr.io/matthewdavidmiller/` — are exempt from the 24-hour
 age gate. The gate exists so the wider community has a day to catch a
 compromised or broken third-party release before VM1 runs it; for our own
 image there is no upstream to wait on, and the release is already gated by
@@ -52,6 +52,16 @@ The repo supports two ways to run the review tooling:
 
 - Preferred: install `skopeo`, `cosign`, and `trivy` locally on the control node.
 - Fallback: if a tool is missing locally, [`scripts/promote_artifacts.py`](../../scripts/promote_artifacts.py) automatically uses a pinned official container image for that tool through `podman`.
+
+Every image VM1 runs is public. A private image would need a registry
+login on the control node first: `podman login ghcr.io` with a token that has
+`read:packages`. The fallback containers are handed the first credentials
+file in Podman's lookup order — `$REGISTRY_AUTH_FILE`,
+`$XDG_RUNTIME_DIR/containers/auth.json`, `~/.config/containers/auth.json`,
+then `~/.docker/config.json` unless it defers to a credential helper — and
+read nothing else. The file is passed explicitly because the skopeo image
+points `REGISTRY_AUTH_FILE` at its own empty file, so credentials mounted at
+a default path were never read.
 
 Check the current tool path selection with:
 

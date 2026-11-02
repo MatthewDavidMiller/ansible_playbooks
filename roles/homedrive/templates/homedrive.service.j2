@@ -1,0 +1,21 @@
+[Unit]
+Description=Podman container-homedrive.service
+Documentation=man:podman-generate-systemd(1)
+Wants=network-online.target
+After=network-online.target
+RequiresMountsFor={{ homedrive_path }}
+
+[Service]
+Environment=PODMAN_SYSTEMD_UNIT=%n
+Restart=on-failure
+TimeoutStopSec=70
+ExecStartPre=/usr/bin/podman rm --ignore homedrive
+ExecStart=/usr/bin/bash /usr/local/bin/homedrive.sh
+RestartSec=10
+TimeoutStartSec=300
+ExecStop=/usr/bin/podman stop --ignore homedrive
+ExecStopPost=/usr/bin/podman rm --ignore -f homedrive
+Type=forking
+
+[Install]
+WantedBy=multi-user.target default.target

@@ -1,0 +1,99 @@
+---
+# homedrive role defaults
+#
+# homedrive is the first-party, deduplicating file sync and storage server
+# (https://github.com/MatthewDavidMiller/homedrive, a public prerelease). The
+# role is off until homedrive_enabled is true, and vm1.yml enables it only
+# when the inventory sets homedrive_deploy and the image has a reviewed entry in
+# artifacts/containers.lock.yml.
+
+# Deploy homedrive on this host
+homedrive_enabled: false
+
+# The store directory: chunks, manifests, and the metadata journal. By default
+# it sits beside Nextcloud on the data disk the nextcloud role mounts. The
+# server refuses to start on a directory without its store.id, which is what
+# protects an unmounted disk from being written to.
+homedrive_path: /data_drive/homedrive/store
+
+# Optional block device for homedrive_path (e.g. "UUID=xxxx"), mounted here.
+# Leave empty on the shared data disk, which the nextcloud role already mounts.
+homedrive_disk: ""
+
+# Create the store on the first deploy. Set true for that one run, on an
+# empty homedrive_path, then remove it. With it false the role never
+# creates a store, so a missing mount stays a refusal to start rather than a
+# new, empty store.
+homedrive_init_store: false
+
+# Host directory for exports (plain-file copies, e.g. for music-server), and
+# the optional HD_EXPORTS spec: "user:path=>name,...".
+homedrive_export_path: /data_drive/homedrive/exports
+homedrive_exports: ""
+
+# The accounts, from Vault. Each entry: {name, password, admin, quota_gb}.
+# Names are 1-64 of A-Z a-z 0-9 . _ -; passwords 8-128 characters; at least
+# one admin. quota_gb (required, a whole number of GiB) limits what the drive
+# holds, counting every old version and the trash. The quotas plus
+# homedrive_min_free_gb must fit on the store's disk, or homedrive refuses to
+# start: the drives can then never fill it.
+# Removing a name stops it signing in; its files stay.
+homedrive_users: []
+
+# Free space (GiB) below which the store refuses writes
+homedrive_min_free_gb: 10
+
+# Keep every old version this many days, then thin; keep deleted files this
+# many days (each 7-36500; the server refuses less)
+homedrive_keep_all_days: 30
+homedrive_trash_days: 90
+
+# Container memory ceiling, also used as the swap ceiling (no swap)
+homedrive_memory: 1g
+
+# The container user the image declares
+homedrive_uid: "10001"
+homedrive_gid: "10001"
+
+# Optional local Borg repository for daily backups of the store (on another
+# disk). Empty disables the backup job.
+homedrive_borg_repo: ""
+
+# Optional, from Vault: encrypt the local Borg repository with this
+# passphrase (20 characters or more). Empty keeps it unencrypted, the
+# default. It applies to a new repository only: Borg cannot encrypt one
+# that exists, so give homedrive_borg_repo a new path to start encrypting.
+# Keep a copy of the passphrase off this host: without it the backups
+# cannot be read.
+homedrive_borg_passphrase: ""
+
+# Scratch space for the weekly restore drill, which restores the newest
+# backup to plain files and checks every one against the drive. It needs
+# about twice the store's size free while it runs, and is emptied after.
+# Empty turns the drill off (the admin page then shows it has never run).
+homedrive_drill_path: "{{ homedrive_borg_repo ~ '-drill' if homedrive_borg_repo | length > 0 else '' }}"
+
+# Root-only directory for runtime environment files and secret sources
+secret_env_dir: /etc/homelab/secrets
+
+# Container image resolved from the approved artifact lock in vm1.yml
+homedrive_image: ""
+
+# Podman DNS aliases used on VM1 networks.
+container_dns:
+  domain: dns.podman
+  aliases:
+    homedrive_proxy: homedrive-proxy
+
+# Deterministic VM1 route proxy network subnet.
+route_proxy_network_subnets:
+  homedrive_container_net: 172.16.1.64/29
+
+# Static container IP used with Traefik /etc/hosts overrides.
+container_static_ips:
+  homedrive_proxy: 172.16.1.66
+
+# Traefik's address on the homedrive network; the server trusts its
+# X-Forwarded-For for sign-in throttling.
+route_proxy_traefik_ips:
+  homedrive_container_net: 172.16.1.67

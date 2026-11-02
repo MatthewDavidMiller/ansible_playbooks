@@ -64,6 +64,18 @@ def homelab_safe_absolute_path(value: object) -> bool:
     return path.is_absolute() and path != PurePosixPath("/") and ".." not in path.parts
 
 
+def homelab_paths_disjoint(values: object) -> bool:
+    """No path in the list is, or is inside, another; empty entries are
+    ignored. Data a script deletes (scratch space) must never share a tree
+    with data it must keep."""
+    paths = [PurePosixPath(str(v).rstrip("/") or "/") for v in values if str(v)]
+    for i, a in enumerate(paths):
+        for b in paths[i + 1 :]:
+            if a == b or a in b.parents or b in a.parents:
+                return False
+    return True
+
+
 def homelab_immutable_image(value: object) -> bool:
     return bool(_DIGEST_REF.fullmatch(str(value)))
 
@@ -144,6 +156,7 @@ class FilterModule:
             "homelab_ip_in_subnet": homelab_ip_in_network,
             "homelab_container_assignable_ip": homelab_container_assignable_ip,
             "homelab_safe_absolute_path": homelab_safe_absolute_path,
+            "homelab_paths_disjoint": homelab_paths_disjoint,
             "homelab_immutable_image": homelab_immutable_image,
             "homelab_immutable_digest_ref": homelab_immutable_image,
             "homelab_safe_name": homelab_safe_name,

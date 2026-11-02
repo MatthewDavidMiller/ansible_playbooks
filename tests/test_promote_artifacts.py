@@ -50,6 +50,45 @@ class ToolResolutionTests(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 promote.resolve_tool_command("cosign")
 
+    def test_registry_auth_follows_podman_lookup_order(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory) / "home"
+            runtime = Path(directory) / "run"
+            podman_config = home / ".config" / "containers" / "auth.json"
+            runtime_auth = runtime / "containers" / "auth.json"
+            docker_config = home / ".docker" / "config.json"
+            env = {"XDG_RUNTIME_DIR": str(runtime)}
+            with (
+                mock.patch.object(promote.Path, "home", return_value=home),
+                mock.patch.dict(promote.os.environ, env, clear=True),
+            ):
+                self.assertIsNone(promote.registry_auth_file())
+                docker_config.parent.mkdir(parents=True)
+                docker_config.write_text('{"credsStore": "desktop"}', encoding="utf-8")
+                self.assertIsNone(promote.registry_auth_file())
+                docker_config.write_text('{"auths": {}}', encoding="utf-8")
+                self.assertEqual(promote.registry_auth_file(), docker_config)
+                podman_config.parent.mkdir(parents=True)
+                podman_config.write_text('{"auths": {}}', encoding="utf-8")
+                self.assertEqual(promote.registry_auth_file(), podman_config)
+                runtime_auth.parent.mkdir(parents=True)
+                runtime_auth.write_text('{"auths": {}}', encoding="utf-8")
+                self.assertEqual(promote.registry_auth_file(), runtime_auth)
+
+    def test_container_fallback_names_the_auth_file(self):
+        """The skopeo image points REGISTRY_AUTH_FILE at an empty file, so
+        credentials mounted at a default path are never read."""
+        auth = Path("/run/user/1000/containers/auth.json")
+        with (
+            mock.patch.object(promote.shutil, "which", return_value=None),
+            mock.patch.object(promote, "container_engine", return_value="podman"),
+            mock.patch.object(promote, "registry_auth_file", return_value=auth),
+        ):
+            argv = promote.tool_command("skopeo")
+        self.assertIn(f"{auth}:/root/.registry-auth/config.json:ro", argv)
+        self.assertIn("REGISTRY_AUTH_FILE=/root/.registry-auth/config.json", argv)
+        self.assertIn("DOCKER_CONFIG=/root/.registry-auth", argv)
+
 
 class PromotionPolicyTests(unittest.TestCase):
     def test_lock_file_write_is_atomic_and_preserves_mode(self):

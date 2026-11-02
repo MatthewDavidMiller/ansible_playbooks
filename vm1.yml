@@ -15,6 +15,11 @@
     playbook_runner_enabled: true
     # music-server turns on once its image has a reviewed lock entry.
     music_server_enabled: "{{ 'approved_digest' in artifact_locked_images.music_server | default({}) }}"
+    # homedrive turns on when the inventory sets homedrive_deploy and its
+    # image has a reviewed lock entry, so a lock entry alone deploys nothing.
+    homedrive_enabled: >-
+      {{ (homedrive_deploy | default(false) | bool)
+         and ('approved_digest' in artifact_locked_images.homedrive | default({})) }}
     traefik_image: "{{ artifact_locked_images.traefik.upstream_ref | regex_replace(':[^:@/]+$', '') }}@{{ artifact_locked_images.traefik.approved_digest }}"
     postgres_image: "{{ artifact_locked_images.postgres.upstream_ref | regex_replace(':[^:@/]+$', '') }}@{{ artifact_locked_images.postgres.approved_digest }}"
     redis_image: "{{ artifact_locked_images.redis.upstream_ref | regex_replace(':[^:@/]+$', '') }}@{{ artifact_locked_images.redis.approved_digest }}"
@@ -29,6 +34,9 @@
     music_server_image: >-
       {{ (artifact_locked_images.music_server.upstream_ref | regex_replace(':[^:@/]+$', '')) ~ '@' ~ artifact_locked_images.music_server.approved_digest
          if 'approved_digest' in artifact_locked_images.music_server | default({}) else '' }}
+    homedrive_image: >-
+      {{ (artifact_locked_images.homedrive.upstream_ref | regex_replace(':[^:@/]+$', '')) ~ '@' ~ artifact_locked_images.homedrive.approved_digest
+         if 'approved_digest' in artifact_locked_images.homedrive | default({}) else '' }}
     # The container units, in start order. Traefik starts after all of them,
     # and the deferred network migration stops and restarts them. A role
     # that is off has no unit, so it is listed only when enabled. Set here
@@ -37,12 +45,14 @@
       {{ (['postgres_container', 'redis_container', 'nextcloud_container', 'paperless_ngx',
            'vaultwarden']
           + (['playbook_runner'] if playbook_runner_enabled | bool else [])
-          + (['music_server'] if music_server_enabled | bool else [])) | join(' ') }}
+          + (['music_server'] if music_server_enabled | bool else [])
+          + (['homedrive'] if homedrive_enabled | bool else [])) | join(' ') }}
     approved_container_images: >-
       {{ [traefik_image, postgres_image, redis_image, nextcloud_image, paperless_image,
           vaultwarden_image]
          + ([playbook_runner_image] if playbook_runner_enabled | default(false) | bool else [])
-         + ([music_server_image] if music_server_enabled | default(false) | bool else []) }}
+         + ([music_server_image] if music_server_enabled | default(false) | bool else [])
+         + ([homedrive_image] if homedrive_enabled | default(false) | bool else []) }}
   module_defaults:
     ansible.posix.firewalld:
       offline: "{{ apply_runtime_changes_on_reboot | bool }}"
@@ -65,5 +75,6 @@
     - vaultwarden
     - playbook_runner
     - music_server
+    - homedrive
     - standard_cleanup
     - container_network_migration

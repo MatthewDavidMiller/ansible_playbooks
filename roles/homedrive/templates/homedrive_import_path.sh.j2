@@ -1,0 +1,16 @@
+#!/bin/bash
+# Store a file in homedrive, as a new version of a path in a user's drive.
+# Backup scripts call this; the server verifies and keeps every version.
+#
+# Usage: homedrive_import_path.sh <user> <drive path> <file>
+set -euo pipefail
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+if [ "$#" -ne 3 ]; then
+    echo "Usage: $0 <user> <drive path> <file>" >&2
+    exit 2
+fi
+if [ ! -f "$3" ]; then
+    echo "Not a file: $3" >&2
+    exit 1
+fi
+exec /usr/bin/podman exec -i homedrive hd-server import --user "$1" --dest "$2" < "$3"

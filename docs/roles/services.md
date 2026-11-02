@@ -20,7 +20,7 @@ Updates the VM1 Porkbun A record when the WAN IP changes.
 
 Deploys Traefik v3 for HTTPS termination and service routing on VM1.
 
-**Required variables:** `traefik_path`, `traefik_egress_network`, `traefik_dashboard_fqdn`, `traefik_dashboard_basic_auth_users`, `traefik_acme_email`, `homelab_internal_domain`, `proxy_config` (from `network/vm1.yml`), `container_service_names`, `management_network`, `ip_ansible`, `secret_env_dir`, `traefik_image`
+**Required variables:** `traefik_dashboard_fqdn`, `traefik_dashboard_basic_auth_users`, `traefik_acme_email`, `homelab_internal_domain`, `proxy_config` (from `network/vm1.yml`), `container_service_names`, `management_network`, `ip_ansible`, `secret_env_dir`, `traefik_image`
 
 **Templates:** `traefik_container.sh.j2`, `traefik_container.service.j2`, `traefik.yml.j2`, `tls.yml.j2`, `security.yml.j2`, `dashboard.yml.j2`, `service_proxy.yml.j2`, `traefik.env.j2`
 
@@ -32,9 +32,9 @@ Deploys Traefik v3 for HTTPS termination and service routing on VM1.
 
 Deploys the shared PostgreSQL container, Redis container, and Nextcloud itself.
 
-**Required variables:** `postgres_image`, `redis_image`, `nextcloud_image`, `postgres_path`, `nextcloud_path`, `nextcloud_disk`, `postgres_admin_user`, `postgres_admin_password`, `nextcloud_database_name`, `nextcloud_db_user`, `nextcloud_db_password`, `nextcloud_admin_user`, `nextcloud_admin_password`, `nextcloud_trusted_domains`, `secret_env_dir`
+**Required variables:** `postgres_image`, `redis_image`, `nextcloud_image`, `nextcloud_disk`, `postgres_admin_user`, `postgres_admin_password`, `nextcloud_database_name`, `nextcloud_db_user`, `nextcloud_db_password`, `nextcloud_admin_user`, `nextcloud_admin_password`, `nextcloud_trusted_domains`, `secret_env_dir`
 
-**Optional variables:** `password_minimum_length` defaults to `16` and controls validation of the PostgreSQL admin and Nextcloud database passwords.
+**Optional variables:** `password_minimum_length` defaults to `12` and controls validation of the PostgreSQL admin and Nextcloud database passwords. `nextcloud_disk_mount_path` defaults to `/data_drive`, and `nextcloud_path`, which must sit inside it, to `/data_drive/nextcloud`.
 
 **Templates:** `postgres_container.sh.j2`, `postgres_container.service.j2`, `redis_container.sh.j2`, `redis_container.service.j2`, `nextcloud_container.sh.j2`, `nextcloud_container.service.j2`, `nextcloud_configure.sh.j2`, `nextcloud_configure.service.j2`, `postgres.env.j2`, `nextcloud.env.j2`
 
@@ -46,9 +46,9 @@ Deploys the shared PostgreSQL container, Redis container, and Nextcloud itself.
 
 Deploys Paperless NGX on top of the PostgreSQL and Redis containers created by `nextcloud`.
 
-**Required variables:** `paperless_path`, `paperless_data_path`, `paperless_media_path`, `paperless_export_path`, `paperless_consume_path`, `paperless_database_name`, `paperless_db_user`, `paperless_db_password`, `paperless_secret_key`, `paperless_image`, `secret_env_dir`
+**Required variables:** `paperless_db_user`, `paperless_db_password`, `paperless_secret_key`, `paperless_image`, `secret_env_dir`
 
-**Optional variables:** `password_minimum_length` defaults to `16` and controls validation of the Paperless database password. `secret_key_minimum_length` defaults to `32` and controls validation of `paperless_secret_key`.
+**Optional variables:** `password_minimum_length` defaults to `12` and controls validation of the Paperless database password. `secret_key_minimum_length` defaults to `32` and controls validation of `paperless_secret_key`.
 
 **Templates:** `paperless_ngx.sh.j2`, `paperless_ngx.service.j2`, `paperless.env.j2`
 
@@ -62,7 +62,7 @@ Deploys Paperless NGX on top of the PostgreSQL and Redis containers created by `
 
 Deploys Vaultwarden and its SQLite-backed backup workflow.
 
-**Required variables:** `vaultwarden_path`, `vaultwarden_backup_location`, `vaultwarden_signups_allowed`, `vaultwarden_image`
+**Required variables:** `vaultwarden_backup_location`, `vaultwarden_image`
 
 **Templates:** `vaultwarden.sh.j2`, `vaultwarden.service.j2`, `backup_db.j2`
 
@@ -74,7 +74,7 @@ Deploys Vaultwarden and its SQLite-backed backup workflow.
 
 Deploys [playbook-runner](https://github.com/MatthewDavidMiller/playbook-runner), a first-party web interface that runs and schedules playbooks from this repository. `vm1.yml` enables the role (`playbook_runner_enabled`). It refuses an empty `playbook_runner_image`, so the image must have a reviewed entry in `artifacts/containers.lock.yml` (it does, as a [first-party image](../guides/container-image-updates.md#first-party-images)). See [guides/playbook-runner-migration.md](../guides/playbook-runner-migration.md).
 
-**Required variables (when enabled):** `playbook_runner_path`, `playbook_runner_master_key` (64 hex digits), `playbook_runner_backup_location`, `playbook_runner_image`, `secret_env_dir`
+**Required variables (when enabled):** `playbook_runner_master_key` (64 hex digits), `playbook_runner_backup_location`, `playbook_runner_image`, `secret_env_dir`
 
 **Templates:** `playbook_runner.sh.j2`, `playbook_runner.service.j2`, `backup_playbook_runner.sh.j2`
 
@@ -86,7 +86,7 @@ Deploys [playbook-runner](https://github.com/MatthewDavidMiller/playbook-runner)
 
 Deploys [music-server](https://github.com/MatthewDavidMiller/music-server), the first-party Subsonic music server. `vm1.yml` enables the role once `artifacts/containers.lock.yml` has a reviewed `music_server` digest. See [guides/music-server-migration.md](../guides/music-server-migration.md).
 
-**Required variables (when enabled):** `music_server_path`, `music_server_music_path`, `music_server_master_key` (64 hex digits), `music_server_users`, `music_server_backup_location`, `music_server_image`, `secret_env_dir`
+**Required variables (when enabled):** `music_server_music_path`, `music_server_master_key` (64 hex digits), `music_server_users`, `music_server_backup_location`, `music_server_image`, `secret_env_dir`
 
 **Templates:** `music_server.sh.j2`, `music_server.service.j2`, `backup_music_server.sh.j2`
 
@@ -98,7 +98,7 @@ Deploys [music-server](https://github.com/MatthewDavidMiller/music-server), the 
 
 Manages the local Borg backup disk and the daily backup scripts for VM1.
 
-**Required variables:** `nextcloud_borg_backup_path`, `nextcloud_paperless_backup_location`, `borg_backup_path`, `backup_disk`, `backup_host`, `backup_local`
+**Required variables:** `nextcloud_paperless_backup_location`, `backup_disk`, `backup_host`
 
 **Templates:** `init_backup_repo.sh.j2`, `backup_files.sh.j2`
 

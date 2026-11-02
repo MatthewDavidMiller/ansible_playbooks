@@ -189,6 +189,53 @@ class LocalNextcloudBackupTests(unittest.TestCase):
                 f"{command} must be called through an absolute path",
             )
 
+    def test_shared_variables_default_to_one_value_in_every_role(self):
+        """A role's own default wins inside it, so a stale copy splits the host."""
+        defaults_by_role = {
+            path.parts[-3]: yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+            for path in (REPO_ROOT / "roles").glob("*/defaults/main.yml")
+        }
+        for name in (
+            "nextcloud_path",
+            "backup_local",
+            "paperless_export_path",
+            "paperless_database_name",
+        ):
+            with self.subTest(name):
+                values = {
+                    role: defaults[name]
+                    for role, defaults in defaults_by_role.items()
+                    if name in defaults
+                }
+                self.assertGreater(len(values), 1)
+                self.assertEqual(len(set(values.values())), 1, values)
+
+    def test_nextcloud_mounts_its_disk_before_creating_paths_inside_it(self):
+        """A directory made before the mount lands on the OS disk under it."""
+        tasks = yaml.safe_load(
+            (REPO_ROOT / "roles" / "nextcloud" / "tasks" / "main.yml").read_text(
+                encoding="utf-8"
+            )
+        )
+        mounts = [
+            index
+            for index, task in enumerate(tasks)
+            if "ansible.posix.mount" in task
+        ]
+        self.assertEqual(len(mounts), 1)
+        self.assertEqual(
+            tasks[mounts[0]]["ansible.posix.mount"]["path"],
+            "{{ nextcloud_disk_mount_path }}",
+            "nextcloud_path sits inside the shared disk; it is not the mount point",
+        )
+        path_tasks = [
+            index
+            for index, task in enumerate(tasks)
+            if "nextcloud_path" in str(task.get("ansible.builtin.file", {}))
+        ]
+        self.assertTrue(path_tasks)
+        self.assertLess(mounts[0], min(path_tasks))
+
     def test_nextcloud_volume_has_a_container_file_context_rule(self):
         """Host-written backups need the right SELinux label from birth.
 
@@ -454,6 +501,52 @@ class AnsibleRegressionTests(unittest.TestCase):
             "kernel and library updates only take effect after the reboot",
         )
 
+    def test_traefik_uses_only_the_dns_server_it_can_reach(self):
+        script = (
+            REPO_ROOT / "roles/reverse_proxy/templates/traefik_container.sh.j2"
+        ).read_text(encoding="utf-8")
+        self.assertIn("(index .Subnets 0).Gateway", script, "the gateway is read at each start")
+        self.assertIn("{{ traefik_egress_network }}", script)
+        self.assertIn("/etc/resolv.conf:Z,ro", script)
+        self.assertIn(
+            '"${resolv_mount[@]}"',
+            script.split("exec /usr/bin/podman run")[1],
+            "an unreadable gateway must not stop Traefik",
+        )
+
+    def test_reboot_is_delayed_and_its_failure_fails_the_run(self):
+        plays = yaml.safe_load((REPO_ROOT / "reboot_vms.yml").read_text(encoding="utf-8"))
+        task = plays[0]["tasks"][0]
+        self.assertIn("+1", task["ansible.builtin.command"], "the runner lives on VM1")
+        self.assertNotIn("poll", task, "with poll: 0 a failed shutdown reports success")
+        self.assertNotIn("async", task)
+
+    def test_show_logs_covers_every_container_and_changes_nothing(self):
+        play = yaml.safe_load((REPO_ROOT / "show_logs.yml").read_text(encoding="utf-8"))[0]
+        shown = {
+            task["vars"]["show_logs_container"]: task
+            for task in play["tasks"]
+            if "ansible.builtin.import_tasks" in task
+        }
+        started = set()
+        for template in (REPO_ROOT / "roles").glob("*/templates/*.j2"):
+            started.update(
+                re.findall(r"--name[= ]([a-z_]+) ", template.read_text(encoding="utf-8"))
+            )
+        self.assertEqual(set(shown), started, "a new container needs a section here")
+        for name, task in shown.items():
+            self.assertEqual(task["tags"], [name], "the tag is how a template picks it")
+            unit = task["vars"]["show_logs_unit"] + ".service.j2"
+            self.assertTrue(list((REPO_ROOT / "roles").glob(f"*/templates/{unit}")), unit)
+        reads = [t for t in play["tasks"] if "ansible.builtin.shell" in t]
+        reads += yaml.safe_load(
+            (REPO_ROOT / "standalone_tasks/show_service_logs.yml").read_text(encoding="utf-8")
+        )[:1]
+        for task in reads:
+            self.assertIs(task["changed_when"], False)
+            self.assertIs(task["failed_when"], False, "a stopped service is what it reports")
+            self.assertIs(task["check_mode"], False, "or check mode shows nothing")
+
     def test_nextcloud_permission_normalization_uses_one_idempotent_walk(self):
         tasks = yaml.safe_load(
             (REPO_ROOT / "roles" / "nextcloud" / "tasks" / "main.yml").read_text(
@@ -544,6 +637,7 @@ class SharedContainerNetworkTests(unittest.TestCase):
             "{{ playbook_runner_egress_network }}": False,
         },
         "music_server": {"music_server_container_net": True},
+        "homedrive": {"homedrive_container_net": True},
         "reverse_proxy": {
             "{{ traefik_egress_network }}": False,
             "{{ route_proxy_network_name }}": True,
@@ -753,8 +847,20 @@ class NetworkPlanTests(unittest.TestCase):
         self.assertFalse(set(static.values()) & set(traefik))
         self.assertTrue(set(self.plan["route_proxy_container_ips"].values()) <= set(static.values()))
 
+    def all_routes(self):
+        return self.plan["proxy_routes"] + self.plan["homedrive_routes"]
+
+    def test_homedrive_route_exists_only_when_enabled(self):
+        """Without homedrive_deploy, Traefik must get no route, network, or
+        certificate for homedrive."""
+        self.assertEqual(
+            self.plan["proxy_config"],
+            "{{ proxy_routes + (homedrive_routes if homedrive_enabled | bool else []) }}",
+        )
+        self.assertNotIn("homedrive_proxy", [r["name"] for r in self.plan["proxy_routes"]])
+
     def test_routes_cover_every_route_network(self):
-        routes = self.plan["proxy_config"]
+        routes = self.all_routes()
         names = [r["name"] for r in routes]
         self.assertEqual(len(set(names)), len(names))
         self.assertEqual(
@@ -767,12 +873,12 @@ class NetworkPlanTests(unittest.TestCase):
 
     def test_every_route_is_management_only(self):
         """VM1 serves only the user LAN and the VPN (management_network)."""
-        for route in self.plan["proxy_config"]:
+        for route in self.all_routes():
             with self.subTest(route=route["name"]):
                 self.assertIs(route.get("proxy_management_only"), True)
 
     def test_music_route_is_unlogged(self):
-        route = next(r for r in self.plan["proxy_config"] if r["name"] == "music_server_proxy")
+        route = next(r for r in self.all_routes() if r["name"] == "music_server_proxy")
         self.assertIs(route["proxy_access_log"], False)
 
     def test_role_defaults_agree_with_the_plan(self):
@@ -880,6 +986,131 @@ class MusicServerTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         self.assertIn("proxy_access_log", template)
         self.assertIn("accessLogs: false", template)
+
+
+class HomedriveTests(unittest.TestCase):
+    """Guards for the first-party file sync server.
+
+    Its store must never be created by accident: an unmounted disk looks
+    like an empty directory, so creating the store is an explicit, one-run
+    flag, and the role refuses a store path without a store.id otherwise.
+    """
+
+    def setUp(self):
+        self.tasks = role_tasks("homedrive")
+        self.script = (
+            REPO_ROOT / "roles" / "homedrive" / "templates" / "homedrive.sh.j2"
+        ).read_text(encoding="utf-8")
+        self.play = yaml.safe_load((REPO_ROOT / "vm1.yml").read_text(encoding="utf-8"))[0]
+
+    def test_paths_the_drill_deletes_cannot_overlap_kept_data(self):
+        """The drill empties its scratch space; the role refuses a scratch,
+        store, backup or export path inside another."""
+        assert_task = role_tasks("homedrive")[1]["ansible.builtin.assert"]
+        joined = "\n".join(assert_task["that"])
+        self.assertIn(
+            "[homedrive_path, homedrive_borg_repo, homedrive_drill_path, homedrive_export_path] | homelab_paths_disjoint",
+            joined,
+        )
+        self.assertIn("homedrive_trash_days | int >= 7", joined)
+        self.assertIn("homedrive_keep_all_days | int >= 7", joined)
+
+    def test_role_is_off_unless_enabled(self):
+        self.assertIs(role_defaults("homedrive")["homedrive_enabled"], False)
+        first = self.tasks[0]
+        self.assertEqual(first.get("ansible.builtin.meta"), "end_role")
+        self.assertIn("homedrive_enabled", first["when"])
+
+    def test_backup_reads_metadata_first_and_leaves_out_the_history(self):
+        """A journal copied after the objects can name objects the copy
+        lacks; a restored store that kept its history.id would let sync
+        clients trust a history the restore went back on."""
+        backup = (
+            REPO_ROOT / "roles" / "homedrive" / "templates" / "backup_homedrive.sh.j2"
+        ).read_text(encoding="utf-8")
+        self.assertIn('PATHS=("$STORE/meta")', backup)
+        self.assertIn('[ "$entry" != "$STORE/meta" ]', backup)
+        self.assertIn('"${PATHS[@]}"', backup)
+        self.assertIn('--exclude "$STORE/history.id"', backup)
+        checkpoint = backup.index("hd-server checkpoint")
+        self.assertLess(checkpoint, backup.index("borg create"))
+
+    def test_repair_helper_is_installed_root_only(self):
+        task = next(t for t in self.tasks if t.get("name") == "Homedrive repair helper for disk damage")
+        template = task["ansible.builtin.template"]
+        self.assertEqual(template["dest"], "/usr/local/bin/homedrive_repair.sh")
+        self.assertEqual((template["owner"], template["mode"]), ("root", "0700"))
+
+    def test_vm1_needs_both_the_inventory_flag_and_a_locked_image(self):
+        enabled = self.play["vars"]["homedrive_enabled"]
+        self.assertIn("homedrive_deploy | default(false) | bool", enabled)
+        self.assertIn("'approved_digest' in artifact_locked_images.homedrive | default({})", enabled)
+        self.assertIn("[homedrive_image] if homedrive_enabled", self.play["vars"]["approved_container_images"])
+        self.assertIn("['homedrive'] if homedrive_enabled", self.play["vars"]["container_service_names"])
+        roles = self.play["roles"]
+        self.assertLess(roles.index("reverse_proxy"), roles.index("homedrive"))
+        self.assertLess(roles.index("homedrive"), roles.index("standard_cleanup"))
+
+    def test_the_store_is_created_only_on_request(self):
+        self.assertIs(role_defaults("homedrive")["homedrive_init_store"], False)
+        init = next(t for t in self.tasks if "Create the homedrive store (first" in t["name"])
+        self.assertIn("homedrive_init_store | bool", init["when"])
+        self.assertIn("not homedrive_store_id.stat.exists", init["when"])
+        refuse = next(t for t in self.tasks if t["name"] == "Refuse a store path that is not a store")
+        self.assertIn(
+            "homedrive_store_id.stat.exists or homedrive_init_store | bool",
+            refuse["ansible.builtin.assert"]["that"],
+        )
+        create = next(t for t in self.tasks if t["name"] == "Create the homedrive store directory")
+        self.assertNotIn("recurse", create["ansible.builtin.file"])
+
+    def test_users_file_carries_quotas_and_validates_them(self):
+        render = next(t for t in self.tasks if t["name"] == "Homedrive users file source")
+        self.assertIn("'quota_gb'", render["ansible.builtin.copy"]["content"])
+        validate = next(t for t in self.tasks if t["name"].startswith("Validate homedrive inputs"))
+        checks = "\n".join(validate["ansible.builtin.assert"]["that"])
+        self.assertIn("rejectattr('quota_gb', 'defined')", checks, "every account needs a quota")
+
+    def test_backup_passphrase_is_root_only_and_hidden(self):
+        task = next(t for t in self.tasks if t["name"] == "Homedrive backup passphrase")
+        self.assertIs(task.get("no_log"), True)
+        self.assertEqual(task["ansible.builtin.copy"]["mode"], "0600")
+        self.assertEqual(role_defaults("homedrive")["homedrive_borg_passphrase"], "", "unencrypted unless asked")
+
+    def test_secret_tasks_hide_their_values(self):
+        for task in self.tasks:
+            text = yaml.safe_dump(task)
+            if "homedrive_users" in text and ("content" in text or "assert" in text):
+                with self.subTest(task=task["name"]):
+                    self.assertIs(task.get("no_log"), True)
+
+    def test_container_is_hardened_and_internal(self):
+        for flag in (
+            "--pull=never",
+            "--read-only",
+            "--cap-drop=ALL",
+            "--security-opt=no-new-privileges:true",
+            "--memory={{ homedrive_memory }}",
+            "--memory-swap={{ homedrive_memory }}",
+            "--tmpfs /tmp:rw,noexec,nosuid,nodev",
+            "--secret homedrive_users,target=/run/secrets/",
+        ):
+            with self.subTest(flag=flag):
+                self.assertIn(flag, self.script)
+        self.assertNotIn("--cap-add", self.script)
+        self.assertNotRegex(self.script, r"(^|\s)-p ")
+        self.assertEqual(self.script.count("--network="), 1)
+        self.assertIn("--network=homedrive_container_net:", self.script)
+
+    def test_images_pull_anonymously(self):
+        """Every approved image, homedrive's included, is public: VM1 holds
+        no registry credentials."""
+        tasks = role_tasks("standard_podman")
+        pull = next(t for t in tasks if t["name"] == "Pull approved images into the local podman store")
+        self.assertEqual(pull["ansible.builtin.command"]["argv"], ["podman", "pull", "{{ item.item }}"])
+        self.assertNotIn("container_registry_credentials", role_defaults("standard_podman") or {})
+        for task in tasks:
+            self.assertNotIn("registry-auth", str(task))
 
 
 class ContainerNetworkMigrationTests(unittest.TestCase):

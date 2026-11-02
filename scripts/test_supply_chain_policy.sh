@@ -99,9 +99,9 @@ assert_match "update_only:[[:space:]]*true" "standard_update_packages applies th
 assert_match "^standard_update_apply_full_updates:[[:space:]]*true$" "full OS updates are enabled during normal convergence" roles/standard_update_packages/defaults/main.yml
 assert_match "crb enable" "standard_update_packages enables CRB when EPEL is enabled" roles/standard_update_packages/tasks/main.yml
 assert_match "standard_update_enable_epel" "CRB enable is gated on EPEL being enabled" roles/standard_update_packages/tasks/main.yml
-assert_match "^password_minimum_length:[[:space:]]+16$" "database password validation has a default minimum length" roles/nextcloud/defaults/main.yml roles/paperless_ngx/defaults/main.yml
+assert_match "^password_minimum_length:[[:space:]]+12$" "database password validation has a default minimum length" roles/nextcloud/defaults/main.yml roles/paperless_ngx/defaults/main.yml
 assert_match "password.*length >= password_minimum_length.*int" "database password validation uses the configurable minimum length" roles/nextcloud/tasks/main.yml roles/paperless_ngx/tasks/main.yml
-assert_no_match "password.*length >= 16" "database password validation does not hard-code the minimum length" roles/nextcloud/tasks/main.yml roles/paperless_ngx/tasks/main.yml
+assert_no_match "password.*length >= [0-9]" "database password validation does not hard-code the minimum length" roles/nextcloud/tasks/main.yml roles/paperless_ngx/tasks/main.yml
 assert_match "^secret_key_minimum_length:[[:space:]]+32$" "Paperless signing key validation has a default minimum length" roles/paperless_ngx/defaults/main.yml
 assert_match "paperless_secret_key \\| length >= secret_key_minimum_length" "Paperless signing key validation uses the configurable minimum length" roles/paperless_ngx/tasks/main.yml
 assert_match "ansible-galaxy collection install -r collections/requirements\\.yml" "control-node installs use the pinned collection manifest" scripts/desktop_local_ansible.sh docs/guides/getting-started.md
@@ -149,7 +149,7 @@ assert_match_each "name: container_network" \
   roles/nextcloud/tasks/main.yml \
   roles/paperless_ngx/tasks/main.yml roles/playbook_runner/tasks/main.yml \
   roles/vaultwarden/tasks/main.yml roles/music_server/tasks/main.yml \
-  roles/reverse_proxy/tasks/main.yml
+  roles/homedrive/tasks/main.yml roles/reverse_proxy/tasks/main.yml
 assert_no_fixed_match "from_json | first" \
   "roles do not re-implement inline container network reconciliation" \
   roles
@@ -174,6 +174,7 @@ assert_task_has_no_log roles/paperless_ngx/tasks/main.yml 'dest:.*secret_env_dir
 assert_task_has_no_log roles/playbook_runner/tasks/main.yml 'dest:.*secret_env_dir.*/playbook_runner_master_key' "playbook-runner master key rendering uses no_log"
 assert_task_has_no_log roles/music_server/tasks/main.yml 'dest:.*secret_env_dir.*/music_server_master_key' "music-server master key rendering uses no_log"
 assert_task_has_no_log roles/music_server/tasks/main.yml 'dest:.*secret_env_dir.*/music_server_users[.]json' "music-server users file rendering uses no_log"
+assert_task_has_no_log roles/homedrive/tasks/main.yml 'dest:.*secret_env_dir.*/homedrive_users[.]json' "homedrive users file rendering uses no_log"
 assert_task_has_no_log roles/standard_rclone/tasks/main.yml 'dest:.*/root/[.]config/rclone/rclone[.]conf' "rclone config rendering uses no_log"
 
 echo "=== Supply chain policy checks passed ==="

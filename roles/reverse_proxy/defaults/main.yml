@@ -1,9 +1,9 @@
 ---
 # reverse_proxy role defaults
-# This role deploys Traefik v3 on VM1.  All variables below are required.
+# This role deploys Traefik v3 on VM1.  Variables left empty below are required.
 
 # Path to the Traefik container configuration directory
-traefik_path: ""
+traefik_path: /traefik
 
 # Non-internal Podman network Traefik uses for ACME DNS-01 and outbound proxy needs.
 traefik_egress_network: traefik_egress_net
@@ -15,6 +15,7 @@ route_proxy_network_subnets:
   vaultwarden_container_net: 172.16.1.16/29
   playbook_runner_container_net: 172.16.1.56/29
   music_server_container_net: 172.16.1.48/29
+  homedrive_container_net: 172.16.1.64/29
 
 # Route networks that can carry the Ansible control-plane container.
 # The reverse_proxy role may create these when absent, but destructive
@@ -41,6 +42,11 @@ porkbun_api_key_secret: ""
 # Root-only directory for runtime environment files
 secret_env_dir: /etc/homelab/secrets
 
+# How long Traefik waits for a whole request, body included. Traefik v3's
+# default (60s) cuts off any upload that takes longer, such as a large
+# WebDAV PUT to homedrive over a slow link. "0s" removes the limit.
+traefik_read_timeout: 60s
+
 # Traefik image reference resolved from the approved artifact lock in vm1.yml
 traefik_image: ""
 
@@ -53,6 +59,7 @@ container_dns:
     vaultwarden_proxy: vaultwarden-proxy
     playbook_runner_proxy: playbook-runner-proxy
     music_server_proxy: music-server-proxy
+    homedrive_proxy: homedrive-proxy
     traefik_proxy: traefik-proxy
     traefik_egress: traefik-egress
 
@@ -67,6 +74,7 @@ route_proxy_traefik_ips:
   vaultwarden_container_net: 172.16.1.19
   playbook_runner_container_net: 172.16.1.59
   music_server_container_net: 172.16.1.51
+  homedrive_container_net: 172.16.1.67
 
 # Static container IPs used by Traefik /etc/hosts entries for proxied
 # backends. Keys match proxy_config[*].proxy_network.
@@ -76,6 +84,7 @@ route_proxy_container_ips:
   vaultwarden_container_net: 172.16.1.18
   playbook_runner_container_net: 172.16.1.58
   music_server_container_net: 172.16.1.50
+  homedrive_container_net: 172.16.1.66
 
 # Management network CIDR allowed to reach the Traefik dashboard (used in ip-allowlist middleware)
 management_network: []

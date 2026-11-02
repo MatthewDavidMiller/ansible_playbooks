@@ -6,6 +6,8 @@
     that:
       - secret_env_dir | homelab_safe_absolute_path
       - nextcloud_path | homelab_safe_absolute_path
+      - nextcloud_disk_mount_path | homelab_safe_absolute_path
+      - nextcloud_path.startswith(nextcloud_disk_mount_path ~ '/')
       - nextcloud_borg_backup_path | homelab_safe_absolute_path
       - postgres_image | homelab_immutable_digest_ref
       - redis_image | homelab_immutable_digest_ref
@@ -19,7 +21,9 @@
       - password_minimum_length | int >= 1
       - postgres_admin_password | length >= password_minimum_length | int
       - nextcloud_db_password | length >= password_minimum_length | int
-    fail_msg: Configure safe paths, immutable images, valid networks, and strong Nextcloud database secrets.
+    fail_msg: >-
+      Configure safe paths with nextcloud_path inside nextcloud_disk_mount_path,
+      immutable images, valid networks, and strong Nextcloud database secrets.
   no_log: true
 
 - name: Reconcile Nextcloud backend network
@@ -96,6 +100,25 @@
     group: "999"
     mode: "0750"
 
+# The disk is shared with homedrive, so its mount point is its own path and
+# nextcloud_path sits inside it. Mount before touching nextcloud_path: created
+# first, the directory would land on the OS disk under the mount point.
+- name: Mount the data disk
+  ansible.posix.mount:
+    path: "{{ nextcloud_disk_mount_path }}"
+    src: "{{ nextcloud_disk }}"
+    fstype: ext4
+    opts: rw,auto
+    state: mounted
+
+- name: Set data disk root ownership
+  ansible.builtin.file:
+    path: "{{ nextcloud_disk_mount_path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
 - name: Create Nextcloud container path
   ansible.builtin.file:
     path: "{{ nextcloud_path }}"
@@ -103,14 +126,6 @@
     owner: "{{ nextcloud_uid }}"
     group: "{{ nextcloud_gid }}"
     mode: "0770"
-
-- name: Mount Disk for backups
-  ansible.posix.mount:
-    path: "{{ nextcloud_path }}"
-    src: "{{ nextcloud_disk }}"
-    fstype: ext4
-    opts: rw,auto
-    state: mounted
 
 - name: Create Nextcloud base container path
   ansible.builtin.file:

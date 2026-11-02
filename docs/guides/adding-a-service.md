@@ -26,7 +26,7 @@ Use the existing active service roles as reference:
 - Use `podman run --pull=never`; `standard_podman` is responsible for pre-pulling approved digest refs.
 - Use `:Z` on container-mounted host paths.
 - Put the service on its own Podman network when it needs isolation, and create it by including the shared [`container_network`](../roles/standard.md#container_network) role. Do not re-implement `podman network inspect`/`create` in the service role; `tests/test_ansible_regressions.py` fails the build if a role does.
-- If the service is proxied by Traefik, add an entry to `proxy_config` in [`network/vm1.yml`](../../network/vm1.yml), with `proxy_fqdn: "<name>.{{ homelab_internal_domain }}"`, instead of creating a per-service reverse-proxy template.
+- If the service is proxied by Traefik, add an entry to `proxy_routes` in [`network/vm1.yml`](../../network/vm1.yml), with `proxy_fqdn: "<name>.{{ homelab_internal_domain }}"`, instead of creating a per-service reverse-proxy template.
 - Add the service image to `artifacts/containers.lock.yml` and to `approved_container_images` resolution in `vm1.yml`.
 
 ---

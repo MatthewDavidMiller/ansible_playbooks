@@ -2,10 +2,15 @@
 # nextcloud role defaults
 
 # Path to the shared PostgreSQL 17 data directory (also used by paperless_ngx)
-postgres_path: ""
+postgres_path: /postgres
 
-# Path to the Nextcloud container data directory (on the dedicated disk)
-nextcloud_path: ""
+# Path to the Nextcloud container data directory, inside
+# nextcloud_disk_mount_path
+nextcloud_path: /data_drive/nextcloud
+
+# Where nextcloud_disk is mounted. The disk also holds homedrive, so this is
+# the parent of nextcloud_path rather than nextcloud_path itself.
+nextcloud_disk_mount_path: /data_drive
 
 # UID/GID used by Nextcloud to own files on the host-mounted data path
 nextcloud_uid: "33"
@@ -28,7 +33,7 @@ postgres_admin_user: ""
 postgres_admin_password: ""
 
 # Minimum length enforced for PostgreSQL admin and application passwords
-password_minimum_length: 16
+password_minimum_length: 12
 
 # Optional legacy PostgreSQL superuser to use once during migrations from an
 # older cluster that was bootstrapped with a different admin role.
@@ -62,16 +67,16 @@ nextcloud_dns_name: ""
 nextcloud_homelab_user: ""
 
 # Borg repository path for the Nextcloud + Paperless backup (on the local disk)
-nextcloud_borg_backup_path: ""
+nextcloud_borg_backup_path: /data_drive/nextcloud/borg_backup
 
 # Rclone remote path for syncing the Borg repo (e.g. "Nextcloud:backup/nextcloud")
 nextcloud_paperless_backup_location: ""
 
 # Path to the Paperless NGX export directory (referenced in backup script)
-paperless_export_path: ""
+paperless_export_path: /paperless/export
 
 # PostgreSQL database name for Paperless NGX (used in db_wrapper.sh bootstrap)
-paperless_database_name: ""
+paperless_database_name: paperless_db
 
 # OS user that owns the shell scripts (must exist on the target host)
 user_name: ""

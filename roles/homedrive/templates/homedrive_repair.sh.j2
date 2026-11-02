@@ -1,0 +1,41 @@
+#!/bin/bash
+# Repair the homedrive store after disk damage: every missing, damaged or
+# unreadable object is replaced with a verified copy from another copy of
+# the store, or from the store's own quarantine. Objects are named by
+# their SHA-256, so any backup that holds them will do, however old.
+#
+# Extract a backup's store directory to scratch space first (borg extract;
+# a FUSE `borg mount` cannot carry the SELinux label the container needs),
+# then pass that directory. With no directory, only the quarantine is
+# searched (a disk that failed to read something once and reads it now).
+#
+# The server is stopped for the repair (the store has one writer) and
+# started again afterwards. The sources are mounted read-only.
+#
+# Usage: homedrive_repair.sh [store copy directory]...
+set -euo pipefail
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+mounts=()
+sources=()
+i=0
+for src in "$@"; do
+    if [ ! -d "$src" ]; then
+        echo "Not a directory: $src" >&2
+        exit 2
+    fi
+    mounts+=(--volume "$src:/repair/$i:ro,z")
+    sources+=(--from "/repair/$i")
+    i=$((i + 1))
+done
+
+/usr/bin/systemctl stop homedrive.service
+status=0
+/usr/bin/podman run --rm --pull=never --network=none \
+    --user {{ homedrive_uid }}:{{ homedrive_gid }} \
+    --volume {{ homedrive_path }}:/var/lib/homedrive:Z \
+    "${mounts[@]}" \
+    --read-only --cap-drop=ALL --security-opt=no-new-privileges:true \
+    {{ homedrive_image }} repair "${sources[@]}" || status=$?
+/usr/bin/systemctl start homedrive.service
+exit "$status"

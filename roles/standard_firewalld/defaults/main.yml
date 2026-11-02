@@ -2,7 +2,7 @@
 # standard_firewalld role defaults
 
 # Network interface name assigned to the public firewalld zone (e.g. "eth0", "ens3")
-default_interface: ""
+default_interface: eth0
 
 # Management network CIDR added as a trusted source to the homelab zone
 management_network: []

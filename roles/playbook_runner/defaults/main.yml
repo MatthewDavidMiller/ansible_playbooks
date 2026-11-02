@@ -11,7 +11,7 @@ playbook_runner_enabled: false
 
 # Host directory holding the runner's persistent state (records, sealed
 # secrets, run logs). Owned by the container user, mode 0700.
-playbook_runner_path: ""
+playbook_runner_path: /playbook-runner
 
 # The 256-bit master key, as 64 hex digits (`playbook-runner gen-key`).
 # Every stored secret and inventory is sealed under keys derived from it;
@@ -41,10 +41,11 @@ playbook_runner_backup_location: ""
 
 # When true, backups are written directly to the local Nextcloud data directory
 # instead of being uploaded via rclone.
-backup_local: false
+backup_local: true
 
-# Path to Nextcloud data root (required when backup_local is true)
-nextcloud_path: ""
+# Path to Nextcloud data root, read when backup_local is true. Keep in step
+# with the nextcloud role's default.
+nextcloud_path: /data_drive/nextcloud
 
 # Nextcloud username whose files directory is used as the backup destination
 nextcloud_homelab_user: ""

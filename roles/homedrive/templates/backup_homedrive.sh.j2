@@ -1,0 +1,101 @@
+#!/bin/bash
+set -uo pipefail
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# A checkpoint first makes the newest metadata snapshot current. Chunks and
+# manifests never change once written, so Borg deduplicates them across
+# runs; a backup taken while the server runs is restorable (recovery sets
+# aside at most a torn journal tail).
+#
+# meta/ is archived before everything else. The server stores an object
+# before it writes the journal record naming it, so a journal read first
+# can only name objects that exist by the time Borg reaches them; read the
+# other way round, it could name objects written after Borg passed their
+# folder, and the restored files would be missing their contents.
+# history.id is left out, so a restored store starts a new history and
+# every sync client compares its files afresh rather than trusting what it
+# saw of the history the restore went back on.
+#
+# Every run is reported to homedrive, which tells the administrators when
+# a run fails or the backups stop. On Sundays the repository is checked end
+# to end and the restore drill (homedrive_restore_drill.sh) proves the
+# newest archive restores to plain files that match the drive.
+
+umask 077
+REPO={{ homedrive_borg_repo | quote }}
+{% if homedrive_borg_passphrase | length > 0 %}
+# The repository is encrypted; Borg reads its passphrase from a root-only
+# file, never the command line.
+export BORG_PASSCOMMAND="/usr/bin/cat {{ secret_env_dir }}/homedrive_borg_passphrase"
+{% endif %}
+STORE={{ homedrive_path | quote }}
+LOG=/var/log/homedrive_backup.log
+
+# report KIND (--ok | --failed) MESSAGE: homedrive tells the administrators.
+report() {
+    /usr/bin/podman exec homedrive hd-server report-backup --kind "$1" "$2" --message "$3" \
+        || echo "could not report to homedrive"
+}
+
+# The store's top-level entries, meta/ first.
+store_paths() {
+    PATHS=("$STORE/meta")
+    for entry in "$STORE"/* "$STORE"/.[!.]*; do
+        [ -e "$entry" ] && [ "$entry" != "$STORE/meta" ] && PATHS+=("$entry")
+    done
+}
+EXCLUDES=(--exclude "$STORE/tmp" --exclude "$STORE/admin.sock" --exclude "$STORE/history.id")
+
+local_backup() {
+    echo "== $(/usr/bin/date --iso-8601=seconds)"
+    fail() { echo "backup failed: $1"; report local --failed "$1"; return 1; }
+    if [ ! -f "$REPO/config" ]; then
+        /usr/bin/mkdir -p "$REPO" || { fail "cannot create the repository directory $REPO"; return 1; }
+        /usr/bin/borg init --encryption={{ 'repokey-blake2' if homedrive_borg_passphrase | length > 0 else 'none' }} "$REPO" \
+            || { fail "borg init failed"; return 1; }
+{% if homedrive_borg_passphrase | length > 0 %}
+    elif /usr/bin/borg info --json --lock-wait 3600 "$REPO" | /usr/bin/grep -q '"mode": "none"'; then
+        # A passphrase cannot encrypt a repository after the fact.
+        fail "a passphrase is set but $REPO is not encrypted; give homedrive_borg_repo a new path"
+        return 1
+{% endif %}
+    fi
+    /usr/bin/podman exec homedrive hd-server checkpoint || { fail "the checkpoint failed"; return 1; }
+    store_paths
+    local archive
+    archive="homedrive-$(/usr/bin/date +%Y-%m-%d)"
+    /usr/bin/borg create --stats --lock-wait 3600 "$REPO::$archive" "${PATHS[@]}" "${EXCLUDES[@]}" \
+        || { fail "borg create failed (see $LOG)"; return 1; }
+    /usr/bin/borg prune --lock-wait 3600 --keep-daily 7 --keep-weekly 4 --keep-monthly 6 "$REPO" \
+        || { fail "borg prune failed (see $LOG)"; return 1; }
+    /usr/bin/borg compact --lock-wait 3600 "$REPO" || { fail "borg compact failed (see $LOG)"; return 1; }
+    if [ "$(/usr/bin/date +%u)" = 7 ]; then
+        # A failing backup disk shows up here rather than on the day the
+        # backup is needed.
+        /usr/bin/borg check --lock-wait 3600 "$REPO" \
+            || { fail "borg check found damage (see $LOG)"; return 1; }
+    fi
+    # A backup on the store's own disk dies with it. The archive is kept,
+    # and the administrators are told until the repository moves.
+    if [ "$(/usr/bin/stat -c %d "$STORE")" = "$(/usr/bin/stat -c %d "$REPO")" ]; then
+        echo "backup is on the store's disk"
+        report local --failed "archive $archive was made, but $REPO is on the same disk as the store, so one disk failure loses both; give homedrive_borg_repo a path on another disk"
+        return 0
+    fi
+    report local --ok "archive $archive"
+}
+
+status=0
+{% if homedrive_drill_path | length > 0 %}
+local_ok=true
+local_backup >> "$LOG" 2>&1 || { status=1; local_ok=false; }
+{% else %}
+local_backup >> "$LOG" 2>&1 || status=1
+{% endif %}
+{% if homedrive_drill_path | length > 0 %}
+# On Sundays, prove the newest local archive restores (it reports itself).
+if [ "$local_ok" = true ] && [ "$(/usr/bin/date +%u)" = 7 ]; then
+    /usr/local/bin/homedrive_restore_drill.sh || status=1
+fi
+{% endif %}
+exit "$status"

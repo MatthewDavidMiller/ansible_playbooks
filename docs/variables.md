@@ -21,10 +21,10 @@ Define these under `all.vars`, `homelab.vars`, or on each applicable host.
 |---|---|---|---|---|
 | `ansible_host` | string | Yes, per host | Address Ansible uses to connect to `vm1`. | `192.168.1.120` |
 | `user_name` | string | Yes | Existing non-root login and script owner. The playbooks add it to the SSH allowlist. | `example_user` |
-| `default_interface` | string | Yes | Host interface assigned to the public firewalld zone. | `ens18` |
+| `default_interface` | string | No | Host interface assigned to the public firewalld zone. | `eth0` (default) |
 | `management_network` | list | Yes | Trusted management IPv4 CIDRs. | `["192.168.1.0/24"]` |
 | `ip_ansible` | string | Yes | Ansible controller address in IPv4 CIDR notation. | `192.168.1.10/32` |
-| `ansible_become` | boolean | No | Enables privilege escalation. | `true` |
+| `ansible_become` | boolean | Yes | Enables privilege escalation; the playbooks set no play-level `become`. | `true` |
 | `ansible_become_method` | string | No | Privilege-escalation method. | `sudo` |
 | `secret_env_dir` | path | No | Root-only directory for rendered service environment files. | `/etc/homelab/secrets` |
 
@@ -45,7 +45,7 @@ VM1 runs the service stack. All variables in this section need real values for
 | `homelab_subdomain` | string | Yes | Record below `homelab_domain` updated with the WAN address. | `home` |
 | `porkbun_api_key` | string | Yes, secret | Porkbun API key used by DDNS and ACME DNS-01. | Ansible Vault value |
 | `porkbun_api_key_secret` | string | Yes, secret | Porkbun API secret. | Ansible Vault value |
-| `traefik_path` | path | Yes | Traefik configuration and data root. | `/path/to/traefik` |
+| `traefik_path` | path | No | Traefik configuration and data root. | `/traefik` (default) |
 | `traefik_dashboard_fqdn` | string | Yes | Unique dashboard hostname. | `traefik.example.com` |
 | `traefik_dashboard_basic_auth_users` | list | Yes, secret | One or more `user:htpasswd-hash` entries. | `["admin:$apr1$..."]` |
 | `traefik_acme_email` | string | Yes | ACME account email address. | `admin@example.com` |
@@ -62,11 +62,12 @@ YAML so its dollar signs are preserved.
 
 | Variable | Type | Required | Description | Example/default |
 |---|---|---|---|---|
-| `postgres_path` | path | Yes | Shared PostgreSQL data root. | `/path/to/postgres` |
+| `postgres_path` | path | No | Shared PostgreSQL data root. | `/postgres` (default) |
 | `postgres_admin_user` | string | Yes | PostgreSQL bootstrap/admin role. | `postgres_admin` |
 | `postgres_admin_password` | string | Yes, secret | PostgreSQL admin password; must satisfy `password_minimum_length`. | Ansible Vault value |
-| `nextcloud_path` | path | Yes | Nextcloud data root and disk mount point. | `/path/to/nextcloud` |
-| `nextcloud_disk` | string | Yes | Nextcloud filesystem device identifier. | `UUID=example-uuid` |
+| `nextcloud_path` | path | No | Nextcloud data root, inside `nextcloud_disk_mount_path`. | `/data_drive/nextcloud` (default) |
+| `nextcloud_disk` | string | Yes | Data disk filesystem device identifier. | `UUID=example-uuid` |
+| `nextcloud_disk_mount_path` | path | No | Data disk mount point, shared with homedrive. | `/data_drive` (default) |
 | `nextcloud_database_name` | string | Yes | Nextcloud database name. | `nextcloud` |
 | `nextcloud_db_user` | string | Yes | Nextcloud PostgreSQL role. | `nextcloud_user` |
 | `nextcloud_db_password` | string | Yes, secret | Nextcloud database password; must satisfy `password_minimum_length`. | Ansible Vault value |
@@ -75,11 +76,11 @@ YAML so its dollar signs are preserved.
 | `nextcloud_trusted_domains` | string | Yes | Space-separated trusted domains passed to Nextcloud. | `nextcloud.example.com` |
 | `nextcloud_dns_name` | string | Yes | Public Nextcloud FQDN. | `nextcloud.example.com` |
 | `nextcloud_homelab_user` | string | Yes when `backup_local` is `true` | Nextcloud account whose `files` tree receives local service backups. | `example_user` |
-| `nextcloud_borg_backup_path` | path | Yes | Local Borg repository for Nextcloud and Paperless. | `/path/to/nextcloud/borg/backup` |
+| `nextcloud_borg_backup_path` | path | No | Local Borg repository for Nextcloud and Paperless. | `/data_drive/nextcloud/borg_backup` (default) |
 | `nextcloud_paperless_backup_location` | string | Yes | rclone destination for the Nextcloud/Paperless Borg repository. | `Nextcloud:backup/nextcloud` |
-| `borg_backup_path` | path | Yes | Mount point and Borg repository root for the host backup disk. | `/path/to/borg_backup` |
+| `borg_backup_path` | path | No | Mount point and Borg repository root for the host backup disk. | `/borg_backups` (default) |
 | `backup_disk` | string | Yes | Host backup filesystem device identifier. | `UUID=example-backup-uuid` |
-| `backup_local` | boolean | Yes | `true` when Nextcloud is on VM1; `false` selects remote SSHFS backup inputs. | `true` |
+| `backup_local` | boolean | No | `true` when Nextcloud is on VM1; `false` selects remote SSHFS backup inputs. | `true` (default) |
 | `nextcloud_uid` | string | No | Host UID that owns Nextcloud files. | `33` (also fixed by `vm1.yml`) |
 | `nextcloud_gid` | string | No | Host GID that owns Nextcloud files. | `33` (also fixed by `vm1.yml`) |
 | `postgres_legacy_bootstrap_user` | string | Conditional | Old PostgreSQL admin used only during a cluster migration. | `""` |
@@ -108,12 +109,12 @@ When `backup_local: false`, also define the following variables:
 
 | Variable | Type | Required | Description | Example/default |
 |---|---|---|---|---|
-| `paperless_path` | path | Yes | Paperless base directory. | `/path/to/paperless` |
-| `paperless_data_path` | path | Yes | Application data directory. | `/path/to/paperless/data` |
-| `paperless_media_path` | path | Yes | Media directory. | `/path/to/paperless/media` |
-| `paperless_export_path` | path | Yes | Export directory included in backup. | `/path/to/paperless/export` |
-| `paperless_consume_path` | path | Yes | Document inbox directory. | `/path/to/paperless/consume` |
-| `paperless_database_name` | string | Yes | PostgreSQL database name. | `paperless` |
+| `paperless_path` | path | No | Paperless base directory. | `/paperless` (default) |
+| `paperless_data_path` | path | No | Application data directory. | `/paperless/data` (default) |
+| `paperless_media_path` | path | No | Media directory. | `/paperless/media` (default) |
+| `paperless_export_path` | path | No | Export directory included in backup. | `/paperless/export` (default) |
+| `paperless_consume_path` | path | No | Document inbox directory. | `/paperless/consume` (default) |
+| `paperless_database_name` | string | No | PostgreSQL database name. | `paperless_db` (default) |
 | `paperless_db_user` | string | Yes | PostgreSQL application role. | `paperless_user` |
 | `paperless_db_password` | string | Yes, secret | Database password; must satisfy `password_minimum_length`. | Ansible Vault value |
 | `paperless_secret_key` | string | Yes, secret | Django signing key rendered as `PAPERLESS_SECRET_KEY`; must satisfy `secret_key_minimum_length`. Paperless 3.0 dropped the built-in default and refuses to start without it. Generate with `python3 -c "import secrets; print(secrets.token_urlsafe(64))"`. | Ansible Vault value |
@@ -125,7 +126,7 @@ When `backup_local: false`, also define the following variables:
 | Variable | Type | Required | Description | Example/default |
 |---|---|---|---|---|
 | `playbook_runner_enabled` | boolean | Set by `vm1.yml` | Deploy playbook-runner. `vm1.yml` sets it to `true` as a play variable, so it cannot be overridden from inventory. | `true` on VM1 |
-| `playbook_runner_path` | path | Yes | Host data directory (owned by uid 10001, mode 0700). | `/srv/playbook-runner` |
+| `playbook_runner_path` | path | No | Host data directory (owned by uid 10001, mode 0700). | `/playbook-runner` (default) |
 | `playbook_runner_master_key` | string | Yes, secret | 64 hex digits from `playbook-runner gen-key`. Also keep a copy in Vaultwarden: the stored secrets cannot be recovered without it. | Ansible Vault value |
 | `playbook_runner_admin_password` | string | No, secret | Initial admin password, 12-128 characters. Empty means a one-time setup token is logged instead. | `""` |
 | `playbook_runner_backup_location` | string | Yes | Local label or rclone backup destination. | `Nextcloud:playbook_runner_backup` |
@@ -139,7 +140,7 @@ When `backup_local: false`, also define the following variables:
 | Variable | Type | Required | Description | Example/default |
 |---|---|---|---|---|
 | `music_server_enabled` | boolean | Set by `vm1.yml` | Deploy music-server. `vm1.yml` sets it to true once `artifacts/containers.lock.yml` has a reviewed `music_server` digest. | derived |
-| `music_server_path` | path | Yes | Host directory holding `data/` (sealed, backed up) and `cache/` (rebuildable). | `/srv/music-server` |
+| `music_server_path` | path | No | Host directory holding `data/` (sealed, backed up) and `cache/` (rebuildable). | `/music_server` (default) |
 | `music_server_music_path` | path | Yes | The library, mounted read-only. | `{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/Music` |
 | `music_server_master_key` | string | Yes, secret | 64 hex digits from `music-server gen-key`. Keep a copy in Vaultwarden. | Ansible Vault value |
 | `music_server_users` | list | Yes, secret | Accounts: `{name, password, admin}`. 1-50 entries, unique names of `A-Z a-z 0-9 . _ -`, 8-128 character passwords, at least one admin. A removed name is disabled with its data kept. | Ansible Vault value |
@@ -153,7 +154,7 @@ When `backup_local: false`, also define the following variables:
 
 | Variable | Type | Required | Description | Example/default |
 |---|---|---|---|---|
-| `vaultwarden_path` | path | Yes | Vaultwarden data root. | `/path/to/vaultwarden` |
+| `vaultwarden_path` | path | No | Vaultwarden data root. | `/vaultwarden` (default) |
 | `vaultwarden_backup_location` | string | Yes | Local label or rclone backup destination. | `Nextcloud:vaultwarden_backup` |
 | `vaultwarden_signups_allowed` | boolean | No | Must remain `false`; the role rejects public signup. | `false` |
 
@@ -198,9 +199,9 @@ They are listed here so every maintained role input is discoverable.
 
 | Variable | Type | Default | Purpose |
 |---|---|---|---|
-| `patching_minute` | string | `30` | Cron minute for the patching job. |
-| `patching_hour` | string | `12` | Cron hour. |
-| `patching_weekday` | string | `1` | Cron weekday. |
+| `patching_minute` | string | `0` | Cron minute for the patching job. |
+| `patching_hour` | string | `0` | Cron hour. |
+| `patching_weekday` | string | `0` | Cron weekday. |
 | `patching_month` | string | `*` | Cron month. |
 | `standard_cleanup_prune_podman_images` | boolean | `false` | Opts into pruning unused images. |
 | `standard_cleanup_prune_podman_containers` | boolean | `false` | Opts into pruning stopped containers. |
@@ -213,11 +214,11 @@ They are listed here so every maintained role input is discoverable.
 | `standard_ssh_streamlocal_forwarding_mode` | string | `no` | Unix-socket forwarding mode. |
 | `standard_ssh_max_sessions` | integer | `2` | Maximum SSH sessions per connection, from `1` through `100`. |
 | `standard_update_apply_full_updates` | boolean | `true` | Applies every available package update on each run; set `false` to skip patching for a one-off run. |
-| `standard_update_enable_epel` | boolean | `false` | Enables EPEL and CRB. |
+| `standard_update_enable_epel` | boolean | `true` | Enables EPEL and CRB. |
 | `nextcloud_normalize_user_files_permissions` | boolean | `true` | Normalizes permissions below every Nextcloud user's `files` tree. |
 | `nextcloud_user_files_directory_mode` | string | `0770` | Directory mode used during normalization. |
 | `nextcloud_user_files_file_mode` | string | `0660` | Regular-file mode used during normalization. |
-| `password_minimum_length` | integer | `16` | Minimum length for the validated PostgreSQL admin, Nextcloud database, and Paperless database passwords; must be at least `1`. |
+| `password_minimum_length` | integer | `12` | Minimum length for the validated PostgreSQL admin, Nextcloud database, and Paperless database passwords; must be at least `1`. |
 
 `apply_runtime_changes_on_reboot`, `approved_container_images`,
 `traefik_image`, `postgres_image`, `redis_image`, `nextcloud_image`,
@@ -235,6 +236,9 @@ the filename created below `/home/{{ user_name }}` (for example,
 
 ## Obsolete variables
 
-`locale`, `top_domain`, and `backup_host` are not referenced by any maintained
-playbook or role and do not need to be defined. The timezone is currently fixed
+`locale`, `top_domain`, `backup_host`, `swag_path`, `swag_dns_plugin`,
+`standard_update_apply_security_updates`, and the `container_patching_*`
+variables are not referenced by any maintained playbook or role and do not
+need to be defined. `apply_runtime_changes_on_reboot` and
+`standard_ssh_allow_users` are set by `vm1.yml`, which outranks inventory. The timezone is currently fixed
 to `US/Eastern` by `configure_timezone`.

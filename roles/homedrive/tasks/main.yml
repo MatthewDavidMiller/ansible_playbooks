@@ -1,0 +1,264 @@
+---
+- name: Skip homedrive unless it is enabled
+  ansible.builtin.meta: end_role
+  when: not (homedrive_enabled | bool)
+
+- name: Validate homedrive inputs before changing the host
+  ansible.builtin.assert:
+    that:
+      - homedrive_users | length > 0
+      - homedrive_users | length <= 50
+      - homedrive_users | map(attribute='name') | list | unique | length == homedrive_users | length
+      - homedrive_users | selectattr('admin', 'defined') | selectattr('admin') | list | length > 0
+      - homedrive_users | rejectattr('name', 'match', '^[A-Za-z0-9._-]{1,64}$') | list | length == 0
+      - homedrive_users | map(attribute='password') | map('length') | min >= 8
+      - homedrive_users | map(attribute='password') | map('length') | max <= 128
+      - homedrive_users | rejectattr('quota_gb', 'defined') | list | length == 0
+      - homedrive_users | map(attribute='quota_gb') | reject('integer') | list | length == 0
+      - homedrive_users | map(attribute='quota_gb') | select('lt', 1) | list | length == 0
+      - homedrive_path | homelab_safe_absolute_path
+      - homedrive_export_path == '' or homedrive_export_path | homelab_safe_absolute_path
+      - homedrive_exports == '' or homedrive_export_path != ''
+      - homedrive_borg_repo == '' or homedrive_borg_repo | homelab_safe_absolute_path
+      - homedrive_drill_path == '' or (homedrive_drill_path | homelab_safe_absolute_path and homedrive_borg_repo != '')
+      - homedrive_borg_passphrase == '' or homedrive_borg_passphrase | length >= 20
+      # The drill deletes its scratch space; nothing it deletes may share a
+      # tree with the store, the backups or the exports.
+      - "[homedrive_path, homedrive_borg_repo, homedrive_drill_path, homedrive_export_path] | homelab_paths_disjoint"
+      - secret_env_dir | homelab_safe_absolute_path
+      - homedrive_image | homelab_immutable_digest_ref
+      - homedrive_uid is match('^[0-9]+$')
+      - homedrive_gid is match('^[0-9]+$')
+      - homedrive_min_free_gb | int >= 0
+      - homedrive_keep_all_days | int >= 7
+      - homedrive_keep_all_days | int <= 36500
+      - homedrive_trash_days | int >= 7
+      - homedrive_trash_days | int <= 36500
+      - homedrive_memory is match('^[0-9]+[mg]$')
+      - route_proxy_network_subnets.homedrive_container_net | homelab_valid_ipv4_cidr
+      - container_static_ips.homedrive_proxy | homelab_container_assignable_ip(route_proxy_network_subnets.homedrive_container_net)
+      - route_proxy_traefik_ips.homedrive_container_net | homelab_container_assignable_ip(route_proxy_network_subnets.homedrive_container_net)
+    fail_msg: >-
+      Configure 1-50 users with unique safe names, 8-128 character passwords,
+      and at least one admin; safe paths, none inside another (an export
+      path when exports are set); retention of 7-36500 days; an immutable image (lock homedrive in
+      artifacts/containers.lock.yml); and a valid network.
+  no_log: true
+
+- name: Reconcile homedrive proxy network
+  ansible.builtin.include_role:
+    name: container_network
+  vars:
+    container_network_name: homedrive_container_net
+    container_network_subnet: "{{ route_proxy_network_subnets.homedrive_container_net }}"
+
+- name: Create homedrive secret directory
+  ansible.builtin.file:
+    path: "{{ secret_env_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Mount the homedrive disk
+  ansible.posix.mount:
+    path: "{{ homedrive_path }}"
+    src: "{{ homedrive_disk }}"
+    fstype: ext4
+    opts: rw,auto,nodev,nosuid,noexec
+    state: mounted
+  when: homedrive_disk | length > 0
+
+# Only ever creates the directory; ownership changes are limited to the top
+# level, so nothing inside an existing store is touched.
+- name: Create the homedrive store directory
+  ansible.builtin.file:
+    path: "{{ homedrive_path }}"
+    state: directory
+    owner: "{{ homedrive_uid }}"
+    group: "{{ homedrive_gid }}"
+    mode: "0700"
+
+- name: Label the homedrive store as container content
+  community.general.sefcontext:
+    target: "{{ homedrive_path }}(/.*)?"
+    setype: container_file_t
+    state: present
+
+- name: Create the homedrive export directory
+  ansible.builtin.file:
+    path: "{{ homedrive_export_path }}"
+    state: directory
+    owner: "{{ homedrive_uid }}"
+    group: "{{ homedrive_gid }}"
+    mode: "0755"
+  when: homedrive_export_path | length > 0
+
+- name: Homedrive users file source
+  ansible.builtin.copy:
+    content: >-
+      {{ {'version': 1, 'users': homedrive_users
+          | map('dict2items') | map('selectattr', 'key', 'in', ['name', 'password', 'admin', 'quota_gb'])
+          | map('items2dict') | list} | to_json }}
+    dest: "{{ secret_env_dir }}/homedrive_users.json"
+    owner: root
+    group: root
+    mode: "0600"
+  register: homedrive_users_file
+  no_log: true
+
+- name: Check for the homedrive users secret
+  ansible.builtin.command:
+    argv:
+      - podman
+      - secret
+      - exists
+      - homedrive_users
+  register: homedrive_secret_presence
+  check_mode: false
+  changed_when: false
+  failed_when: false
+
+- name: Create the homedrive users secret
+  ansible.builtin.command:
+    argv:
+      - podman
+      - secret
+      - create
+      - --replace
+      - homedrive_users
+      - "{{ secret_env_dir }}/homedrive_users.json"
+  when: homedrive_users_file is changed or homedrive_secret_presence.rc != 0
+  changed_when: true
+
+- name: Check whether the store exists
+  ansible.builtin.stat:
+    path: "{{ homedrive_path }}/store.id"
+  register: homedrive_store_id
+
+- name: Refuse a store path that is not a store
+  ansible.builtin.assert:
+    that:
+      - homedrive_store_id.stat.exists or homedrive_init_store | bool
+    fail_msg: >-
+      {{ homedrive_path }} has no store.id. If its disk is not mounted, mount
+      it. If this is the first deploy, set homedrive_init_store: true for
+      this one run.
+
+# `hd-server init` refuses a non-empty directory, so even with the flag set
+# this cannot adopt or overwrite anything.
+- name: Create the homedrive store (first deploy only)
+  ansible.builtin.command:
+    argv:
+      - podman
+      - run
+      - --rm
+      - --pull=never
+      - --network=none
+      - --user
+      - "{{ homedrive_uid }}:{{ homedrive_gid }}"
+      - --volume
+      - "{{ homedrive_path }}:/var/lib/homedrive:Z"
+      - --read-only
+      - --cap-drop=ALL
+      - --security-opt=no-new-privileges:true
+      - "{{ homedrive_image }}"
+      - init
+  when:
+    - homedrive_init_store | bool
+    - not homedrive_store_id.stat.exists
+  changed_when: true
+
+- name: Homedrive service
+  ansible.builtin.template:
+    src: homedrive.service.j2
+    dest: /etc/systemd/system/homedrive.service
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Enable homedrive
+  ansible.builtin.systemd:
+    name: homedrive.service
+    enabled: true
+    daemon_reload: true
+
+- name: Homedrive script
+  ansible.builtin.template:
+    src: homedrive.sh.j2
+    dest: /usr/local/bin/homedrive.sh
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Homedrive import helper for backup scripts
+  ansible.builtin.template:
+    src: homedrive_import_path.sh.j2
+    dest: /usr/local/bin/homedrive_import_path.sh
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Homedrive repair helper for disk damage
+  ansible.builtin.template:
+    src: homedrive_repair.sh.j2
+    dest: /usr/local/bin/homedrive_repair.sh
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Backup homedrive script
+  ansible.builtin.template:
+    src: backup_homedrive.sh.j2
+    dest: /usr/local/bin/backup_homedrive.sh
+    owner: root
+    group: root
+    mode: "0700"
+  when: homedrive_borg_repo | length > 0
+
+- name: Homedrive backup passphrase
+  ansible.builtin.copy:
+    content: "{{ homedrive_borg_passphrase }}"
+    dest: "{{ secret_env_dir }}/homedrive_borg_passphrase"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+  when: homedrive_borg_passphrase | length > 0
+
+- name: Homedrive restore drill script
+  ansible.builtin.template:
+    src: homedrive_restore_drill.sh.j2
+    dest: /usr/local/bin/homedrive_restore_drill.sh
+    owner: root
+    group: root
+    mode: "0700"
+  when: homedrive_drill_path | length > 0
+
+- name: Backup homedrive daily
+  ansible.builtin.cron:
+    name: Backup homedrive
+    special_time: daily
+    job: /usr/bin/bash /usr/local/bin/backup_homedrive.sh
+    state: "{{ 'present' if homedrive_borg_repo | length > 0 else 'absent' }}"
+
+- name: Install borg backup for homedrive
+  ansible.builtin.dnf:
+    name: borgbackup
+    state: present
+  when: homedrive_borg_repo | length > 0
+
+# The users file is read at startup, so a changed one needs a restart.
+- name: Restart homedrive for changed accounts
+  ansible.builtin.systemd:
+    name: homedrive.service
+    state: restarted
+  when:
+    - not (apply_runtime_changes_on_reboot | default(false) | bool)
+    - homedrive_users_file is changed
+
+- name: Start homedrive
+  ansible.builtin.systemd:
+    name: homedrive.service
+    state: started
+  when: not (apply_runtime_changes_on_reboot | default(false) | bool)

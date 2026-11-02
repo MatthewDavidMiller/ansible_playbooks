@@ -96,6 +96,7 @@ container_dns:
     playbook_runner_proxy: 'test-playbook-runner-proxy'
     playbook_runner_egress: 'test-playbook-runner-egress'
     music_server_proxy: 'test-music-server-proxy'
+    homedrive_proxy: 'test-homedrive-proxy'
     traefik_proxy: 'test-traefik-proxy'
     traefik_egress: 'test-traefik-egress'
 route_proxy_network_subnets:
@@ -111,6 +112,7 @@ container_static_ips:
   paperless_proxy: '172.16.1.42'
   playbook_runner_proxy: '172.16.1.58'
   music_server_proxy: '172.16.1.50'
+  homedrive_proxy: '172.16.1.66'
 route_proxy_container_ips:
   nextcloud_proxy_net: '172.16.1.34'
 route_proxy_traefik_ips:
@@ -118,6 +120,7 @@ route_proxy_traefik_ips:
   paperless_proxy_net: '172.16.1.43'
   playbook_runner_container_net: '172.16.1.59'
   music_server_container_net: '172.16.1.51'
+  homedrive_container_net: '172.16.1.67'
 proxy_config:
   - name: 'nextcloud_proxy'
     proxy_fqdn: 'cloud.example.com'
@@ -170,6 +173,23 @@ music_server_uid: '10001'
 music_server_gid: '10001'
 music_server_music_gid: '33'
 music_server_backup_location: 'Nextcloud:music_server_backup'
+homedrive_path: '/srv/homedrive/store'
+homedrive_export_path: '/srv/homedrive/exports'
+homedrive_exports: 'alice:Music=>music'
+homedrive_image: 'ghcr.io/matthewdavidmiller/homedrive@sha256:6666666666666666666666666666666666666666666666666666666666666666'
+homedrive_users:
+  - name: 'alice'
+    password: 'drive;pw "quoted" \\ slash & dollars \$HOME'
+    admin: true
+homedrive_min_free_gb: 10
+homedrive_keep_all_days: 30
+homedrive_trash_days: 90
+homedrive_memory: '1g'
+homedrive_uid: '10001'
+homedrive_gid: '10001'
+homedrive_borg_repo: '/srv/backup/homedrive'
+homedrive_drill_path: '/srv/backup/homedrive-drill'
+homedrive_borg_passphrase: 'a test passphrase of some length'
 user_name: 'ansible'
 EOF
 
@@ -284,6 +304,36 @@ cat > "$tmpdir/render.yml" <<EOF
         src: ${repo_root}/roles/music_server/templates/backup_music_server.sh.j2
         dest: ${render_dir}/backup_music_server.sh
 
+    - name: Render homedrive.sh
+      ansible.builtin.template:
+        src: ${repo_root}/roles/homedrive/templates/homedrive.sh.j2
+        dest: ${render_dir}/homedrive.sh
+
+    - name: Render homedrive.service
+      ansible.builtin.template:
+        src: ${repo_root}/roles/homedrive/templates/homedrive.service.j2
+        dest: ${render_dir}/homedrive.service
+
+    - name: Render homedrive_import_path.sh
+      ansible.builtin.template:
+        src: ${repo_root}/roles/homedrive/templates/homedrive_import_path.sh.j2
+        dest: ${render_dir}/homedrive_import_path.sh
+
+    - name: Render homedrive_repair.sh
+      ansible.builtin.template:
+        src: ${repo_root}/roles/homedrive/templates/homedrive_repair.sh.j2
+        dest: ${render_dir}/homedrive_repair.sh
+
+    - name: Render homedrive_restore_drill.sh
+      ansible.builtin.template:
+        src: ${repo_root}/roles/homedrive/templates/homedrive_restore_drill.sh.j2
+        dest: ${render_dir}/homedrive_restore_drill.sh
+
+    - name: Render backup_homedrive.sh
+      ansible.builtin.template:
+        src: ${repo_root}/roles/homedrive/templates/backup_homedrive.sh.j2
+        dest: ${render_dir}/backup_homedrive.sh
+
     - name: Render migrate_container_networks.sh
       ansible.builtin.template:
         src: ${repo_root}/roles/container_network_migration/templates/migrate_container_networks.sh.j2
@@ -306,6 +356,9 @@ pass "playbook_runner.sh and backup_playbook_runner.sh pass ShellCheck after ren
 
 shellcheck "$render_dir/music_server.sh" "$render_dir/backup_music_server.sh"
 pass "music_server.sh and backup_music_server.sh pass ShellCheck after rendering"
+
+shellcheck "$render_dir/homedrive.sh" "$render_dir/homedrive_import_path.sh" "$render_dir/backup_homedrive.sh" "$render_dir/homedrive_repair.sh" "$render_dir/homedrive_restore_drill.sh"
+pass "homedrive scripts pass ShellCheck after rendering"
 
 get_sourced_var() {
   local file="$1"
@@ -500,6 +553,91 @@ assert_contains "$render_dir/music_server.sh" "--volume /srv/nextcloud/data/admi
 assert_contains "$render_dir/music_server.sh" "--secret music_server_users,target=/run/secrets/music_server_users" "music_server.sh mounts the users file as a secret"
 assert_not_contains "$render_dir/music_server.sh" "music;pw" "music_server.sh never carries a password itself"
 assert_contains "$render_dir/music_server.sh" "--pull=never" "music_server.sh uses --pull=never"
+assert_contains "$render_dir/homedrive.sh" "--network=homedrive_container_net:ip=172.16.1.66,alias=test-homedrive-proxy" "homedrive.sh joins its proxy network with a pinned address"
+assert_contains "$render_dir/homedrive_repair.sh" "--network=none" "homedrive_repair.sh runs the repair without a network"
+assert_contains "$render_dir/homedrive_repair.sh" '--volume "$src:/repair/$i:ro,z"' "homedrive_repair.sh mounts the backup copies read-only"
+assert_not_contains "$render_dir/homedrive_repair.sh" "label=disable" "homedrive_repair.sh keeps SELinux separation"
+assert_contains "$render_dir/homedrive_repair.sh" "/usr/bin/systemctl start homedrive.service" "homedrive_repair.sh starts the server again"
+assert_contains "$render_dir/backup_homedrive.sh" '/usr/bin/borg check --lock-wait 3600 "$REPO"' "backup_homedrive.sh checks the backup repository weekly"
+assert_contains "$render_dir/backup_homedrive.sh" 'report local --ok' "backup_homedrive.sh reports each local run to homedrive"
+assert_contains "$render_dir/backup_homedrive.sh" '/usr/local/bin/homedrive_restore_drill.sh' "backup_homedrive.sh runs the restore drill weekly"
+assert_contains "$render_dir/backup_homedrive.sh" '/usr/bin/stat -c %d "$STORE")" = "$(/usr/bin/stat -c %d "$REPO")"' "backup_homedrive.sh reports a repository on the store's own disk"
+assert_contains "$render_dir/backup_homedrive.sh" "--encryption=repokey-blake2" "backup_homedrive.sh encrypts a new repository when a passphrase is set"
+assert_contains "$render_dir/backup_homedrive.sh" 'BORG_PASSCOMMAND="/usr/bin/cat /etc/homelab/secrets/homedrive_borg_passphrase"' "backup_homedrive.sh reads the passphrase from its root-only file"
+assert_not_contains "$render_dir/backup_homedrive.sh" "a test passphrase" "backup_homedrive.sh never carries the passphrase itself"
+assert_contains "$render_dir/homedrive_restore_drill.sh" "BORG_PASSCOMMAND" "homedrive_restore_drill.sh can open an encrypted repository"
+assert_contains "$render_dir/homedrive_restore_drill.sh" "--network=none" "homedrive_restore_drill.sh restores without a network"
+assert_contains "$render_dir/homedrive_restore_drill.sh" "restore-drill --to /restore" "homedrive_restore_drill.sh restores every drive to plain files"
+assert_contains "$render_dir/homedrive_restore_drill.sh" "hd-server drill-compare" "homedrive_restore_drill.sh compares the restore with the live drive"
+assert_contains "$render_dir/homedrive_restore_drill.sh" "report-backup --kind drill" "homedrive_restore_drill.sh reports its result to homedrive"
+assert_not_contains "$render_dir/homedrive_restore_drill.sh" "label=disable" "homedrive_restore_drill.sh keeps SELinux separation"
+
+# The drill deletes its scratch space. Run its own guard functions (taken
+# from the rendered script) against real directories: scratch space that
+# overlaps the store or the backups, or holds files the drill did not put
+# there, is refused and nothing is deleted.
+drill_guard="$tmpdir/drill_guard.sh"
+awk '/^MARKER=/,/^cleanup\(\)/' "$render_dir/homedrive_restore_drill.sh" \
+  | sed -e '$d' -e 's#/usr/bin/##g' > "$drill_guard"
+grep -q 'check_scratch()' "$drill_guard" || fail "homedrive_restore_drill.sh defines its scratch guard"
+drill_case() {  # drill_case SCRATCH STORE REPO: 0 if the drill would use SCRATCH
+  (
+    # shellcheck disable=SC2034 # read by the sourced guard functions
+    SCRATCH="$1" STORE="$2" REPO="$3"
+    # shellcheck source=/dev/null
+    . "$drill_guard"
+    check_scratch >/dev/null && empty_scratch
+  )
+}
+d="$tmpdir/drill"
+mkdir -p "$d/hd/store/meta" "$d/backup/repo" "$d/elsewhere"
+echo keep > "$d/hd/store/store.id"
+ln -s "$d/hd" "$d/link-to-hd"
+for scratch in "$d/hd" "$d/hd/store" "$d/hd/store/x" "$d/backup" "$d/link-to-hd"; do
+  if drill_case "$scratch" "$d/hd/store" "$d/backup/repo"; then
+    fail "the drill refuses scratch space $scratch overlapping the store or backups"
+  fi
+done
+[ -f "$d/hd/store/store.id" ] || fail "a refused drill deleted nothing"
+# Its marker alone does not make space the drill's: the store moved in.
+touch "$d/hd/.homedrive-drill-scratch"
+if drill_case "$d/hd" "$d/hd/store" "$d/backup/repo"; then
+  fail "the drill refuses marked scratch space that holds the store"
+fi
+[ -f "$d/hd/store/store.id" ] || fail "a refused drill deleted nothing"
+# And space without its marker is never emptied, whatever calls it.
+(
+  SCRATCH="$d/elsewhere"
+  # shellcheck source=/dev/null
+  . "$drill_guard"
+  mkdir -p "$SCRATCH/store"
+  echo mine > "$SCRATCH/store/file"
+  empty_scratch
+)
+[ -f "$d/elsewhere/store/file" ] || fail "the drill empties only marked scratch space"
+mkdir -p "$d/elsewhere/store" && echo mine > "$d/elsewhere/store/file"
+if drill_case "$d/elsewhere" "$d/hd/store" "$d/backup/repo"; then
+  fail "the drill refuses scratch space holding files it did not put there"
+fi
+[ -f "$d/elsewhere/store/file" ] || fail "foreign scratch content survives"
+mkdir -p "$d/scratch"
+drill_case "$d/scratch" "$d/hd/store" "$d/backup/repo" || fail "the drill uses empty scratch space"
+mkdir -p "$d/scratch/store/x" "$d/scratch/plain"
+drill_case "$d/scratch" "$d/hd/store" "$d/backup/repo" || fail "the drill reuses its own scratch space"
+[ ! -e "$d/scratch/store" ] && [ -f "$d/hd/store/store.id" ] \
+  && pass "homedrive_restore_drill.sh empties only its own scratch space" \
+  || fail "homedrive_restore_drill.sh empties only its own scratch space"
+assert_not_contains "$render_dir/homedrive.sh" "nextcloud_container_net" "homedrive.sh stays off the backend network"
+assert_contains "$render_dir/homedrive.sh" "--env HD_TRUSTED_PROXIES=172.16.1.67" "homedrive.sh trusts only Traefik's address for X-Forwarded-For"
+assert_contains "$render_dir/homedrive.sh" "--volume /srv/homedrive/store:/var/lib/homedrive:Z" "homedrive.sh mounts the store privately"
+assert_contains "$render_dir/homedrive.sh" "--volume /srv/homedrive/exports:/srv/exports:z" "homedrive.sh shares the exports with readers"
+assert_contains "$render_dir/homedrive.sh" "--env HD_EXPORTS='alice:Music=>music'" "homedrive.sh passes the export spec, quoted"
+assert_contains "$render_dir/homedrive.sh" "--secret homedrive_users,target=/run/secrets/homedrive_users" "homedrive.sh mounts the users file as a secret"
+assert_not_contains "$render_dir/homedrive.sh" "drive;pw" "homedrive.sh never carries a password itself"
+assert_contains "$render_dir/homedrive.sh" "--pull=never" "homedrive.sh uses --pull=never"
+assert_contains "$render_dir/homedrive.service" "RequiresMountsFor=/srv/homedrive/store" "homedrive.service waits for the store's mount"
+assert_contains "$render_dir/backup_homedrive.sh" "hd-server checkpoint" "backup_homedrive.sh checkpoints before backing up"
+assert_contains "$render_dir/homedrive_import_path.sh" "podman exec -i homedrive hd-server import" "homedrive_import_path.sh imports through the admin socket"
 assert_contains "$render_dir/music_server.service" "After=nextcloud_container.service" "music_server.service starts after Nextcloud when the music is in its data directory"
 assert_contains "$render_dir/backup_music_server.sh" "/usr/bin/tar -C \"/srv/music-server/data\"" "backup_music_server.sh archives only the data directory"
 assert_contains "$render_dir/backup_music_server.sh" '/usr/bin/install -o 33 -g 33 -m 0660 "$ARCHIVE" "$DEST/"' "backup_music_server.sh installs backups with the normalized Nextcloud file mode"

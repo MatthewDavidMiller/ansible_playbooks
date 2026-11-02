@@ -5,6 +5,22 @@ set -a
 . "{{ secret_env_dir }}/traefik.env"
 set +a
 
+# Only the egress network's DNS server is reachable: firewalld trusts that
+# network and blocks the others. Podman lists one server per network in a
+# different order at each start, and Traefik uses the first three, so without
+# this it can lose DNS, and with it ACME, on any start. Backends do not need
+# these servers; each is in /etc/hosts through --add-host below. If the gateway
+# cannot be read, Traefik still starts, so the sites stay up.
+resolv_mount=()
+egress_gateway="$(/usr/bin/podman network inspect \
+  --format '{% raw %}{{ (index .Subnets 0).Gateway }}{% endraw %}' {{ traefik_egress_network }} || true)"
+if [[ -n "${egress_gateway}" ]]; then
+  printf 'nameserver %s\n' "${egress_gateway}" > {{ traefik_path }}/resolv.conf
+  resolv_mount=(-v {{ traefik_path }}/resolv.conf:/etc/resolv.conf:Z,ro)
+else
+  echo "traefik: no gateway for {{ traefik_egress_network }}; keeping Podman's DNS servers" >&2
+fi
+
 exec /usr/bin/podman run \
   --pull=never \
   --name=traefik \
@@ -22,6 +38,7 @@ exec /usr/bin/podman run \
   -v {{ traefik_path }}/traefik.yml:/etc/traefik/traefik.yml:Z,ro \
   -v {{ traefik_path }}/config:/etc/traefik/config:Z,ro \
   -v {{ traefik_path }}/acme.json:/acme.json:Z \
+  "${resolv_mount[@]}" \
   --read-only \
   --tmpfs /tmp:rw,noexec,nosuid,nodev,size=16m \
   -p 80:80/tcp \

@@ -147,7 +147,7 @@
 
     - name: Find the Navidrome Traefik route file
       ansible.builtin.find:
-        paths: "{{ traefik_path }}/config"
+        paths: "{{ traefik_path | default('/traefik') }}/config"
         patterns: "*.yml"
         excludes:
           - tls.yml
@@ -156,7 +156,6 @@
         contains: navidrome
       become: true
       register: retire_navidrome_routes
-      when: traefik_path | default('') | length > 0
 
     - name: Remove the Navidrome Traefik route file
       ansible.builtin.file:

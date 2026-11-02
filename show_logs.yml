@@ -1,0 +1,116 @@
+---
+# VM1's health and logs, for reading from playbook-runner instead of over SSH.
+# It changes nothing. The runner has no argument field, so a template picks
+# what to show with tags:
+#
+#   (no tags)     the overview, then every service
+#   overview      services, disk, memory, and failed units only
+#   network       the overview, then whether VM1 and Traefik can resolve names
+#   <service>     the overview, then that service: traefik, postgres, redis,
+#                 nextcloud, paperless, vaultwarden, playbook_runner,
+#                 music_server, homedrive
+- name: Show VM1's health and service logs
+  hosts: vm1
+  gather_facts: false
+  vars:
+    show_logs_lines: 60
+    show_logs_since: 24h
+  tasks:
+    - name: Read the overview
+      ansible.builtin.shell: |
+        echo "== up since"; uptime -s
+        echo "== failed units"; systemctl --failed --no-legend --no-pager
+        echo "== containers"
+        podman ps --all
+        echo "== disks"; df -h -x tmpfs -x devtmpfs -x overlay
+        echo "== memory"; free -h
+      register: show_logs_overview
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      tags: [always, overview]
+
+    - name: Show the overview
+      ansible.builtin.debug:
+        msg: "{{ show_logs_overview.stdout_lines + show_logs_overview.stderr_lines }}"
+      tags: [always, overview]
+
+    # Traefik needs public DNS to reach Let's Encrypt. Each nameserver is tried
+    # on its own because a container's list comes in a different order at each
+    # start, so one bad entry fails only some of the time.
+    - name: Read DNS from VM1 and from Traefik
+      ansible.builtin.shell: |
+        name=acme-v02.api.letsencrypt.org
+        echo "== VM1 looks up $name"
+        getent hosts "$name" || echo "no answer"
+        echo "== VM1 resolv.conf"; cat /etc/resolv.conf
+        echo "== Traefik resolv.conf"; podman exec traefik cat /etc/resolv.conf
+        echo "== Traefik looks up $name through each nameserver"
+        for server in $(podman exec traefik cat /etc/resolv.conf | awk '/^nameserver/{print $2}'); do
+          echo "-- $server"
+          timeout 8 podman exec traefik nslookup "$name" "$server" 2>&1 | tail -n 3 \
+            || true
+        done
+        echo "== firewalld"; firewall-cmd --get-active-zones
+        echo "== Podman networking"; rpm -q netavark aardvark-dns
+        podman info | grep -E 'networkBackend:'
+        echo "== Traefik DNS timeouts in the last hour"
+        timeouts=$(journalctl --no-pager --output=short-iso --since=-1h \
+          CONTAINER_NAME=traefik | grep 'i/o timeout')
+        printf '%s' "$timeouts" | grep -c '' || true
+        printf '%s\n' "$timeouts" | tail -n 1
+      register: show_logs_network
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      tags: [network]
+
+    - name: Show DNS from VM1 and from Traefik
+      ansible.builtin.debug:
+        msg: "{{ show_logs_network.stdout_lines + show_logs_network.stderr_lines }}"
+      tags: [network]
+
+    - name: Traefik
+      ansible.builtin.import_tasks: standalone_tasks/show_service_logs.yml
+      vars: {show_logs_container: traefik, show_logs_unit: traefik_container}
+      tags: [traefik]
+
+    - name: PostgreSQL
+      ansible.builtin.import_tasks: standalone_tasks/show_service_logs.yml
+      vars: {show_logs_container: postgres, show_logs_unit: postgres_container}
+      tags: [postgres]
+
+    - name: Redis
+      ansible.builtin.import_tasks: standalone_tasks/show_service_logs.yml
+      vars: {show_logs_container: redis, show_logs_unit: redis_container}
+      tags: [redis]
+
+    - name: Nextcloud
+      ansible.builtin.import_tasks: standalone_tasks/show_service_logs.yml
+      vars: {show_logs_container: nextcloud, show_logs_unit: nextcloud_container}
+      tags: [nextcloud]
+
+    - name: Paperless
+      ansible.builtin.import_tasks: standalone_tasks/show_service_logs.yml
+      vars: {show_logs_container: paperless, show_logs_unit: paperless_ngx}
+      tags: [paperless]
+
+    - name: Vaultwarden
+      ansible.builtin.import_tasks: standalone_tasks/show_service_logs.yml
+      vars: {show_logs_container: vaultwarden, show_logs_unit: vaultwarden}
+      tags: [vaultwarden]
+
+    - name: Playbook-runner
+      ansible.builtin.import_tasks: standalone_tasks/show_service_logs.yml
+      vars: {show_logs_container: playbook_runner, show_logs_unit: playbook_runner}
+      tags: [playbook_runner]
+
+    - name: Music-server
+      ansible.builtin.import_tasks: standalone_tasks/show_service_logs.yml
+      vars: {show_logs_container: music_server, show_logs_unit: music_server}
+      tags: [music_server]
+
+    - name: Homedrive
+      ansible.builtin.import_tasks: standalone_tasks/show_service_logs.yml
+      vars: {show_logs_container: homedrive, show_logs_unit: homedrive}
+      tags: [homedrive]

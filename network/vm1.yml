@@ -10,7 +10,7 @@
 # defaults agree with this file.
 #
 # 172.16.1.0/28 is nextcloud_container_net (the backend network). Free /29
-# blocks: 172.16.1.24/29 (Navidrome's, retired) and 172.16.1.64/29 onwards.
+# blocks: 172.16.1.24/29 (Navidrome's, retired) and 172.16.1.72/29 onwards.
 
 # Internal Podman networks Traefik shares with one service each.
 route_proxy_network_subnets:
@@ -19,6 +19,7 @@ route_proxy_network_subnets:
   vaultwarden_container_net: 172.16.1.16/29
   playbook_runner_container_net: 172.16.1.56/29
   music_server_container_net: 172.16.1.48/29
+  homedrive_container_net: 172.16.1.64/29
 
 # The service's address on each route network, written into Traefik's
 # /etc/hosts. Keys match proxy_config[*].proxy_network.
@@ -28,6 +29,7 @@ route_proxy_container_ips:
   vaultwarden_container_net: 172.16.1.18
   playbook_runner_container_net: 172.16.1.58
   music_server_container_net: 172.16.1.50
+  homedrive_container_net: 172.16.1.66
 
 # Traefik's own address on each route network. Pinned so Podman's IPAM
 # cannot hand Traefik the address the service asks for.
@@ -37,6 +39,7 @@ route_proxy_traefik_ips:
   vaultwarden_container_net: 172.16.1.19
   playbook_runner_container_net: 172.16.1.59
   music_server_container_net: 172.16.1.51
+  homedrive_container_net: 172.16.1.67
 
 # Every container's static address, by alias. The backend entries are on
 # nextcloud_container_net (172.16.1.0/28); the proxy entries repeat
@@ -51,6 +54,7 @@ container_static_ips:
   vaultwarden_proxy: 172.16.1.18
   playbook_runner_proxy: 172.16.1.58
   music_server_proxy: 172.16.1.50
+  homedrive_proxy: 172.16.1.66
 
 container_dns:
   domain: dns.podman
@@ -65,6 +69,7 @@ container_dns:
     playbook_runner_proxy: playbook-runner-proxy
     playbook_runner_egress: playbook-runner-egress
     music_server_proxy: music-server-proxy
+    homedrive_proxy: homedrive-proxy
     traefik_proxy: traefik-proxy
     traefik_egress: traefik-egress
 
@@ -76,7 +81,7 @@ container_dns:
 # Every route is management-only: Traefik answers only clients inside
 # management_network (the user LAN and the VPN), so nothing is reachable from
 # the internet even if a port forward is added by mistake.
-proxy_config:
+proxy_routes:
   - name: nextcloud
     proxy_fqdn: "nextcloud.{{ homelab_internal_domain }}"
     proxy_upstream_protocol: http
@@ -116,3 +121,18 @@ proxy_config:
     container_destination: "{{ container_dns.aliases.music_server_proxy }}.{{ container_dns.domain }}"
     proxy_management_only: true
     proxy_access_log: false
+
+# homedrive: files, WebDAV, the sync API, and the web UI. Device tokens
+# travel in Authorization headers, never in URLs. Kept apart from
+# proxy_routes so a host without homedrive_deploy gets no route, network, or
+# certificate for it.
+homedrive_routes:
+  - name: homedrive_proxy
+    proxy_fqdn: "drive.{{ homelab_internal_domain }}"
+    proxy_upstream_protocol: http
+    proxy_upstream_port: "8080"
+    proxy_network: homedrive_container_net
+    container_destination: "{{ container_dns.aliases.homedrive_proxy }}.{{ container_dns.domain }}"
+    proxy_management_only: true
+
+proxy_config: "{{ proxy_routes + (homedrive_routes if homedrive_enabled | bool else []) }}"

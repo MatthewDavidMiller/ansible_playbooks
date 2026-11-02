@@ -52,7 +52,7 @@ Installs and enables the platform cron service, and removes any legacy OS-level 
 
 Builds the restrictive `homelab` firewalld model used by VM1.
 
-**Required variables:** `management_network`, `ip_ansible`, `default_interface`
+**Required variables:** `management_network`, `ip_ansible`
 
 **Key behavior:** creates a DROP-by-default `homelab` zone, semantically validates and reconciles the management/controller CIDRs, allows SSH and ping, and keeps the public interface bound to `public`.
 

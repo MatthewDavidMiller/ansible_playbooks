@@ -1,0 +1,124 @@
+#!/bin/bash
+# Proves the homedrive backup works, all the way to plain files:
+# 1. the newest archive is extracted to scratch space;
+# 2. in a one-off container with no network, every version in it is read
+#    back and hashed (fsck --deep), and every user's drive is restored to
+#    plain files, each verified against its SHA-256;
+# 3. each restored drive's manifest is compared with the live drive: every
+#    file the drive had when the backup was taken must be in it, and it
+#    must hold nothing the drive never had.
+# The result is reported to homedrive (kind "drill"), so a failing or
+# missing drill reaches the administrators. Runs on Sundays after the
+# backup; run it by hand at any time.
+#
+# The restored files are deleted afterwards. To keep them (to copy to a
+# client and check there with `homedrive check-files`), pass --keep.
+set -uo pipefail
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+umask 077
+REPO={{ homedrive_borg_repo | quote }}
+{% if homedrive_borg_passphrase | length > 0 %}
+# The repository is encrypted; Borg reads its passphrase from a root-only
+# file, never the command line.
+export BORG_PASSCOMMAND="/usr/bin/cat {{ secret_env_dir }}/homedrive_borg_passphrase"
+{% endif %}
+STORE={{ homedrive_path | quote }}
+SCRATCH={{ homedrive_drill_path | quote }}
+LOG=/var/log/homedrive_drill.log
+KEEP=false
+[ "${1:-}" = "--keep" ] && KEEP=true
+
+report() {
+    /usr/bin/podman exec homedrive hd-server report-backup --kind drill "$@" \
+        || echo "could not report to homedrive"
+}
+
+fail() {
+    echo "drill failed: $1"
+    report --failed --message "$1"
+    exit 1
+}
+
+# Scratch space is emptied only when it is the drill's own: a directory
+# holding the drill's marker, sharing no tree with the store or the
+# backups (symbolic links resolved). Anything else is refused untouched.
+MARKER=.homedrive-drill-scratch
+
+within() {  # within A B: A is B or inside it
+    case "$1/" in "$2"/*) return 0 ;; esac
+    return 1
+}
+
+check_scratch() {
+    local scratch store repo
+    scratch="$(/usr/bin/realpath -m "$SCRATCH")" || return 1
+    store="$(/usr/bin/realpath -m "$STORE")" || return 1
+    repo="$(/usr/bin/realpath -m "$REPO")" || return 1
+    for keep in "$store" "$repo"; do
+        if within "$scratch" "$keep" || within "$keep" "$scratch"; then
+            echo "$SCRATCH overlaps $keep"
+            return 1
+        fi
+    done
+    if [ ! -e "$SCRATCH/$MARKER" ] && [ -n "$(/usr/bin/ls -A "$SCRATCH")" ]; then
+        echo "$SCRATCH holds files the drill did not put there"
+        return 1
+    fi
+    /usr/bin/touch "$SCRATCH/$MARKER"
+}
+
+empty_scratch() {
+    [ -e "$SCRATCH/$MARKER" ] || return 0
+    /usr/bin/rm -rf --one-file-system "${SCRATCH:?}/store" "${SCRATCH:?}/plain"
+}
+
+cleanup() {
+    if [ "$KEEP" = false ]; then
+        empty_scratch
+    fi
+}
+
+{
+    echo "== $(/usr/bin/date --iso-8601=seconds)"
+    [ -f "$REPO/config" ] || fail "no backup repository at $REPO"
+    ARCHIVE="$(/usr/bin/borg list --lock-wait 3600 --short --last 1 "$REPO")" \
+        || fail "cannot list the backup repository"
+    [ -n "$ARCHIVE" ] || fail "the backup repository has no archives"
+    # Room for the extracted store and its plain files, each at most about
+    # the store's size, and a GiB to spare.
+    /usr/bin/mkdir -p "$SCRATCH" || fail "cannot create $SCRATCH"
+    why="$(check_scratch)" || fail "refusing to use $SCRATCH as scratch space: $why"
+    need_kib=$(( $(/usr/bin/du -sk "$STORE" | /usr/bin/cut -f1) * 2 + 1048576 ))
+    free_kib=$(/usr/bin/df -Pk "$SCRATCH" | /usr/bin/awk 'NR == 2 { print $4 }')
+    [ "$free_kib" -ge "$need_kib" ] \
+        || fail "not enough scratch space in $SCRATCH: ${free_kib} KiB free, ${need_kib} KiB needed"
+    trap cleanup EXIT
+    empty_scratch
+    /usr/bin/mkdir -p "$SCRATCH/store" "$SCRATCH/plain"
+    (cd "$SCRATCH/store" && /usr/bin/borg extract --lock-wait 3600 "$REPO::$ARCHIVE") \
+        || fail "borg extract of $ARCHIVE failed"
+    # Borg keeps the absolute path, without its leading slash.
+    EXTRACTED="$SCRATCH/store$STORE"
+    [ -f "$EXTRACTED/store.id" ] || fail "$ARCHIVE holds no store at $STORE"
+    /usr/bin/chown -R {{ homedrive_uid }}:{{ homedrive_gid }} "$SCRATCH/store" "$SCRATCH/plain"
+    OUT="$(/usr/bin/podman run --rm --pull=never --network=none \
+        --user {{ homedrive_uid }}:{{ homedrive_gid }} \
+        --volume "$EXTRACTED:/var/lib/homedrive:Z" \
+        --volume "$SCRATCH/plain:/restore:Z" \
+        --read-only --cap-drop=ALL --security-opt=no-new-privileges:true \
+        {{ homedrive_image }} restore-drill --to /restore 2>&1)"
+    status=$?
+    echo "$OUT"
+    [ "$status" -eq 0 ] \
+        || fail "$ARCHIVE: $(echo "$OUT" | /usr/bin/grep -m 3 '^PROBLEM' | /usr/bin/tr '\n' ' ')"
+    TAKEN="$(echo "$OUT" | /usr/bin/awk '/^TAKEN_MS / { print $2 }')"
+    for manifest in "$SCRATCH"/plain/*.sha256; do
+        [ -e "$manifest" ] || continue
+        user="$(/usr/bin/basename "$manifest" .sha256)"
+        /usr/bin/podman exec -i homedrive hd-server drill-compare --user "$user" --taken-ms "$TAKEN" \
+            < "$manifest" || fail "$ARCHIVE: $user's restored files do not match the drive (see $LOG)"
+    done
+    report --ok --message "$ARCHIVE: $(echo "$OUT" | /usr/bin/tail -n 1)"
+    [ "$KEEP" = true ] && echo "kept the restored files in $SCRATCH/plain"
+} >> "$LOG" 2>&1

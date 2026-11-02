@@ -3,7 +3,7 @@
 # Tests container capability, privilege, and memory flags
 # for the maintained VM1 services before deploying to production via Ansible.
 #
-# Usage: bash scripts/test_container_security.sh [all|static|postgres|redis|nextcloud|traefik|paperless|vaultwarden|music_server]...
+# Usage: bash scripts/test_container_security.sh [all|static|postgres|redis|nextcloud|traefik|paperless|vaultwarden|music_server|homedrive]...
 #        bash scripts/test_container_security.sh vaultwarden 2>&1 | tee /tmp/container_test_results.txt
 # See docs/testing.md for full descriptions of each test.
 
@@ -33,7 +33,7 @@ should_run() {
 SELECTED_TESTS=("${@:-all}")
 for selected_test in "${SELECTED_TESTS[@]}"; do
   case "$selected_test" in
-    all|static|postgres|redis|nextcloud|traefik|paperless|vaultwarden|music_server) ;;
+    all|static|postgres|redis|nextcloud|traefik|paperless|vaultwarden|music_server|homedrive) ;;
     -h|--help)
       usage
       exit 0
@@ -90,6 +90,7 @@ TRAEFIK_IMAGE=${TRAEFIK_IMAGE:-$(lock_image_ref traefik)}
 PAPERLESS_IMAGE=${PAPERLESS_IMAGE:-$(lock_image_ref paperless)}
 VAULTWARDEN_IMAGE=${VAULTWARDEN_IMAGE:-$(lock_image_ref vaultwarden)}
 MUSIC_SERVER_IMAGE=${MUSIC_SERVER_IMAGE:-$(lock_image_ref music_server)}
+HOMEDRIVE_IMAGE=${HOMEDRIVE_IMAGE:-$(lock_image_ref homedrive)}
 TEST_HELPER_IMAGE=${TEST_HELPER_IMAGE:-$(test_image_ref alpine)}
 [[ "$TEST_HELPER_IMAGE" =~ @sha256:[0-9a-f]{64}$ ]] || {
   echo "TEST_HELPER_IMAGE must be an immutable digest reference" >&2
@@ -114,6 +115,9 @@ cleanup_dir() {
 cleanup_all_test_containers() {
   local name
   for name in \
+    test_homedrive \
+    test_homedrive_init \
+    test_homedrive_no_store \
     test_music_server \
     test_nextcloud \
     test_paperless \
@@ -253,6 +257,13 @@ assert_file_not_contains "--cap-add" "music-server: adds no capabilities back" r
 assert_file_contains "/music:ro,z" "music-server: mounts the music read-only" roles/music_server/templates/music_server.sh.j2
 assert_file_contains "mode=0400" "music-server: secrets are readable only by the container user" roles/music_server/templates/music_server.sh.j2
 assert_file_contains "container_dns[.]aliases[.]music_server_proxy" "music-server: proxy DNS alias is dictionary-driven" roles/music_server/templates/music_server.sh.j2
+assert_file_not_contains "-p " "homedrive: does not publish host ports" roles/homedrive/templates/homedrive.sh.j2
+assert_file_contains "--read-only" "homedrive: read-only root filesystem is configured" roles/homedrive/templates/homedrive.sh.j2
+assert_file_contains "--user \\{\\{ homedrive_uid \\}\\}:\\{\\{ homedrive_gid \\}\\}" "homedrive: runs as explicit non-root UID/GID" roles/homedrive/templates/homedrive.sh.j2
+assert_file_contains "--cap-drop=ALL" "homedrive: drops all capabilities" roles/homedrive/templates/homedrive.sh.j2
+assert_file_not_contains "--cap-add" "homedrive: adds no capabilities back" roles/homedrive/templates/homedrive.sh.j2
+assert_file_contains "mode=0400" "homedrive: the users secret is readable only by the container user" roles/homedrive/templates/homedrive.sh.j2
+assert_file_contains "container_dns[.]aliases[.]homedrive_proxy" "homedrive: proxy DNS alias is dictionary-driven" roles/homedrive/templates/homedrive.sh.j2
 echo ""
 fi
 
@@ -873,6 +884,61 @@ fi
 
 cleanup test_music_server
 cleanup_dir "$TEST_MS_DIR"
+echo ""
+fi
+
+# ---------------------------------------------------------------------------
+if should_run homedrive; then
+echo "--- TEST-10: homedrive ---"
+TEST_HD_DIR=$(mktemp -d)
+mkdir -p "$TEST_HD_DIR/store" "$TEST_HD_DIR/secrets"
+printf '%s\n' '{"version":1,"users":[{"name":"admin","password":"runtime-test-pw","admin":true,"quota_gb":1}]}' \
+  > "$TEST_HD_DIR/secrets/users"
+chmod -R a+rX "$TEST_HD_DIR/secrets"
+chown_test_path 10001:10001 "$TEST_HD_DIR/store"
+
+# The flags roles/homedrive renders, with the users secret as a read-only
+# mount in place of a Podman secret.
+HD_RUN=(
+  --user "10001:10001"
+  --cap-drop=ALL
+  --security-opt=no-new-privileges:true
+  --read-only
+  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m
+  --memory=1g --memory-swap=1g
+  --pids-limit=200
+  --volume "$TEST_HD_DIR/store":/var/lib/homedrive
+  --volume "$TEST_HD_DIR/secrets/users":/run/secrets/homedrive_users:ro
+)
+
+# Without a store.id the server must refuse to start, so an unmounted disk
+# never becomes a new, empty store.
+"${ENGINE_RUN[@]}" -d --name test_homedrive_no_store "${HD_RUN[@]}" "$HOMEDRIVE_IMAGE"
+sleep 3
+if [[ "$($PODMAN inspect --format='{{.State.Status}}' test_homedrive_no_store 2>/dev/null)" == running ]]; then
+  fail "homedrive: started on a directory without store.id"
+else
+  pass "homedrive: refuses to start without store.id"
+fi
+cleanup test_homedrive_no_store
+
+# The role's one-time init, with the same flags as the role's init task.
+"${ENGINE_RUN[@]}" --rm --name test_homedrive_init --network=none \
+  --user "10001:10001" --read-only --cap-drop=ALL --security-opt=no-new-privileges:true \
+  --volume "$TEST_HD_DIR/store":/var/lib/homedrive \
+  "$HOMEDRIVE_IMAGE" init >/dev/null || fail "homedrive: init failed on an empty store"
+pass "homedrive: init creates a store as 10001 with cap-drop=ALL"
+
+"${ENGINE_RUN[@]}" -d --name test_homedrive "${HD_RUN[@]}" "$HOMEDRIVE_IMAGE"
+check_running test_homedrive "homedrive: starts as 10001 with cap-drop=ALL, read-only, and no-new-privileges"
+if $PODMAN exec test_homedrive hd-server healthcheck; then
+  pass "homedrive: answers its health check"
+else
+  fail "homedrive: health check failed"
+fi
+
+cleanup test_homedrive
+cleanup_dir "$TEST_HD_DIR"
 echo ""
 fi
 

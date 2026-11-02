@@ -1,0 +1,32 @@
+---
+# One service's state and logs, for show_logs.yml. Container output is read
+# from the journal, Podman's log driver on VM1, and not with `podman logs`: a
+# stopped container is removed along with its `podman logs`, and a failed start
+# is when these lines matter most. The unit's journal holds why it would not
+# start; Podman's own event lines are left out of it because they bury that.
+- name: Read {{ show_logs_container }}
+  ansible.builtin.shell: |
+    echo "== unit"
+    systemctl show {{ show_logs_unit }}.service \
+      --property=LoadState,ActiveState,SubState,Result,NRestarts,ExecMainStatus
+    echo "== errors in the last {{ show_logs_since }}"
+    journalctl --no-pager --output=short-iso --since=-{{ show_logs_since }} \
+      CONTAINER_NAME={{ show_logs_container }} \
+      | grep -iE 'error|fatal|panic|fail|refus|denied|unable' \
+      | tail -n {{ show_logs_lines }}
+    echo "== unit journal"
+    journalctl --no-pager --output=short-iso --since=-{{ show_logs_since }} \
+      --unit={{ show_logs_unit }}.service \
+      | grep -v ' podman\[[0-9]*\]: ' \
+      | tail -n {{ show_logs_lines }}
+    echo "== container log"
+    journalctl --no-pager --output=short-iso --lines={{ show_logs_lines }} \
+      --since=-{{ show_logs_since }} CONTAINER_NAME={{ show_logs_container }}
+  register: show_logs_service
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Show {{ show_logs_container }}
+  ansible.builtin.debug:
+    msg: "{{ show_logs_service.stdout_lines + show_logs_service.stderr_lines }}"

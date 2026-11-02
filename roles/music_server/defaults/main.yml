@@ -11,7 +11,7 @@ music_server_enabled: false
 
 # Host directory holding data/ (sealed roster and user data, backed up) and
 # cache/ (library index and resized covers, rebuildable).
-music_server_path: ""
+music_server_path: /music_server
 
 # The library, mounted read-only. On VM1 this is the Nextcloud Music folder:
 # <nextcloud_path>/data/<nextcloud_homelab_user>/files/Music
@@ -49,10 +49,11 @@ music_server_backup_location: ""
 
 # When true, backups are written directly to the local Nextcloud data directory
 # instead of being uploaded via rclone.
-backup_local: false
+backup_local: true
 
-# Path to Nextcloud data root (required when backup_local is true)
-nextcloud_path: ""
+# Path to Nextcloud data root, read when backup_local is true. Keep in step
+# with the nextcloud role's default.
+nextcloud_path: /data_drive/nextcloud
 
 # Nextcloud username whose files directory is used as the backup destination
 nextcloud_homelab_user: ""

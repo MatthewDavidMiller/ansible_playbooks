@@ -7,6 +7,7 @@ from filter_plugins.homelab_validation import (
     homelab_immutable_image,
     homelab_ip_in_network,
     homelab_network_needs_replacement,
+    homelab_paths_disjoint,
     homelab_safe_absolute_path,
     homelab_safe_name,
     homelab_valid_hostname,
@@ -80,6 +81,18 @@ class HomelabValidationTests(unittest.TestCase):
         self.assertTrue(homelab_immutable_image("registry.example/app@sha256:" + "a" * 64))
         self.assertFalse(homelab_immutable_image("registry.example/app:latest"))
         self.assertFalse(homelab_immutable_image("registry.example/app@sha256:" + "A" * 64))
+
+    def test_paths_disjoint_rejects_nesting_and_equality(self):
+        self.assertTrue(homelab_paths_disjoint(["/srv/hd/store", "/srv/backup/hd", "/srv/hd-drill", ""]))
+        self.assertTrue(homelab_paths_disjoint(["/srv/hd/store", "/srv/hd/store2"]))
+        for bad in (
+            ["/srv/hd/store", "/srv/hd"],
+            ["/srv/hd", "/srv/hd/store"],
+            ["/srv/hd/store", "/srv/hd/store/"],
+            ["/srv/a", "/srv/b", "/srv/a/x/y"],
+        ):
+            with self.subTest(paths=bad):
+                self.assertFalse(homelab_paths_disjoint(bad))
 
     def test_matching_network_is_left_alone(self):
         self.assertFalse(

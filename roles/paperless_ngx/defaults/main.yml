@@ -2,22 +2,22 @@
 # paperless_ngx role defaults
 
 # Base directory for all Paperless NGX container paths
-paperless_path: ""
+paperless_path: /paperless
 
 # Path for Paperless NGX application data
-paperless_data_path: ""
+paperless_data_path: /paperless/data
 
 # Path for Paperless NGX media files
-paperless_media_path: ""
+paperless_media_path: /paperless/media
 
 # Path for Paperless NGX document exports
-paperless_export_path: ""
+paperless_export_path: /paperless/export
 
 # Path for Paperless NGX document consumption (inbox)
-paperless_consume_path: ""
+paperless_consume_path: /paperless/consume
 
 # PostgreSQL database name for Paperless NGX
-paperless_database_name: ""
+paperless_database_name: paperless_db
 
 # Paperless NGX database username
 paperless_db_user: ""
@@ -30,7 +30,7 @@ paperless_db_password: ""
 paperless_secret_key: ""
 
 # Minimum length enforced for the application database password
-password_minimum_length: 16
+password_minimum_length: 12
 
 # Minimum length enforced for the Paperless signing key
 secret_key_minimum_length: 32

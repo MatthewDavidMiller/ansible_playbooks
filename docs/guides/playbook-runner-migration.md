@@ -68,11 +68,17 @@ the interface:
 2. **Repositories:** this repository's git URL, with a read-only deploy key.
 3. **Known hosts:** confirm the git server and VM1 are listed.
 4. **Inventories:** the inventory variables file.
-5. **Templates:** `vm1.yml` (for ad-hoc runs) and `update_homelab_vms.yml`.
+5. **Templates:** `vm1.yml` (for ad-hoc runs), `update_homelab_vms.yml`,
+   `reboot_vms.yml`, and `show_logs.yml`, plus one `show_logs.yml` template
+   per service you check often, with its tag (see
+   [playbooks.md](../playbooks.md#show_logsyml)). Sync the repository first
+   so the new playbooks are offered.
 6. **Schedules:** the weekly `update_homelab_vms.yml` run, for example
-   `0 4 * * sun` in `America/New_York`. The run is marked `interrupted`
-   when the reboot stops the runner partway through; check that VM1 came
-   back patched.
+   `0 4 * * sun` in `America/New_York`. The run finishes and is marked
+   succeeded before the reboot, which it schedules a minute out. That
+   success does not show that VM1 came back, so schedule `show_logs.yml`
+   for a few minutes later, or run it, and read the result. A run still
+   going when VM1 stops is marked `interrupted`.
 
 Run `vm1.yml` in check mode from the runner before relying on it.
 

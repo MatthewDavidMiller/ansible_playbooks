@@ -10,9 +10,9 @@ Applied to the maintained homelab inventory.
 
 | Variable | Type | Description | Example |
 |---|---|---|---|
-| `ansible_become` | boolean | Run tasks with privilege escalation | `yes` |
-| `ansible_become_method` | string | Escalation method | `sudo` |
-| `default_interface` | string | Primary network interface name | `eth0` |
+| `ansible_become` | boolean | Run tasks with privilege escalation; the playbooks set no play-level `become` | `yes` |
+| `ansible_become_method` | string | Optional: escalation method | `sudo` (Ansible default) |
+| `default_interface` | string | Optional: Primary network interface name | `eth0` (default) |
 | `secret_env_dir` | path | Root-only directory for runtime env files | `/etc/homelab/secrets` |
 | `ip_ansible` | string | Ansible controller IP in CIDR form | `192.168.1.1/32` |
 | `management_network` | list | Management network CIDRs | `["192.168.1.0/24"]` |
@@ -26,7 +26,6 @@ Applied to the maintained homelab inventory.
 | `nextcloud_webdav_user` | string | Nextcloud WebDAV username | `admin` |
 | `nextcloud_webdav_pass` | string | Nextcloud WebDAV password | `secret` |
 | `nextcloud_webdav_path` | string | Nextcloud WebDAV URL | `https://nextcloud.example.com/remote.php/dav/files/user` |
-| `locale` | string | System locale | `en_US.UTF-8` |
 
 ---
 
@@ -39,17 +38,18 @@ VM1 is the single maintained service host. It runs Traefik, PostgreSQL, Redis, N
 | `ansible_host` | string | Hostname or IP | `192.168.1.120` |
 | `homelab_domain` | string | Root domain used by DDNS | `example.com` |
 | `homelab_subdomain` | string | DDNS subdomain for VM1 | `home` |
-| `traefik_path` | path | Traefik data directory | `/opt/traefik` |
-| `traefik_egress_network` | string | Non-internal Podman network Traefik uses for ACME DNS-01/outbound traffic | `traefik_egress_net` |
+| `traefik_path` | path | Optional: Traefik data directory | `/traefik` (default) |
+| `traefik_egress_network` | string | Non-internal Podman network Traefik uses for ACME DNS-01/outbound traffic, and its only DNS server | `traefik_egress_net` |
 | `traefik_dashboard_fqdn` | string | FQDN for the Traefik dashboard | `traefik.example.com` |
 | `traefik_dashboard_basic_auth_users` | list | htpasswd-style BasicAuth users for the Traefik dashboard | `["admin:$apr1$..."]` |
 | `traefik_acme_email` | string | ACME account email | `admin@example.com` |
 | `homelab_internal_domain` | string | Internal DNS domain every route sits under; routes are `<service>.<this domain>` | `example.lan` |
 | `proxy_config` | list | Set by [`network/vm1.yml`](../network/vm1.yml), not inventory: the Traefik routes | — |
-| `postgres_path` | path | Shared PostgreSQL data directory | `/opt/postgres` |
-| `nextcloud_path` | path | Nextcloud base directory | `/opt/nextcloud` |
-| `nextcloud_disk` | string | UUID entry for the Nextcloud data disk | `UUID=...` |
-| `nextcloud_borg_backup_path` | path | Local Borg repo for Nextcloud + Paperless backups | `/opt/nextcloud/borg` |
+| `postgres_path` | path | Optional: Shared PostgreSQL data directory | `/postgres` (default) |
+| `nextcloud_path` | path | Optional: Nextcloud base directory, inside `nextcloud_disk_mount_path` | `/data_drive/nextcloud` (default) |
+| `nextcloud_disk` | string | UUID entry for the data disk | `UUID=...` |
+| `nextcloud_disk_mount_path` | path | Optional: data disk mount point, shared with homedrive | `/data_drive` (default) |
+| `nextcloud_borg_backup_path` | path | Optional: local Borg repo for Nextcloud + Paperless backups | `/data_drive/nextcloud/borg_backup` (default) |
 | `nextcloud_paperless_backup_location` | string | Remote sync target for that Borg repo | `Nextcloud:backup/nextcloud` |
 | `nextcloud_uid` | string | Host-side Nextcloud UID | `33` |
 | `nextcloud_gid` | string | Host-side Nextcloud GID | `33` |
@@ -65,27 +65,27 @@ VM1 is the single maintained service host. It runs Traefik, PostgreSQL, Redis, N
 | `nextcloud_admin_password` | string | Nextcloud admin password | `secret` |
 | `nextcloud_trusted_domains` | string | Trusted domain list passed to Nextcloud | `nextcloud.example.com` |
 | `nextcloud_dns_name` | string | Nextcloud public FQDN | `nextcloud.example.com` |
-| `paperless_path` | path | Paperless base directory | `/opt/paperless` |
-| `paperless_data_path` | path | Paperless data directory | `/opt/paperless/data` |
-| `paperless_media_path` | path | Paperless media directory | `/opt/paperless/media` |
-| `paperless_export_path` | path | Paperless export directory | `/opt/paperless/export` |
-| `paperless_consume_path` | path | Paperless consume directory | `/opt/paperless/consume` |
-| `paperless_database_name` | string | Paperless database name | `paperless` |
+| `paperless_path` | path | Optional: Paperless base directory | `/paperless` (default) |
+| `paperless_data_path` | path | Optional: Paperless data directory | `/paperless/data` (default) |
+| `paperless_media_path` | path | Optional: Paperless media directory | `/paperless/media` (default) |
+| `paperless_export_path` | path | Optional: Paperless export directory | `/paperless/export` (default) |
+| `paperless_consume_path` | path | Optional: Paperless consume directory | `/paperless/consume` (default) |
+| `paperless_database_name` | string | Optional: Paperless database name | `paperless_db` (default) |
 | `paperless_db_user` | string | Paperless DB role | `paperless_user` |
 | `paperless_db_password` | string | Paperless DB password | `secret` |
 | `paperless_secret_key` | string | Django signing key for Paperless sessions and tokens; required by Paperless 3.0 | `abc123...` |
-| `password_minimum_length` | integer | Minimum length enforced for the PostgreSQL admin, Nextcloud DB, and Paperless DB passwords | `16` |
+| `password_minimum_length` | integer | Minimum length enforced for the PostgreSQL admin, Nextcloud DB, and Paperless DB passwords | `12` |
 | `secret_key_minimum_length` | integer | Minimum length enforced for `paperless_secret_key` | `32` |
 | `paperless_dns_name` | string | Paperless public FQDN | `paperless.example.com` |
-| `vaultwarden_path` | path | Vaultwarden base directory | `/opt/vaultwarden` |
+| `vaultwarden_path` | path | Optional: Vaultwarden base directory | `/vaultwarden` (default) |
 | `vaultwarden_backup_location` | string | Vaultwarden backup destination label | `Nextcloud:vaultwarden_backup` |
 | `vaultwarden_signups_allowed` | boolean | Public signup toggle | `false` |
 | `container_service_names` | string | Set by `vm1.yml`, not inventory: the container units Traefik orders after and the deferred network migration restarts | `postgres_container redis_container nextcloud_container paperless_ngx vaultwarden` |
 | `container_network_migration_delay` | string | Delay before the final coordinator runs a queued network migration | `2min` |
 | `backup_host` | string | Backup server IP in CIDR form | `192.168.1.50/32` |
-| `borg_backup_path` | path | Borg repository root on the backup disk | `/opt/borg_backup` |
+| `borg_backup_path` | path | Optional: Borg repository root on the backup disk | `/borg_backups` (default) |
 | `backup_disk` | string | UUID entry for the backup disk | `UUID=...` |
-| `backup_local` | boolean | Use local Nextcloud-backed service backups | `true` |
+| `backup_local` | boolean | Optional: Use local Nextcloud-backed service backups | `true` (default) |
 
 ---
 
@@ -144,7 +144,7 @@ When `apply_runtime_changes_on_reboot` is true and a route proxy network already
 
 Do not use backend-only database/cache networks such as `nextcloud_container_net` as route proxy networks. Nextcloud and Paperless use dedicated proxy networks for ingress while remaining attached to the backend network for PostgreSQL and Redis.
 
-Container egress is denied by default through internal app/backend networks. Traefik uses `traefik_egress_network` for ACME DNS-01 and outbound proxy needs; playbook-runner uses `playbook_runner_egress_network` for git and SSH automation.
+Container egress is denied by default through internal app/backend networks. Traefik uses `traefik_egress_network` for ACME DNS-01 and outbound proxy needs. firewalld trusts only the non-internal networks, so its launch script gives Traefik that network's gateway as its one DNS server, read at each start: of the one server per network that Podman would list, in a varying order, Traefik uses the first three, and could lose ACME on any start. Backends are reached through `/etc/hosts`, so they need no DNS. playbook-runner uses `playbook_runner_egress_network` for git and SSH automation.
 
 ## Traefik Dashboard BasicAuth
 
