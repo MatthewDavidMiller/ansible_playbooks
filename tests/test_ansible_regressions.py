@@ -1355,3 +1355,71 @@ class RetireSemaphoreTests(unittest.TestCase):
             self.tasks["Remove the Semaphore backup cron entry"]["ansible.builtin.cron"],
             {"name": "Backup Semaphore", "state": "absent"},
         )
+
+
+class HomedriveImportTests(unittest.TestCase):
+    """The one-shot bulk load of the previous file service into homedrive."""
+
+    def setUp(self):
+        self.play = yaml.safe_load(
+            (REPO_ROOT / "homedrive_import.yml").read_text(encoding="utf-8")
+        )[0]
+        self.tasks = {task["name"]: task for task in self.play["tasks"]}
+        self.names = list(self.tasks)
+
+    def test_it_is_never_part_of_the_weekly_chain(self):
+        for playbook in ("vm1.yml", "homelab_vms.yml", "update_homelab_vms.yml"):
+            with self.subTest(playbook=playbook):
+                self.assertNotIn(
+                    "homedrive_import",
+                    (REPO_ROOT / playbook).read_text(encoding="utf-8"),
+                )
+
+    def test_inputs_are_validated_first(self):
+        self.assertEqual(self.names[0], "Validate import inputs")
+
+    def test_nothing_is_written_before_the_missing_count_is_checked(self):
+        """A wrong user or source would load a whole second copy."""
+        self.assertLess(
+            self.names.index("Stop if far more is missing than expected"),
+            self.names.index("Import the missing files"),
+        )
+        self.assertLess(
+            self.names.index("Find what the drive lacks (read-only)"),
+            self.names.index("Stop if far more is missing than expected"),
+        )
+
+    def test_the_one_off_container_relabels_nothing_and_writes_nothing(self):
+        """A :Z on the store would take it away from the running server."""
+        run = self.tasks["Set the one-off container command"]["ansible.builtin.set_fact"][
+            "homedrive_import_run"
+        ]
+        self.assertIn("/var/lib/homedrive:ro", run)
+        self.assertIn("/mnt/src:ro", run)
+        self.assertIn("--network=none", run)
+        self.assertIn("--read-only", run)
+        self.assertIn("--cap-drop=ALL", run)
+        self.assertIn("--pull=never", run)
+        self.assertNotRegex(run, r":[zZ]\b")
+
+    def test_old_versions_are_not_imported(self):
+        """The user chose not to bring old versions across (2026-11-03)."""
+        args = self.tasks["Set the one-off container command"]["ansible.builtin.set_fact"][
+            "homedrive_import_args"
+        ]
+        self.assertNotIn("--versions", args)
+
+    def test_read_only_steps_run_in_check_mode(self):
+        for name in (
+            "Read the running homedrive container's image",
+            "Find what the drive lacks (read-only)",
+            "Verify every source file is stored",
+            "Check every version reads back",
+            "Show what garbage collection would free",
+        ):
+            with self.subTest(task=name):
+                self.assertIs(self.tasks[name]["check_mode"], False)
+        self.assertNotIn("check_mode", self.tasks["Import the missing files"])
+
+    def test_it_ends_requiring_a_clean_verify_and_fsck(self):
+        self.assertEqual(self.names[-1], "Require a clean verify-tree and fsck")

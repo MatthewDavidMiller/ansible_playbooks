@@ -224,6 +224,20 @@ health on the Proxmox host: VM1 sees virtual disks and cannot.
   `https://drive.<domain>/dav/<user>` with `vendor = other`, signed in with
   a device token from the web UI's Devices page.
 
+## Importing the previous file service
+
+`homedrive_import.yml` loads the Nextcloud files tree into a drive and
+checks it (see [playbooks.md](../playbooks.md#homedrive_importyml)). It is
+made for a drive that a sync client has already filled from a copy of the
+same files: it first counts what the drive lacks, and stops before writing
+anything if that is more than `homedrive_import_max_missing` (100). Old
+versions are not imported; they stay in Nextcloud until it is retired.
+
+Afterwards, every file in the source must be in the drive: the play fails
+unless the second `verify-tree` and `fsck --deep` are clean. A `DIFFERENT`
+line is a file changed through homedrive since; check each one before
+retiring the source. The full output is in `/var/log/homedrive_import.log`.
+
 ## Health
 
 - `podman exec homedrive hd-server fsck --deep` checks every version.

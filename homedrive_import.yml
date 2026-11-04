@@ -1,0 +1,243 @@
+---
+# One-shot bulk load of the Nextcloud files tree into a homedrive drive, then
+# the checks the migration needs before any cutover. Run it from
+# playbook-runner after vm1.yml has deployed homedrive; it is not part of
+# update_homelab_vms.yml.
+#
+# 1. verify-tree first, read-only: what the drive lacks. If more than
+#    homedrive_import_max_missing files are missing, it stops before writing
+#    anything; that means the wrong user or source, or a drive the sync
+#    client has not filled. Raise the limit only once the list makes sense.
+# 2. import-tree: every file the drive lacks becomes a new file there. A file
+#    already stored is left alone, and one changed through homedrive is never
+#    replaced. Old versions are not imported.
+# 3. verify-tree again, which must be clean: every source file is the current
+#    version in the drive, byte for byte. DIFFERENT lines are files changed
+#    in homedrive since; check each one.
+# 4. fsck --deep reads every version back, and gc --dry-run shows what
+#    garbage collection would free, without freeing it.
+#
+# The import runs in a one-off container from the running server's image,
+# with no network, through the server's admin socket. The source is mounted
+# read-only and the store read-only (the socket needs no write), with SELinux
+# separation off for this container only, so neither tree is relabeled: a :Z
+# here would take the store away from the running server. It reads the
+# Nextcloud files through their group, which Nextcloud's permissions give
+# read access. Re-running is safe and continues where a run stopped. Full
+# output goes to homedrive_import_log; the run log shows the summaries.
+- name: Import the Nextcloud files tree into homedrive
+  hosts: vm1
+  gather_facts: false
+  vars:
+    homedrive_import_user: "{{ nextcloud_homelab_user | default('') }}"
+    homedrive_import_src: "{{ nextcloud_path | default('/data_drive/nextcloud') }}/data/{{ nextcloud_homelab_user | default('') }}/files"
+    homedrive_import_dest: ""
+    homedrive_import_max_missing: 100
+    homedrive_import_source_gid: "{{ nextcloud_gid | default('33') }}"
+    homedrive_import_log: /var/log/homedrive_import.log
+    homedrive_import_timeout_s: 86400
+    homedrive_import_store: "{{ homedrive_path | default('/data_drive/homedrive/store') }}"
+    homedrive_import_uid: "{{ homedrive_uid | default('10001') }}"
+    homedrive_import_gid: "{{ homedrive_gid | default('10001') }}"
+  tasks:
+    - name: Validate import inputs
+      ansible.builtin.assert:
+        that:
+          - homedrive_import_user is match('^[A-Za-z0-9._-]{1,64}$')
+          - homedrive_import_user in (homedrive_users | default([]) | map(attribute='name') | list)
+          - homedrive_import_src | homelab_safe_absolute_path
+          - homedrive_import_store | homelab_safe_absolute_path
+          - homedrive_import_log | homelab_safe_absolute_path
+          - homedrive_import_max_missing | int >= 0
+          - homedrive_import_source_gid | string is match('^[0-9]+$')
+        fail_msg: >-
+          homedrive_import_user must be one of homedrive_users, and the source,
+          store and log must be absolute paths.
+
+    - name: Read the running homedrive container's image
+      ansible.builtin.command:
+        argv:
+          - podman
+          - container
+          - inspect
+          - --format
+          - "{{ '{{' }}.State.Running{{ '}}' }} {{ '{{' }}.Image{{ '}}' }}"
+          - homedrive
+      register: homedrive_import_container
+      changed_when: false
+      check_mode: false
+
+    - name: Require a running homedrive server
+      ansible.builtin.assert:
+        that:
+          - homedrive_import_container.stdout.split() | length == 2
+          - homedrive_import_container.stdout.split()[0] == 'true'
+          - homedrive_import_container.stdout.split()[1] is match('^[0-9a-f]{64}$')
+        fail_msg: The homedrive container is not running; deploy it with vm1.yml first.
+
+    - name: Check the source tree
+      ansible.builtin.stat:
+        path: "{{ homedrive_import_src }}"
+      register: homedrive_import_src_stat
+
+    - name: Require the source tree and the store
+      ansible.builtin.assert:
+        that:
+          - homedrive_import_src_stat.stat.isdir | default(false)
+          - not (homedrive_import_src_stat.stat.islnk | default(false))
+        fail_msg: "{{ homedrive_import_src }} is not a directory."
+
+    - name: Set the one-off container command
+      ansible.builtin.set_fact:
+        homedrive_import_run: >-
+          /usr/bin/podman run --rm --pull=never --network=none
+          --user {{ homedrive_import_uid }}:{{ homedrive_import_gid }}
+          --group-add {{ homedrive_import_source_gid }}
+          --security-opt label=disable
+          --volume {{ homedrive_import_store | quote }}:/var/lib/homedrive:ro
+          --volume {{ homedrive_import_src | quote }}:/mnt/src:ro
+          --read-only --cap-drop=ALL --security-opt=no-new-privileges:true
+          --memory=1g --memory-swap=1g --pids-limit=50
+          {{ homedrive_import_container.stdout.split()[1] }}
+        homedrive_import_args: >-
+          --user {{ homedrive_import_user | quote }} --src /mnt/src
+          {{ ('--dest ' ~ (homedrive_import_dest | quote)) if homedrive_import_dest | length > 0 else '' }}
+
+    # verify-tree exits 1 whenever anything is missing, which is expected
+    # here, so only its summary line decides.
+    - name: Find what the drive lacks (read-only)
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail
+          out="$(mktemp)"
+          {{ homedrive_import_run }} verify-tree {{ homedrive_import_args }} > "$out" 2>&1 || true
+          { echo "== $(date -Is) verify-tree before the import"; cat "$out"; } >> {{ homedrive_import_log | quote }}
+          grep -E '^(MISSING|DIFFERENT|SKIPPED) ' "$out" | head -n 50 || true
+          grep -E '^[0-9]+ file\(s\) checked: ' "$out" || { tail -n 5 "$out"; rm -f "$out"; exit 1; }
+          rm -f "$out"
+        executable: /bin/bash
+      register: homedrive_import_before
+      changed_when: false
+      check_mode: false
+      async: "{{ homedrive_import_timeout_s }}"
+      poll: 60
+
+    - name: Read the counts before the import
+      ansible.builtin.set_fact:
+        homedrive_import_before_counts: >-
+          {{ (homedrive_import_before.stdout_lines | last)
+             | regex_search('checked: ([0-9]+) missing, ([0-9]+) different, ([0-9]+) skipped', '\1', '\2', '\3')
+             | map('int') | list }}
+
+    - name: Show what the drive lacks
+      ansible.builtin.debug:
+        msg: "{{ homedrive_import_before.stdout_lines }}"
+
+    - name: Stop if far more is missing than expected
+      ansible.builtin.assert:
+        that:
+          - homedrive_import_before_counts[0] <= homedrive_import_max_missing | int
+        fail_msg: >-
+          {{ homedrive_import_before_counts[0] }} files are missing from the drive,
+          more than homedrive_import_max_missing ({{ homedrive_import_max_missing }}).
+          Nothing was imported. Check the user and source, and that the sync
+          client has finished; the full list is in {{ homedrive_import_log }}.
+
+    - name: Import the missing files
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail
+          out="$(mktemp)"
+          status=0
+          {{ homedrive_import_run }} import-tree {{ homedrive_import_args }} > "$out" 2>&1 || status=$?
+          { echo "== $(date -Is) import-tree (exit $status)"; cat "$out"; } >> {{ homedrive_import_log | quote }}
+          grep -E '^(SKIPPED|CHANGED-HERE) ' "$out" | head -n 50 || true
+          grep -E '^imported [0-9]+ file' "$out" || tail -n 5 "$out"
+          rm -f "$out"
+          exit "$status"
+        executable: /bin/bash
+      register: homedrive_import_result
+      changed_when: homedrive_import_result.stdout is search('^imported [1-9]', multiline=true)
+      when: homedrive_import_before_counts[0] > 0
+      async: "{{ homedrive_import_timeout_s }}"
+      poll: 60
+
+    - name: Show the import
+      ansible.builtin.debug:
+        msg: "{{ homedrive_import_result.stdout_lines | default(['nothing was missing; nothing imported']) }}"
+
+    - name: Verify every source file is stored
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail
+          out="$(mktemp)"
+          status=0
+          {{ homedrive_import_run }} verify-tree {{ homedrive_import_args }} > "$out" 2>&1 || status=$?
+          { echo "== $(date -Is) verify-tree after the import (exit $status)"; cat "$out"; } >> {{ homedrive_import_log | quote }}
+          grep -E '^(MISSING|DIFFERENT|SKIPPED) ' "$out" | head -n 50 || true
+          grep -E '^[0-9]+ file\(s\) checked: ' "$out" || tail -n 5 "$out"
+          rm -f "$out"
+          exit "$status"
+        executable: /bin/bash
+      register: homedrive_import_after
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      async: "{{ homedrive_import_timeout_s }}"
+      poll: 60
+
+    - name: Show the verification
+      ansible.builtin.debug:
+        msg: "{{ homedrive_import_after.stdout_lines }}"
+
+    - name: Check every version reads back
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail
+          out="$(mktemp)"
+          status=0
+          /usr/bin/podman exec homedrive hd-server fsck --deep > "$out" 2>&1 || status=$?
+          { echo "== $(date -Is) fsck --deep (exit $status)"; cat "$out"; } >> {{ homedrive_import_log | quote }}
+          head -n 50 "$out"
+          rm -f "$out"
+          exit "$status"
+        executable: /bin/bash
+      register: homedrive_import_fsck
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      async: "{{ homedrive_import_timeout_s }}"
+      poll: 60
+
+    - name: Show what garbage collection would free
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail
+          out="$(mktemp)"
+          status=0
+          /usr/bin/podman exec homedrive hd-server gc --dry-run > "$out" 2>&1 || status=$?
+          { echo "== $(date -Is) gc --dry-run (exit $status)"; cat "$out"; } >> {{ homedrive_import_log | quote }}
+          head -n 50 "$out"
+          rm -f "$out"
+          exit "$status"
+        executable: /bin/bash
+      register: homedrive_import_gc
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Show fsck and gc
+      ansible.builtin.debug:
+        msg:
+          fsck: "{{ homedrive_import_fsck.stdout_lines }}"
+          gc_dry_run: "{{ homedrive_import_gc.stdout_lines }}"
+
+    - name: Require a clean verify-tree and fsck
+      ansible.builtin.assert:
+        that:
+          - homedrive_import_after.rc == 0
+          - homedrive_import_fsck.rc == 0
+        fail_msg: >-
+          verify-tree (exit {{ homedrive_import_after.rc }}) or fsck (exit
+          {{ homedrive_import_fsck.rc }}) is not clean; see above and
+          {{ homedrive_import_log }}. Do not retire the source.

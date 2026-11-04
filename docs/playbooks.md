@@ -76,3 +76,16 @@ This document covers the maintained playbooks only. Legacy playbooks are preserv
 
 **Failure:** removing a network fails while a container still uses it. That means Traefik has not restarted since `vm1.yml` dropped the route; reboot VM1 and run it again.
 
+---
+
+## `homedrive_import.yml`
+
+**Target:** `vm1`
+
+**Usage:** One-shot bulk load of the Nextcloud files tree (`<nextcloud_path>/data/<nextcloud_homelab_user>/files`) into a homedrive drive, followed by the checks the migration needs. Run it after `vm1.yml` has deployed homedrive. It is not part of `update_homelab_vms.yml`. Re-running is safe: files already stored are left alone, and a run that was cut off continues where it stopped. See [guides/homedrive.md](guides/homedrive.md#importing-the-previous-file-service).
+
+**Steps:** a read-only `verify-tree` lists what the drive lacks, and the play stops before writing anything if more than `homedrive_import_max_missing` (100) files are missing. That means the wrong user or source, or a sync client that has not finished uploading. `import-tree` then adds the missing files, without old versions. A second `verify-tree` must be clean, then `fsck --deep` reads every version back and `gc --dry-run` shows what collection would free. The play fails unless `verify-tree` and `fsck` are both clean.
+
+**Inventory:** `homedrive_import_user` defaults to `nextcloud_homelab_user` and must be one of `homedrive_users`. `homedrive_import_src`, `homedrive_import_dest` (the drive's root by default), `homedrive_import_max_missing`, and `homedrive_import_timeout_s` (24 hours per step) can be overridden. The full output, file names included, goes to `/var/log/homedrive_import.log`; the run log shows summaries and at most 50 file lines per step.
+
+**Isolation:** the import runs in a one-off container from the running server's image with no network, the source and the store both mounted read-only, and SELinux separation off for that container only, so neither tree is relabeled. It reads the Nextcloud files through their group, and writes only through the server's admin socket.
