@@ -7,6 +7,9 @@ umask 077
 NEXTCLOUD_BORG_REMOTE="{{ 'Homedrive' if backup_destination | default('nextcloud') == 'homedrive' else 'Nextcloud' }}:{{ nextcloud_paperless_backup_location }}"
 BORG_REPO="{{ nextcloud_borg_backup_path }}"
 timestamp=$(date +%Y_%m_%d)
+# The archive's name carries the time too, so a second run on one day (a
+# manual one with run_backups.yml) makes a new archive instead of failing.
+ARCHIVE="backup-${timestamp}-$(date +%H%M%S)"
 EXPORT_DIR="{{ paperless_export_path }}/${timestamp}"
 CONTAINER_EXPORT_DIR="/usr/src/paperless/export/${timestamp}"
 TMP_DIR=$(mktemp -d /tmp/nextcloud-paperless-backup.XXXXXX)
@@ -91,13 +94,13 @@ fi
 }
 
 # === Borg Backup for Paperless and Nextcloud (Documents + DBs) ===
-/usr/bin/borg create "$BORG_REPO::backup-${timestamp}" \
+/usr/bin/borg create "$BORG_REPO::${ARCHIVE}" \
     "$EXPORT_DIR" \
     "$PAPERLESS_DUMP" \
     "$NEXTCLOUD_DUMP" \
     --compression=lz4 \
     > /var/log/borg-backup.log 2>&1 || {
-        echo "Borg backup failed for archive: backup-${timestamp}" >&2
+        echo "Borg backup failed for archive: ${ARCHIVE}" >&2
         cat /var/log/borg-backup.log >&2
         exit 1
     }

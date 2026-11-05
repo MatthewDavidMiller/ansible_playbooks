@@ -64,7 +64,9 @@ local_backup() {
     /usr/bin/podman exec homedrive hd-server checkpoint || { fail "the checkpoint failed"; return 1; }
     store_paths
     local archive
-    archive="homedrive-$(/usr/bin/date +%Y-%m-%d)"
+    # The time is in the name too, so a second run on one day (a manual one
+    # with run_backups.yml) makes a new archive instead of failing.
+    archive="homedrive-$(/usr/bin/date +%Y-%m-%dT%H%M%S)"
     /usr/bin/borg create --stats --lock-wait 3600 "$REPO::$archive" "${PATHS[@]}" "${EXCLUDES[@]}" \
         || { fail "borg create failed (see $LOG)"; return 1; }
     # Only homedrive's own archives: the repository may be shared.

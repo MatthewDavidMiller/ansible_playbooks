@@ -1,7 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 umask 077
-archive={{ borg_backup_path | quote }}"::nextcloud_backup-$(/usr/bin/date +%m_%d_%Y)"
+# The time is in the name too, so a second run on one day (a manual one with
+# run_backups.yml) makes a new archive instead of failing.
+archive={{ borg_backup_path | quote }}"::nextcloud_backup-$(/usr/bin/date +%m_%d_%Y-%H%M%S)"
 
 {% if backup_local | default(false) %}
 # Local backup — Nextcloud runs on this host

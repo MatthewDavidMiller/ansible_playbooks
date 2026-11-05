@@ -224,7 +224,7 @@ through WebDAV), repair from a backup:
 
 ```sh
 mkdir -p /scratch/store && cd /scratch/store
-borg extract --strip-components 3 /srv/backup/homedrive::homedrive-2026-10-27 srv/homedrive/store
+borg extract --strip-components 3 /srv/backup/homedrive::homedrive-2026-10-27T013000 srv/homedrive/store
 /usr/local/bin/homedrive_repair.sh /scratch/store   # stops the server, repairs, starts it
 ```
 

@@ -1704,3 +1704,15 @@ class BackupScheduleTests(unittest.TestCase):
         self.assertIs(task["check_mode"], False)
         self.assertIs(task["changed_when"], False)
         self.assertEqual(task["tags"], ["backups"])
+
+    def test_a_second_borg_run_on_one_day_makes_a_new_archive(self):
+        """run_backups.yml can run a job again the day the cron job has."""
+        for parts in (
+            ("roles", "homedrive", "templates", "backup_homedrive.sh.j2"),
+            ("roles", "backup", "templates", "backup_files.sh.j2"),
+            ("roles", "nextcloud", "templates", "backup_nextcloud_paperless.sh.j2"),
+        ):
+            text = (REPO_ROOT.joinpath(*parts)).read_text(encoding="utf-8")
+            with self.subTest(script=parts[-1]):
+                self.assertRegex(text, r"(archive|ARCHIVE)=.*%H%M%S")
+
