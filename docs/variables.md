@@ -104,6 +104,16 @@ When `backup_local: false`, also define the following variables:
 | `nextcloud_rclone_pass` | string | Yes, secret | Prefer a Nextcloud app password. | Ansible Vault value |
 | `nextcloud_webdav_user` | string | Yes | WebDAV account rendered into the rclone configuration. | `example_user` |
 | `nextcloud_webdav_pass` | string | Yes, secret | WebDAV/app password rendered into the rclone configuration. | Ansible Vault value |
+| `homedrive_webdav_url` | string | With `backup_destination: homedrive` | homedrive WebDAV URL for the `Homedrive:` rclone remote, which the Paperless Borg sync then uses; empty writes no remote. | `https://drive.example.com/dav/example_user` |
+| `homedrive_rclone_user` | string | With `homedrive_webdav_url` | homedrive account for that remote. | `example_user` |
+| `homedrive_rclone_pass` | string | With `homedrive_webdav_url`, secret | A device token from homedrive's Devices page, as `rclone obscure <token>` prints it. | Ansible Vault value |
+
+### Backup destination
+
+| Variable | Type | Required | Description | Example/default |
+|---|---|---|---|---|
+| `backup_destination` | string | No | Where VM1's backups go. `nextcloud` keeps the previous behaviour. `homedrive` stores the vaultwarden, playbook-runner and music-server daily backups through `homedrive_import_path.sh`, keeps their dated names, and sends the old playbook-runner and music-server files (over 30 days) to the drive's trash with `homedrive_prune_path.sh`. Vaultwarden keeps every day, as before. The Paperless Borg repository is synced to the `Homedrive:` remote. It needs homedrive deployed. | `nextcloud` (default) |
+| `homedrive_backup_user` | string | With `backup_destination: homedrive` | The homedrive account, one of `homedrive_users`, whose drive holds the backups. Each `<service>_backup_location` is the folder in it. | `example_user` |
 
 ### Paperless NGX
 
@@ -218,6 +228,7 @@ They are listed here so every maintained role input is discoverable.
 | `nextcloud_normalize_user_files_permissions` | boolean | `true` | Normalizes permissions below every Nextcloud user's `files` tree. |
 | `nextcloud_user_files_directory_mode` | string | `0770` | Directory mode used during normalization. |
 | `nextcloud_user_files_file_mode` | string | `0660` | Regular-file mode used during normalization. |
+| `homedrive_prune_keep` | integer | `7` | How many of a folder's newest dated backups `homedrive_prune_path.sh` always keeps, however old. |
 | `password_minimum_length` | integer | `12` | Minimum length for the validated PostgreSQL admin, Nextcloud database, and Paperless database passwords; must be at least `1`. |
 
 `apply_runtime_changes_on_reboot`, `approved_container_images`,

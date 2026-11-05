@@ -86,3 +86,11 @@ container_static_ips:
 # X-Forwarded-For for login throttling.
 route_proxy_traefik_ips:
   music_server_container_net: 172.16.1.51
+
+# Where the daily backup goes: "nextcloud" (the previous file service, as
+# before) or "homedrive", through homedrive_import_path.sh. With homedrive,
+# <name>_backup_location is the folder in homedrive_backup_user's drive.
+backup_destination: nextcloud
+
+# The homedrive account that holds the backups (one of homedrive_users).
+homedrive_backup_user: ""

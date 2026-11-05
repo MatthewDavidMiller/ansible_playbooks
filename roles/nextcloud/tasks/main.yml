@@ -9,6 +9,8 @@
       - nextcloud_disk_mount_path | homelab_safe_absolute_path
       - nextcloud_path.startswith(nextcloud_disk_mount_path ~ '/')
       - nextcloud_borg_backup_path | homelab_safe_absolute_path
+      - backup_destination in ['nextcloud', 'homedrive']
+      - backup_destination != 'homedrive' or homedrive_webdav_url | default('') is match('^https://')
       - postgres_image | homelab_immutable_digest_ref
       - redis_image | homelab_immutable_digest_ref
       - nextcloud_image | homelab_immutable_digest_ref

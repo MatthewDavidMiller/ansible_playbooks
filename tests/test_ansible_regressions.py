@@ -1456,3 +1456,41 @@ class HomedriveImportTests(unittest.TestCase):
         self.assertEqual(self.names[-1], "Require a clean verify-tree and fsck")
         self.assertIn("full", self.tasks[self.names[-1]]["tags"])
         self.assertIn("Require every source path in the drive", self.names)
+
+
+def _first_assert(role: str) -> list[str]:
+    """The conditions of the assert a role opens with."""
+    task = next(t for t in role_tasks(role) if "ansible.builtin.assert" in t)
+    return task["ansible.builtin.assert"]["that"]
+
+
+class BackupDestinationTests(unittest.TestCase):
+    """backup_destination moves every VM1 backup off the previous file service."""
+
+    def test_the_paperless_borg_sync_follows_the_switch(self):
+        script = (
+            REPO_ROOT / "roles" / "nextcloud" / "templates" / "backup_nextcloud_paperless.sh.j2"
+        ).read_text(encoding="utf-8")
+        self.assertIn(
+            "'Homedrive' if backup_destination | default('nextcloud') == 'homedrive' else 'Nextcloud'",
+            script,
+        )
+        conditions = "\n".join(_first_assert("nextcloud"))
+        self.assertIn("homedrive_webdav_url | default('') is match('^https://')", conditions)
+
+    def test_the_homedrive_remote_is_written_only_when_configured(self):
+        config = (
+            REPO_ROOT / "roles" / "standard_rclone" / "templates" / "rclone_config.j2"
+        ).read_text(encoding="utf-8")
+        section = config[config.index("{% if homedrive_webdav_url"):]
+        self.assertIn("[Homedrive]", section)
+        self.assertIn("vendor = other", section, "vendor nextcloud uses upload endpoints homedrive lacks")
+        self.assertTrue(section.rstrip().endswith("{% endif %}"))
+
+    def test_every_daily_backup_refuses_homedrive_without_a_drive(self):
+        for role in ("vaultwarden", "playbook_runner", "music_server"):
+            with self.subTest(role=role):
+                conditions = "\n".join(_first_assert(role))
+                self.assertIn("backup_destination in ['nextcloud', 'homedrive']", conditions)
+                self.assertIn("backup_destination != 'homedrive' or homedrive_enabled", conditions)
+                self.assertIn("homedrive_backup_user in (homedrive_users", conditions)

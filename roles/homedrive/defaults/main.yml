@@ -40,6 +40,10 @@ homedrive_exports: ""
 # Removing a name stops it signing in; its files stay.
 homedrive_users: []
 
+# homedrive_prune_path.sh always keeps this many of a folder's newest dated
+# backups, however old, so a backup job that stops cannot empty its folder.
+homedrive_prune_keep: 7
+
 # Free space (GiB) below which the store refuses writes
 homedrive_min_free_gb: 10
 

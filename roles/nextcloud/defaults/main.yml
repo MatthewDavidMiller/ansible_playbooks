@@ -111,3 +111,8 @@ container_static_ips:
 postgres_image: ""
 redis_image: ""
 nextcloud_image: ""
+
+# Where the Borg repository above is synced: "nextcloud" (the Nextcloud
+# rclone remote, as before) or "homedrive" (the Homedrive rclone remote,
+# which needs homedrive_webdav_url). The location is the same folder path.
+backup_destination: nextcloud

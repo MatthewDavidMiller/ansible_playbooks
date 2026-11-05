@@ -9,3 +9,14 @@ nextcloud_rclone_user: ""
 
 # WebDAV password for the Nextcloud rclone remote (use an app password, not the account password)
 nextcloud_rclone_pass: ""
+
+# WebDAV URL for the Homedrive rclone remote, empty for none
+# (e.g. "https://drive.example.com/dav/user")
+homedrive_webdav_url: ""
+
+# homedrive account for the Homedrive rclone remote
+homedrive_rclone_user: ""
+
+# A device token made on homedrive's Devices page, in the form rclone's
+# config needs: the output of `rclone obscure <token>` (Vault)
+homedrive_rclone_pass: ""

@@ -243,6 +243,36 @@ changed. A `DIFFERENT` line is a file changed through homedrive since; check
 each one before retiring the source. The full output is in
 `/var/log/homedrive_import.log`.
 
+## Moving VM1's backups to homedrive
+
+Set these in the inventory, then run `vm1.yml`:
+
+```yaml
+backup_destination: homedrive
+homedrive_backup_user: example_user          # one of homedrive_users
+homedrive_webdav_url: https://drive.example.com/dav/example_user
+homedrive_rclone_user: example_user
+homedrive_rclone_pass: "..."                 # Vault: rclone obscure <device token>
+```
+
+The vaultwarden, playbook-runner and music-server daily backups then go
+into `homedrive_backup_user`'s drive through `homedrive_import_path.sh`,
+under the same `<service>_backup_location` folders and the same dated names.
+After storing the day's file, the playbook-runner and music-server jobs move
+their files over 30 days old to the drive's trash with
+`homedrive_prune_path.sh`, which always keeps the newest seven: a job that
+stops cannot empty its folder, and a pruned file can be restored from the
+trash for 90 days. A file counts as old only once both the time it was
+stored and its own date are, so backups that came across from Nextcloud are
+pruned 30 days after they arrived, not at once. Vaultwarden keeps every day,
+as before. The Paperless Borg repository is synced to the `Homedrive:` remote
+instead of Nextcloud's.
+
+Nothing in this repository writes to Nextcloud after that. Three things
+outside it may: the Proxmox host's `backup_proxmox_config.sh` (point its
+`RCLONE_DEST` at a `Homedrive:` remote there), the UniFi console's backup
+target, and the Nextcloud apps on your devices.
+
 ## Health
 
 - `podman exec homedrive hd-server fsck --deep` checks every version.

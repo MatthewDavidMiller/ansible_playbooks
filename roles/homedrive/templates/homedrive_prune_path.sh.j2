@@ -1,0 +1,14 @@
+#!/bin/bash
+# Move old dated backups in a drive folder to homedrive's trash, keeping the
+# newest few however old they are. Backup scripts call this after storing
+# the day's file; the trash keeps what it moves until retention purges it.
+#
+# Usage: homedrive_prune_path.sh <user> <drive folder> <name pattern> <days>
+set -euo pipefail
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+if [ "$#" -ne 4 ]; then
+    echo "Usage: $0 <user> <drive folder> <name pattern> <days>" >&2
+    exit 2
+fi
+exec /usr/bin/podman exec homedrive hd-server prune --user "$1" --dir "$2" --match "$3" \
+    --older-than-days "$4" --keep {{ homedrive_prune_keep }}

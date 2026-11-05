@@ -4,7 +4,7 @@ set -euo pipefail
 umask 077
 
 # === Configuration ===
-NEXTCLOUD_BORG_REMOTE="Nextcloud:{{ nextcloud_paperless_backup_location }}"
+NEXTCLOUD_BORG_REMOTE="{{ 'Homedrive' if backup_destination | default('nextcloud') == 'homedrive' else 'Nextcloud' }}:{{ nextcloud_paperless_backup_location }}"
 BORG_REPO="{{ nextcloud_borg_backup_path }}"
 timestamp=$(date +%Y_%m_%d)
 EXPORT_DIR="{{ paperless_export_path }}/${timestamp}"
@@ -110,7 +110,7 @@ fi
         exit 1
     }
 
-# === Rclone Borg Repo to Nextcloud ===
+# === Rclone Borg Repo to the backup destination ===
 /usr/bin/rclone sync "$BORG_REPO" "${NEXTCLOUD_BORG_REMOTE}" \
     --log-level INFO --log-file=/var/log/rclone-nextcloud-borg.log || {
         echo "Rclone sync failed to $NEXTCLOUD_BORG_REMOTE" >&2

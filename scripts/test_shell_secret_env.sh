@@ -182,6 +182,7 @@ homedrive_users:
     password: 'drive;pw "quoted" \\ slash & dollars \$HOME'
     admin: true
 homedrive_min_free_gb: 10
+homedrive_prune_keep: 7
 homedrive_keep_all_days: 30
 homedrive_trash_days: 90
 homedrive_memory: '1g'
@@ -319,6 +320,23 @@ cat > "$tmpdir/render.yml" <<EOF
         src: ${repo_root}/roles/homedrive/templates/homedrive_import_path.sh.j2
         dest: ${render_dir}/homedrive_import_path.sh
 
+    - name: Render homedrive_prune_path.sh
+      ansible.builtin.template:
+        src: ${repo_root}/roles/homedrive/templates/homedrive_prune_path.sh.j2
+        dest: ${render_dir}/homedrive_prune_path.sh
+
+    - name: Render the daily backups with homedrive as their destination
+      ansible.builtin.template:
+        src: ${repo_root}/roles/{{ item.role }}/templates/{{ item.template }}
+        dest: ${render_dir}/{{ item.dest }}
+      vars:
+        backup_destination: homedrive
+        homedrive_backup_user: alice
+      loop:
+        - {role: vaultwarden, template: backup_db.j2, dest: backup_vaultwarden_homedrive.sh}
+        - {role: playbook_runner, template: backup_playbook_runner.sh.j2, dest: backup_playbook_runner_homedrive.sh}
+        - {role: music_server, template: backup_music_server.sh.j2, dest: backup_music_server_homedrive.sh}
+
     - name: Render homedrive_repair.sh
       ansible.builtin.template:
         src: ${repo_root}/roles/homedrive/templates/homedrive_repair.sh.j2
@@ -357,8 +375,12 @@ pass "playbook_runner.sh and backup_playbook_runner.sh pass ShellCheck after ren
 shellcheck "$render_dir/music_server.sh" "$render_dir/backup_music_server.sh"
 pass "music_server.sh and backup_music_server.sh pass ShellCheck after rendering"
 
-shellcheck "$render_dir/homedrive.sh" "$render_dir/homedrive_import_path.sh" "$render_dir/backup_homedrive.sh" "$render_dir/homedrive_repair.sh" "$render_dir/homedrive_restore_drill.sh"
+shellcheck "$render_dir/homedrive.sh" "$render_dir/homedrive_import_path.sh" "$render_dir/homedrive_prune_path.sh" "$render_dir/backup_homedrive.sh" "$render_dir/homedrive_repair.sh" "$render_dir/homedrive_restore_drill.sh"
 pass "homedrive scripts pass ShellCheck after rendering"
+
+shellcheck "$render_dir/backup_vaultwarden_homedrive.sh" "$render_dir/backup_playbook_runner_homedrive.sh" "$render_dir/backup_music_server_homedrive.sh"
+pass "the daily backups pass ShellCheck with homedrive as their destination"
+
 
 get_sourced_var() {
   local file="$1"
@@ -638,6 +660,22 @@ assert_contains "$render_dir/homedrive.sh" "--pull=never" "homedrive.sh uses --p
 assert_contains "$render_dir/homedrive.service" "RequiresMountsFor=/srv/homedrive/store" "homedrive.service waits for the store's mount"
 assert_contains "$render_dir/backup_homedrive.sh" "hd-server checkpoint" "backup_homedrive.sh checkpoints before backing up"
 assert_contains "$render_dir/homedrive_import_path.sh" "podman exec -i homedrive hd-server import" "homedrive_import_path.sh imports through the admin socket"
+
+# With homedrive as the destination, a backup is stored only through the
+# server, and nothing is deleted by the script itself: old files go to the
+# drive's trash through prune, which always keeps the newest few.
+for backup_script in backup_vaultwarden_homedrive.sh backup_playbook_runner_homedrive.sh backup_music_server_homedrive.sh; do
+  assert_contains "$render_dir/$backup_script" "/usr/local/bin/homedrive_import_path.sh alice" "$backup_script stores the backup through homedrive"
+  assert_not_contains "$render_dir/$backup_script" "nextcloud_scan_path" "$backup_script does not index anything in Nextcloud"
+  assert_not_contains "$render_dir/$backup_script" "Nextcloud:" "$backup_script does not upload to the Nextcloud remote"
+  assert_not_contains "$render_dir/$backup_script" "-delete" "$backup_script deletes nothing itself"
+  assert_not_contains "$render_dir/$backup_script" "rclone" "$backup_script does not use rclone"
+done
+assert_contains "$render_dir/backup_playbook_runner_homedrive.sh" "homedrive_prune_path.sh alice \\" "backup_playbook_runner.sh prunes through homedrive"
+assert_contains "$render_dir/backup_playbook_runner_homedrive.sh" "'playbook_runner_*.tar.gz' 30" "backup_playbook_runner.sh prunes only its own files over 30 days old"
+assert_contains "$render_dir/backup_music_server_homedrive.sh" "'music_server_*.tar.gz' 30" "backup_music_server.sh prunes only its own files over 30 days old"
+assert_not_contains "$render_dir/backup_vaultwarden_homedrive.sh" "homedrive_prune_path" "backup_vaultwarden.sh keeps every day's file, as before"
+assert_contains "$render_dir/homedrive_prune_path.sh" "--keep 7" "homedrive_prune_path.sh always keeps the newest seven"
 assert_contains "$render_dir/music_server.service" "After=nextcloud_container.service" "music_server.service starts after Nextcloud when the music is in its data directory"
 assert_contains "$render_dir/backup_music_server.sh" "/usr/bin/tar -C \"/srv/music-server/data\"" "backup_music_server.sh archives only the data directory"
 assert_contains "$render_dir/backup_music_server.sh" '/usr/bin/install -o 33 -g 33 -m 0660 "$ARCHIVE" "$DEST/"' "backup_music_server.sh installs backups with the normalized Nextcloud file mode"
