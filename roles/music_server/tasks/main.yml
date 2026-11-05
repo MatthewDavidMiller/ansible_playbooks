@@ -6,6 +6,8 @@
 - name: Validate music-server inputs before changing the host
   ansible.builtin.assert:
     that:
+      - music_server_backup_hour | string is match('^([01]?[0-9]|2[0-3])$')
+      - music_server_backup_minute | string is match('^[0-5]?[0-9]$')
       - music_server_master_key is match('^[0-9a-fA-F]{64}$')
       - music_server_users | length > 0
       - music_server_users | length <= 50
@@ -211,7 +213,8 @@
 - name: Backup music-server daily
   ansible.builtin.cron:
     name: Backup music-server
-    special_time: daily
+    minute: "{{ music_server_backup_minute }}"
+    hour: "{{ music_server_backup_hour }}"
     job: /usr/bin/bash /usr/local/bin/backup_music_server.sh
 
 # The users file is read at startup, so a changed one needs a restart.

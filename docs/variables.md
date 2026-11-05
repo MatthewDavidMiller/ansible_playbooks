@@ -230,6 +230,7 @@ They are listed here so every maintained role input is discoverable.
 | `nextcloud_normalize_user_files_permissions` | boolean | `true` | Normalizes permissions below every Nextcloud user's `files` tree. |
 | `nextcloud_user_files_directory_mode` | string | `0770` | Directory mode used during normalization. |
 | `nextcloud_user_files_file_mode` | string | `0660` | Regular-file mode used during normalization. |
+| `<job>_backup_hour`, `<job>_backup_minute` | string | see the next column | When each nightly job runs, VM1's local time: `vaultwarden_backup_*`, `playbook_runner_backup_*` and `music_server_backup_*` at `0`:`0`, `nextcloud_backup_*` at `0`:`30`, `homedrive_backup_*` at `1`:`30`, `borg_backup_*` at `3`:`0`. The store's backup must come after the jobs that store into it. |
 | `homedrive_prune_keep` | integer | `7` | How many of a folder's newest dated backups `homedrive_prune_path.sh` always keeps, however old. |
 | `password_minimum_length` | integer | `12` | Minimum length for the validated PostgreSQL admin, Nextcloud database, and Paperless database passwords; must be at least `1`. |
 

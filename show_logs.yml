@@ -6,6 +6,9 @@
 #   (no tags)     the overview, then every service
 #   overview      services, disk, memory, and failed units only
 #   network       the overview, then whether VM1 and Traefik can resolve names
+#   backups       the overview, then the backup jobs: their schedule, which
+#                 are running now and for how long, Borg's locks, and the end
+#                 of each backup log
 #   <service>     the overview, then that service: traefik, postgres, redis,
 #                 nextcloud, paperless, vaultwarden, playbook_runner,
 #                 music_server, homedrive
@@ -15,6 +18,7 @@
   vars:
     show_logs_lines: 60
     show_logs_since: 24h
+    show_logs_backup_lines: 15
   tasks:
     - name: Read the overview
       ansible.builtin.shell: |
@@ -114,3 +118,47 @@
       ansible.builtin.import_tasks: standalone_tasks/show_service_logs.yml
       vars: {show_logs_container: homedrive, show_logs_unit: homedrive}
       tags: [homedrive]
+
+    # Whether a backup is working or stuck: what runs it, what is running
+    # now, who holds each Borg repository's lock (a job waits up to an hour
+    # for it), and what each job last said.
+    - name: Read the backups
+      ansible.builtin.shell: |
+        echo "== the backup jobs in root's crontab"
+        crontab -l -u root 2>/dev/null | grep -E 'backup|borg' || echo "none"
+        echo "== running now (elapsed time, [[days-]hours:]minutes:seconds)"
+        ps -eo pid,etime,args --sort=start_time \
+          | grep -E '[b]ackup_[a-z_]+\.sh|[h]omedrive_restore_drill|[b]org (create|prune|compact|check|extract|init)|[r]clone (sync|copy)|[h]d-server (import|prune|checkpoint)' \
+          || echo "nothing"
+        echo "== Borg locks"
+        for repo in {{ ([borg_backup_path | default('/borg_backups'),
+                         nextcloud_borg_backup_path | default('/data_drive/nextcloud/borg_backup'),
+                         homedrive_borg_repo | default('')] | select | unique | map('quote') | join(' ')) }}; do
+          [ -f "$repo/config" ] || continue
+          if [ -d "$repo/lock.exclusive" ]; then
+            echo "$repo is locked by $(ls "$repo/lock.exclusive")"
+          else
+            echo "$repo is not locked"
+          fi
+        done
+        echo "== the end of each backup log"
+        for log in /var/log/vaultwarden_backup.log /var/log/playbook_runner_backup.log \
+                   /var/log/music_server_backup.log /var/log/borg-backup.log \
+                   /var/log/rclone-nextcloud-borg.log /var/log/homedrive_backup.log \
+                   /var/log/homedrive_drill.log; do
+          [ -e "$log" ] || continue
+          echo "-- $log, last written $(date -r "$log" --iso-8601=seconds)"
+          tail -n {{ show_logs_backup_lines }} "$log"
+        done
+      args:
+        executable: /bin/bash
+      register: show_logs_backups
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      tags: [backups]
+
+    - name: Show the backups
+      ansible.builtin.debug:
+        msg: "{{ show_logs_backups.stdout_lines + show_logs_backups.stderr_lines }}"
+      tags: [backups]

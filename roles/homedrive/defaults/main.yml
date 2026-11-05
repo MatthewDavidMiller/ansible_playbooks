@@ -126,3 +126,9 @@ container_static_ips:
 # X-Forwarded-For for sign-in throttling.
 route_proxy_traefik_ips:
   homedrive_container_net: 172.16.1.67
+
+# When the store's daily Borg backup runs (VM1's local time): after the service
+# backups (00:00) and the Paperless one (00:30) have landed in it, and before the
+# Nextcloud Borg run (03:00) that shares its repository.
+homedrive_backup_hour: "1"
+homedrive_backup_minute: "30"

@@ -236,6 +236,23 @@ no directory it searches only the store's own quarantine, which is enough
 when the disk once failed to read something it now reads. Check SMART
 health on the Proxmox host: VM1 sees virtual disks and cannot.
 
+## When the backups run
+
+Each job runs from root's crontab at its own time, so each holds what came
+before it and the two that share the backup disk's Borg repository do not
+wait on each other's lock. VM1's local time; each pair of variables moves
+one:
+
+| Time | Job | Variables |
+|---|---|---|
+| 00:00 | vaultwarden, playbook-runner, music-server backups | `<service>_backup_hour`, `<service>_backup_minute` |
+| 00:30 | Paperless and the Nextcloud database, then the sync to homedrive | `nextcloud_backup_hour`, `nextcloud_backup_minute` |
+| 01:30 | the homedrive store (Borg) | `homedrive_backup_hour`, `homedrive_backup_minute` |
+| 03:00 | the Nextcloud data (Borg) | `borg_backup_hour`, `borg_backup_minute` |
+
+`show_logs.yml`'s `backups` tag shows what is running now, Borg's locks
+and the end of each log; `run_backups.yml` runs any of them at once.
+
 ## Using it
 
 - **Backups** store archives with

@@ -1660,3 +1660,47 @@ class MusicLibraryTests(unittest.TestCase):
         self.assertIn(":Music=>music", defaults["homedrive_exports"])
         conditions = "\n".join(_first_assert("homedrive"))
         self.assertIn("difference(homedrive_users | map(attribute='name') | list)", conditions)
+
+
+class BackupScheduleTests(unittest.TestCase):
+    """The nightly jobs are staggered so each holds what came before it."""
+
+    def when(self, role, prefix):
+        defaults = yaml.safe_load(
+            (REPO_ROOT / "roles" / role / "defaults" / "main.yml").read_text(encoding="utf-8")
+        )
+        return int(defaults[f"{prefix}_hour"]) * 60 + int(defaults[f"{prefix}_minute"])
+
+    def test_the_store_is_archived_after_the_backups_that_land_in_it(self):
+        store = self.when("homedrive", "homedrive_backup")
+        for role, prefix in (
+            ("vaultwarden", "vaultwarden_backup"),
+            ("playbook_runner", "playbook_runner_backup"),
+            ("music_server", "music_server_backup"),
+            ("nextcloud", "nextcloud_backup"),
+        ):
+            with self.subTest(job=prefix):
+                self.assertLess(self.when(role, prefix), store)
+
+    def test_jobs_sharing_a_borg_repository_start_apart(self):
+        self.assertGreaterEqual(
+            self.when("backup", "borg_backup") - self.when("homedrive", "homedrive_backup"), 60
+        )
+
+    def test_every_backup_cron_entry_uses_its_schedule_variables(self):
+        for path in (REPO_ROOT / "roles").glob("*/tasks/main.yml"):
+            for task in yaml.safe_load(path.read_text(encoding="utf-8")) or []:
+                cron = task.get("ansible.builtin.cron", {})
+                if "/usr/local/bin/backup_" not in cron.get("job", ""):
+                    continue
+                with self.subTest(job=cron["job"]):
+                    self.assertNotIn("special_time", cron)
+                    self.assertRegex(cron["hour"], r"^\{\{ \w+_hour \}\}$")
+                    self.assertRegex(cron["minute"], r"^\{\{ \w+_minute \}\}$")
+
+    def test_show_logs_reads_the_backups_without_changing_anything(self):
+        play = yaml.safe_load((REPO_ROOT / "show_logs.yml").read_text(encoding="utf-8"))[0]
+        task = next(t for t in play["tasks"] if t["name"] == "Read the backups")
+        self.assertIs(task["check_mode"], False)
+        self.assertIs(task["changed_when"], False)
+        self.assertEqual(task["tags"], ["backups"])

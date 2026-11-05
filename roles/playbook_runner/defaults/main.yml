@@ -94,3 +94,8 @@ backup_destination: "{{ 'homedrive' if homedrive_enabled | default(false) | bool
 # The homedrive account that holds the backups (one of homedrive_users): by
 # default the account the backups went to in Nextcloud.
 homedrive_backup_user: "{{ nextcloud_homelab_user | default('') }}"
+
+# When the daily backup runs (VM1's local time). The service backups go first, at
+# midnight, so the homedrive store's own backup (01:30) holds them.
+playbook_runner_backup_hour: "0"
+playbook_runner_backup_minute: "0"

@@ -117,3 +117,9 @@ nextcloud_image: ""
 # needs homedrive_rclone_pass (see standard_rclone). The location is the same
 # folder path. Set "nextcloud" in the inventory to keep the Nextcloud remote.
 backup_destination: "{{ 'homedrive' if homedrive_enabled | default(false) | bool else 'nextcloud' }}"
+
+# When the daily Paperless and database backup runs (VM1's local time): after the
+# service backups, before the homedrive store's backup (01:30), which then holds
+# the repository's synced copy.
+nextcloud_backup_hour: "0"
+nextcloud_backup_minute: "30"

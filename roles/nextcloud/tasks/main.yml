@@ -4,6 +4,8 @@
 - name: Validate Nextcloud inputs before changing the host
   ansible.builtin.assert:
     that:
+      - nextcloud_backup_hour | string is match('^([01]?[0-9]|2[0-3])$')
+      - nextcloud_backup_minute | string is match('^[0-5]?[0-9]$')
       - secret_env_dir | homelab_safe_absolute_path
       - nextcloud_path | homelab_safe_absolute_path
       - nextcloud_disk_mount_path | homelab_safe_absolute_path
@@ -350,7 +352,8 @@
 - name: Backup Nextcloud and Paperless NGX daily
   ansible.builtin.cron:
     name: Backup Nextcloud and Paperless NGX daily
-    special_time: daily
+    minute: "{{ nextcloud_backup_minute }}"
+    hour: "{{ nextcloud_backup_hour }}"
     job: /usr/bin/bash /usr/local/bin/backup_nextcloud_paperless.sh
 
 - name: Install borg backup
