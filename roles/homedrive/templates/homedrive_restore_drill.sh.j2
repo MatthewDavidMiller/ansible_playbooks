@@ -82,7 +82,7 @@ cleanup() {
 {
     echo "== $(/usr/bin/date --iso-8601=seconds)"
     [ -f "$REPO/config" ] || fail "no backup repository at $REPO"
-    ARCHIVE="$(/usr/bin/borg list --lock-wait 3600 --short --last 1 "$REPO")" \
+    ARCHIVE="$(/usr/bin/borg list --lock-wait 3600 --short --glob-archives 'homedrive-*' --last 1 "$REPO")" \
         || fail "cannot list the backup repository"
     [ -n "$ARCHIVE" ] || fail "the backup repository has no archives"
     # Room for the extracted store and its plain files, each at most about

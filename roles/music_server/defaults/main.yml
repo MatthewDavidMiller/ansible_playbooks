@@ -13,7 +13,19 @@ music_server_enabled: false
 # cache/ (library index and resized covers, rebuildable).
 music_server_path: /music_server
 
-# The library, mounted read-only. On VM1 this is the Nextcloud Music folder:
+# Where the library comes from: "homedrive", homedrive's read-only export of
+# the Music folder, whenever homedrive is deployed; otherwise "path", the
+# folder music_server_music_path names. Set "path" in the inventory to keep
+# using that folder. Tracks are identified by their path inside the library,
+# and the export keeps those paths, so playlists and stars carry across.
+music_server_library: "{{ 'homedrive' if homedrive_enabled | default(false) | bool else 'path' }}"
+
+# homedrive's Music export (homedrive_exports names it "music"). Keep in step
+# with the homedrive role's homedrive_export_path default.
+music_server_homedrive_library: "{{ homedrive_export_path | default('/data_drive/homedrive/exports') }}/music"
+
+# The library folder when music_server_library is "path", mounted
+# read-only. Before homedrive this was the Nextcloud Music folder:
 # <nextcloud_path>/data/<nextcloud_homelab_user>/files/Music
 music_server_music_path: ""
 

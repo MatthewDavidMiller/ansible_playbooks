@@ -15,7 +15,10 @@
       - music_server_users | map(attribute='password') | map('length') | min >= 8
       - music_server_users | map(attribute='password') | map('length') | max <= 128
       - music_server_path | homelab_safe_absolute_path
-      - music_server_music_path | homelab_safe_absolute_path
+      - music_server_library in ['homedrive', 'path']
+      - music_server_library != 'path' or music_server_music_path | homelab_safe_absolute_path
+      - music_server_library != 'homedrive' or homedrive_enabled | default(false) | bool
+      - music_server_library != 'homedrive' or music_server_homedrive_library | homelab_safe_absolute_path
       - secret_env_dir | homelab_safe_absolute_path
       - music_server_image | homelab_immutable_digest_ref
       - music_server_uid is match('^[0-9]+$')
@@ -39,6 +42,25 @@
       immutable image (lock music_server in artifacts/containers.lock.yml);
       and a valid network.
   no_log: true
+
+
+- name: Choose the music library folder
+  ansible.builtin.set_fact:
+    music_server_library_path: >-
+      {{ music_server_homedrive_library if music_server_library == 'homedrive' else music_server_music_path }}
+
+# homedrive fills its export once it starts, after music-server in VM1's
+# start order; the folder must exist before then for the mount. A library
+# that is still filling only lacks tracks for a while: music-server skips
+# playlist entries it cannot find rather than drop them.
+- name: Create the homedrive Music export folder
+  ansible.builtin.file:
+    path: "{{ music_server_library_path }}"
+    state: directory
+    owner: "{{ homedrive_uid | default('10001') }}"
+    group: "{{ homedrive_gid | default('10001') }}"
+    mode: "0755"
+  when: music_server_library == 'homedrive'
 
 - name: Reconcile music-server proxy network
   ansible.builtin.include_role:

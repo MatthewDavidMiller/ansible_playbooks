@@ -2,8 +2,9 @@
 set -euo pipefail
 
 # The master key and the users file (with every password) arrive as Podman
-# secrets readable only by the container user. The music is read-only and
-# readable through the Nextcloud group; memory is capped without swap so the
+# secrets readable only by the container user. The music is read-only:
+# homedrive's export is readable by everyone, and a plain folder through
+# music_server_music_gid; memory is capped without swap so the
 # passwords held in memory are never paged out. The only network is the
 # internal one Traefik reaches it on.
 exec /usr/bin/podman run \
@@ -12,7 +13,7 @@ exec /usr/bin/podman run \
 --network=music_server_container_net:ip={{ container_static_ips.music_server_proxy }},alias={{ container_dns.aliases.music_server_proxy }} \
 --user {{ music_server_uid }}:{{ music_server_gid }} \
 --group-add {{ music_server_music_gid }} \
---volume {{ music_server_music_path }}:/music:ro,z \
+--volume {{ music_server_library_path | default(music_server_music_path) }}:/music:ro,z \
 --volume {{ music_server_path }}/data:/var/lib/music-server:Z \
 --volume {{ music_server_path }}/cache:/var/cache/music-server:Z \
 --secret music_server_master_key,target=/run/secrets/music_server_master_key,uid={{ music_server_uid }},gid={{ music_server_gid }},mode=0400 \

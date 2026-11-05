@@ -151,7 +151,9 @@ When `backup_local: false`, also define the following variables:
 |---|---|---|---|---|
 | `music_server_enabled` | boolean | Set by `vm1.yml` | Deploy music-server. `vm1.yml` sets it to true once `artifacts/containers.lock.yml` has a reviewed `music_server` digest. | derived |
 | `music_server_path` | path | No | Host directory holding `data/` (sealed, backed up) and `cache/` (rebuildable). | `/music_server` (default) |
-| `music_server_music_path` | path | Yes | The library, mounted read-only. | `{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/Music` |
+| `music_server_library` | string | No | Where the library comes from: `homedrive` (homedrive's read-only Music export) whenever homedrive is deployed, otherwise `path` (`music_server_music_path`). Tracks are identified by their path in the library, which the export keeps, so playlists and stars carry across. | `homedrive` once homedrive is deployed |
+| `music_server_homedrive_library` | path | No | homedrive's Music export. | `<homedrive_export_path>/music` |
+| `music_server_music_path` | path | When `music_server_library` is `path` | The library folder, mounted read-only. | `{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/Music` |
 | `music_server_master_key` | string | Yes, secret | 64 hex digits from `music-server gen-key`. Keep a copy in Vaultwarden. | Ansible Vault value |
 | `music_server_users` | list | Yes, secret | Accounts: `{name, password, admin}`. 1-50 entries, unique names of `A-Z a-z 0-9 . _ -`, 8-128 character passwords, at least one admin. A removed name is disabled with its data kept. | Ansible Vault value |
 | `music_server_backup_location` | string | Yes | Local label or rclone backup destination. | `Nextcloud:music_server_backup` |

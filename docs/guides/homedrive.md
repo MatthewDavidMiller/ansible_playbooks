@@ -26,9 +26,9 @@ homedrive_deploy: true
 homedrive_users:                          # Vault
   - {name: alice, password: "...", admin: true, quota_gb: 500}
   - {name: bob, password: "...", quota_gb: 200}
-homedrive_exports: "alice:Music=>music"         # optional
-homedrive_borg_repo: /srv/backup/homedrive      # optional, another disk
-homedrive_drill_path: /srv/backup/homedrive-drill   # default: <repo>-drill
+homedrive_exports: "alice:Music=>music"         # optional; see below for the default
+homedrive_borg_repo: /srv/backup/homedrive      # optional, another disk; see below for the default
+homedrive_drill_path: /srv/backup/homedrive-drill   # default: <repo>-drill, off beside the shared repository
 homedrive_borg_passphrase: "..."                     # optional, Vault: encrypt a new repository
 ```
 
@@ -89,6 +89,20 @@ Every run is reported to homedrive. A failed run, or none for two days,
 shows on the admin page and as a notification on administrators' sync
 clients. So does a failed import, which is how the other services'
 backups land in the drive, and so is a full drive refusing one.
+
+### On the backup disk, beside the Nextcloud archives
+
+By default, when the `backup` role has a backup disk (`backup_disk`), the
+store's archives go into that disk's Borg repository (`borg_backup_path`),
+which also holds the daily `nextcloud_backup-*` archives. homedrive's are
+named `homedrive-*`; each job prunes only its own archives, the restore
+drill restores only homedrive's, and every Borg step waits for the other
+job's lock. Check that the disk has room for the store first (`df -h` in
+`show_logs.yml`'s overview): when it fills, both jobs fail and say so.
+
+The drill is off beside the shared repository, because its default scratch
+folder would be on the system disk. Set `homedrive_drill_path` to a folder
+with about twice the store's size free to turn it on.
 
 ### The restore drill: proof the backups work
 
@@ -218,8 +232,16 @@ health on the Proxmox host: VM1 sees virtual disks and cannot.
   name the drive cannot hold), because that file exists only in the
   source. Rename or copy those files so they import, or save them
   elsewhere and pass `--accept-skipped`.
-- **music-server** can read an export: point `music_server_music_path` at
-  `<homedrive_export_path>/music`.
+- **music-server** reads homedrive's Music export by default once homedrive
+  is deployed: `homedrive_exports` defaults to
+  `<homedrive_music_user>:Music=>music` while music-server is deployed, with
+  `homedrive_music_user` defaulting to `nextcloud_homelab_user` (it must be
+  one of `homedrive_users`), and `music_server_library` to `homedrive`. The
+  export keeps every track's path, so playlists and stars carry across. It
+  fills after homedrive starts; until then music-server lacks those tracks
+  and skips playlist entries it cannot find, keeping them. To play another
+  folder instead, set `music_server_library: path` and
+  `music_server_music_path`.
 - **rclone** from other hosts: a `webdav` remote at
   `https://drive.<domain>/dav/<user>` with `vendor = other`, signed in with
   a device token from the web UI's Devices page.

@@ -1558,3 +1558,69 @@ class RunBackupsTests(unittest.TestCase):
         last = self.play["tasks"][-1]
         self.assertIn("always", last["tags"])
         self.assertIn("'^FAILED'", "\n".join(last["ansible.builtin.assert"]["that"]))
+
+
+class SharedBorgRepositoryTests(unittest.TestCase):
+    """homedrive's store backup may share the backup disk's Borg repository
+    with the Nextcloud archives, so neither job may touch the other's."""
+
+    def read(self, *parts):
+        return (REPO_ROOT.joinpath(*parts)).read_text(encoding="utf-8")
+
+    def test_each_job_prunes_only_its_own_archives(self):
+        homedrive = self.read("roles", "homedrive", "templates", "backup_homedrive.sh.j2")
+        prune = homedrive[homedrive.index("borg prune"):homedrive.index('"$REPO"', homedrive.index("borg prune"))]
+        self.assertIn("--glob-archives 'homedrive-*'", prune)
+        self.assertIn('archive="homedrive-', homedrive)
+        files = self.read("roles", "backup", "templates", "backup_files.sh.j2")
+        self.assertIn("--glob-archives 'nextcloud_backup-*'", files)
+
+    def test_the_drill_restores_a_homedrive_archive(self):
+        drill = self.read("roles", "homedrive", "templates", "homedrive_restore_drill.sh.j2")
+        line = next(l for l in drill.splitlines() if "--last 1" in l)
+        self.assertIn("--glob-archives 'homedrive-*'", line)
+
+    def test_every_borg_step_waits_for_the_other_job(self):
+        files = self.read("roles", "backup", "templates", "backup_files.sh.j2")
+        for line in files.splitlines():
+            if re.search(r"/usr/bin/borg (create|prune|compact)", line):
+                with self.subTest(line=line.strip()):
+                    self.assertIn("--lock-wait", line)
+
+    def test_the_drill_is_off_beside_the_shared_repository(self):
+        """Its default scratch path there would land on the system disk."""
+        defaults = yaml.safe_load(self.read("roles", "homedrive", "defaults", "main.yml"))
+        self.assertIn("homedrive_borg_repo != (borg_backup_path", defaults["homedrive_drill_path"])
+        self.assertIn("backup_disk | default('') | length > 0", defaults["homedrive_borg_repo"])
+
+
+class MusicLibraryTests(unittest.TestCase):
+    """music-server plays homedrive's Music export once homedrive is deployed."""
+
+    def test_the_library_follows_homedrive_and_stays_read_only(self):
+        defaults = yaml.safe_load(
+            (REPO_ROOT / "roles" / "music_server" / "defaults" / "main.yml").read_text(encoding="utf-8")
+        )
+        self.assertEqual(
+            defaults["music_server_library"],
+            "{{ 'homedrive' if homedrive_enabled | default(false) | bool else 'path' }}",
+        )
+        script = (REPO_ROOT / "roles" / "music_server" / "templates" / "music_server.sh.j2").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("{{ music_server_library_path | default(music_server_music_path) }}:/music:ro,z", script)
+
+    def test_the_export_folder_exists_before_music_server_mounts_it(self):
+        names = [t.get("name") for t in role_tasks("music_server")]
+        self.assertLess(
+            names.index("Create the homedrive Music export folder"),
+            names.index(next(n for n in names if n and n.startswith("Start music-server"))),
+        )
+
+    def test_homedrive_exports_music_for_an_account_it_has(self):
+        defaults = yaml.safe_load(
+            (REPO_ROOT / "roles" / "homedrive" / "defaults" / "main.yml").read_text(encoding="utf-8")
+        )
+        self.assertIn(":Music=>music", defaults["homedrive_exports"])
+        conditions = "\n".join(_first_assert("homedrive"))
+        self.assertIn("difference(homedrive_users | map(attribute='name') | list)", conditions)

@@ -29,7 +29,17 @@ homedrive_init_store: false
 # Host directory for exports (plain-file copies, e.g. for music-server), and
 # the optional HD_EXPORTS spec: "user:path=>name,...".
 homedrive_export_path: /data_drive/homedrive/exports
-homedrive_exports: ""
+
+# The account whose Music folder music-server plays: by default the one the
+# files came across from.
+homedrive_music_user: "{{ nextcloud_homelab_user | default('') }}"
+
+# By default, when music-server is deployed, homedrive_music_user's Music
+# folder is exported as "music" for it.
+homedrive_exports: >-
+  {{ (homedrive_music_user ~ ':Music=>music')
+     if (music_server_enabled | default(false) | bool and homedrive_music_user | length > 0)
+     else '' }}
 
 # The accounts, from Vault. Each entry: {name, password, admin, quota_gb}.
 # Names are 1-64 of A-Z a-z 0-9 . _ -; passwords 8-128 characters; at least
@@ -59,9 +69,12 @@ homedrive_memory: 1g
 homedrive_uid: "10001"
 homedrive_gid: "10001"
 
-# Optional local Borg repository for daily backups of the store (on another
-# disk). Empty disables the backup job.
-homedrive_borg_repo: ""
+# Local Borg repository for daily backups of the store, on another disk.
+# By default it is the backup role's repository on the backup disk
+# (borg_backup_path, when backup_disk is set), shared with the Nextcloud
+# archives: homedrive's archives are named homedrive-*, and each job prunes
+# only its own. Empty disables the backup job.
+homedrive_borg_repo: "{{ borg_backup_path | default('/borg_backups') if backup_disk | default('') | length > 0 else '' }}"
 
 # Optional, from Vault: encrypt the local Borg repository with this
 # passphrase (20 characters or more). Empty keeps it unencrypted, the
@@ -75,7 +88,14 @@ homedrive_borg_passphrase: ""
 # backup to plain files and checks every one against the drive. It needs
 # about twice the store's size free while it runs, and is emptied after.
 # Empty turns the drill off (the admin page then shows it has never run).
-homedrive_drill_path: "{{ homedrive_borg_repo ~ '-drill' if homedrive_borg_repo | length > 0 else '' }}"
+# By default it sits beside a repository of homedrive's own; beside the
+# shared one it would land on the system disk, so set it to a folder with
+# room instead.
+homedrive_drill_path: >-
+  {{ homedrive_borg_repo ~ '-drill'
+     if (homedrive_borg_repo | length > 0
+         and homedrive_borg_repo != (borg_backup_path | default('/borg_backups')))
+     else '' }}
 
 # Root-only directory for runtime environment files and secret sources
 secret_env_dir: /etc/homelab/secrets

@@ -66,7 +66,9 @@ local_backup() {
     archive="homedrive-$(/usr/bin/date +%Y-%m-%d)"
     /usr/bin/borg create --stats --lock-wait 3600 "$REPO::$archive" "${PATHS[@]}" "${EXCLUDES[@]}" \
         || { fail "borg create failed (see $LOG)"; return 1; }
-    /usr/bin/borg prune --lock-wait 3600 --keep-daily 7 --keep-weekly 4 --keep-monthly 6 "$REPO" \
+    # Only homedrive's own archives: the repository may be shared.
+    /usr/bin/borg prune --lock-wait 3600 --glob-archives 'homedrive-*' \
+        --keep-daily 7 --keep-weekly 4 --keep-monthly 6 "$REPO" \
         || { fail "borg prune failed (see $LOG)"; return 1; }
     /usr/bin/borg compact --lock-wait 3600 "$REPO" || { fail "borg compact failed (see $LOG)"; return 1; }
     if [ "$(/usr/bin/date +%u)" = 7 ]; then

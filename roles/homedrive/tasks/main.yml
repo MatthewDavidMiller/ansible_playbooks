@@ -18,7 +18,11 @@
       - homedrive_users | map(attribute='quota_gb') | select('lt', 1) | list | length == 0
       - homedrive_path | homelab_safe_absolute_path
       - homedrive_export_path == '' or homedrive_export_path | homelab_safe_absolute_path
-      - homedrive_exports == '' or homedrive_export_path != ''
+      - homedrive_exports | trim == '' or homedrive_export_path != ''
+      - >-
+        homedrive_exports | trim == ''
+        or (homedrive_exports | trim).split(',') | map('split', ':') | map('first') | map('trim')
+           | difference(homedrive_users | map(attribute='name') | list) | length == 0
       - homedrive_borg_repo == '' or homedrive_borg_repo | homelab_safe_absolute_path
       - homedrive_drill_path == '' or (homedrive_drill_path | homelab_safe_absolute_path and homedrive_borg_repo != '')
       - homedrive_borg_passphrase == '' or homedrive_borg_passphrase | length >= 20
