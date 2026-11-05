@@ -1366,6 +1366,7 @@ class HomedriveImportTests(unittest.TestCase):
         )[0]
         self.tasks = {task["name"]: task for task in self.play["tasks"]}
         self.names = list(self.tasks)
+        self.facts = self.tasks["Set the one-off container command"]["ansible.builtin.set_fact"]
 
     def test_it_is_never_part_of_the_weekly_chain(self):
         for playbook in ("vm1.yml", "homelab_vms.yml", "update_homelab_vms.yml"):
@@ -1381,39 +1382,69 @@ class HomedriveImportTests(unittest.TestCase):
     def test_nothing_is_written_before_the_missing_count_is_checked(self):
         """A wrong user or source would load a whole second copy."""
         self.assertLess(
+            self.names.index("Find what the drive lacks (read-only, by size)"),
+            self.names.index("Stop if far more is missing than expected"),
+        )
+        self.assertLess(
             self.names.index("Stop if far more is missing than expected"),
             self.names.index("Import the missing files"),
         )
-        self.assertLess(
-            self.names.index("Find what the drive lacks (read-only)"),
-            self.names.index("Stop if far more is missing than expected"),
-        )
 
-    def test_the_one_off_container_relabels_nothing_and_writes_nothing(self):
+    def test_a_run_without_tags_reads_only_what_is_missing(self):
+        """Reading the whole tree took hours for six missing files."""
+        for name in (
+            "Find what the drive lacks (read-only, by size)",
+            "Check nothing is missing now (by size)",
+        ):
+            with self.subTest(task=name):
+                self.assertIn("verify-tree --quick", self.tasks[name]["ansible.builtin.shell"]["cmd"])
+        self.assertIn(
+            "import-tree --only-missing",
+            self.tasks["Import the missing files"]["ansible.builtin.shell"]["cmd"],
+        )
+        for task in self.play["tasks"]:
+            command = str(task.get("ansible.builtin.shell", {}).get("cmd", ""))
+            reads_everything = "fsck --deep" in command or (
+                "verify-tree " in command and "--quick" not in command
+            )
+            if reads_everything:
+                with self.subTest(task=task["name"]):
+                    self.assertIn("never", task["tags"])
+                    self.assertIn("full", task["tags"])
+
+    def test_setup_runs_whatever_the_tags(self):
+        for name in self.names[: self.names.index("Set the one-off container command") + 1]:
+            with self.subTest(task=name):
+                self.assertIn("always", self.tasks[name]["tags"])
+
+    def test_the_one_off_container_relabels_nothing_and_writes_only_its_cache(self):
         """A :Z on the store would take it away from the running server."""
-        run = self.tasks["Set the one-off container command"]["ansible.builtin.set_fact"][
-            "homedrive_import_run"
-        ]
+        run = self.facts["homedrive_import_run"]
         self.assertIn("/var/lib/homedrive:ro", run)
         self.assertIn("/mnt/src:ro", run)
+        self.assertIn(":/mnt/cache", run)
         self.assertIn("--network=none", run)
         self.assertIn("--read-only", run)
         self.assertIn("--cap-drop=ALL", run)
         self.assertIn("--pull=never", run)
         self.assertNotRegex(run, r":[zZ]\b")
 
+    def test_the_cache_is_kept_apart_from_both_trees(self):
+        checks = "\n".join(self.tasks["Validate import inputs"]["ansible.builtin.assert"]["that"])
+        self.assertIn("homedrive_import_cache_dir ~ '/').find(homedrive_import_src", checks)
+        self.assertIn("homedrive_import_cache_dir ~ '/').find(homedrive_import_store", checks)
+
     def test_old_versions_are_not_imported(self):
         """The user chose not to bring old versions across (2026-11-03)."""
-        args = self.tasks["Set the one-off container command"]["ansible.builtin.set_fact"][
-            "homedrive_import_args"
-        ]
-        self.assertNotIn("--versions", args)
+        self.assertNotIn("--versions", self.facts["homedrive_import_args"])
+        self.assertNotIn("--versions", self.tasks["Import the missing files"]["ansible.builtin.shell"]["cmd"])
 
     def test_read_only_steps_run_in_check_mode(self):
         for name in (
             "Read the running homedrive container's image",
-            "Find what the drive lacks (read-only)",
-            "Verify every source file is stored",
+            "Find what the drive lacks (read-only, by size)",
+            "Check nothing is missing now (by size)",
+            "Compare every source file byte for byte",
             "Check every version reads back",
             "Show what garbage collection would free",
         ):
@@ -1421,5 +1452,7 @@ class HomedriveImportTests(unittest.TestCase):
                 self.assertIs(self.tasks[name]["check_mode"], False)
         self.assertNotIn("check_mode", self.tasks["Import the missing files"])
 
-    def test_it_ends_requiring_a_clean_verify_and_fsck(self):
+    def test_each_run_ends_requiring_its_checks_clean(self):
         self.assertEqual(self.names[-1], "Require a clean verify-tree and fsck")
+        self.assertIn("full", self.tasks[self.names[-1]]["tags"])
+        self.assertIn("Require every source path in the drive", self.names)

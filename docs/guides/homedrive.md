@@ -229,14 +229,19 @@ health on the Proxmox host: VM1 sees virtual disks and cannot.
 `homedrive_import.yml` loads the Nextcloud files tree into a drive and
 checks it (see [playbooks.md](../playbooks.md#homedrive_importyml)). It is
 made for a drive that a sync client has already filled from a copy of the
-same files: it first counts what the drive lacks, and stops before writing
-anything if that is more than `homedrive_import_max_missing` (100). Old
-versions are not imported; they stay in Nextcloud until it is retired.
+same files. A run with no tags counts what the drive lacks, by size and
+without reading files, stops before writing anything if that is more than
+`homedrive_import_max_missing` (100), imports only the missing files, and
+checks again that nothing is missing. Old versions are not imported; they
+stay in Nextcloud until it is retired.
 
-Afterwards, every file in the source must be in the drive: the play fails
-unless the second `verify-tree` and `fsck --deep` are clean. A `DIFFERENT`
-line is a file changed through homedrive since; check each one before
-retiring the source. The full output is in `/var/log/homedrive_import.log`.
+Before retiring the source, run it with the `full` tag: every source file
+must match the drive byte for byte, and `fsck --deep` must be clean. That
+reads the whole tree and the whole store, so give its template a long
+timeout. Hashes are kept between runs, so a second full run reads only what
+changed. A `DIFFERENT` line is a file changed through homedrive since; check
+each one before retiring the source. The full output is in
+`/var/log/homedrive_import.log`.
 
 ## Health
 
