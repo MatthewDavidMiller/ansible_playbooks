@@ -59,10 +59,10 @@ artifact_locked_images:
     approved_digest: sha256:e2d2e201d5aad558cbcce415f4b05c3fdca454a58895aa479654ef117386cc0c
     notes: Approved via scripts/promote_artifacts.py
   homedrive:
-    upstream_ref: ghcr.io/matthewdavidmiller/homedrive:0.1.4
-    approved_tag: 0.1.4
+    upstream_ref: ghcr.io/matthewdavidmiller/homedrive:0.1.5
+    approved_tag: 0.1.5
     internal_repo: homelab/homedrive
     signature_required: false
     first_party: true
-    approved_digest: sha256:8e4deba012b7fdb7c7f21b11a53f5a1049ea3dc2b3c41f00d940171b82e6e708
+    approved_digest: sha256:05e9f196acf88983f1d6d9102bf40eb8281f70fdb92f3d8c1750684a7ec036b0
     notes: Approved via scripts/promote_artifacts.py
