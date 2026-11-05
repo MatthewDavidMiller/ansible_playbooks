@@ -1,12 +1,19 @@
 ---
 # One backup, for run_backups.yml: runs the script root's crontab runs every
 # night, now, if that crontab schedules it (a backup that is not set up on
-# this host has no entry, and is passed over). A lock keeps two manual runs
+# this host has no entry, and is passed over). A job no cron entry starts
+# (run_backup_scheduled_by: installed, the restore drill) runs if its script
+# is installed, which happens only where it is set up. A lock keeps two manual runs
 # of one backup apart. The script's own output and the end of its log are
 # shown, and the result is kept for the play's summary.
-- name: Check {{ run_backup_name }} is scheduled
+- name: Check {{ run_backup_name }} is set up
   ansible.builtin.shell:
-    cmd: set -o pipefail && crontab -l -u root 2>/dev/null | grep -qF -- {{ run_backup_script | quote }}
+    cmd: >-
+      {% if run_backup_scheduled_by | default('cron') == 'installed' %}
+      test -x {{ run_backup_script | quote }}
+      {% else %}
+      set -o pipefail && crontab -l -u root 2>/dev/null | grep -qF -- {{ run_backup_script | quote }}
+      {% endif %}
     executable: /bin/bash
   register: run_backup_scheduled
   changed_when: false
@@ -39,13 +46,13 @@
     msg: >-
       {{ (run_backup_result.stdout_lines | default([]) + run_backup_result.stderr_lines | default([]))
          if run_backup_scheduled.rc == 0
-         else ['not scheduled on this host; passed over'] }}
+         else ['not set up on this host; passed over'] }}
 
 - name: Record the {{ run_backup_name }} backup
   ansible.builtin.set_fact:
     run_backups_results: >-
       {{ run_backups_results | default({}) | combine({run_backup_name:
-           ('not scheduled' if run_backup_scheduled.rc != 0
+           ('not set up' if run_backup_scheduled.rc != 0
             else 'skipped (check mode)' if run_backup_result.skipped | default(false)
             else 'ok' if run_backup_result.rc == 0
             else 'FAILED (exit ' ~ run_backup_result.rc ~ ')')}) }}

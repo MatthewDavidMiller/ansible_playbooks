@@ -1530,20 +1530,32 @@ class RunBackupsTests(unittest.TestCase):
                 self.assertNotIn("run_backups", (REPO_ROOT / playbook).read_text(encoding="utf-8"))
 
     def test_it_runs_exactly_the_scripts_the_nightly_cron_runs(self):
-        """A backup the play runs and the crontab does not would be a new kind of job."""
+        """A backup the play runs and the crontab does not would be a new kind of job.
+        The restore drill is the one exception, run only when asked for."""
         crons = set()
         for path in (REPO_ROOT / "roles").glob("*/tasks/main.yml"):
             for task in yaml.safe_load(path.read_text(encoding="utf-8")) or []:
                 job = task.get("ansible.builtin.cron", {}).get("job", "")
                 if "/usr/local/bin/backup_" in job:
                     crons.add(job.split()[-1])
-        scripts = {t["vars"]["run_backup_script"] for t in self.imports}
+        scripts = {
+            t["vars"]["run_backup_script"]
+            for t in self.imports
+            if t["vars"].get("run_backup_scheduled_by", "cron") == "cron"
+        }
         self.assertEqual(scripts, crons)
+
+    def test_the_drill_runs_only_when_asked_for(self):
+        """It takes hours of disk and CPU."""
+        drill = next(t for t in self.imports if t["vars"]["run_backup_name"] == "drill")
+        self.assertEqual(drill["tags"], ["never", "drill"])
+        self.assertEqual(drill["vars"]["run_backup_scheduled_by"], "installed")
+        self.assertEqual(drill["vars"]["run_backup_script"], "/usr/local/bin/homedrive_restore_drill.sh")
 
     def test_each_backup_has_its_own_tag_and_the_store_comes_after_the_others(self):
         names = [t["vars"]["run_backup_name"] for t in self.imports]
         for task in self.imports:
-            self.assertEqual(task["tags"], [task["vars"]["run_backup_name"]])
+            self.assertEqual(task["tags"][-1], task["vars"]["run_backup_name"])
         self.assertGreater(names.index("homedrive"), names.index("vaultwarden"))
         self.assertGreater(names.index("homedrive"), names.index("music_server"))
 

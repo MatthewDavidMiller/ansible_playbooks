@@ -102,6 +102,8 @@ This document covers the maintained playbooks only. Legacy playbooks are preserv
 
 **Choosing what to run:** no tags runs them all, in this order, with the homedrive store last so it holds the others: `vaultwarden`, `playbook_runner`, `music_server`, `paperless`, `homedrive`, `files`. A tag runs one. `paperless` (a full export and Borg run, then a sync of the repository) and `files` (Borg of the Nextcloud data) can take a long time, so give templates that run them a long timeout.
 
+**The restore drill:** the tag `drill` runs homedrive's restore drill, and nothing else starts it from here. It restores the newest store archive to plain files and checks every one against the drive, which takes hours of disk and CPU, so give its template a long timeout and run it when VM1 is quiet. It runs only where `homedrive_drill_path` is set (the script is installed only there), and its result also shows on homedrive's Admin page.
+
 **Output:** each backup's own output and the end of its log, then a summary. The run fails if any backup that ran failed. A lock keeps two manual runs of one backup apart.
 
 **Naming:** the daily backups are named by the date, so a manual run on a day that already has one stores a new version of that day's file in homedrive. The earlier one stays in its history.
