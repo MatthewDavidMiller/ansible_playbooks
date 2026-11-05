@@ -18,8 +18,9 @@ export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 #
 # Every run is reported to homedrive, which tells the administrators when
 # a run fails or the backups stop. On Sundays the repository is checked end
-# to end and the restore drill (homedrive_restore_drill.sh) proves the
-# newest archive restores to plain files that match the drive.
+# to end. The restore drill (homedrive_restore_drill.sh), which proves the
+# newest archive restores to plain files that match the drive, runs only
+# when asked for: it takes hours, and its light mode minutes.
 
 umask 077
 REPO={{ homedrive_borg_repo | quote }}
@@ -88,16 +89,5 @@ local_backup() {
 }
 
 status=0
-{% if homedrive_drill_path | length > 0 %}
-local_ok=true
-local_backup >> "$LOG" 2>&1 || { status=1; local_ok=false; }
-{% else %}
 local_backup >> "$LOG" 2>&1 || status=1
-{% endif %}
-{% if homedrive_drill_path | length > 0 %}
-# On Sundays, prove the newest local archive restores (it reports itself).
-if [ "$local_ok" = true ] && [ "$(/usr/bin/date +%u)" = 7 ]; then
-    /usr/local/bin/homedrive_restore_drill.sh || status=1
-fi
-{% endif %}
 exit "$status"

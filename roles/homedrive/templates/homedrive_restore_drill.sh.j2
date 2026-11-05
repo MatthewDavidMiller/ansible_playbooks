@@ -7,12 +7,19 @@
 # 3. each restored drive's manifest is compared with the live drive: every
 #    file the drive had when the backup was taken must be in it, and it
 #    must hold nothing the drive never had.
-# The result is reported to homedrive (kind "drill"), so a failing or
-# missing drill reaches the administrators. Runs on Sundays after the
-# backup; run it by hand at any time.
+# That is hours of disk and CPU, so it runs only when asked for (by hand,
+# or run_backups.yml's tags), never on a schedule.
 #
-# The restored files are deleted afterwards. To keep them (to copy to a
-# client and check there with `homedrive check-files`), pass --keep.
+# --light checks a random sample instead, in minutes: only the metadata and
+# the objects the sampled files need are extracted (the server names them a
+# round at a time), those files are restored, each verified, and checked
+# against the drive. It proves those files restore, not every file.
+# --files N sets the sample's size ({{ homedrive_drill_sample }} by default).
+#
+# The result is reported to homedrive (kind "drill"), so a failing drill
+# reaches the administrators. The restored files are deleted afterwards. To
+# keep them (to copy to a client and check there with
+# `homedrive check-files`), pass --keep.
 set -uo pipefail
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
@@ -27,7 +34,24 @@ STORE={{ homedrive_path | quote }}
 SCRATCH={{ homedrive_drill_path | quote }}
 LOG=/var/log/homedrive_drill.log
 KEEP=false
-[ "${1:-}" = "--keep" ] && KEEP=true
+LIGHT=false
+SAMPLE={{ homedrive_drill_sample }}
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --keep) KEEP=true ;;
+        --light) LIGHT=true ;;
+        --files)
+            if [ "$#" -lt 2 ] || ! [[ "$2" =~ ^[1-9][0-9]{0,3}$ ]]; then
+                echo "--files takes a number, 1-9999" >&2
+                exit 2
+            fi
+            SAMPLE="$2"
+            shift
+            ;;
+        *) echo "Usage: $0 [--light [--files N]] [--keep]" >&2; exit 2 ;;
+    esac
+    shift
+done
 
 report() {
     /usr/bin/podman exec homedrive hd-server report-backup --kind drill "$@" \
@@ -70,7 +94,7 @@ check_scratch() {
 
 empty_scratch() {
     [ -e "$SCRATCH/$MARKER" ] || return 0
-    /usr/bin/rm -rf --one-file-system "${SCRATCH:?}/store" "${SCRATCH:?}/plain"
+    /usr/bin/rm -rf --one-file-system "${SCRATCH:?}/store" "${SCRATCH:?}/plain" "${SCRATCH:?}/needs"
 }
 
 cleanup() {
@@ -79,46 +103,99 @@ cleanup() {
     fi
 }
 
-{
-    echo "== $(/usr/bin/date --iso-8601=seconds)"
-    [ -f "$REPO/config" ] || fail "no backup repository at $REPO"
-    ARCHIVE="$(/usr/bin/borg list --lock-wait 3600 --short --glob-archives 'homedrive-*' --last 1 "$REPO")" \
-        || fail "cannot list the backup repository"
-    [ -n "$ARCHIVE" ] || fail "the backup repository has no archives"
-    # Room for the extracted store and its plain files, each at most about
-    # the store's size, and a GiB to spare.
-    /usr/bin/mkdir -p "$SCRATCH" || fail "cannot create $SCRATCH"
-    why="$(check_scratch)" || fail "refusing to use $SCRATCH as scratch space: $why"
-    need_kib=$(( $(/usr/bin/du -sk "$STORE" | /usr/bin/cut -f1) * 2 + 1048576 ))
-    free_kib=$(/usr/bin/df -Pk "$SCRATCH" | /usr/bin/awk 'NR == 2 { print $4 }')
-    [ "$free_kib" -ge "$need_kib" ] \
-        || fail "not enough scratch space in $SCRATCH: ${free_kib} KiB free, ${need_kib} KiB needed"
-    trap cleanup EXIT
-    empty_scratch
-    /usr/bin/mkdir -p "$SCRATCH/store" "$SCRATCH/plain"
-    (cd "$SCRATCH/store" && /usr/bin/borg extract --lock-wait 3600 "$REPO::$ARCHIVE") \
-        || fail "borg extract of $ARCHIVE failed"
-    # Borg keeps the absolute path, without its leading slash.
-    EXTRACTED="$SCRATCH/store$STORE"
-    [ -f "$EXTRACTED/store.id" ] || fail "$ARCHIVE holds no store at $STORE"
-    /usr/bin/chown -R {{ homedrive_uid }}:{{ homedrive_gid }} "$SCRATCH/store" "$SCRATCH/plain"
-    OUT="$(/usr/bin/podman run --rm --pull=never --network=none \
+# hd-server on the extracted copy, in a one-off container with no network.
+on_copy() {
+    /usr/bin/podman run --rm --pull=never --network=none \
         --user {{ homedrive_uid }}:{{ homedrive_gid }} \
         --volume "$EXTRACTED:/var/lib/homedrive:Z" \
         --volume "$SCRATCH/plain:/restore:Z" \
         --read-only --cap-drop=ALL --security-opt=no-new-privileges:true \
-        {{ homedrive_image }} restore-drill --to /restore 2>&1)"
+        {{ homedrive_image }} "$@" 2>&1
+}
+
+free_kib() {
+    /usr/bin/df -Pk "$SCRATCH" | /usr/bin/awk 'NR == 2 { print $4 }'
+}
+
+# Borg keeps the absolute path, without its leading slash.
+IN_ARCHIVE="${STORE#/}"
+
+{
+    echo "== $(/usr/bin/date --iso-8601=seconds) $([ "$LIGHT" = true ] && echo "light drill, $SAMPLE files" || echo "full drill")"
+    [ -f "$REPO/config" ] || fail "no backup repository at $REPO"
+    ARCHIVE="$(/usr/bin/borg list --lock-wait 3600 --short --glob-archives 'homedrive-*' --last 1 "$REPO")" \
+        || fail "cannot list the backup repository"
+    [ -n "$ARCHIVE" ] || fail "the backup repository has no archives"
+    /usr/bin/mkdir -p "$SCRATCH" || fail "cannot create $SCRATCH"
+    why="$(check_scratch)" || fail "refusing to use $SCRATCH as scratch space: $why"
+    if [ "$LIGHT" = true ]; then
+        # Room for the metadata twice over and a GiB; the sample's own room
+        # is checked once its size is known.
+        need_kib=$(( $(/usr/bin/du -sk "$STORE/meta" | /usr/bin/cut -f1) * 2 + 1048576 ))
+    else
+        # Room for the extracted store and its plain files, each at most
+        # about the store's size, and a GiB to spare.
+        need_kib=$(( $(/usr/bin/du -sk "$STORE" | /usr/bin/cut -f1) * 2 + 1048576 ))
+    fi
+    [ "$(free_kib)" -ge "$need_kib" ] \
+        || fail "not enough scratch space in $SCRATCH: $(free_kib) KiB free, ${need_kib} KiB needed"
+    trap cleanup EXIT
+    empty_scratch
+    /usr/bin/mkdir -p "$SCRATCH/store" "$SCRATCH/plain"
+    EXTRACTED="$SCRATCH/store$STORE"
+    if [ "$LIGHT" = true ]; then
+        (cd "$SCRATCH/store" && /usr/bin/borg extract --lock-wait 3600 "$REPO::$ARCHIVE" \
+            "$IN_ARCHIVE/store.id" "$IN_ARCHIVE/meta") \
+            || fail "borg extract of $ARCHIVE's metadata failed"
+    else
+        (cd "$SCRATCH/store" && /usr/bin/borg extract --lock-wait 3600 "$REPO::$ARCHIVE") \
+            || fail "borg extract of $ARCHIVE failed"
+    fi
+    [ -f "$EXTRACTED/store.id" ] || fail "$ARCHIVE holds no store at $STORE"
+    /usr/bin/chown -R {{ homedrive_uid }}:{{ homedrive_gid }} "$SCRATCH/store" "$SCRATCH/plain"
+    if [ "$LIGHT" = true ]; then
+        SEED="$(/usr/bin/od -An -tx1 -N16 /dev/urandom | /usr/bin/tr -d ' \n')"
+        NEEDS="$SCRATCH/needs"
+        # A manifest must be there before its chunks are known, and an
+        # indirect one's pieces before the file's chunks: a few rounds.
+        for round in 1 2 3 4 5; do
+            PLAN="$(on_copy drill-plan --sample "$SAMPLE" --seed "$SEED")" \
+                || fail "$ARCHIVE: drill-plan failed: $(echo "$PLAN" | /usr/bin/tail -n 1)"
+            echo "$PLAN" | /usr/bin/sed -n 's/^NEED //p' > "$NEEDS"
+            [ -s "$NEEDS" ] || break
+            [ "$round" -lt 5 ] || fail "$ARCHIVE: the sample still needs objects after $round rounds"
+            bytes="$(echo "$PLAN" | /usr/bin/awk '/^SAMPLE_BYTES / { print $2 }')"
+            need_kib=$(( ${bytes:-0} * 2 / 1024 + 1048576 ))
+            [ "$(free_kib)" -ge "$need_kib" ] \
+                || fail "not enough scratch space in $SCRATCH for the sample: $(free_kib) KiB free, ${need_kib} KiB needed"
+            echo "round $round: extracting $(/usr/bin/wc -l < "$NEEDS") object(s)"
+            /usr/bin/sed -i "s|^|$IN_ARCHIVE/|" "$NEEDS"
+            (cd "$SCRATCH/store" && /usr/bin/xargs -d '\n' -a "$NEEDS" \
+                /usr/bin/borg extract --lock-wait 3600 "$REPO::$ARCHIVE") \
+                || fail "borg extract of the sample's objects from $ARCHIVE failed"
+            /usr/bin/chown -R {{ homedrive_uid }}:{{ homedrive_gid }} "$SCRATCH/store"
+        done
+        OUT="$(on_copy restore-drill --to /restore --sample "$SAMPLE" --seed "$SEED")"
+    else
+        OUT="$(on_copy restore-drill --to /restore)"
+    fi
     status=$?
     echo "$OUT"
     [ "$status" -eq 0 ] \
         || fail "$ARCHIVE: $(echo "$OUT" | /usr/bin/grep -m 3 '^PROBLEM' | /usr/bin/tr '\n' ' ')"
     TAKEN="$(echo "$OUT" | /usr/bin/awk '/^TAKEN_MS / { print $2 }')"
+    COMPARE=()
+    [ "$LIGHT" = true ] && COMPARE=(--sample)
     for manifest in "$SCRATCH"/plain/*.sha256; do
         [ -e "$manifest" ] || continue
         user="$(/usr/bin/basename "$manifest" .sha256)"
         /usr/bin/podman exec -i homedrive hd-server drill-compare --user "$user" --taken-ms "$TAKEN" \
-            < "$manifest" || fail "$ARCHIVE: $user's restored files do not match the drive (see $LOG)"
+            "${COMPARE[@]}" < "$manifest" || fail "$ARCHIVE: $user's restored files do not match the drive (see $LOG)"
     done
-    report --ok --message "$ARCHIVE: $(echo "$OUT" | /usr/bin/tail -n 1)"
-    [ "$KEEP" = true ] && echo "kept the restored files in $SCRATCH/plain"
+    report --ok --message "$ARCHIVE: $([ "$LIGHT" = true ] && echo "light drill: ")$(echo "$OUT" | /usr/bin/tail -n 1)"
+    # (An if, not &&: as the block's last command, a false test would make
+    # a drill that passed exit 1.)
+    if [ "$KEEP" = true ]; then
+        echo "kept the restored files in $SCRATCH/plain"
+    fi
 } >> "$LOG" 2>&1

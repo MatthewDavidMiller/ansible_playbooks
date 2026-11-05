@@ -7,9 +7,11 @@
 # With no tags it runs every backup this host schedules, in this order (the
 # homedrive store last, so it holds the others): vaultwarden,
 # playbook_runner, music_server, paperless, homedrive, files. A tag runs one.
-# The tag "drill" runs homedrive's restore drill, and only that tag does: it
-# restores the newest store archive to plain files and checks every one,
-# which takes hours of disk and CPU. It needs homedrive_drill_path set.
+# The tags "drill_light" and "drill_full" run homedrive's restore drill, and
+# only those tags do. The light drill restores a random sample of files from
+# the newest store archive and checks each, in minutes; the full drill
+# restores and checks every file, in hours of disk and CPU. Both need
+# homedrive_drill_path, which homedrive's backup sets by default.
 # Paperless (a full export and Borg run, then a sync of the repository) and
 # files (Borg of the Nextcloud data) can take a long time; give a template
 # that runs them a long timeout.
@@ -70,17 +72,28 @@
         run_backup_log: ""
       tags: [files]
 
-    # The drill restores the newest store archive to plain files and checks
-    # every one against the drive: hours of disk and CPU, so it runs only
-    # when asked for by its tag, never in a run without tags.
-    - name: The restore drill
+    # The restore drills run only when asked for by their tags, never in a
+    # run without tags. The light one restores and checks a sample of files
+    # in minutes; the full one restores and checks every file in hours of
+    # disk and CPU.
+    - name: The light restore drill
       ansible.builtin.import_tasks: standalone_tasks/run_backup.yml
       vars:
-        run_backup_name: drill
+        run_backup_name: drill_light
+        run_backup_script: /usr/local/bin/homedrive_restore_drill.sh
+        run_backup_args: --light
+        run_backup_log: /var/log/homedrive_drill.log
+        run_backup_scheduled_by: installed
+      tags: [never, drill_light]
+
+    - name: The full restore drill
+      ansible.builtin.import_tasks: standalone_tasks/run_backup.yml
+      vars:
+        run_backup_name: drill_full
         run_backup_script: /usr/local/bin/homedrive_restore_drill.sh
         run_backup_log: /var/log/homedrive_drill.log
         run_backup_scheduled_by: installed
-      tags: [never, drill]
+      tags: [never, drill_full]
 
     - name: Show every result
       ansible.builtin.debug:

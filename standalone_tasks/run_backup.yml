@@ -27,7 +27,7 @@
       out="$(mktemp)"
       status=0
       /usr/bin/flock --nonblock --conflict-exit-code 75 /run/lock/run_backups_{{ run_backup_name }}.lock \
-        /usr/bin/bash {{ run_backup_script | quote }} > "$out" 2>&1 || status=$?
+        /usr/bin/bash {{ run_backup_script | quote }} {{ run_backup_args | default('') }} > "$out" 2>&1 || status=$?
       [ "$status" -eq 75 ] && echo "another manual run of this backup is still going"
       tail -n 40 "$out"
       rm -f "$out"

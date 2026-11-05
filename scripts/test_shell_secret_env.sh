@@ -183,6 +183,7 @@ homedrive_users:
     admin: true
 homedrive_min_free_gb: 10
 homedrive_prune_keep: 7
+homedrive_drill_sample: 20
 homedrive_keep_all_days: 30
 homedrive_trash_days: 90
 homedrive_memory: '1g'
@@ -582,7 +583,9 @@ assert_not_contains "$render_dir/homedrive_repair.sh" "label=disable" "homedrive
 assert_contains "$render_dir/homedrive_repair.sh" "/usr/bin/systemctl start homedrive.service" "homedrive_repair.sh starts the server again"
 assert_contains "$render_dir/backup_homedrive.sh" '/usr/bin/borg check --lock-wait 3600 "$REPO"' "backup_homedrive.sh checks the backup repository weekly"
 assert_contains "$render_dir/backup_homedrive.sh" 'report local --ok' "backup_homedrive.sh reports each local run to homedrive"
-assert_contains "$render_dir/backup_homedrive.sh" '/usr/local/bin/homedrive_restore_drill.sh' "backup_homedrive.sh runs the restore drill weekly"
+assert_not_contains "$render_dir/backup_homedrive.sh" '/usr/local/bin/homedrive_restore_drill.sh' "backup_homedrive.sh never runs a restore drill itself (drills run when asked for)"
+assert_contains "$render_dir/homedrive_restore_drill.sh" 'drill-plan --sample' "homedrive_restore_drill.sh has the light drill"
+assert_not_contains "$render_dir/homedrive_restore_drill.sh" '[ "$KEEP" = true ] && echo' "homedrive_restore_drill.sh exits 0 after a drill that passed without --keep"
 assert_contains "$render_dir/backup_homedrive.sh" '/usr/bin/stat -c %d "$STORE")" = "$(/usr/bin/stat -c %d "$REPO")"' "backup_homedrive.sh reports a repository on the store's own disk"
 assert_contains "$render_dir/backup_homedrive.sh" "--encryption=repokey-blake2" "backup_homedrive.sh encrypts a new repository when a passphrase is set"
 assert_contains "$render_dir/backup_homedrive.sh" 'BORG_PASSCOMMAND="/usr/bin/cat /etc/homelab/secrets/homedrive_borg_passphrase"' "backup_homedrive.sh reads the passphrase from its root-only file"

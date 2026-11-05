@@ -100,21 +100,26 @@ drill restores only homedrive's, and every Borg step waits for the other
 job's lock. Check that the disk has room for the store first (`df -h` in
 `show_logs.yml`'s overview): when it fills, both jobs fail and say so.
 
-The drill is off beside the shared repository, because its default scratch
-folder would be on the system disk. Set `homedrive_drill_path` to a folder
-with about twice the store's size free to turn it on.
+Beside the shared repository the drill's scratch folder defaults to
+`/var/lib/homedrive-drill` on the system disk: room enough for the light
+drill. For the full one, set `homedrive_drill_path` to a folder with about
+twice the store's size free; the drill checks and says so when there is not
+room.
 
 ### The restore drill: proof the backups work
 
-On Sundays, after the backup, `homedrive_restore_drill.sh` proves the
-newest archive restores, all the way to plain files:
+`homedrive_restore_drill.sh` proves the newest archive restores, all the way
+to plain files. Nothing runs it on a schedule: start it from playbook-runner
+with `run_backups.yml`'s `drill_light` or `drill_full` tag, or by hand.
+
+The **full drill** restores everything, which takes hours of disk and CPU:
 
 1. it extracts the archive to `homedrive_drill_path` (it needs about twice
    the store's size free there, and checks first). The drill marks that
    directory as its own with `.homedrive-drill-scratch` and empties only
-   its own `store/` and `plain/` there. It refuses a directory that
-   overlaps the store or the repository (after resolving links), or that
-   already holds files it did not put there;
+   what it put there. It refuses a directory that overlaps the store or the
+   repository (after resolving links), or that already holds files it did
+   not put there;
 2. a one-off container with no network reads every version in the copy
    back (`fsck --deep`), then restores every user's drive to plain files,
    each verified against its SHA-256, with a `sha256sum` manifest per user;
@@ -122,13 +127,24 @@ newest archive restores, all the way to plain files:
    when the backup was taken must be there (by path, or by content if it
    has moved since), and nothing the drive never held may be.
 
-The result is reported like a backup ("drill"), and a drill that fails or
-has not succeeded for eight days reaches the administrators. The log is
-`/var/log/homedrive_drill.log`. Run it by hand at any time:
+The **light drill** (`--light`) checks a random sample instead, in minutes:
+it extracts only the store's metadata, then the objects the sampled files
+need, as homedrive names them a round at a time, restores those files,
+each verified against its SHA-256, and checks them against the live drive.
+`homedrive_drill_sample` (20) files, or `--files N`. It proves those files
+restore and that the archive holds what they need; only the full drill
+reads every object. An archive missing an object the sample needs fails it.
+
+The result is reported like a backup ("drill"), and a drill that fails
+reaches the administrators; one that has not run for a while does not,
+since drills run when you choose. The log is
+`/var/log/homedrive_drill.log`. By hand:
 
 ```sh
-/usr/local/bin/homedrive_restore_drill.sh          # restores, checks, cleans up
-/usr/local/bin/homedrive_restore_drill.sh --keep   # leaves the plain files in <drill path>/plain
+/usr/local/bin/homedrive_restore_drill.sh --light            # a sample, minutes
+/usr/local/bin/homedrive_restore_drill.sh --light --files 100
+/usr/local/bin/homedrive_restore_drill.sh                    # everything, hours
+/usr/local/bin/homedrive_restore_drill.sh --keep             # leaves the plain files in <drill path>/plain
 ```
 
 ### Restoring to plain files on a client

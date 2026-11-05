@@ -1545,12 +1545,17 @@ class RunBackupsTests(unittest.TestCase):
         }
         self.assertEqual(scripts, crons)
 
-    def test_the_drill_runs_only_when_asked_for(self):
-        """It takes hours of disk and CPU."""
-        drill = next(t for t in self.imports if t["vars"]["run_backup_name"] == "drill")
-        self.assertEqual(drill["tags"], ["never", "drill"])
-        self.assertEqual(drill["vars"]["run_backup_scheduled_by"], "installed")
-        self.assertEqual(drill["vars"]["run_backup_script"], "/usr/local/bin/homedrive_restore_drill.sh")
+    def test_the_drills_run_only_when_asked_for(self):
+        """The full one takes hours of disk and CPU."""
+        drills = {t["vars"]["run_backup_name"]: t for t in self.imports if "drill" in t["vars"]["run_backup_name"]}
+        self.assertEqual(set(drills), {"drill_light", "drill_full"})
+        for name, task in drills.items():
+            with self.subTest(drill=name):
+                self.assertEqual(task["tags"], ["never", name])
+                self.assertEqual(task["vars"]["run_backup_scheduled_by"], "installed")
+                self.assertEqual(task["vars"]["run_backup_script"], "/usr/local/bin/homedrive_restore_drill.sh")
+        self.assertEqual(drills["drill_light"]["vars"]["run_backup_args"], "--light")
+        self.assertNotIn("run_backup_args", drills["drill_full"]["vars"])
 
     def test_each_backup_has_its_own_tag_and_the_store_comes_after_the_others(self):
         names = [t["vars"]["run_backup_name"] for t in self.imports]
@@ -1599,11 +1604,30 @@ class SharedBorgRepositoryTests(unittest.TestCase):
                 with self.subTest(line=line.strip()):
                     self.assertIn("--lock-wait", line)
 
-    def test_the_drill_is_off_beside_the_shared_repository(self):
-        """Its default scratch path there would land on the system disk."""
+    def test_the_drill_scratch_folder_is_never_inside_the_shared_repository(self):
+        """Beside the backup disk's mount it would be the system disk's root."""
         defaults = yaml.safe_load(self.read("roles", "homedrive", "defaults", "main.yml"))
         self.assertIn("homedrive_borg_repo != (borg_backup_path", defaults["homedrive_drill_path"])
+        self.assertIn("'/var/lib/homedrive-drill'", defaults["homedrive_drill_path"])
         self.assertIn("backup_disk | default('') | length > 0", defaults["homedrive_borg_repo"])
+
+    def test_no_drill_runs_on_a_schedule(self):
+        """A full drill is hours of disk and CPU; drills run only when asked."""
+        backup = self.read("roles", "homedrive", "templates", "backup_homedrive.sh.j2")
+        self.assertNotIn("homedrive_restore_drill.sh ||", backup)
+        self.assertNotIn("/usr/local/bin/homedrive_restore_drill.sh", backup)
+        for path in (REPO_ROOT / "roles").glob("*/tasks/main.yml"):
+            for task in yaml.safe_load(path.read_text(encoding="utf-8")) or []:
+                job = task.get("ansible.builtin.cron", {}).get("job", "")
+                with self.subTest(task=task.get("name")):
+                    self.assertNotIn("restore_drill", job)
+
+    def test_the_light_drill_extracts_only_what_the_sample_needs(self):
+        drill = self.read("roles", "homedrive", "templates", "homedrive_restore_drill.sh.j2")
+        self.assertIn('"$IN_ARCHIVE/store.id" "$IN_ARCHIVE/meta"', drill)
+        self.assertIn('on_copy drill-plan --sample "$SAMPLE" --seed "$SEED"', drill)
+        self.assertIn('on_copy restore-drill --to /restore --sample "$SAMPLE" --seed "$SEED"', drill)
+        self.assertIn('COMPARE=(--sample)', drill)
 
 
 class MusicLibraryTests(unittest.TestCase):

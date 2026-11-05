@@ -84,18 +84,23 @@ homedrive_borg_repo: "{{ borg_backup_path | default('/borg_backups') if backup_d
 # cannot be read.
 homedrive_borg_passphrase: ""
 
-# Scratch space for the weekly restore drill, which restores the newest
-# backup to plain files and checks every one against the drive. It needs
-# about twice the store's size free while it runs, and is emptied after.
-# Empty turns the drill off (the admin page then shows it has never run).
-# By default it sits beside a repository of homedrive's own; beside the
-# shared one it would land on the system disk, so set it to a folder with
-# room instead.
+# Scratch space for the restore drill, which restores the newest backup to
+# plain files and checks every one against the drive. It runs only when
+# asked for (run_backups.yml's drill tags, or by hand). The full drill needs
+# about twice the store's size free while it runs, the light one (a sample)
+# little more than the store's metadata; both empty it after. By default it
+# sits beside a repository of homedrive's own; beside the shared one it is a
+# folder on the system disk, enough for the light drill (the full one says
+# when there is not room). Empty turns the drill off.
 homedrive_drill_path: >-
-  {{ homedrive_borg_repo ~ '-drill'
-     if (homedrive_borg_repo | length > 0
-         and homedrive_borg_repo != (borg_backup_path | default('/borg_backups')))
+  {{ (homedrive_borg_repo ~ '-drill'
+      if homedrive_borg_repo != (borg_backup_path | default('/borg_backups'))
+      else '/var/lib/homedrive-drill')
+     if homedrive_borg_repo | length > 0
      else '' }}
+
+# How many files the light drill restores and checks
+homedrive_drill_sample: 20
 
 # Root-only directory for runtime environment files and secret sources
 secret_env_dir: /etc/homelab/secrets
