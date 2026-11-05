@@ -1,0 +1,80 @@
+---
+# Takes a fresh backup now, the same way the nightly jobs do, for when one is
+# wanted before a change or to check that backups work. Runs from
+# playbook-runner, so it needs no SSH. It is not part of
+# update_homelab_vms.yml.
+#
+# With no tags it runs every backup this host schedules, in this order (the
+# homedrive store last, so it holds the others): vaultwarden,
+# playbook_runner, music_server, paperless, homedrive, files. A tag runs one.
+# Paperless (a full export and Borg run, then a sync of the repository) and
+# files (Borg of the Nextcloud data) can take a long time; give a template
+# that runs them a long timeout.
+#
+# Each runs the script root's crontab runs, so it goes where the nightly
+# backup goes (backup_destination). Today's backups are named by today's
+# date, so a manual run on a day that already has one stores it as a new
+# version of that day's file, which keeps the earlier one in its history.
+- name: Run VM1's backups now
+  hosts: vm1
+  gather_facts: false
+  tasks:
+    - name: Vaultwarden
+      ansible.builtin.import_tasks: standalone_tasks/run_backup.yml
+      vars:
+        run_backup_name: vaultwarden
+        run_backup_script: /usr/local/bin/backup_vaultwarden_db.sh
+        run_backup_log: /var/log/vaultwarden_backup.log
+      tags: [vaultwarden]
+
+    - name: The playbook-runner data
+      ansible.builtin.import_tasks: standalone_tasks/run_backup.yml
+      vars:
+        run_backup_name: playbook_runner
+        run_backup_script: /usr/local/bin/backup_playbook_runner.sh
+        run_backup_log: /var/log/playbook_runner_backup.log
+      tags: [playbook_runner]
+
+    - name: The music-server data
+      ansible.builtin.import_tasks: standalone_tasks/run_backup.yml
+      vars:
+        run_backup_name: music_server
+        run_backup_script: /usr/local/bin/backup_music_server.sh
+        run_backup_log: /var/log/music_server_backup.log
+      tags: [music_server]
+
+    - name: Paperless and the Nextcloud database
+      ansible.builtin.import_tasks: standalone_tasks/run_backup.yml
+      vars:
+        run_backup_name: paperless
+        run_backup_script: /usr/local/bin/backup_nextcloud_paperless.sh
+        run_backup_log: /var/log/rclone-nextcloud-borg.log
+      tags: [paperless]
+
+    - name: The homedrive store
+      ansible.builtin.import_tasks: standalone_tasks/run_backup.yml
+      vars:
+        run_backup_name: homedrive
+        run_backup_script: /usr/local/bin/backup_homedrive.sh
+        run_backup_log: /var/log/homedrive_backup.log
+      tags: [homedrive]
+
+    - name: Files (Borg)
+      ansible.builtin.import_tasks: standalone_tasks/run_backup.yml
+      vars:
+        run_backup_name: files
+        run_backup_script: /usr/local/bin/backup_files.sh
+        run_backup_log: ""
+      tags: [files]
+
+    - name: Show every result
+      ansible.builtin.debug:
+        msg: "{{ run_backups_results | default({}) }}"
+      tags: [always]
+
+    - name: Require every backup that ran to succeed
+      ansible.builtin.assert:
+        that:
+          - run_backups_results | default({}) | dict2items | selectattr('value', 'match', '^FAILED') | list | length == 0
+        fail_msg: "A backup failed; see its output above: {{ run_backups_results | default({}) }}"
+      tags: [always]

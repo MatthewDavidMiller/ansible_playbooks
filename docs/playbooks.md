@@ -91,3 +91,18 @@ This document covers the maintained playbooks only. Legacy playbooks are preserv
 **Inventory:** `homedrive_import_user` defaults to `nextcloud_homelab_user` and must be one of `homedrive_users`. `homedrive_import_src`, `homedrive_import_dest` (the drive's root by default), `homedrive_import_max_missing`, `homedrive_import_cache_dir`, and `homedrive_import_timeout_s` (24 hours per step) can be overridden; the cache may not be inside, or contain, the source or the store. The full output, file names included, goes to `/var/log/homedrive_import.log`; the run log shows summaries and at most 50 file lines per step.
 
 **Isolation:** the import runs in a one-off container from the running server's image with no network, the source and the store both mounted read-only, the cache directory its only writable mount, and SELinux separation off for that container only, so neither tree is relabeled. It reads the Nextcloud files through their group, and writes to the drive only through the server's admin socket.
+
+---
+
+## `run_backups.yml`
+
+**Target:** `vm1`
+
+**Usage:** Takes a fresh backup now, the same way the nightly jobs do: before a change, or to check that backups work, without SSH. It runs each backup script that root's crontab schedules on VM1, so a backup that is not set up there is passed over, and each one goes where the nightly one goes (`backup_destination`). It is not part of `update_homelab_vms.yml`.
+
+**Choosing what to run:** no tags runs them all, in this order, with the homedrive store last so it holds the others: `vaultwarden`, `playbook_runner`, `music_server`, `paperless`, `homedrive`, `files`. A tag runs one. `paperless` (a full export and Borg run, then a sync of the repository) and `files` (Borg of the Nextcloud data) can take a long time, so give templates that run them a long timeout.
+
+**Output:** each backup's own output and the end of its log, then a summary. The run fails if any backup that ran failed. A lock keeps two manual runs of one backup apart.
+
+**Naming:** the daily backups are named by the date, so a manual run on a day that already has one stores a new version of that day's file in homedrive. The earlier one stays in its history.
+

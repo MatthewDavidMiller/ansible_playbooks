@@ -1512,3 +1512,49 @@ class BackupDestinationTests(unittest.TestCase):
         )
         self.assertIn("'https://drive.' ~ homelab_internal_domain", rclone["homedrive_webdav_url"])
         self.assertEqual(rclone["homedrive_rclone_pass"], "", "a secret has no default")
+
+
+class RunBackupsTests(unittest.TestCase):
+    """run_backups.yml takes a fresh backup now, the way the nightly jobs do."""
+
+    def setUp(self):
+        self.play = yaml.safe_load((REPO_ROOT / "run_backups.yml").read_text(encoding="utf-8"))[0]
+        self.imports = [t for t in self.play["tasks"] if "ansible.builtin.import_tasks" in t]
+        self.tasks = yaml.safe_load(
+            (REPO_ROOT / "standalone_tasks" / "run_backup.yml").read_text(encoding="utf-8")
+        )
+
+    def test_it_is_never_part_of_the_weekly_chain(self):
+        for playbook in ("vm1.yml", "homelab_vms.yml", "update_homelab_vms.yml"):
+            with self.subTest(playbook=playbook):
+                self.assertNotIn("run_backups", (REPO_ROOT / playbook).read_text(encoding="utf-8"))
+
+    def test_it_runs_exactly_the_scripts_the_nightly_cron_runs(self):
+        """A backup the play runs and the crontab does not would be a new kind of job."""
+        crons = set()
+        for path in (REPO_ROOT / "roles").glob("*/tasks/main.yml"):
+            for task in yaml.safe_load(path.read_text(encoding="utf-8")) or []:
+                job = task.get("ansible.builtin.cron", {}).get("job", "")
+                if "/usr/local/bin/backup_" in job:
+                    crons.add(job.split()[-1])
+        scripts = {t["vars"]["run_backup_script"] for t in self.imports}
+        self.assertEqual(scripts, crons)
+
+    def test_each_backup_has_its_own_tag_and_the_store_comes_after_the_others(self):
+        names = [t["vars"]["run_backup_name"] for t in self.imports]
+        for task in self.imports:
+            self.assertEqual(task["tags"], [task["vars"]["run_backup_name"]])
+        self.assertGreater(names.index("homedrive"), names.index("vaultwarden"))
+        self.assertGreater(names.index("homedrive"), names.index("music_server"))
+
+    def test_only_scheduled_backups_run_and_never_two_at_once(self):
+        run = next(t for t in self.tasks if t["name"].startswith("Run the"))
+        self.assertEqual(run["when"], "run_backup_scheduled.rc == 0")
+        self.assertIn("/usr/bin/flock --nonblock", run["ansible.builtin.shell"]["cmd"])
+        check = next(t for t in self.tasks if t["name"].startswith("Check"))
+        self.assertIs(check["check_mode"], False)
+
+    def test_a_failed_backup_fails_the_run(self):
+        last = self.play["tasks"][-1]
+        self.assertIn("always", last["tags"])
+        self.assertIn("'^FAILED'", "\n".join(last["ansible.builtin.assert"]["that"]))
