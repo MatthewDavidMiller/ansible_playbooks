@@ -104,16 +104,16 @@ When `backup_local: false`, also define the following variables:
 | `nextcloud_rclone_pass` | string | Yes, secret | Prefer a Nextcloud app password. | Ansible Vault value |
 | `nextcloud_webdav_user` | string | Yes | WebDAV account rendered into the rclone configuration. | `example_user` |
 | `nextcloud_webdav_pass` | string | Yes, secret | WebDAV/app password rendered into the rclone configuration. | Ansible Vault value |
-| `homedrive_webdav_url` | string | With `backup_destination: homedrive` | homedrive WebDAV URL for the `Homedrive:` rclone remote, which the Paperless Borg sync then uses; empty writes no remote. | `https://drive.example.com/dav/example_user` |
-| `homedrive_rclone_user` | string | With `homedrive_webdav_url` | homedrive account for that remote. | `example_user` |
-| `homedrive_rclone_pass` | string | With `homedrive_webdav_url`, secret | A device token from homedrive's Devices page, as `rclone obscure <token>` prints it. | Ansible Vault value |
+| `homedrive_rclone_pass` | string | Yes once homedrive is deployed, secret | A device token from homedrive's Devices page for the `Homedrive:` rclone remote, which the Paperless Borg sync uses, as `rclone obscure <token>` prints it. The remote is written only once this is set, and the nextcloud role refuses to sync to homedrive without it. | Ansible Vault value |
+| `homedrive_webdav_url` | string | No | WebDAV URL for that remote. | `https://drive.<homelab_internal_domain>/dav/<homedrive_rclone_user>` when homedrive is deployed |
+| `homedrive_rclone_user` | string | No | homedrive account for that remote. | `homedrive_backup_user` |
 
 ### Backup destination
 
 | Variable | Type | Required | Description | Example/default |
 |---|---|---|---|---|
-| `backup_destination` | string | No | Where VM1's backups go. `nextcloud` keeps the previous behaviour. `homedrive` stores the vaultwarden, playbook-runner and music-server daily backups through `homedrive_import_path.sh`, keeps their dated names, and sends the old playbook-runner and music-server files (over 30 days) to the drive's trash with `homedrive_prune_path.sh`. Vaultwarden keeps every day, as before. The Paperless Borg repository is synced to the `Homedrive:` remote. It needs homedrive deployed. | `nextcloud` (default) |
-| `homedrive_backup_user` | string | With `backup_destination: homedrive` | The homedrive account, one of `homedrive_users`, whose drive holds the backups. Each `<service>_backup_location` is the folder in it. | `example_user` |
+| `backup_destination` | string | No | Where VM1's backups go: `homedrive` whenever homedrive is deployed, otherwise `nextcloud`. Set `nextcloud` to keep the previous behaviour. `homedrive` stores the vaultwarden, playbook-runner and music-server daily backups through `homedrive_import_path.sh`, keeps their dated names, and sends the old playbook-runner and music-server files (over 30 days) to the drive's trash with `homedrive_prune_path.sh`. Vaultwarden keeps every day, as before. The Paperless Borg repository is synced to the `Homedrive:` remote. It needs homedrive deployed. | `homedrive` once homedrive is deployed |
+| `homedrive_backup_user` | string | No | The homedrive account, one of `homedrive_users`, whose drive holds the backups. Each `<service>_backup_location` is the folder in it. | `nextcloud_homelab_user` |
 
 ### Paperless NGX
 

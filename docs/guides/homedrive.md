@@ -245,15 +245,22 @@ each one before retiring the source. The full output is in
 
 ## Moving VM1's backups to homedrive
 
-Set these in the inventory, then run `vm1.yml`:
+Once homedrive is deployed, VM1's backups go to it by default. The only
+inventory value needed is a device token for the Paperless Borg sync: make
+one on homedrive's Devices page for `nextcloud_homelab_user`'s account, then
+put `rclone obscure <token>`'s output in Vault and run `vm1.yml`:
 
 ```yaml
-backup_destination: homedrive
-homedrive_backup_user: example_user          # one of homedrive_users
-homedrive_webdav_url: https://drive.example.com/dav/example_user
-homedrive_rclone_user: example_user
-homedrive_rclone_pass: "..."                 # Vault: rclone obscure <device token>
+homedrive_rclone_pass: "..."   # Vault
 ```
+
+Until it is set, `vm1.yml` stops at the nextcloud role and says so, rather
+than keep syncing to Nextcloud. The defaults, which the inventory can
+override: `backup_destination: homedrive`, `homedrive_backup_user` is
+`nextcloud_homelab_user` (it must be one of `homedrive_users`),
+`homedrive_rclone_user` is the same account, and `homedrive_webdav_url` is
+`https://drive.<homelab_internal_domain>/dav/<that account>`. Set
+`backup_destination: nextcloud` to keep the previous behaviour.
 
 The vaultwarden, playbook-runner and music-server daily backups then go
 into `homedrive_backup_user`'s drive through `homedrive_import_path.sh`,

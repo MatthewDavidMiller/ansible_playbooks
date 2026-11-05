@@ -4,11 +4,11 @@ url = {{ nextcloud_webdav_path }}
 vendor = nextcloud
 user = {{ nextcloud_rclone_user }}
 pass = {{ nextcloud_rclone_pass }}
-{% if homedrive_webdav_url | default('') | length > 0 %}
+{% if homedrive_webdav_url | default('') | trim | length > 0 and homedrive_rclone_pass | default('') | length > 0 %}
 
 [Homedrive]
 type = webdav
-url = {{ homedrive_webdav_url }}
+url = {{ homedrive_webdav_url | trim }}
 vendor = other
 user = {{ homedrive_rclone_user }}
 pass = {{ homedrive_rclone_pass }}

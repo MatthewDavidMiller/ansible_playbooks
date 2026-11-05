@@ -1476,13 +1476,14 @@ class BackupDestinationTests(unittest.TestCase):
             script,
         )
         conditions = "\n".join(_first_assert("nextcloud"))
-        self.assertIn("homedrive_webdav_url | default('') is match('^https://')", conditions)
+        self.assertIn("homedrive_rclone_pass | default('') | length > 0", conditions)
 
     def test_the_homedrive_remote_is_written_only_when_configured(self):
         config = (
             REPO_ROOT / "roles" / "standard_rclone" / "templates" / "rclone_config.j2"
         ).read_text(encoding="utf-8")
         section = config[config.index("{% if homedrive_webdav_url"):]
+        self.assertIn("homedrive_rclone_pass | default('') | length > 0", section.splitlines()[0])
         self.assertIn("[Homedrive]", section)
         self.assertIn("vendor = other", section, "vendor nextcloud uses upload endpoints homedrive lacks")
         self.assertTrue(section.rstrip().endswith("{% endif %}"))
@@ -1494,3 +1495,20 @@ class BackupDestinationTests(unittest.TestCase):
                 self.assertIn("backup_destination in ['nextcloud', 'homedrive']", conditions)
                 self.assertIn("backup_destination != 'homedrive' or homedrive_enabled", conditions)
                 self.assertIn("homedrive_backup_user in (homedrive_users", conditions)
+
+    def test_backups_go_to_homedrive_by_default_once_it_is_deployed(self):
+        """Nothing should keep writing to the previous file service by accident."""
+        for role in ("vaultwarden", "playbook_runner", "music_server", "nextcloud"):
+            with self.subTest(role=role):
+                defaults = yaml.safe_load(
+                    (REPO_ROOT / "roles" / role / "defaults" / "main.yml").read_text(encoding="utf-8")
+                )
+                self.assertEqual(
+                    defaults["backup_destination"],
+                    "{{ 'homedrive' if homedrive_enabled | default(false) | bool else 'nextcloud' }}",
+                )
+        rclone = yaml.safe_load(
+            (REPO_ROOT / "roles" / "standard_rclone" / "defaults" / "main.yml").read_text(encoding="utf-8")
+        )
+        self.assertIn("'https://drive.' ~ homelab_internal_domain", rclone["homedrive_webdav_url"])
+        self.assertEqual(rclone["homedrive_rclone_pass"], "", "a secret has no default")

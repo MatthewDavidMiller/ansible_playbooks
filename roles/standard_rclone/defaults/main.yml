@@ -10,13 +10,20 @@ nextcloud_rclone_user: ""
 # WebDAV password for the Nextcloud rclone remote (use an app password, not the account password)
 nextcloud_rclone_pass: ""
 
-# WebDAV URL for the Homedrive rclone remote, empty for none
-# (e.g. "https://drive.example.com/dav/user")
-homedrive_webdav_url: ""
+# homedrive account for the Homedrive rclone remote: by default the one that
+# holds the backups
+homedrive_rclone_user: "{{ homedrive_backup_user | default(nextcloud_homelab_user | default('')) }}"
 
-# homedrive account for the Homedrive rclone remote
-homedrive_rclone_user: ""
+# WebDAV URL for the Homedrive rclone remote: by default homedrive's address
+# on VM1 when it is deployed (https://drive.<homelab_internal_domain>/dav/<user>)
+homedrive_webdav_url: >-
+  {{ ('https://drive.' ~ homelab_internal_domain ~ '/dav/' ~ homedrive_rclone_user)
+     if (homedrive_enabled | default(false) | bool
+         and homelab_internal_domain | default('') | length > 0
+         and homedrive_rclone_user | length > 0)
+     else '' }}
 
 # A device token made on homedrive's Devices page, in the form rclone's
-# config needs: the output of `rclone obscure <token>` (Vault)
+# config needs: the output of `rclone obscure <token>` (Vault). The remote is
+# written only once this is set.
 homedrive_rclone_pass: ""

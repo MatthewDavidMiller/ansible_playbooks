@@ -112,7 +112,8 @@ postgres_image: ""
 redis_image: ""
 nextcloud_image: ""
 
-# Where the Borg repository above is synced: "nextcloud" (the Nextcloud
-# rclone remote, as before) or "homedrive" (the Homedrive rclone remote,
-# which needs homedrive_webdav_url). The location is the same folder path.
-backup_destination: nextcloud
+# Where the Borg repository above is synced: the Homedrive rclone remote
+# whenever homedrive is deployed, otherwise the Nextcloud one. That remote
+# needs homedrive_rclone_pass (see standard_rclone). The location is the same
+# folder path. Set "nextcloud" in the inventory to keep the Nextcloud remote.
+backup_destination: "{{ 'homedrive' if homedrive_enabled | default(false) | bool else 'nextcloud' }}"
