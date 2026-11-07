@@ -47,7 +47,7 @@ VM1 is the single maintained service host. It runs Traefik, PostgreSQL, Redis, N
 | `proxy_config` | list | Set by [`network/vm1.yml`](../network/vm1.yml), not inventory: the Traefik routes | — |
 | `postgres_path` | path | Optional: Shared PostgreSQL data directory | `/postgres` (default) |
 | `nextcloud_path` | path | Optional: Nextcloud base directory, inside `nextcloud_disk_mount_path` | `/data_drive/nextcloud` (default) |
-| `nextcloud_disk` | string | UUID entry for the data disk | `UUID=...` |
+| `nextcloud_disk` | string | UUID entry for the data disk, mounted by the `data_disk` role | `UUID=...` |
 | `nextcloud_disk_mount_path` | path | Optional: data disk mount point, shared with homedrive | `/data_drive` (default) |
 | `nextcloud_borg_backup_path` | path | Optional: local Borg repo for Nextcloud + Paperless backups | `/data_drive/nextcloud/borg_backup` (default) |
 | `nextcloud_paperless_backup_location` | string | Remote sync target for that Borg repo | `Nextcloud:backup/nextcloud` |

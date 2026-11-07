@@ -8,8 +8,9 @@ postgres_path: /postgres
 # nextcloud_disk_mount_path
 nextcloud_path: /data_drive/nextcloud
 
-# Where nextcloud_disk is mounted. The disk also holds homedrive, so this is
-# the parent of nextcloud_path rather than nextcloud_path itself.
+# Where the data disk is mounted by the data_disk role (which defaults to this
+# value). The disk also holds homedrive, so this is the parent of nextcloud_path
+# rather than nextcloud_path itself.
 nextcloud_disk_mount_path: /data_drive
 
 # UID/GID used by Nextcloud to own files on the host-mounted data path
@@ -23,7 +24,8 @@ nextcloud_normalize_user_files_permissions: true
 nextcloud_user_files_directory_mode: "0770"
 nextcloud_user_files_file_mode: "0660"
 
-# Block device identifier for the Nextcloud disk mount (e.g. "UUID=xxxx-xxxx")
+# Block device identifier for the data disk (e.g. "UUID=xxxx-xxxx"). Read by
+# the data_disk role, which mounts it (its data_disk defaults to this).
 nextcloud_disk: ""
 
 # PostgreSQL admin username used to bootstrap service roles and databases

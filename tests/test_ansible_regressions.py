@@ -210,31 +210,51 @@ class LocalNextcloudBackupTests(unittest.TestCase):
                 self.assertGreater(len(values), 1)
                 self.assertEqual(len(set(values.values())), 1, values)
 
-    def test_nextcloud_mounts_its_disk_before_creating_paths_inside_it(self):
-        """A directory made before the mount lands on the OS disk under it."""
-        tasks = yaml.safe_load(
-            (REPO_ROOT / "roles" / "nextcloud" / "tasks" / "main.yml").read_text(
-                encoding="utf-8"
-            )
-        )
-        mounts = [
-            index
-            for index, task in enumerate(tasks)
-            if "ansible.posix.mount" in task
-        ]
+    def test_the_data_disk_is_mounted_by_its_own_role_before_any_role_uses_it(self):
+        """A directory made before the mount lands on the OS disk under it, and
+        a mount owned by a service role would go when that service is removed."""
+        tasks = role_tasks("data_disk")
+        mounts = [t for t in tasks if "ansible.posix.mount" in t]
         self.assertEqual(len(mounts), 1)
-        self.assertEqual(
-            tasks[mounts[0]]["ansible.posix.mount"]["path"],
-            "{{ nextcloud_disk_mount_path }}",
-            "nextcloud_path sits inside the shared disk; it is not the mount point",
+        self.assertEqual(mounts[0]["ansible.posix.mount"]["path"], "{{ data_disk_mount_path }}")
+        self.assertEqual(mounts[0]["ansible.posix.mount"]["opts"], "rw,auto", "opts that differ remount the disk")
+        for role in ("nextcloud", "music_server"):
+            with self.subTest(role=role):
+                self.assertFalse(
+                    [t for t in role_tasks(role) if "ansible.posix.mount" in t],
+                    "the data disk is mounted only by the data_disk role",
+                )
+        # homedrive mounts only a disk of its own (homedrive_disk), never the shared one.
+        own = [t for t in role_tasks("homedrive") if "ansible.posix.mount" in t]
+        self.assertEqual([t["when"] for t in own], ["homedrive_disk | length > 0"])
+        play = yaml.safe_load((REPO_ROOT / "vm1.yml").read_text(encoding="utf-8"))[0]
+        roles = play["roles"]
+        for user in ("nextcloud", "paperless_ngx", "music_server", "homedrive"):
+            with self.subTest(user=user):
+                self.assertLess(roles.index("data_disk"), roles.index(user))
+        self.assertEqual(mounts[0]["ansible.posix.mount"]["state"], "mounted")
+
+    def test_the_data_disk_defaults_follow_the_existing_inventory(self):
+        defaults = yaml.safe_load(
+            (REPO_ROOT / "roles" / "data_disk" / "defaults" / "main.yml").read_text(encoding="utf-8")
         )
-        path_tasks = [
-            index
-            for index, task in enumerate(tasks)
-            if "nextcloud_path" in str(task.get("ansible.builtin.file", {}))
-        ]
-        self.assertTrue(path_tasks)
-        self.assertLess(mounts[0], min(path_tasks))
+        self.assertEqual(defaults["data_disk"], "{{ nextcloud_disk | default('') }}")
+        self.assertEqual(
+            defaults["data_disk_mount_path"], "{{ nextcloud_disk_mount_path | default('/data_drive') }}"
+        )
+
+    def test_the_data_disk_role_refuses_a_missing_disk_and_checks_the_mount(self):
+        tasks = role_tasks("data_disk")
+        conditions = "\n".join(tasks[0]["ansible.builtin.assert"]["that"])
+        self.assertIn("data_disk | length > 0", conditions)
+        self.assertIn("not in ['/'", conditions)
+        check = next(t for t in tasks if t["name"] == "Check the data disk is mounted")
+        self.assertEqual(check["ansible.builtin.command"]["argv"][:2], ["mountpoint", "-q"])
+
+    def test_homedrive_keeps_its_data_inside_the_data_disk(self):
+        conditions = "\n".join(_first_assert("homedrive"))
+        self.assertIn("homedrive_path.startswith((data_disk_mount_path", conditions)
+        self.assertIn("homedrive_export_path.startswith((data_disk_mount_path", conditions)
 
     def test_nextcloud_volume_has_a_container_file_context_rule(self):
         """Host-written backups need the right SELinux label from birth.

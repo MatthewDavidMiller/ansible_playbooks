@@ -91,6 +91,21 @@ Keeps SELinux enforcing on Rocky Linux 10 and sets the booleans required by the 
 
 ---
 
+### `data_disk`
+
+Mounts the data disk that holds homedrive's store and exports and, until it is retired, Nextcloud's data.
+
+**Variables:**
+
+| Variable | Type | Default | Description |
+|---|---|---|---|
+| `data_disk` | string | `nextcloud_disk` | Filesystem device identifier of the data disk. Required: the role stops without it. |
+| `data_disk_mount_path` | path | `nextcloud_disk_mount_path` (`/data_drive`) | Where it is mounted. A system path (`/`, `/var`, ...) is refused. |
+
+**Key behavior:** it runs ahead of every role that keeps files on the disk, so no directory under the mount point is ever made on the OS disk first, and a service role that is removed later cannot take the mount with it. It mounts with `rw,auto`, as the nextcloud role did, so an existing host sees no change, then sets the disk's root to `root:root 0755` and checks the path really is a mount point. The services keep their data in folders inside it (`/data_drive/homedrive/store`, `/data_drive/nextcloud`); the homedrive and nextcloud roles refuse paths outside it.
+
+---
+
 ### `standard_cleanup`
 
 Runs the post-deploy cleanup pass.

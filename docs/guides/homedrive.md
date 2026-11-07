@@ -34,7 +34,7 @@ homedrive_borg_passphrase: "..."                     # optional, Vault: encrypt 
 
 The store defaults to `/data_drive/homedrive/store` and exports to
 `/data_drive/homedrive/exports`, beside Nextcloud on the data disk. The
-`nextcloud` role owns that mount, so leave `homedrive_disk` unset there; a
+`data_disk` role owns that mount, so leave `homedrive_disk` unset there; a
 second entry for the disk would mount it twice. Set `homedrive_disk` and
 `homedrive_path` together only to give the store a disk of its own.
 

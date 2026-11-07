@@ -34,7 +34,7 @@ Deploys the shared PostgreSQL container, Redis container, and Nextcloud itself.
 
 **Required variables:** `postgres_image`, `redis_image`, `nextcloud_image`, `nextcloud_disk`, `postgres_admin_user`, `postgres_admin_password`, `nextcloud_database_name`, `nextcloud_db_user`, `nextcloud_db_password`, `nextcloud_admin_user`, `nextcloud_admin_password`, `nextcloud_trusted_domains`, `secret_env_dir`
 
-**Optional variables:** `password_minimum_length` defaults to `12` and controls validation of the PostgreSQL admin and Nextcloud database passwords. `nextcloud_disk_mount_path` defaults to `/data_drive`, and `nextcloud_path`, which must sit inside it, to `/data_drive/nextcloud`.
+**Optional variables:** `password_minimum_length` defaults to `12` and controls validation of the PostgreSQL admin and Nextcloud database passwords. `nextcloud_disk_mount_path` defaults to `/data_drive`, and `nextcloud_path`, which must sit inside it, to `/data_drive/nextcloud`. The disk itself is mounted by the `data_disk` role, which runs first.
 
 **Templates:** `postgres_container.sh.j2`, `postgres_container.service.j2`, `redis_container.sh.j2`, `redis_container.service.j2`, `nextcloud_container.sh.j2`, `nextcloud_container.service.j2`, `nextcloud_configure.sh.j2`, `nextcloud_configure.service.j2`, `postgres.env.j2`, `nextcloud.env.j2`
 

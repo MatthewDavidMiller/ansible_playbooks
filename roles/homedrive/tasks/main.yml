@@ -19,6 +19,11 @@
       - homedrive_users | map(attribute='quota_gb') | reject('integer') | list | length == 0
       - homedrive_users | map(attribute='quota_gb') | select('lt', 1) | list | length == 0
       - homedrive_path | homelab_safe_absolute_path
+      # On the shared data disk (no disk of its own), the store and exports
+      # must sit inside the mount the data_disk role makes, or they would be
+      # made on the OS disk.
+      - homedrive_disk | length > 0 or homedrive_path.startswith((data_disk_mount_path | default('/data_drive')) ~ '/')
+      - homedrive_disk | length > 0 or homedrive_export_path == '' or homedrive_export_path.startswith((data_disk_mount_path | default('/data_drive')) ~ '/')
       - homedrive_export_path == '' or homedrive_export_path | homelab_safe_absolute_path
       - homedrive_exports | trim == '' or homedrive_export_path != ''
       - >-

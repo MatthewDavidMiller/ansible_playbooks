@@ -88,7 +88,7 @@ The existing Ansible playbooks support this without changes: mounts are UUID-bas
 
 | Disk | Inventory variable | Contains |
 |---|---|---|
-| Data disk | `nextcloud_disk` → `nextcloud_disk_mount_path`, with Nextcloud in `nextcloud_path` beside homedrive | User files, config.php, apps, local Borg archive (`nextcloud_borg_backup_path`) with SQL dumps and Paperless exports, plus Vaultwarden/music-server/playbook-runner backup files stored inside `nextcloud_path/data/` |
+| Data disk | `data_disk` (default `nextcloud_disk`) → `data_disk_mount_path` (default `nextcloud_disk_mount_path`), with Nextcloud in `nextcloud_path` beside homedrive | User files, config.php, apps, local Borg archive (`nextcloud_borg_backup_path`) with SQL dumps and Paperless exports, plus Vaultwarden/music-server/playbook-runner backup files stored inside `nextcloud_path/data/` |
 | Borg backup disk | `backup_disk` → `borg_backup_path` | Full daily Borg snapshots of the entire `nextcloud_path` directory tree |
 
 The live PostgreSQL data directory (`postgres_path`) is on the OS disk — it is a separate configured path, not under `nextcloud_path`, so it is not on the data disk and is not carried over when you move the disk to a new VM. Databases must be restored from the SQL dumps in the Borg archive.

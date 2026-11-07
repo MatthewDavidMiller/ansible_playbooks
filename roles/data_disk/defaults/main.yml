@@ -1,0 +1,17 @@
+---
+# data_disk role defaults
+#
+# The disk that holds homedrive's store and exports (and, until it is
+# retired, Nextcloud's data). It has a role of its own, ahead of every role
+# that keeps files on it, so the mount is made before any of them creates a
+# directory under it (that would land on the OS disk) and outlives whichever
+# service is removed.
+
+# Block device identifier for the data disk (e.g. "UUID=xxxx-xxxx"). By
+# default the disk the nextcloud role used to mount, so an existing inventory
+# keeps working unchanged.
+data_disk: "{{ nextcloud_disk | default('') }}"
+
+# Where it is mounted. The disk is shared, so services keep their data in
+# folders inside it (/data_drive/homedrive/store, /data_drive/nextcloud).
+data_disk_mount_path: "{{ nextcloud_disk_mount_path | default('/data_drive') }}"

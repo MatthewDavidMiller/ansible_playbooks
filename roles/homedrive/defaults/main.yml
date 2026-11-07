@@ -11,13 +11,13 @@
 homedrive_enabled: false
 
 # The store directory: chunks, manifests, and the metadata journal. By default
-# it sits beside Nextcloud on the data disk the nextcloud role mounts. The
+# it sits on the data disk the data_disk role mounts. The
 # server refuses to start on a directory without its store.id, which is what
 # protects an unmounted disk from being written to.
 homedrive_path: /data_drive/homedrive/store
 
 # Optional block device for homedrive_path (e.g. "UUID=xxxx"), mounted here.
-# Leave empty on the shared data disk, which the nextcloud role already mounts.
+# Leave empty on the shared data disk, which the data_disk role mounts.
 homedrive_disk: ""
 
 # Create the store on the first deploy. Set true for that one run, on an

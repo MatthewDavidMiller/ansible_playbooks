@@ -67,6 +67,7 @@
     - standard_podman
     - standard_rclone
     - standard_selinux
+    - data_disk
     - backup
     - ansible
     - reverse_proxy

@@ -66,8 +66,9 @@ YAML so its dollar signs are preserved.
 | `postgres_admin_user` | string | Yes | PostgreSQL bootstrap/admin role. | `postgres_admin` |
 | `postgres_admin_password` | string | Yes, secret | PostgreSQL admin password; must satisfy `password_minimum_length`. | Ansible Vault value |
 | `nextcloud_path` | path | No | Nextcloud data root, inside `nextcloud_disk_mount_path`. | `/data_drive/nextcloud` (default) |
-| `nextcloud_disk` | string | Yes | Data disk filesystem device identifier. | `UUID=example-uuid` |
-| `nextcloud_disk_mount_path` | path | No | Data disk mount point, shared with homedrive. | `/data_drive` (default) |
+| `nextcloud_disk` | string | Yes | Data disk filesystem device identifier, mounted by the `data_disk` role (its `data_disk` defaults to this). | `UUID=example-uuid` |
+| `nextcloud_disk_mount_path` | path | No | Data disk mount point, shared with homedrive (the `data_disk` role's `data_disk_mount_path` defaults to this). | `/data_drive` (default) |
+| `data_disk`, `data_disk_mount_path` | string, path | No | The data disk and its mount point under their own names, which take over from the two above. Set them only to replace those. | `nextcloud_disk`, `nextcloud_disk_mount_path` |
 | `nextcloud_database_name` | string | Yes | Nextcloud database name. | `nextcloud` |
 | `nextcloud_db_user` | string | Yes | Nextcloud PostgreSQL role. | `nextcloud_user` |
 | `nextcloud_db_password` | string | Yes, secret | Nextcloud database password; must satisfy `password_minimum_length`. | Ansible Vault value |

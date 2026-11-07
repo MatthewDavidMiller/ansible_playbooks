@@ -10,6 +10,7 @@
       - nextcloud_path | homelab_safe_absolute_path
       - nextcloud_disk_mount_path | homelab_safe_absolute_path
       - nextcloud_path.startswith(nextcloud_disk_mount_path ~ '/')
+      - nextcloud_disk_mount_path == data_disk_mount_path | default(nextcloud_disk_mount_path)
       - nextcloud_borg_backup_path | homelab_safe_absolute_path
       - backup_destination in ['nextcloud', 'homedrive']
       - >-
@@ -108,25 +109,8 @@
     group: "999"
     mode: "0750"
 
-# The disk is shared with homedrive, so its mount point is its own path and
-# nextcloud_path sits inside it. Mount before touching nextcloud_path: created
-# first, the directory would land on the OS disk under the mount point.
-- name: Mount the data disk
-  ansible.posix.mount:
-    path: "{{ nextcloud_disk_mount_path }}"
-    src: "{{ nextcloud_disk }}"
-    fstype: ext4
-    opts: rw,auto
-    state: mounted
-
-- name: Set data disk root ownership
-  ansible.builtin.file:
-    path: "{{ nextcloud_disk_mount_path }}"
-    state: directory
-    owner: root
-    group: root
-    mode: "0755"
-
+# The data disk is mounted by the data_disk role, which runs before this one,
+# so nextcloud_path (inside it) is never created on the OS disk.
 - name: Create Nextcloud container path
   ansible.builtin.file:
     path: "{{ nextcloud_path }}"
