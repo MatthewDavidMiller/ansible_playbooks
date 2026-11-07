@@ -290,6 +290,13 @@ without reading files, stops before writing anything if that is more than
 checks again that nothing is missing. Old versions are not imported; they
 stay in Nextcloud until it is retired.
 
+A full check may find differences you have looked into and decided are
+harmless. Put them in `homedrive_import_accepted` in the inventory (a block
+of `<sha256>  <path>` lines; it names files, so it never goes in this
+repository) and the check accepts each one only while its source still has
+exactly the content you reviewed. See
+[playbooks.md](../playbooks.md#homedrive_importyml).
+
 Before retiring the source, run it with the `full` tag: every source file
 must match the drive byte for byte, and `fsck --deep` must be clean. That
 reads the whole tree and the whole store, so give its template a long

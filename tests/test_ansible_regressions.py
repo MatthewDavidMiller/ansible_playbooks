@@ -1484,6 +1484,68 @@ def _first_assert(role: str) -> list[str]:
     return task["ansible.builtin.assert"]["that"]
 
 
+class ReviewedDifferencesTests(unittest.TestCase):
+    """homedrive_import_accepted: reviewed differences, from the inventory."""
+
+    def setUp(self):
+        self.play = yaml.safe_load((REPO_ROOT / "homedrive_import.yml").read_text(encoding="utf-8"))[0]
+        self.tasks = {t["name"]: t for t in self.play["tasks"]}
+        self.text = (REPO_ROOT / "homedrive_import.yml").read_text(encoding="utf-8")
+
+    def test_the_list_is_empty_here_and_never_shown(self):
+        """It names files, so it lives in the inventory and stays out of logs."""
+        self.assertEqual(self.play["vars"]["homedrive_import_accepted"], "")
+        for name in ("Validate import inputs", "Write the reviewed differences for the check"):
+            with self.subTest(task=name):
+                self.assertIs(self.tasks[name]["no_log"], True)
+        self.assertIs(self.tasks["Write the reviewed differences for the check"]["diff"], False)
+
+    def test_the_file_the_check_reads_is_private_and_never_left_stale(self):
+        write = self.tasks["Write the reviewed differences for the check"]
+        self.assertEqual(write["ansible.builtin.copy"]["mode"], "0400")
+        self.assertIn("accepted.sha256", write["ansible.builtin.copy"]["dest"])
+        remove = self.tasks["Remove an earlier list of reviewed differences"]
+        self.assertEqual(remove["ansible.builtin.file"]["state"], "absent")
+        self.assertIn("length == 0", remove["when"], "an empty variable must not leave the old list in force")
+
+    def test_every_verify_command_reads_it_and_only_when_it_is_set(self):
+        arg = self.tasks["Set the one-off container command"]["ansible.builtin.set_fact"][
+            "homedrive_import_accepted_arg"
+        ]
+        self.assertIn("--accepted /mnt/cache/accepted.sha256", arg)
+        self.assertIn("length > 0", arg)
+        verifies = [
+            t["ansible.builtin.shell"]["cmd"]
+            for t in self.play["tasks"]
+            if "verify-tree" in str(t.get("ansible.builtin.shell", {}).get("cmd", ""))
+        ]
+        self.assertEqual(len(verifies), 3)
+        for cmd in verifies:
+            self.assertIn("{{ homedrive_import_accepted_arg }}", cmd)
+
+    def test_a_server_too_old_to_read_the_list_is_refused(self):
+        """An older server ignores the flag, which would look like an empty list."""
+        require = self.tasks["Require homedrive 0.1.8 or later for the reviewed list"]
+        self.assertIn("is version('0.1.8', '>=')", require["ansible.builtin.assert"]["that"][0])
+        self.assertIn("length > 0", require["when"])
+
+    def test_no_reviewed_list_is_committed_here(self):
+        """sha256sum-format lines name files; only the inventory may hold them."""
+        pattern = re.compile(r"^\s*\\?[0-9a-f]{64}  \S", re.MULTILINE)
+        tracked = subprocess.run(
+            ["git", "ls-files"], cwd=REPO_ROOT, capture_output=True, text=True, check=True
+        ).stdout.splitlines()
+        for name in tracked:
+            if name.startswith("tests/") or not (REPO_ROOT / name).is_file():
+                continue
+            try:
+                text = (REPO_ROOT / name).read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                continue
+            with self.subTest(file=name):
+                self.assertIsNone(pattern.search(text), f"{name} holds a sha256sum-format list")
+
+
 class BackupDestinationTests(unittest.TestCase):
     """backup_destination moves every VM1 backup off the previous file service."""
 
