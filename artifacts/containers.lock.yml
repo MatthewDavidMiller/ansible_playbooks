@@ -43,20 +43,20 @@ artifact_locked_images:
     signature_required: false
     notes: Approved via scripts/promote_artifacts.py
   playbook_runner:
-    upstream_ref: ghcr.io/matthewdavidmiller/playbook-runner:0.3.0
-    approved_tag: 0.3.0
+    upstream_ref: ghcr.io/matthewdavidmiller/playbook-runner:0.3.1
+    approved_tag: 0.3.1
     internal_repo: homelab/playbook-runner
     signature_required: false
     first_party: true
     notes: Approved via scripts/promote_artifacts.py
-    approved_digest: sha256:6ac9400cf1219000ac5446210ff8b44d5c1bba5529ee50bfb52b240027a73093
+    approved_digest: sha256:1b63f382b2acc66a9248c0bf9d9db88ebe43f9a569008b90ff22a090b7fb31f8
   music_server:
-    upstream_ref: ghcr.io/matthewdavidmiller/music-server:0.1.0
-    approved_tag: 0.1.0
+    upstream_ref: ghcr.io/matthewdavidmiller/music-server:0.1.1
+    approved_tag: 0.1.1
     internal_repo: homelab/music-server
     signature_required: false
     first_party: true
-    approved_digest: sha256:e2d2e201d5aad558cbcce415f4b05c3fdca454a58895aa479654ef117386cc0c
+    approved_digest: sha256:6a03b369bf6d598205d013eafcbf4765b6bba46fa3883143ff16d7de6ca828eb
     notes: Approved via scripts/promote_artifacts.py
   homedrive:
     upstream_ref: ghcr.io/matthewdavidmiller/homedrive:0.1.8
