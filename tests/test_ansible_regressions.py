@@ -1397,7 +1397,7 @@ class HomedriveImportTests(unittest.TestCase):
                 )
 
     def test_inputs_are_validated_first(self):
-        self.assertEqual(self.names[0], "Validate import inputs")
+        self.assertEqual(self.names[1], "Validate import inputs")
 
     def test_nothing_is_written_before_the_missing_count_is_checked(self):
         """A wrong user or source would load a whole second copy."""
@@ -1492,9 +1492,18 @@ class ReviewedDifferencesTests(unittest.TestCase):
         self.tasks = {t["name"]: t for t in self.play["tasks"]}
         self.text = (REPO_ROOT / "homedrive_import.yml").read_text(encoding="utf-8")
 
+    def test_defaults_do_not_shadow_the_inventory(self):
+        """Play vars beat inventory vars, so the play may not set these as vars."""
+        self.assertNotIn("vars", self.play)
+        facts = self.tasks["Apply the defaults for what the inventory leaves unset"]["ansible.builtin.set_fact"]
+        for name, value in facts.items():
+            with self.subTest(var=name):
+                self.assertIn(f"{name} | default(", str(value))
+
     def test_the_list_is_empty_here_and_never_shown(self):
         """It names files, so it lives in the inventory and stays out of logs."""
-        self.assertEqual(self.play["vars"]["homedrive_import_accepted"], "")
+        defaults = self.tasks["Apply the defaults for what the inventory leaves unset"]
+        self.assertIn("homedrive_import_accepted | default('')", defaults["ansible.builtin.set_fact"]["homedrive_import_accepted"])
         for name in ("Validate import inputs", "Write the reviewed differences for the check"):
             with self.subTest(task=name):
                 self.assertIs(self.tasks[name]["no_log"], True)

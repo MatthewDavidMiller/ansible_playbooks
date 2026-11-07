@@ -45,21 +45,29 @@
 - name: Import the Nextcloud files tree into homedrive
   hosts: vm1
   gather_facts: false
-  vars:
-    homedrive_import_user: "{{ nextcloud_homelab_user | default('') }}"
-    homedrive_import_src: "{{ nextcloud_path | default('/data_drive/nextcloud') }}/data/{{ nextcloud_homelab_user | default('') }}/files"
-    homedrive_import_dest: ""
-    homedrive_import_max_missing: 100
-    homedrive_import_source_gid: "{{ nextcloud_gid | default('33') }}"
-    homedrive_import_log: /var/log/homedrive_import.log
-    homedrive_import_cache_dir: /var/lib/homedrive_import
-    homedrive_import_fresh: false
-    homedrive_import_accepted: ""
-    homedrive_import_timeout_s: 86400
-    homedrive_import_store: "{{ homedrive_path | default('/data_drive/homedrive/store') }}"
-    homedrive_import_uid: "{{ homedrive_uid | default('10001') }}"
-    homedrive_import_gid: "{{ homedrive_gid | default('10001') }}"
   tasks:
+    # Defaults only. Play vars would beat the inventory, so these are set as
+    # facts, each keeping the inventory's value when there is one.
+    - name: Apply the defaults for what the inventory leaves unset
+      ansible.builtin.set_fact:
+        homedrive_import_user: "{{ homedrive_import_user | default(nextcloud_homelab_user | default('')) }}"
+        homedrive_import_src: >-
+          {{ homedrive_import_src | default((nextcloud_path | default('/data_drive/nextcloud'))
+             ~ '/data/' ~ (nextcloud_homelab_user | default('')) ~ '/files') }}
+        homedrive_import_dest: "{{ homedrive_import_dest | default('') }}"
+        homedrive_import_max_missing: "{{ homedrive_import_max_missing | default(100) }}"
+        homedrive_import_source_gid: "{{ homedrive_import_source_gid | default(nextcloud_gid | default('33')) }}"
+        homedrive_import_log: "{{ homedrive_import_log | default('/var/log/homedrive_import.log') }}"
+        homedrive_import_cache_dir: "{{ homedrive_import_cache_dir | default('/var/lib/homedrive_import') }}"
+        homedrive_import_fresh: "{{ homedrive_import_fresh | default(false) }}"
+        homedrive_import_accepted: "{{ homedrive_import_accepted | default('') }}"
+        homedrive_import_timeout_s: "{{ homedrive_import_timeout_s | default(86400) }}"
+        homedrive_import_store: "{{ homedrive_import_store | default(homedrive_path | default('/data_drive/homedrive/store')) }}"
+        homedrive_import_uid: "{{ homedrive_import_uid | default(homedrive_uid | default('10001')) }}"
+        homedrive_import_gid: "{{ homedrive_import_gid | default(homedrive_gid | default('10001')) }}"
+      no_log: true
+      tags: [always]
+
     - name: Validate import inputs
       ansible.builtin.assert:
         that:
