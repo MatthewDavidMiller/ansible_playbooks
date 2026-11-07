@@ -71,7 +71,7 @@
 - name: Enable paperless
   ansible.builtin.systemd:
     name: paperless_ngx.service
-    enabled: true
+    enabled: "{{ nextcloud_stack_enabled | bool }}"
     daemon_reload: true
 
 - name: Paperless script
@@ -93,4 +93,13 @@
   ansible.builtin.systemd:
     name: paperless_ngx.service
     state: started
-  when: not (apply_runtime_changes_on_reboot | default(false) | bool)
+  when:
+    - nextcloud_stack_enabled | bool
+    - not (apply_runtime_changes_on_reboot | default(false) | bool)
+
+# Down with the rest of the Nextcloud stack; see roles/nextcloud/tasks.
+- name: Stop paperless
+  ansible.builtin.systemd:
+    name: paperless_ngx.service
+    state: stopped
+  when: not (nextcloud_stack_enabled | bool)

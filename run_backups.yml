@@ -54,6 +54,7 @@
         run_backup_name: paperless
         run_backup_script: /usr/local/bin/backup_nextcloud_paperless.sh
         run_backup_log: /var/log/rclone-nextcloud-borg.log
+      when: nextcloud_stack_deploy | default(false) | bool
       tags: [paperless]
 
     - name: The homedrive store

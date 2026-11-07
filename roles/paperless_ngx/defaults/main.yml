@@ -73,3 +73,9 @@ container_static_ips:
 
 # Container image resolved from the approved artifact lock in vm1.yml
 paperless_image: ""
+
+# Whether the Nextcloud, PostgreSQL, Redis and Paperless containers run. Off,
+# their units are installed but disabled and stopped, the data is left alone
+# and their backup job is removed. vm1.yml sets this from the inventory's
+# nextcloud_stack_deploy.
+nextcloud_stack_enabled: false

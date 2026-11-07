@@ -162,6 +162,7 @@
     executable: /bin/bash
   register: nextcloud_data_restorecon
   changed_when: nextcloud_data_restorecon.stdout | trim | int > 0
+  when: nextcloud_stack_enabled | bool
 
 - name: Find Nextcloud user files roots
   ansible.builtin.command:
@@ -180,7 +181,9 @@
   register: nextcloud_user_files_roots
   check_mode: false
   changed_when: false
-  when: nextcloud_normalize_user_files_permissions | bool
+  when:
+    - nextcloud_stack_enabled | bool
+    - nextcloud_normalize_user_files_permissions | bool
 
 # -print emits a line per file the walk fixes, so a first pass over a populated
 # tree hands back the same unbounded output that killed the restore above.
@@ -202,6 +205,7 @@
   loop: "{{ nextcloud_user_files_roots.stdout_lines }}"
   changed_when: nextcloud_user_tree_permissions.stdout | trim | int > 0
   when:
+    - nextcloud_stack_enabled | bool
     - nextcloud_normalize_user_files_permissions | bool
     - nextcloud_user_files_roots.stdout_lines | length > 0
 
@@ -232,7 +236,7 @@
 - name: Enable Redis
   ansible.builtin.systemd:
     name: redis_container.service
-    enabled: true
+    enabled: "{{ nextcloud_stack_enabled | bool }}"
     daemon_reload: true
 
 - name: Postgres Service
@@ -246,7 +250,7 @@
 - name: Enable postgres
   ansible.builtin.systemd:
     name: postgres_container.service
-    enabled: true
+    enabled: "{{ nextcloud_stack_enabled | bool }}"
     daemon_reload: true
 
 - name: Nextcloud Service
@@ -268,13 +272,13 @@
 - name: Enable Nextcloud
   ansible.builtin.systemd:
     name: nextcloud_container.service
-    enabled: true
+    enabled: "{{ nextcloud_stack_enabled | bool }}"
     daemon_reload: true
 
 - name: Enable Nextcloud config reconciliation
   ansible.builtin.systemd:
     name: nextcloud_configure.service
-    enabled: true
+    enabled: "{{ nextcloud_stack_enabled | bool }}"
     daemon_reload: true
 
 - name: Redis script
@@ -339,6 +343,7 @@
     minute: "{{ nextcloud_backup_minute }}"
     hour: "{{ nextcloud_backup_hour }}"
     job: /usr/bin/bash /usr/local/bin/backup_nextcloud_paperless.sh
+    state: "{{ 'present' if nextcloud_stack_enabled | bool else 'absent' }}"
 
 - name: Install borg backup
   ansible.builtin.dnf:
@@ -349,22 +354,62 @@
   ansible.builtin.systemd:
     name: redis_container.service
     state: started
-  when: not (apply_runtime_changes_on_reboot | default(false) | bool)
+  when:
+    - nextcloud_stack_enabled | bool
+    - not (apply_runtime_changes_on_reboot | default(false) | bool)
 
 - name: Start postgres
   ansible.builtin.systemd:
     name: postgres_container.service
     state: started
-  when: not (apply_runtime_changes_on_reboot | default(false) | bool)
+  when:
+    - nextcloud_stack_enabled | bool
+    - not (apply_runtime_changes_on_reboot | default(false) | bool)
 
 - name: Start Nextcloud
   ansible.builtin.systemd:
     name: nextcloud_container.service
     state: started
-  when: not (apply_runtime_changes_on_reboot | default(false) | bool)
+  when:
+    - nextcloud_stack_enabled | bool
+    - not (apply_runtime_changes_on_reboot | default(false) | bool)
 
 - name: Reconcile persistent Nextcloud config
   ansible.builtin.systemd:
     name: nextcloud_configure.service
     state: started
-  when: not (apply_runtime_changes_on_reboot | default(false) | bool)
+  when:
+    - nextcloud_stack_enabled | bool
+    - not (apply_runtime_changes_on_reboot | default(false) | bool)
+
+# The frozen state: the units, scripts and data stay, so turning the stack
+# back on is one variable, but nothing starts them. A start rewrites the
+# change time of every file in the data tree (the :Z relabel), which
+# invalidates the import check's hash cache and touches a tree that is no
+# longer written to. Stopping is not guarded by apply_runtime_changes_on_reboot:
+# the stack is meant to be down now, not at the next reboot.
+- name: Stop the Nextcloud configuration service
+  ansible.builtin.systemd:
+    name: nextcloud_configure.service
+    state: stopped
+  when: not (nextcloud_stack_enabled | bool)
+
+- name: Stop Nextcloud
+  ansible.builtin.systemd:
+    name: nextcloud_container.service
+    state: stopped
+  when: not (nextcloud_stack_enabled | bool)
+
+- name: Stop Redis
+  ansible.builtin.systemd:
+    name: redis_container.service
+    state: stopped
+  when: not (nextcloud_stack_enabled | bool)
+
+# PostgreSQL goes last of these, and Paperless (which uses it) is stopped by
+# its own role right after.
+- name: Stop postgres
+  ansible.builtin.systemd:
+    name: postgres_container.service
+    state: stopped
+  when: not (nextcloud_stack_enabled | bool)

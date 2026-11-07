@@ -1484,6 +1484,61 @@ def _first_assert(role: str) -> list[str]:
     return task["ansible.builtin.assert"]["that"]
 
 
+class NextcloudStackSwitchTests(unittest.TestCase):
+    """The old file service and Paperless stay installed but do not run."""
+
+    def setUp(self):
+        self.vm1 = yaml.safe_load((REPO_ROOT / "vm1.yml").read_text(encoding="utf-8"))[0]
+        self.tasks = {
+            role: yaml.safe_load((REPO_ROOT / "roles" / role / "tasks" / "main.yml").read_text(encoding="utf-8"))
+            for role in ("nextcloud", "paperless_ngx")
+        }
+
+    def test_it_is_off_unless_the_inventory_turns_it_on(self):
+        self.assertIn("nextcloud_stack_deploy | default(false)", self.vm1["vars"]["nextcloud_stack_enabled"])
+        for role in ("nextcloud", "paperless_ngx"):
+            text = (REPO_ROOT / "roles" / role / "defaults" / "main.yml").read_text(encoding="utf-8")
+            self.assertRegex(text, r"(?m)^nextcloud_stack_enabled: false$")
+
+    def test_its_units_are_ordered_only_while_it_runs(self):
+        names = self.vm1["vars"]["container_service_names"]
+        self.assertIn("if nextcloud_stack_enabled | bool", names)
+
+    def test_nothing_starts_it_and_it_is_stopped_while_off(self):
+        for role, tasks in self.tasks.items():
+            for task in tasks:
+                systemd = task.get("ansible.builtin.systemd")
+                if not systemd:
+                    continue
+                with self.subTest(role=role, task=task["name"]):
+                    if systemd.get("state") == "started":
+                        self.assertIn("nextcloud_stack_enabled | bool", str(task.get("when")))
+                    if "enabled" in systemd:
+                        self.assertIn("nextcloud_stack_enabled", str(systemd["enabled"]))
+            stops = [t for t in tasks if t.get("ansible.builtin.systemd", {}).get("state") == "stopped"]
+            self.assertTrue(stops, role)
+            for task in stops:
+                self.assertIn("not (nextcloud_stack_enabled | bool)", str(task["when"]))
+
+    def test_the_data_tree_is_not_walked_while_it_is_off(self):
+        by_name = {t["name"]: t for t in self.tasks["nextcloud"]}
+        for name in (
+            "Restore SELinux contexts on the Nextcloud data tree",
+            "Find Nextcloud user files roots",
+            "Normalize Nextcloud user file tree permissions",
+        ):
+            with self.subTest(task=name):
+                self.assertIn("nextcloud_stack_enabled | bool", str(by_name[name]["when"]))
+
+    def test_its_backup_job_goes_and_the_manual_run_skips_it(self):
+        by_name = {t["name"]: t for t in self.tasks["nextcloud"]}
+        cron = by_name["Backup Nextcloud and Paperless NGX daily"]["ansible.builtin.cron"]
+        self.assertIn("nextcloud_stack_enabled", cron["state"])
+        runs = yaml.safe_load((REPO_ROOT / "run_backups.yml").read_text(encoding="utf-8"))[0]["tasks"]
+        paperless = next(t for t in runs if t["name"] == "Paperless and the Nextcloud database")
+        self.assertIn("nextcloud_stack_deploy", paperless["when"])
+
+
 class ReviewedDifferencesTests(unittest.TestCase):
     """homedrive_import_accepted: reviewed differences, from the inventory."""
 

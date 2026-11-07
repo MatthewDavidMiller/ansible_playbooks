@@ -51,7 +51,7 @@ VM1 runs the service stack. All variables in this section need real values for
 | `traefik_acme_email` | string | Yes | ACME account email address. | `admin@example.com` |
 | `homelab_internal_domain` | string | Yes | Internal DNS domain the Traefik routes sit under; VM1's routes are `<service>.<this domain>` (`nextcloud`, `paperless`, `vaultwarden`, `playbook-runner`, `music`). | `example.lan` |
 | `proxy_config` | list | Set by `network/vm1.yml` | Dynamic routes; see [Proxy entries](#proxy-entries). VM1's list lives in `network/vm1.yml`, which outranks inventory. | One entry per exposed service |
-| `container_service_names` | string | Set by `vm1.yml` | Space-separated systemd service order used by Traefik and deferred network migration. `vm1.yml` builds it, adding `playbook_runner` and `music_server` only when their roles are enabled; an inventory value is ignored. | `postgres_container redis_container nextcloud_container paperless_ngx vaultwarden` |
+| `container_service_names` | string | Set by `vm1.yml` | Space-separated systemd service order used by Traefik and deferred network migration. `vm1.yml` builds it, adding `playbook_runner` and `music_server` only when their roles are enabled, and the Nextcloud, PostgreSQL, Redis and Paperless units only while `nextcloud_stack_deploy` is true; an inventory value is ignored. | `postgres_container redis_container nextcloud_container paperless_ngx vaultwarden` |
 | `container_network_migration_delay` | string | No | Positive systemd time span before a queued network migration starts. | `2min` |
 | `traefik_egress_network` | string | No | Dedicated non-internal Traefik egress network. | `traefik_egress_net` |
 
@@ -65,6 +65,7 @@ YAML so its dollar signs are preserved.
 | `postgres_path` | path | No | Shared PostgreSQL data root. | `/postgres` (default) |
 | `postgres_admin_user` | string | Yes | PostgreSQL bootstrap/admin role. | `postgres_admin` |
 | `postgres_admin_password` | string | Yes, secret | PostgreSQL admin password; must satisfy `password_minimum_length`. | Ansible Vault value |
+| `nextcloud_stack_deploy` | bool | No | Whether the Nextcloud, PostgreSQL, Redis and Paperless containers run. Off by default: `vm1.yml` leaves their units installed but disabled and stopped, leaves their data alone, skips the permission and SELinux walks of the Nextcloud data, and removes their nightly backup job (the Borg backup of the Nextcloud files, `files`, still runs). Starting Nextcloud relabels every file in its data tree, which changes each file's change time; while it is off the tree stays as it is. Set `true` to run them again. | `false` (default) |
 | `nextcloud_path` | path | No | Nextcloud data root, inside `nextcloud_disk_mount_path`. | `/data_drive/nextcloud` (default) |
 | `nextcloud_disk` | string | Yes | Data disk filesystem device identifier, mounted by the `data_disk` role (its `data_disk` defaults to this). | `UUID=example-uuid` |
 | `nextcloud_disk_mount_path` | path | No | Data disk mount point, shared with homedrive (the `data_disk` role's `data_disk_mount_path` defaults to this). | `/data_drive` (default) |

@@ -13,6 +13,10 @@
     nextcloud_gid: "33"
     apply_runtime_changes_on_reboot: true
     playbook_runner_enabled: true
+    # The previous file service (Nextcloud, PostgreSQL, Redis) and Paperless
+    # stay installed but do not run, because new files go to homedrive. Set
+    # nextcloud_stack_deploy: true in the inventory to run them again.
+    nextcloud_stack_enabled: "{{ nextcloud_stack_deploy | default(false) | bool }}"
     # music-server turns on once its image has a reviewed lock entry.
     music_server_enabled: "{{ 'approved_digest' in artifact_locked_images.music_server | default({}) }}"
     # homedrive turns on when the inventory sets homedrive_deploy and its
@@ -42,8 +46,9 @@
     # that is off has no unit, so it is listed only when enabled. Set here
     # rather than in inventory, which it outranks.
     container_service_names: >-
-      {{ (['postgres_container', 'redis_container', 'nextcloud_container', 'paperless_ngx',
-           'vaultwarden']
+      {{ ((['postgres_container', 'redis_container', 'nextcloud_container', 'paperless_ngx']
+           if nextcloud_stack_enabled | bool else [])
+          + ['vaultwarden']
           + (['playbook_runner'] if playbook_runner_enabled | bool else [])
           + (['music_server'] if music_server_enabled | bool else [])
           + (['homedrive'] if homedrive_enabled | bool else [])) | join(' ') }}
