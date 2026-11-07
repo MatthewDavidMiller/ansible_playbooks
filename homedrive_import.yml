@@ -320,7 +320,7 @@
           {{ homedrive_import_run }} verify-tree {{ homedrive_import_cache }} {{ homedrive_import_accepted_arg }} {{ homedrive_import_args }} > "$out" 2>&1 || status=$?
           { echo "== $(date -Is) verify-tree (exit $status)"; cat "$out"; } >> {{ homedrive_import_log | quote }}
           grep -E '^(MISSING|DIFFERENT|SKIPPED) ' "$out" | head -n 50 || true
-          grep -E '^[0-9]+ file\(s\) checked|hash\(es\) from the cache' "$out" || tail -n 5 "$out"
+          grep -E '^[0-9]+ file\(s\) checked|hash\(es\) from the cache|^cache: ' "$out" || tail -n 5 "$out"
           rm -f "$out"
           exit "$status"
         executable: /bin/bash
