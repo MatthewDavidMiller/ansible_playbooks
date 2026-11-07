@@ -28,36 +28,6 @@ Deploys Traefik v3 for HTTPS termination and service routing on VM1.
 
 ---
 
-### `nextcloud`
-
-Deploys the shared PostgreSQL container, Redis container, and Nextcloud itself.
-
-**Required variables:** `postgres_image`, `redis_image`, `nextcloud_image`, `nextcloud_disk`, `postgres_admin_user`, `postgres_admin_password`, `nextcloud_database_name`, `nextcloud_db_user`, `nextcloud_db_password`, `nextcloud_admin_user`, `nextcloud_admin_password`, `nextcloud_trusted_domains`, `secret_env_dir`
-
-**Optional variables:** `password_minimum_length` defaults to `12` and controls validation of the PostgreSQL admin and Nextcloud database passwords. `nextcloud_disk_mount_path` defaults to `/data_drive`, and `nextcloud_path`, which must sit inside it, to `/data_drive/nextcloud`. The disk itself is mounted by the `data_disk` role, which runs first.
-
-**Templates:** `postgres_container.sh.j2`, `postgres_container.service.j2`, `redis_container.sh.j2`, `redis_container.service.j2`, `nextcloud_container.sh.j2`, `nextcloud_container.service.j2`, `nextcloud_configure.sh.j2`, `nextcloud_configure.service.j2`, `postgres.env.j2`, `nextcloud.env.j2`
-
-**Key behavior:** owns the shared database layer for Nextcloud and Paperless, reconciles its internal backend and proxy networks through the shared [`container_network`](standard.md#container_network) role, normalizes directory and file modes in one walk of each configured user files tree, reporting only how many files that walk fixed, keeps the `container_file_t` file context rule for its mounted volume so host-written backups are labeled correctly at creation, reconciles persistent `config.php` values after Nextcloud starts, and must run before those consumers.
-
----
-
-### `paperless_ngx`
-
-Deploys Paperless NGX on top of the PostgreSQL and Redis containers created by `nextcloud`.
-
-**Required variables:** `paperless_db_user`, `paperless_db_password`, `paperless_secret_key`, `paperless_image`, `secret_env_dir`
-
-**Optional variables:** `password_minimum_length` defaults to `12` and controls validation of the Paperless database password. `secret_key_minimum_length` defaults to `32` and controls validation of `paperless_secret_key`.
-
-**Templates:** `paperless_ngx.sh.j2`, `paperless_ngx.service.j2`, `paperless.env.j2`
-
-**Key behavior:** reconciles the Paperless proxy network through the shared [`container_network`](standard.md#container_network) role, and runs only after the shared database/cache containers are configured.
-
-**Paperless 3.0 configuration notes:** `PAPERLESS_SECRET_KEY` has no built-in default in 3.0, so the container exits at startup unless `paperless_secret_key` is set. `PAPERLESS_DBENGINE` is rendered as `postgresql` because 3.0 requires PostgreSQL and MariaDB users to declare the engine explicitly instead of inferring it from `PAPERLESS_DBHOST`. `PAPERLESS_TRUSTED_PROXIES` names the single Traefik hop on `paperless_proxy_net` so allauth rate limiting reads the real client IP from `X-Forwarded-For` rather than a spoofable value. The 3.0 upgrade also rebuilds the full-text index (Whoosh to Tantivy) on first start and clears task history; both are automatic and need no configuration.
-
----
-
 ### `vaultwarden`
 
 Deploys Vaultwarden and its SQLite-backed backup workflow.
@@ -66,7 +36,7 @@ Deploys Vaultwarden and its SQLite-backed backup workflow.
 
 **Templates:** `vaultwarden.sh.j2`, `vaultwarden.service.j2`, `backup_db.j2`
 
-**Key behavior:** keeps public signup disabled, and reconciles the Vaultwarden proxy network through the shared [`container_network`](standard.md#container_network) role. With `backup_local: true` the daily backup installs the SQLite copy into the Nextcloud data tree and then re-indexes it; see [Indexing local backups into Nextcloud](#indexing-local-backups-into-nextcloud).
+**Key behavior:** keeps public signup disabled, and reconciles the Vaultwarden proxy network through the shared [`container_network`](standard.md#container_network) role. The daily backup stores the SQLite copy in homedrive through `homedrive_import_path.sh`, so the role needs homedrive deployed and `homedrive_backup_user` set to one of its accounts.
 
 ---
 
@@ -96,40 +66,13 @@ Deploys [music-server](https://github.com/MatthewDavidMiller/music-server), the 
 
 ### `backup`
 
-Manages the local Borg backup disk and the daily backup scripts for VM1.
+Mounts the backup disk and makes sure the local Borg repository on it exists. homedrive's store backup (`backup_homedrive.sh`) writes its `homedrive-*` archives into it.
 
-**Required variables:** `nextcloud_paperless_backup_location`, `backup_disk`, `backup_host`
+**Required variables:** `backup_disk`
 
-**Templates:** `init_backup_repo.sh.j2`, `backup_files.sh.j2`
+**Templates:** `init_backup_repo.sh.j2`
 
-**Key behavior:** initializes the Borg repo if needed, mounts the backup disk, and keeps the VM1 backup workflow local-first. Remote (`backup_local: false`) runs unmount the SSHFS mount with `fusermount3`, since Rocky 10 ships FUSE 3 only.
-
----
-
-### Indexing local backups into Nextcloud
-
-With `backup_local: true`, the `vaultwarden`, `playbook_runner`, and `music_server` backup scripts write their dumps directly into `{{ nextcloud_path }}/data/<nextcloud_homelab_user>/files/...` as `nextcloud_uid:nextcloud_gid`. A file placed there is invisible to Nextcloud clients until it is added to the file cache, so each script passes its destination to `/usr/local/bin/nextcloud_scan_path.sh`.
-
-Ownership and mode are not sufficient on their own. Podman's `:Z` relabel only covers what exists when the container starts, so a dump the host writes from cron afterwards takes the policy default for that path, `default_t`, which the container is denied `getattr` on. `occ files:scan` then reports `Error during scan: stat(): stat failed`, skips the file, and still exits zero. The `nextcloud` role therefore carries a persistent `container_file_t` rule for `nextcloud_path`, so every host-written backup is labeled correctly when it is created; see [SELinux](../architecture.md#selinux).
-
-The `nextcloud` role owns that helper so every service uses the same `occ files:scan` invocation. It uses an explicit working directory and absolute `occ` path and runs as `nextcloud_uid:nextcloud_gid`.
-
-Every caller is a cron job, so the helper cannot inherit anything from its environment. It exports its own `PATH`, `HOME`, and `LC_ALL`, calls every binary through an absolute path, and reads `/dev/null` for stdin instead of relying on a terminal.
-
-The helper runs in these stages:
-
-1. **Reject an unusable request.** `occ` resolves `--path` against the global root, where each account is mounted at `/<user id>/`, and it reports a bad account without failing. A path that is not `<user>/files/<path>` — the shape an empty `nextcloud_homelab_user` renders — is refused up front, as is a path that does not exist under `nextcloud_path/data`.
-2. **Serialize.** All local service backups run `@daily` and can reach `files:scan` at the same time, so scans take a `flock` on `/run/lock/nextcloud-files-scan.lock`.
-3. **Wait for a usable instance.** `podman container exists` is also true for a created or stopped container, so the helper waits until `occ status` answers and reports neither maintenance nor a pending database upgrade. The daily backups can start while the container is still restarting after a reboot or an image update, and `occ` still answers `status` in maintenance mode while refusing to load the commands a scan needs.
-4. **Scan, then confirm.** `files:scan` can print an unknown user, lock contention, a maintenance notice, or a scan exception while still exiting zero, so the helper checks the output text as well as the process status. It also fails on `Error during scan`, which reports one unreadable file, skips it, and lets the command exit zero — the way a backup goes unindexed while the cron job reports success. The same failures are counted in the summary table, so the helper reads the `Errors` column too, locating it by its header so a future table layout cannot shift the count. Because the command can additionally exit zero without indexing anything, a successful scan is confirmed with `occ info:file` before the helper reports success. If a future image drops `info:file`, the confirmation is skipped rather than failing a backup that is already on disk.
-
-Every `occ` call runs under `timeout`, so a hung command is killed instead of holding the shared lock and the cron job all night. After the retry budget is exhausted, the helper returns failure and the calling service records the failure in its backup log. The service backup remains non-fatal because the dump itself is already safely on disk.
-
-music-server and playbook-runner prune their destinations on the same schedule, so they scan after pruning: one scan then indexes both the new dump and the removals, instead of leaving deleted backups in the file cache until the next full scan.
-
-Dumps are installed with `nextcloud_user_files_directory_mode` and `nextcloud_user_files_file_mode` rather than literal modes. The `nextcloud` role normalizes every file under `data/<user>/files` to those modes on each run, so a script that writes a different mode leaves each backup wrong until the next playbook run silently corrects it. For the same reason the per-service "Repair … ownership" tasks set ownership only: a recursive `mode` would also rewrite the backup files themselves.
-
-The scan-helper and file-mode properties are covered by `tests/test_ansible_regressions.py` and by the rendered-script assertions in `scripts/test_shell_secret_env.sh`.
+**Key behavior:** initializes the Borg repo if needed and mounts the backup disk. The older `nextcloud_backup-*` archives in the repository are no longer pruned by anything; delete them by hand when they are no longer wanted.
 
 ---
 

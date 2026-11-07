@@ -1,5 +1,7 @@
 # music-server setup and Navidrome retirement
 
+> **Historical:** this guide was written while the previous file service (Nextcloud) still ran on VM1. Where it names `nextcloud_*` variables, the Nextcloud `Music` folder, or a `Nextcloud:` backup location, that service has since been retired (`retire_nextcloud.yml`): music-server now plays homedrive's `Music` export and its backups go to homedrive. See [homedrive.md](homedrive.md).
+
 [music-server](https://github.com/MatthewDavidMiller/music-server) is the
 first-party Subsonic server that replaces Navidrome on VM1. It serves the
 Nextcloud `Music` folder, read-only, to Subsonic apps such as play:Sub. It

@@ -9,9 +9,8 @@
 #   backups       the overview, then the backup jobs: their schedule, which
 #                 are running now and for how long, Borg's locks, and the end
 #                 of each backup log
-#   <service>     the overview, then that service: traefik, postgres, redis,
-#                 nextcloud, paperless, vaultwarden, playbook_runner,
-#                 music_server, homedrive
+#   <service>     the overview, then that service: traefik, vaultwarden,
+#                 playbook_runner, music_server, homedrive
 - name: Show VM1's health and service logs
   hosts: vm1
   gather_facts: false
@@ -79,26 +78,6 @@
       vars: {show_logs_container: traefik, show_logs_unit: traefik_container}
       tags: [traefik]
 
-    - name: PostgreSQL
-      ansible.builtin.import_tasks: standalone_tasks/show_service_logs.yml
-      vars: {show_logs_container: postgres, show_logs_unit: postgres_container}
-      tags: [postgres]
-
-    - name: Redis
-      ansible.builtin.import_tasks: standalone_tasks/show_service_logs.yml
-      vars: {show_logs_container: redis, show_logs_unit: redis_container}
-      tags: [redis]
-
-    - name: Nextcloud
-      ansible.builtin.import_tasks: standalone_tasks/show_service_logs.yml
-      vars: {show_logs_container: nextcloud, show_logs_unit: nextcloud_container}
-      tags: [nextcloud]
-
-    - name: Paperless
-      ansible.builtin.import_tasks: standalone_tasks/show_service_logs.yml
-      vars: {show_logs_container: paperless, show_logs_unit: paperless_ngx}
-      tags: [paperless]
-
     - name: Vaultwarden
       ansible.builtin.import_tasks: standalone_tasks/show_service_logs.yml
       vars: {show_logs_container: vaultwarden, show_logs_unit: vaultwarden}
@@ -132,7 +111,6 @@
           || echo "nothing"
         echo "== Borg locks"
         for repo in {{ ([borg_backup_path | default('/borg_backups'),
-                         nextcloud_borg_backup_path | default('/data_drive/nextcloud/borg_backup'),
                          homedrive_borg_repo | default('')] | select | unique | map('quote') | join(' ')) }}; do
           [ -f "$repo/config" ] || continue
           if [ -d "$repo/lock.exclusive" ]; then
@@ -143,8 +121,7 @@
         done
         echo "== the end of each backup log"
         for log in /var/log/vaultwarden_backup.log /var/log/playbook_runner_backup.log \
-                   /var/log/music_server_backup.log /var/log/borg-backup.log \
-                   /var/log/rclone-nextcloud-borg.log /var/log/homedrive_backup.log \
+                   /var/log/music_server_backup.log /var/log/homedrive_backup.log \
                    /var/log/homedrive_drill.log; do
           [ -e "$log" ] || continue
           echo "-- $log, last written $(date -r "$log" --iso-8601=seconds)"

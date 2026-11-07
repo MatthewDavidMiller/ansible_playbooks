@@ -4,23 +4,13 @@
 - name: Validate backup inputs before changing the host
   ansible.builtin.assert:
     that:
-      - borg_backup_hour | string is match('^([01]?[0-9]|2[0-3])$')
-      - borg_backup_minute | string is match('^[0-5]?[0-9]$')
       - borg_backup_path | homelab_safe_absolute_path
       - backup_disk | length > 0
-      - (backup_local | bool and nextcloud_path | homelab_safe_absolute_path) or
-        (not (backup_local | bool) and ssh_mount_path | homelab_safe_absolute_path)
-      - backup_local | bool or nextcloud_host | length > 0
-      - backup_local | bool or nextcloud_backup_path | homelab_safe_absolute_path
-      - backup_local | bool or user_name | homelab_safe_name
-      - backup_local | bool or backup_ssh_known_hosts | trim | length > 0
-    fail_msg: >-
-      Configure safe backup paths and disk settings. Remote backups also require
-      a user, host, remote path, and pinned backup_ssh_known_hosts content.
+    fail_msg: Configure a safe borg_backup_path and the backup disk (backup_disk).
 
 - name: Install backup packages
   ansible.builtin.dnf:
-    name: "{{ ['borgbackup'] + (['fuse-sshfs'] if not (backup_local | bool) else []) }}"
+    name: borgbackup
     state: present
 
 - name: Create Borg Backup directory
@@ -31,15 +21,6 @@
     group: root
     mode: "0700"
 
-- name: Create SSH FS directory
-  ansible.builtin.file:
-    path: "{{ ssh_mount_path }}"
-    state: directory
-    owner: root
-    group: root
-    mode: "0700"
-  when: not (backup_local | default(false))
-
 - name: Mount Disk for backups
   ansible.posix.mount:
     path: "{{ borg_backup_path }}"
@@ -48,24 +29,6 @@
     opts: rw,auto,nodev,nosuid,noexec
     state: mounted
 
-- name: Create remote backup SSH policy directory
-  ansible.builtin.file:
-    path: /etc/homelab
-    state: directory
-    owner: root
-    group: root
-    mode: "0700"
-  when: not (backup_local | bool)
-
-- name: Install pinned SSH host keys for remote backups
-  ansible.builtin.copy:
-    dest: /etc/homelab/backup_known_hosts
-    content: "{{ backup_ssh_known_hosts | trim }}\n"
-    owner: root
-    group: root
-    mode: "0600"
-  when: not (backup_local | bool)
-
 - name: Init backup repo Script
   ansible.builtin.template:
     src: init_backup_repo.sh.j2
@@ -73,18 +36,3 @@
     owner: root
     group: root
     mode: "0700"
-
-- name: Backup Script
-  ansible.builtin.template:
-    src: backup_files.sh.j2
-    dest: /usr/local/bin/backup_files.sh
-    owner: root
-    group: root
-    mode: "0700"
-
-- name: Backup Daily
-  ansible.builtin.cron:
-    name: Borg Backup
-    minute: "{{ borg_backup_minute }}"
-    hour: "{{ borg_backup_hour }}"
-    job: /usr/bin/bash /usr/local/bin/backup_files.sh

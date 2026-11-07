@@ -50,7 +50,7 @@
     # facts, each keeping the inventory's value when there is one.
     - name: Apply the defaults for what the inventory leaves unset
       ansible.builtin.set_fact:
-        homedrive_import_user: "{{ homedrive_import_user | default(nextcloud_homelab_user | default('')) }}"
+        homedrive_import_user: "{{ homedrive_import_user | default(homedrive_main_user | default(nextcloud_homelab_user | default(''))) }}"
         homedrive_import_src: >-
           {{ homedrive_import_src | default((nextcloud_path | default('/data_drive/nextcloud'))
              ~ '/data/' ~ (nextcloud_homelab_user | default('')) ~ '/files') }}

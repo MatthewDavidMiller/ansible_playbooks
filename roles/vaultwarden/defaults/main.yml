@@ -4,23 +4,8 @@
 # Path to the Vaultwarden container data directory
 vaultwarden_path: /vaultwarden
 
-# Rclone remote path for Vaultwarden database backup uploads (e.g. "Nextcloud:vaultwarden_backup")
+# Folder for Vaultwarden database backup uploads (the folder in homedrive_backup_user's drive, e.g. "vaultwarden_backup")
 vaultwarden_backup_location: ""
-
-# When true, backups are written directly to the local Nextcloud data directory
-# instead of being uploaded via rclone.
-backup_local: true
-
-# Path to Nextcloud data root, read when backup_local is true. Keep in step
-# with the nextcloud role's default.
-nextcloud_path: /data_drive/nextcloud
-
-# Nextcloud username whose files directory is used as the backup destination
-nextcloud_homelab_user: ""
-
-# UID/GID used by Nextcloud to own files on the host-mounted data path
-nextcloud_uid: "33"
-nextcloud_gid: "33"
 
 # Disable public self-signup by default
 vaultwarden_signups_allowed: false
@@ -42,16 +27,9 @@ route_proxy_network_subnets:
 container_static_ips:
   vaultwarden_proxy: 172.16.1.18
 
-# Where the daily backup goes: "homedrive", through homedrive_import_path.sh,
-# whenever homedrive is deployed, otherwise "nextcloud" (the previous file
-# service). Set "nextcloud" in the inventory to keep using it. With
-# homedrive, <name>_backup_location is the folder in homedrive_backup_user's
-# drive.
-backup_destination: "{{ 'homedrive' if homedrive_enabled | default(false) | bool else 'nextcloud' }}"
-
-# The homedrive account that holds the backups (one of homedrive_users): by
-# default the account the backups went to in Nextcloud.
-homedrive_backup_user: "{{ nextcloud_homelab_user | default('') }}"
+# The homedrive account whose drive holds the backups (one of homedrive_users),
+# in the folder named by <name>_backup_location. By default homedrive_main_user.
+homedrive_backup_user: "{{ homedrive_main_user | default('') }}"
 
 # When the daily backup runs (VM1's local time). The service backups go first, at
 # midnight, so the homedrive store's own backup (01:30) holds them.

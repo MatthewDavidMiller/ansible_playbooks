@@ -6,18 +6,17 @@
 #
 # With no tags it runs every backup this host schedules, in this order (the
 # homedrive store last, so it holds the others): vaultwarden,
-# playbook_runner, music_server, paperless, homedrive, files. A tag runs one.
+# playbook_runner, music_server, homedrive. A tag runs one.
 # The tags "drill_light" and "drill_full" run homedrive's restore drill, and
 # only those tags do. The light drill restores a random sample of files from
 # the newest store archive and checks each, in minutes; the full drill
 # restores and checks every file, in hours of disk and CPU. Both need
 # homedrive_drill_path, which homedrive's backup sets by default.
-# Paperless (a full export and Borg run, then a sync of the repository) and
-# files (Borg of the Nextcloud data) can take a long time; give a template
-# that runs them a long timeout.
+# The homedrive store backup (a Borg run of the whole store) can take a long
+# time; give a template that runs it a long timeout.
 #
 # Each runs the script root's crontab runs, so it goes where the nightly
-# backup goes (backup_destination). Today's backups are named by today's
+# backup goes (homedrive). Today's backups are named by today's
 # date, so a manual run on a day that already has one stores it as a new
 # version of that day's file, which keeps the earlier one in its history.
 - name: Run VM1's backups now
@@ -48,15 +47,6 @@
         run_backup_log: /var/log/music_server_backup.log
       tags: [music_server]
 
-    - name: Paperless and the Nextcloud database
-      ansible.builtin.import_tasks: standalone_tasks/run_backup.yml
-      vars:
-        run_backup_name: paperless
-        run_backup_script: /usr/local/bin/backup_nextcloud_paperless.sh
-        run_backup_log: /var/log/rclone-nextcloud-borg.log
-      when: nextcloud_stack_deploy | default(false) | bool
-      tags: [paperless]
-
     - name: The homedrive store
       ansible.builtin.import_tasks: standalone_tasks/run_backup.yml
       vars:
@@ -64,14 +54,6 @@
         run_backup_script: /usr/local/bin/backup_homedrive.sh
         run_backup_log: /var/log/homedrive_backup.log
       tags: [homedrive]
-
-    - name: Files (Borg)
-      ansible.builtin.import_tasks: standalone_tasks/run_backup.yml
-      vars:
-        run_backup_name: files
-        run_backup_script: /usr/local/bin/backup_files.sh
-        run_backup_log: ""
-      tags: [files]
 
     # The restore drills run only when asked for by their tags, never in a
     # run without tags. The light one restores and checks a sample of files

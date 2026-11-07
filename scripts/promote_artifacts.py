@@ -160,8 +160,8 @@ def resolve_tool_command(name: str) -> tuple[tuple[str, ...], str]:
 
     # trivy copies every file it analyses into a scratch directory, so its /tmp
     # has to fit the largest single file in the image being scanned rather than
-    # anything about the image as a whole. Paperless ships PyTorch, and
-    # libtorch_cpu.so on its own overruns a small tmpfs: the scan then dies
+    # anything about the image as a whole. An image with one very large
+    # library (Paperless's PyTorch was one) overruns a small tmpfs: the scan dies
     # partway through a layer with "no space left on device", which reads as a
     # full disk rather than a container limit. skopeo and cosign only ever hold
     # a manifest or a signature, so they keep the small allowance.

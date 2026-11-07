@@ -99,11 +99,6 @@ assert_match "update_only:[[:space:]]*true" "standard_update_packages applies th
 assert_match "^standard_update_apply_full_updates:[[:space:]]*true$" "full OS updates are enabled during normal convergence" roles/standard_update_packages/defaults/main.yml
 assert_match "crb enable" "standard_update_packages enables CRB when EPEL is enabled" roles/standard_update_packages/tasks/main.yml
 assert_match "standard_update_enable_epel" "CRB enable is gated on EPEL being enabled" roles/standard_update_packages/tasks/main.yml
-assert_match "^password_minimum_length:[[:space:]]+12$" "database password validation has a default minimum length" roles/nextcloud/defaults/main.yml roles/paperless_ngx/defaults/main.yml
-assert_match "password.*length >= password_minimum_length.*int" "database password validation uses the configurable minimum length" roles/nextcloud/tasks/main.yml roles/paperless_ngx/tasks/main.yml
-assert_no_match "password.*length >= [0-9]" "database password validation does not hard-code the minimum length" roles/nextcloud/tasks/main.yml roles/paperless_ngx/tasks/main.yml
-assert_match "^secret_key_minimum_length:[[:space:]]+32$" "Paperless signing key validation has a default minimum length" roles/paperless_ngx/defaults/main.yml
-assert_match "paperless_secret_key \\| length >= secret_key_minimum_length" "Paperless signing key validation uses the configurable minimum length" roles/paperless_ngx/tasks/main.yml
 assert_match "ansible-galaxy collection install -r collections/requirements\\.yml" "control-node installs use the pinned collection manifest" scripts/desktop_local_ansible.sh docs/guides/getting-started.md
 assert_no_match "ansible-galaxy collection install (community|ansible\\.posix)" "collection installs must not bypass the pinned requirements file" scripts docs
 assert_no_match "\\.latest\\." "mutable cloud image URLs are not allowed" scripts/proxmox_initial_setup.py artifacts/cloud_images.lock.yml docs/guides/proxmox-setup.md
@@ -146,8 +141,7 @@ assert_match "network.get\(\"subnets\"\)" \
   filter_plugins/homelab_validation.py
 assert_match_each "name: container_network" \
   "service roles reconcile their networks through the shared role" \
-  roles/nextcloud/tasks/main.yml \
-  roles/paperless_ngx/tasks/main.yml roles/playbook_runner/tasks/main.yml \
+  roles/playbook_runner/tasks/main.yml \
   roles/vaultwarden/tasks/main.yml roles/music_server/tasks/main.yml \
   roles/homedrive/tasks/main.yml roles/reverse_proxy/tasks/main.yml
 assert_no_fixed_match "from_json | first" \
@@ -162,15 +156,10 @@ assert_match "Validate firewalld ingress inputs" "firewalld validates ingress in
 assert_match "homelab_valid_ipv4_cidr" "firewalld uses semantic CIDR validation" roles/standard_firewalld/tasks/main.yml
 assert_match "Remove stale homelab source assignments" "firewalld reconciles removed source networks" roles/standard_firewalld/tasks/main.yml
 assert_match "owner: root" "backup role sets root ownership on managed backup paths/scripts" roles/backup/tasks/main.yml
-assert_match "umask 077" "Borg backup script uses restrictive umask" roles/backup/templates/backup_files.sh.j2
-assert_match "trap cleanup EXIT" "remote Borg backup unmounts through cleanup trap" roles/backup/templates/backup_files.sh.j2
 assert_match "mode: \"0700\"" "Vaultwarden role restricts private data directories" roles/vaultwarden/tasks/main.yml
 
 assert_task_has_no_log roles/dynamic_dns/tasks/main.yml 'dest:.*secret_env_dir.*/dynamic_dns[.]env' "dynamic_dns env rendering uses no_log"
 assert_task_has_no_log roles/reverse_proxy/tasks/main.yml 'dest:.*secret_env_dir.*/traefik[.]env' "Traefik env rendering uses no_log"
-assert_task_has_no_log roles/nextcloud/tasks/main.yml 'dest:.*secret_env_dir.*/postgres[.]env' "PostgreSQL env rendering uses no_log"
-assert_task_has_no_log roles/nextcloud/tasks/main.yml 'dest:.*secret_env_dir.*/nextcloud[.]env' "Nextcloud env rendering uses no_log"
-assert_task_has_no_log roles/paperless_ngx/tasks/main.yml 'dest:.*secret_env_dir.*/paperless[.]env' "Paperless env rendering uses no_log"
 assert_task_has_no_log roles/playbook_runner/tasks/main.yml 'dest:.*secret_env_dir.*/playbook_runner_master_key' "playbook-runner master key rendering uses no_log"
 assert_task_has_no_log roles/music_server/tasks/main.yml 'dest:.*secret_env_dir.*/music_server_master_key' "music-server master key rendering uses no_log"
 assert_task_has_no_log roles/music_server/tasks/main.yml 'dest:.*secret_env_dir.*/music_server_users[.]json' "music-server users file rendering uses no_log"

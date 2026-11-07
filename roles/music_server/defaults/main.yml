@@ -25,8 +25,7 @@ music_server_library: "{{ 'homedrive' if homedrive_enabled | default(false) | bo
 music_server_homedrive_library: "{{ homedrive_export_path | default('/data_drive/homedrive/exports') }}/music"
 
 # The library folder when music_server_library is "path", mounted
-# read-only. Before homedrive this was the Nextcloud Music folder:
-# <nextcloud_path>/data/<nextcloud_homelab_user>/files/Music
+# read-only.
 music_server_music_path: ""
 
 # The 256-bit master key, as 64 hex digits (`music-server gen-key`). The
@@ -52,27 +51,12 @@ music_server_memory: 512m
 music_server_uid: "10001"
 music_server_gid: "10001"
 
-# Supplementary group that can read the music. Nextcloud's files are
-# 0660/0770 for uid/gid 33.
+# Supplementary group that can read the music when music_server_library is
+# "path".
 music_server_music_gid: "33"
 
-# Rclone remote path for backup uploads (e.g. "Nextcloud:music_server_backup")
+# Folder for backup uploads (the folder in homedrive_backup_user's drive, e.g. "music_server_backup")
 music_server_backup_location: ""
-
-# When true, backups are written directly to the local Nextcloud data directory
-# instead of being uploaded via rclone.
-backup_local: true
-
-# Path to Nextcloud data root, read when backup_local is true. Keep in step
-# with the nextcloud role's default.
-nextcloud_path: /data_drive/nextcloud
-
-# Nextcloud username whose files directory is used as the backup destination
-nextcloud_homelab_user: ""
-
-# UID/GID used by Nextcloud to own files on the host-mounted data path
-nextcloud_uid: "33"
-nextcloud_gid: "33"
 
 # Root-only directory for runtime environment files and secret sources
 secret_env_dir: /etc/homelab/secrets
@@ -99,16 +83,9 @@ container_static_ips:
 route_proxy_traefik_ips:
   music_server_container_net: 172.16.1.51
 
-# Where the daily backup goes: "homedrive", through homedrive_import_path.sh,
-# whenever homedrive is deployed, otherwise "nextcloud" (the previous file
-# service). Set "nextcloud" in the inventory to keep using it. With
-# homedrive, <name>_backup_location is the folder in homedrive_backup_user's
-# drive.
-backup_destination: "{{ 'homedrive' if homedrive_enabled | default(false) | bool else 'nextcloud' }}"
-
-# The homedrive account that holds the backups (one of homedrive_users): by
-# default the account the backups went to in Nextcloud.
-homedrive_backup_user: "{{ nextcloud_homelab_user | default('') }}"
+# The homedrive account whose drive holds the backups (one of homedrive_users),
+# in the folder named by <name>_backup_location. By default homedrive_main_user.
+homedrive_backup_user: "{{ homedrive_main_user | default('') }}"
 
 # When the daily backup runs (VM1's local time). The service backups go first, at
 # midnight, so the homedrive store's own backup (01:30) holds them.

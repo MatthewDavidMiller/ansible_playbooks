@@ -1,8 +1,9 @@
 """Remove a retired service's settings from an inventory YAML file.
 
-The shared engine behind remove_semaphore_inventory.py and
-remove_navidrome_inventory.py; each of those is a Spec naming what its
-service left in the inventory.
+The shared engine behind remove_semaphore_inventory.py,
+remove_navidrome_inventory.py and remove_nextcloud_inventory.py; each of those
+is a Spec naming what its service left in the inventory. A Spec can also
+rename variables that stay in use under a new name.
 
 The edit is textual, so comments, ordering, quoting, and !vault blocks in the
 rest of the file stay exactly as they are. Nothing is written until --write is
@@ -55,6 +56,13 @@ class Spec:
     proxy_alias: str = ""
     #: Where the manual steps are documented, for refusal messages.
     guide: str = ""
+    #: More route networks whose proxy_config entries are removed with the
+    #: service's own.
+    extra_route_networks: tuple[str, ...] = ()
+    #: Variables that stay in use under a new name: old name -> new name. The
+    #: key is renamed in place, a !vault block or any other value with it. It
+    #: is refused if the new name is already in the file.
+    renames: dict[str, str] = field(default_factory=dict)
 
 
 KEY = re.compile(r"^(?P<indent> *)(?P<key>[A-Za-z_][A-Za-z0-9_.-]*):(?:\s|$)")
@@ -201,10 +209,9 @@ class Plan:
         self.edits: dict[int, str] = {}
         self.removed_names: set[str] = set()
         self.manual: list[str] = []
+        networks = "|".join(re.escape(n) for n in (spec.route_network, *spec.extra_route_networks))
         self.route_line = re.compile(
-            r"^\s*(?:-\s+)?proxy_network:\s*[\"']?"
-            + re.escape(spec.route_network)
-            + r"[\"']?\s*(?:#.*)?$"
+            r"^\s*(?:-\s+)?proxy_network:\s*[\"']?(?:" + networks + r")[\"']?\s*(?:#.*)?$"
         )
 
     def delete(self, start: int, end: int, label: str, name: str | None = None):
@@ -235,6 +242,12 @@ class Plan:
             if name in self.remove_vars:
                 self.delete(i, block_end(lines, i), f"variable {name}", name)
                 continue
+            if name in self.spec.renames:
+                new = self.spec.renames[name]
+                pad = len(match.group("indent"))
+                self.edits[i] = lines[i][:pad] + new + lines[i][pad + len(name) :]
+                self.reports.append(f"variable {name} renamed to {new} (line {i + 1})")
+                continue
             chain = ancestors(lines, i)
             if in_dict_entries(self.spec, chain, name):
                 self.delete(i, block_end(lines, i), f"{chain[0]} entry {name}", name)
@@ -260,6 +273,7 @@ class Plan:
             if any(self.route_line.match(line) for line in body):
                 self.delete(start, end, f"proxy_config route on {spec.route_network}")
                 self.removed_names.add(spec.route_network)
+                self.removed_names.update(spec.extra_route_networks)
                 if spec.proxy_alias:
                     self.removed_names.add(spec.proxy_alias)
                 self.parents[i] = "[]"
@@ -332,6 +346,7 @@ def prune(spec: Spec, node, trail: list[str], remove_vars: set[str]):
     """The parsed file with the same removals applied, for comparison."""
     if isinstance(node, dict):
         out = {}
+        networks = {spec.route_network, *spec.extra_route_networks}
         for key, value in node.items():
             if key in remove_vars:
                 continue
@@ -344,11 +359,11 @@ def prune(spec: Spec, node, trail: list[str], remove_vars: set[str]):
                 value = [
                     item
                     for item in value
-                    if not (isinstance(item, dict) and item.get("proxy_network") == spec.route_network)
+                    if not (isinstance(item, dict) and item.get("proxy_network") in networks)
                 ]
             elif key in spec.list_entries and isinstance(value, list):
                 value = [item for item in value if item not in spec.list_entries[key]]
-            out[key] = prune(spec, value, trail + [str(key)], remove_vars)
+            out[spec.renames.get(key, key)] = prune(spec, value, trail + [str(key)], remove_vars)
         return out
     if isinstance(node, list):
         return [prune(spec, item, trail, remove_vars) for item in node]
@@ -360,6 +375,15 @@ def plan_edit(spec: Spec, text: str, remove_all: bool):
     original = parse(text, "inventory file")
     if not isinstance(original, dict):
         raise Refusal("the inventory file is not a YAML mapping")
+    existing = {m.group("key") for line in text.split("\n") if (m := KEY.match(line))}
+    clashes = sorted(new for old, new in spec.renames.items() if old in existing and new in existing)
+    if clashes:
+        raise Refusal(
+            "not changed: "
+            + ", ".join(clashes)
+            + " is already in the file, so the variable that would be renamed to it is left alone. "
+            "Merge the two by hand, then run this again."
+        )
     plan = Plan(spec, text.split("\n"), remove_vars)
     plan.run()
     new_text = "\n".join(plan.apply())
@@ -372,8 +396,8 @@ def plan_edit(spec: Spec, text: str, remove_all: bool):
             f"Edit it by hand using {spec.guide}."
         )
 
-    mentioned = set(re.findall(rf"{re.escape(spec.service)}_\w+", text))
-    names = sorted(plan.removed_names | remove_vars & mentioned)
+    mentioned = set(re.findall(r"\b\w+\b", text))
+    names = sorted(plan.removed_names | (remove_vars | set(spec.renames)) & mentioned)
     leftovers = []
     for number, line in enumerate(new_text.split("\n"), start=1):
         if is_comment(line):

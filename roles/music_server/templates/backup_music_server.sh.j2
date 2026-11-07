@@ -16,7 +16,6 @@ BACKUP_LOG=/var/log/music_server_backup.log
 
 /usr/bin/tar -C "{{ music_server_path }}/data" --numeric-owner -czf "$ARCHIVE" .
 
-{% if backup_destination | default('nextcloud') == 'homedrive' %}
 # Stored as a new file in the drive, verified by the server; then the files
 # over 30 days old go to the drive's trash, the newest few always kept.
 DRIVE_DIR={{ (music_server_backup_location | replace('Nextcloud:', '')) | quote }}
@@ -24,18 +23,3 @@ DRIVE_DIR={{ (music_server_backup_location | replace('Nextcloud:', '')) | quote 
     "$DRIVE_DIR/$(basename "$ARCHIVE")" "$ARCHIVE" >> "$BACKUP_LOG" 2>&1
 /usr/local/bin/homedrive_prune_path.sh {{ homedrive_backup_user | quote }} \
     "$DRIVE_DIR" 'music_server_*.tar.gz' 30 >> "$BACKUP_LOG" 2>&1
-{% elif backup_local | default(false) %}
-DEST="{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/{{ music_server_backup_location | replace('Nextcloud:', '') }}"
-/usr/bin/install -d -o {{ nextcloud_uid }} -g {{ nextcloud_gid }} -m {{ nextcloud_user_files_directory_mode | default('0770') }} "$DEST"
-/usr/bin/install -o {{ nextcloud_uid }} -g {{ nextcloud_gid }} -m {{ nextcloud_user_files_file_mode | default('0660') }} "$ARCHIVE" "$DEST/"
-/usr/bin/find "$DEST" -type f -name 'music_server_*.tar.gz' -mtime +30 -delete
-if ! /usr/local/bin/nextcloud_scan_path.sh \
-    "{{ nextcloud_homelab_user }}/files/{{ music_server_backup_location | replace('Nextcloud:', '') }}" \
-    >> "$BACKUP_LOG" 2>&1; then
-    echo "[$(date)] ERROR: occ files:scan failed. The archive is on disk but Nextcloud has not indexed it." \
-        >> "$BACKUP_LOG"
-fi
-{% else %}
-/usr/bin/rclone copy "$ARCHIVE" Nextcloud:{{ music_server_backup_location }}
-/usr/bin/rclone delete Nextcloud:{{ music_server_backup_location }} --min-age 30d --include 'music_server_*.tar.gz'
-{% endif %}

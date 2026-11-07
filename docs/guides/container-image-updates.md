@@ -25,7 +25,7 @@ Selection is deliberately narrow. A candidate must share the current tag's exact
 
 ### Major versions are held back
 
-The tool never crosses a major. It reports newer majors as `held-back` and stays on the pinned line, because a major is where upstream may break the configuration these roles render — Paperless 3.0 required a new `PAPERLESS_SECRET_KEY`, and PostgreSQL majors need the whole procedure in [postgres-upgrade.md](postgres-upgrade.md).
+The tool never crosses a major. It reports newer majors as `held-back` and stays on the pinned line, because a major is where upstream may break the configuration these roles render.
 
 Taking one is a deliberate act: edit `upstream_ref` and `approved_tag` to the new major, run the review, then run `make test-full` so the runtime container tests start the image for real before it reaches VM1.
 
@@ -88,7 +88,7 @@ bash scripts/review_container_updates.sh --service traefik
 To review multiple services together:
 
 ```bash
-bash scripts/review_container_updates.sh --service postgres --service redis --service nextcloud
+bash scripts/review_container_updates.sh --service traefik --service vaultwarden
 ```
 
 That workflow does the following:

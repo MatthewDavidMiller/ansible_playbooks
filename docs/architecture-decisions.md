@@ -59,8 +59,6 @@ This document records explicit design decisions and rejected alternatives for th
 
 - **Traefik:** `NET_BIND_SERVICE`
 - **Vaultwarden:** `NET_BIND_SERVICE`
-- **Redis:** only the filesystem-related caps needed by its startup path
-- **Nextcloud:** does not use `cap-drop=ALL` because its image entrypoint requires a broader default capability set
 
 ---
 
@@ -112,9 +110,11 @@ This document records explicit design decisions and rejected alternatives for th
 
 ---
 
-## Decision: Single Shared PostgreSQL 17 Container
+## Decision: Single Shared PostgreSQL 17 Container (retired)
 
 **Decision:** Consolidate Nextcloud and Paperless into one PostgreSQL 17 container while giving each app its own role and password.
+
+**Status:** Retired with the Nextcloud stack; see [Nextcloud, Paperless, PostgreSQL and Redis Retire](#decision-nextcloud-paperless-postgresql-and-redis-retire).
 
 **Rationale:**
 
@@ -159,3 +159,23 @@ This document records explicit design decisions and rejected alternatives for th
 - ffmpeg, from the official Alpine image, is the one third-party program in the image. It runs only as a supervised subprocess.
 - The image is first-party, so it follows the first-party image exemption.
 - No history is migrated from `navidrome.db`; that would need a SQLite parser for a one-time import.
+
+---
+
+## Decision: Nextcloud, Paperless, PostgreSQL and Redis Retire
+
+**Decision:** The previous file service (Nextcloud), Paperless NGX, and the PostgreSQL and Redis containers that served only those two are removed from `vm1.yml`. homedrive holds the files. `retire_nextcloud.yml` removes what the roles left on VM1, and `scripts/remove_nextcloud_inventory.py` moves an inventory off their variables.
+
+**Rationale:**
+
+- homedrive is first-party, verified end to end, and its import of the previous service was proved byte for byte before anything was removed.
+- PostgreSQL and Redis served nothing else once Semaphore (and its database) went, so they retire with the two applications instead of becoming a role of their own.
+- Starting the Nextcloud container relabels every file in its data tree (`:Z`), which changes each file's change time. While it ran, that invalidated the final check's hash cache and touched a tree no longer written to. The stack was held stopped (`nextcloud_stack_deploy`, default off) from the end of the migration until the roles were removed.
+- The three daily service backups go only to homedrive. Their Nextcloud branches, the occ scan helper, and the Borg backup of the Nextcloud files went with the service.
+- No Paperless export was made into homedrive: its documents are in the Borg archives of the nightly export, which are kept. Neither those archives nor the older `nextcloud_backup-*` archives are pruned by anything.
+
+**Consequences:**
+
+- The data disk is mounted by the `data_disk` role under `data_disk` and `data_disk_mount_path` (renamed from `nextcloud_disk` and `nextcloud_disk_mount_path`); the account the backups and the Music export use is `homedrive_main_user` (renamed from `nextcloud_homelab_user`).
+- The backup role only mounts the backup disk and makes sure its Borg repository exists.
+- The retirement playbook keeps all data unless a typed confirmation and a per-data flag are given, and never removes the Borg repository inside `nextcloud_path`.

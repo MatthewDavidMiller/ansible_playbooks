@@ -10,8 +10,6 @@ traefik_egress_network: traefik_egress_net
 
 # Optional deterministic subnets for internal route proxy networks.
 route_proxy_network_subnets:
-  nextcloud_proxy_net: 172.16.1.32/29
-  paperless_proxy_net: 172.16.1.40/29
   vaultwarden_container_net: 172.16.1.16/29
   playbook_runner_container_net: 172.16.1.56/29
   music_server_container_net: 172.16.1.48/29
@@ -54,8 +52,6 @@ traefik_image: ""
 container_dns:
   domain: dns.podman
   aliases:
-    nextcloud_proxy: nextcloud-proxy
-    paperless_proxy: paperless-proxy
     vaultwarden_proxy: vaultwarden-proxy
     playbook_runner_proxy: playbook-runner-proxy
     music_server_proxy: music-server-proxy
@@ -69,8 +65,6 @@ container_dns:
 # with "requested ip address ... is already allocated".
 # Keys match proxy_config[*].proxy_network.
 route_proxy_traefik_ips:
-  nextcloud_proxy_net: 172.16.1.35
-  paperless_proxy_net: 172.16.1.43
   vaultwarden_container_net: 172.16.1.19
   playbook_runner_container_net: 172.16.1.59
   music_server_container_net: 172.16.1.51
@@ -79,8 +73,6 @@ route_proxy_traefik_ips:
 # Static container IPs used by Traefik /etc/hosts entries for proxied
 # backends. Keys match proxy_config[*].proxy_network.
 route_proxy_container_ips:
-  nextcloud_proxy_net: 172.16.1.34
-  paperless_proxy_net: 172.16.1.42
   vaultwarden_container_net: 172.16.1.18
   playbook_runner_container_net: 172.16.1.58
   music_server_container_net: 172.16.1.50

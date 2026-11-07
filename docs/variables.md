@@ -49,89 +49,41 @@ VM1 runs the service stack. All variables in this section need real values for
 | `traefik_dashboard_fqdn` | string | Yes | Unique dashboard hostname. | `traefik.example.com` |
 | `traefik_dashboard_basic_auth_users` | list | Yes, secret | One or more `user:htpasswd-hash` entries. | `["admin:$apr1$..."]` |
 | `traefik_acme_email` | string | Yes | ACME account email address. | `admin@example.com` |
-| `homelab_internal_domain` | string | Yes | Internal DNS domain the Traefik routes sit under; VM1's routes are `<service>.<this domain>` (`nextcloud`, `paperless`, `vaultwarden`, `playbook-runner`, `music`). | `example.lan` |
+| `homelab_internal_domain` | string | Yes | Internal DNS domain the Traefik routes sit under; VM1's routes are `<service>.<this domain>` (`vaultwarden`, `playbook-runner`, `music`, `drive`). | `example.lan` |
 | `proxy_config` | list | Set by `network/vm1.yml` | Dynamic routes; see [Proxy entries](#proxy-entries). VM1's list lives in `network/vm1.yml`, which outranks inventory. | One entry per exposed service |
-| `container_service_names` | string | Set by `vm1.yml` | Space-separated systemd service order used by Traefik and deferred network migration. `vm1.yml` builds it, adding `playbook_runner` and `music_server` only when their roles are enabled, and the Nextcloud, PostgreSQL, Redis and Paperless units only while `nextcloud_stack_deploy` is true; an inventory value is ignored. | `postgres_container redis_container nextcloud_container paperless_ngx vaultwarden` |
+| `container_service_names` | string | Set by `vm1.yml` | Space-separated systemd service order used by Traefik and deferred network migration. `vm1.yml` builds it, adding `playbook_runner` and `music_server` only when their roles are enabled; an inventory value is ignored. | `vaultwarden playbook_runner homedrive` |
 | `container_network_migration_delay` | string | No | Positive systemd time span before a queued network migration starts. | `2min` |
 | `traefik_egress_network` | string | No | Dedicated non-internal Traefik egress network. | `traefik_egress_net` |
 
 Generate a dashboard password hash with `htpasswd`; quote the complete value in
 YAML so its dollar signs are preserved.
 
-### PostgreSQL, Nextcloud, and local Borg storage
+### Data disk and backup disk
 
 | Variable | Type | Required | Description | Example/default |
 |---|---|---|---|---|
-| `postgres_path` | path | No | Shared PostgreSQL data root. | `/postgres` (default) |
-| `postgres_admin_user` | string | Yes | PostgreSQL bootstrap/admin role. | `postgres_admin` |
-| `postgres_admin_password` | string | Yes, secret | PostgreSQL admin password; must satisfy `password_minimum_length`. | Ansible Vault value |
-| `nextcloud_stack_deploy` | bool | No | Whether the Nextcloud, PostgreSQL, Redis and Paperless containers run. Off by default: `vm1.yml` leaves their units installed but disabled and stopped, leaves their data alone, skips the permission and SELinux walks of the Nextcloud data, and removes their nightly backup job (the Borg backup of the Nextcloud files, `files`, still runs). Starting Nextcloud relabels every file in its data tree, which changes each file's change time; while it is off the tree stays as it is. Set `true` to run them again. | `false` (default) |
-| `nextcloud_path` | path | No | Nextcloud data root, inside `nextcloud_disk_mount_path`. | `/data_drive/nextcloud` (default) |
-| `nextcloud_disk` | string | Yes | Data disk filesystem device identifier, mounted by the `data_disk` role (its `data_disk` defaults to this). | `UUID=example-uuid` |
-| `nextcloud_disk_mount_path` | path | No | Data disk mount point, shared with homedrive (the `data_disk` role's `data_disk_mount_path` defaults to this). | `/data_drive` (default) |
-| `data_disk`, `data_disk_mount_path` | string, path | No | The data disk and its mount point under their own names, which take over from the two above. Set them only to replace those. | `nextcloud_disk`, `nextcloud_disk_mount_path` |
-| `nextcloud_database_name` | string | Yes | Nextcloud database name. | `nextcloud` |
-| `nextcloud_db_user` | string | Yes | Nextcloud PostgreSQL role. | `nextcloud_user` |
-| `nextcloud_db_password` | string | Yes, secret | Nextcloud database password; must satisfy `password_minimum_length`. | Ansible Vault value |
-| `nextcloud_admin_user` | string | Yes | Initial Nextcloud administrator. | `admin` |
-| `nextcloud_admin_password` | string | Yes, secret | Initial Nextcloud administrator password. | Ansible Vault value |
-| `nextcloud_trusted_domains` | string | Yes | Space-separated trusted domains passed to Nextcloud. | `nextcloud.example.com` |
-| `nextcloud_dns_name` | string | Yes | Public Nextcloud FQDN. | `nextcloud.example.com` |
-| `nextcloud_homelab_user` | string | Yes when `backup_local` is `true` | Nextcloud account whose `files` tree receives local service backups. | `example_user` |
-| `nextcloud_borg_backup_path` | path | No | Local Borg repository for Nextcloud and Paperless. | `/data_drive/nextcloud/borg_backup` (default) |
-| `nextcloud_paperless_backup_location` | string | Yes | rclone destination for the Nextcloud/Paperless Borg repository. | `Nextcloud:backup/nextcloud` |
-| `borg_backup_path` | path | No | Mount point and Borg repository root for the host backup disk. | `/borg_backups` (default) |
+| `data_disk` | string | Yes | Data disk filesystem device identifier, mounted by the `data_disk` role. It holds homedrive's store and exports. | `UUID=example-uuid` |
+| `data_disk_mount_path` | path | No | Data disk mount point. | `/data_drive` (default) |
 | `backup_disk` | string | Yes | Host backup filesystem device identifier. | `UUID=example-backup-uuid` |
-| `backup_local` | boolean | No | `true` when Nextcloud is on VM1; `false` selects remote SSHFS backup inputs. | `true` (default) |
-| `nextcloud_uid` | string | No | Host UID that owns Nextcloud files. | `33` (also fixed by `vm1.yml`) |
-| `nextcloud_gid` | string | No | Host GID that owns Nextcloud files. | `33` (also fixed by `vm1.yml`) |
-| `postgres_legacy_bootstrap_user` | string | Conditional | Old PostgreSQL admin used only during a cluster migration. | `""` |
-| `postgres_legacy_bootstrap_password` | string | Conditional, secret | Password for the legacy bootstrap role. | `""` |
-
-When `backup_local: false`, also define the following variables:
-
-| Variable | Type | Required | Description | Example/default |
-|---|---|---|---|---|
-| `ssh_mount_path` | path | Conditional | Local SSHFS mount point. | `/path/to/nextcloud-remote` |
-| `nextcloud_host` | string | Conditional | SSH hostname or address of the remote Nextcloud server. | `nextcloud.example.com` |
-| `nextcloud_backup_path` | path | Conditional | Nextcloud path exported over SSHFS. | `/path/to/nextcloud` |
-| `backup_ssh_known_hosts` | string | Conditional | One or more complete, pinned SSH `known_hosts` lines for `nextcloud_host`. | `host ssh-ed25519 AAAA...` |
+| `borg_backup_path` | path | No | Mount point and Borg repository root for the host backup disk. homedrive's store backup writes here. | `/borg_backups` (default) |
 
 ### rclone/WebDAV
 
 | Variable | Type | Required | Description | Example/default |
 |---|---|---|---|---|
-| `nextcloud_webdav_path` | string | Yes | Full Nextcloud WebDAV URL. | `https://nextcloud.example.com/remote.php/dav/files/example_user` |
-| `nextcloud_rclone_user` | string | Yes | Nextcloud account used by the rclone remote. | `example_user` |
-| `nextcloud_rclone_pass` | string | Yes, secret | Prefer a Nextcloud app password. | Ansible Vault value |
-| `nextcloud_webdav_user` | string | Yes | WebDAV account rendered into the rclone configuration. | `example_user` |
-| `nextcloud_webdav_pass` | string | Yes, secret | WebDAV/app password rendered into the rclone configuration. | Ansible Vault value |
-| `homedrive_rclone_pass` | string | Yes once homedrive is deployed, secret | A device token from homedrive's Devices page for the `Homedrive:` rclone remote, which the Paperless Borg sync uses, as `rclone obscure <token>` prints it. The remote is written only once this is set, and the nextcloud role refuses to sync to homedrive without it. | Ansible Vault value |
+| `homedrive_rclone_pass` | string | Yes once homedrive is deployed, secret | A device token from homedrive's Devices page for the `Homedrive:` rclone remote, as `rclone obscure <token>` prints it. The remote is written only once this is set. | Ansible Vault value |
 | `homedrive_webdav_url` | string | No | WebDAV URL for that remote. | `https://drive.<homelab_internal_domain>/dav/<homedrive_rclone_user>` when homedrive is deployed |
 | `homedrive_rclone_user` | string | No | homedrive account for that remote. | `homedrive_backup_user` |
 
-### Backup destination
+### Backups
 
 | Variable | Type | Required | Description | Example/default |
 |---|---|---|---|---|
-| `backup_destination` | string | No | Where VM1's backups go: `homedrive` whenever homedrive is deployed, otherwise `nextcloud`. Set `nextcloud` to keep the previous behaviour. `homedrive` stores the vaultwarden, playbook-runner and music-server daily backups through `homedrive_import_path.sh`, keeps their dated names, and sends the old playbook-runner and music-server files (over 30 days) to the drive's trash with `homedrive_prune_path.sh`. Vaultwarden keeps every day, as before. The Paperless Borg repository is synced to the `Homedrive:` remote. It needs homedrive deployed. | `homedrive` once homedrive is deployed |
-| `homedrive_backup_user` | string | No | The homedrive account, one of `homedrive_users`, whose drive holds the backups. Each `<service>_backup_location` is the folder in it. | `nextcloud_homelab_user` |
+| `homedrive_main_user` | string | Yes | The homedrive account, one of `homedrive_users`, that the services' backups, the Music export and the rclone remote use unless set separately. | `example_user` |
+| `homedrive_backup_user` | string | No | The homedrive account whose drive holds the vaultwarden, playbook-runner and music-server backups. Each `<service>_backup_location` is the folder in it. The backups keep their dated names, and the old playbook-runner and music-server files (over 30 days) go to the drive's trash through `homedrive_prune_path.sh`. Vaultwarden keeps every day. | `homedrive_main_user` |
 
-### Paperless NGX
+The three service backups need homedrive deployed (`homedrive_deploy`); their roles refuse to run without it.
 
-| Variable | Type | Required | Description | Example/default |
-|---|---|---|---|---|
-| `paperless_path` | path | No | Paperless base directory. | `/paperless` (default) |
-| `paperless_data_path` | path | No | Application data directory. | `/paperless/data` (default) |
-| `paperless_media_path` | path | No | Media directory. | `/paperless/media` (default) |
-| `paperless_export_path` | path | No | Export directory included in backup. | `/paperless/export` (default) |
-| `paperless_consume_path` | path | No | Document inbox directory. | `/paperless/consume` (default) |
-| `paperless_database_name` | string | No | PostgreSQL database name. | `paperless_db` (default) |
-| `paperless_db_user` | string | Yes | PostgreSQL application role. | `paperless_user` |
-| `paperless_db_password` | string | Yes, secret | Database password; must satisfy `password_minimum_length`. | Ansible Vault value |
-| `paperless_secret_key` | string | Yes, secret | Django signing key rendered as `PAPERLESS_SECRET_KEY`; must satisfy `secret_key_minimum_length`. Paperless 3.0 dropped the built-in default and refuses to start without it. Generate with `python3 -c "import secrets; print(secrets.token_urlsafe(64))"`. | Ansible Vault value |
-| `secret_key_minimum_length` | integer | No | Minimum accepted length for `paperless_secret_key`. | `32` |
-| `paperless_dns_name` | string | Yes | Public Paperless FQDN. | `paperless.example.com` |
 
 ### playbook-runner
 
@@ -141,7 +93,7 @@ When `backup_local: false`, also define the following variables:
 | `playbook_runner_path` | path | No | Host data directory (owned by uid 10001, mode 0700). | `/playbook-runner` (default) |
 | `playbook_runner_master_key` | string | Yes, secret | 64 hex digits from `playbook-runner gen-key`. Also keep a copy in Vaultwarden: the stored secrets cannot be recovered without it. | Ansible Vault value |
 | `playbook_runner_admin_password` | string | No, secret | Initial admin password, 12-128 characters. Empty means a one-time setup token is logged instead. | `""` |
-| `playbook_runner_backup_location` | string | Yes | Local label or rclone backup destination. | `Nextcloud:playbook_runner_backup` |
+| `playbook_runner_backup_location` | string | Yes | The folder in `homedrive_backup_user`'s drive that holds the backups (a legacy `Nextcloud:` prefix is ignored). | `playbook_runner_backup` |
 | `playbook_runner_known_hosts` | string | No | `known_hosts` entries written once when the runner's file does not exist yet. | `host ssh-ed25519 AAAA...` |
 | `playbook_runner_timezone` | string | No | Zone schedules use and times are shown in. | `America/New_York` |
 | `playbook_runner_keep_runs` | integer | No | Finished runs kept. | `500` |
@@ -155,21 +107,21 @@ When `backup_local: false`, also define the following variables:
 | `music_server_path` | path | No | Host directory holding `data/` (sealed, backed up) and `cache/` (rebuildable). | `/music_server` (default) |
 | `music_server_library` | string | No | Where the library comes from: `homedrive` (homedrive's read-only Music export) whenever homedrive is deployed, otherwise `path` (`music_server_music_path`). Tracks are identified by their path in the library, which the export keeps, so playlists and stars carry across. | `homedrive` once homedrive is deployed |
 | `music_server_homedrive_library` | path | No | homedrive's Music export. | `<homedrive_export_path>/music` |
-| `music_server_music_path` | path | When `music_server_library` is `path` | The library folder, mounted read-only. | `{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/Music` |
+| `music_server_music_path` | path | When `music_server_library` is `path` | The library folder, mounted read-only. | `/path/to/music` |
 | `music_server_master_key` | string | Yes, secret | 64 hex digits from `music-server gen-key`. Keep a copy in Vaultwarden. | Ansible Vault value |
 | `music_server_users` | list | Yes, secret | Accounts: `{name, password, admin}`. 1-50 entries, unique names of `A-Z a-z 0-9 . _ -`, 8-128 character passwords, at least one admin. A removed name is disabled with its data kept. | Ansible Vault value |
-| `music_server_backup_location` | string | Yes | Local label or rclone backup destination. | `Nextcloud:music_server_backup` |
+| `music_server_backup_location` | string | Yes | The folder in `homedrive_backup_user`'s drive that holds the backups (a legacy `Nextcloud:` prefix is ignored). | `music_server_backup` |
 | `music_server_scan_interval_minutes` | integer | No | Library rescan interval; `0` scans only at startup. | `60` |
 | `music_server_max_transcodes` | integer | No | Concurrent ffmpeg transcodes (0-8). | `2` |
 | `music_server_memory` | string | No | Container memory ceiling, without swap. | `512m` |
-| `music_server_music_gid` | string | No | Supplementary group that can read the music (Nextcloud's). | `33` |
+| `music_server_music_gid` | string | No | Supplementary group that can read the music when `music_server_library` is `path`. | `33` |
 
 ### Vaultwarden
 
 | Variable | Type | Required | Description | Example/default |
 |---|---|---|---|---|
 | `vaultwarden_path` | path | No | Vaultwarden data root. | `/vaultwarden` (default) |
-| `vaultwarden_backup_location` | string | Yes | Local label or rclone backup destination. | `Nextcloud:vaultwarden_backup` |
+| `vaultwarden_backup_location` | string | Yes | The folder in `homedrive_backup_user`'s drive that holds the backups (a legacy `Nextcloud:` prefix is ignored). | `vaultwarden_backup` |
 | `vaultwarden_signups_allowed` | boolean | No | Must remain `false`; the role rejects public signup. | `false` |
 
 ## Network maps
@@ -183,7 +135,6 @@ network's subnet, service address, and Traefik address consistent;
 
 | Variable | Type | Required | Description |
 |---|---|---|---|
-| `nextcloud_backend_network_subnet` | string | No | Shared PostgreSQL/Redis/Nextcloud backend subnet; default `172.16.1.0/28`. |
 | `route_proxy_network_subnets` | dictionary | Set by `network/vm1.yml` | Internal subnet keyed by each route network. |
 | `route_proxy_container_ips` | dictionary | Set by `network/vm1.yml` | Backend address keyed by route network for Traefik `/etc/hosts`. |
 | `route_proxy_traefik_ips` | dictionary | Set by `network/vm1.yml` | Address Traefik claims on each route network; must differ from `route_proxy_container_ips`. |
@@ -197,12 +148,12 @@ Every item in `proxy_config` accepts these fields:
 
 | Field | Type | Required | Description | Example/default |
 |---|---|---|---|---|
-| `name` | string | Yes | Unique router/service name. | `nextcloud_proxy` |
-| `proxy_fqdn` | string | Yes | Unique `Host()` match, different from the dashboard FQDN. | `nextcloud.example.com` |
+| `name` | string | Yes | Unique router/service name. | `vaultwarden` |
+| `proxy_fqdn` | string | Yes | Unique `Host()` match, different from the dashboard FQDN. | `vaultwarden.example.com` |
 | `proxy_upstream_protocol` | string | Yes | Upstream scheme: `http` or `https`. | `http` |
 | `proxy_upstream_port` | string | Yes | Port from `1` through `65535`. | `80` |
-| `container_destination` | string | Yes | Podman DNS name visible on `proxy_network`. | `nextcloud-proxy.dns.podman` |
-| `proxy_network` | string | Yes | Route network present in `route_proxy_container_ips`. | `nextcloud_proxy_net` |
+| `container_destination` | string | Yes | Podman DNS name visible on `proxy_network`. | `vaultwarden-proxy.dns.podman` |
+| `proxy_network` | string | Yes | Route network present in `route_proxy_container_ips`. | `vaultwarden_container_net` |
 | `proxy_allow_encoded_slash` | boolean | No | Enables encoded-slash forwarding. | `false` |
 | `proxy_management_only` | boolean | No | Restricts the route to `management_network`. | `false` |
 
@@ -229,17 +180,12 @@ They are listed here so every maintained role input is discoverable.
 | `standard_ssh_max_sessions` | integer | `2` | Maximum SSH sessions per connection, from `1` through `100`. |
 | `standard_update_apply_full_updates` | boolean | `true` | Applies every available package update on each run; set `false` to skip patching for a one-off run. |
 | `standard_update_enable_epel` | boolean | `true` | Enables EPEL and CRB. |
-| `nextcloud_normalize_user_files_permissions` | boolean | `true` | Normalizes permissions below every Nextcloud user's `files` tree. |
-| `nextcloud_user_files_directory_mode` | string | `0770` | Directory mode used during normalization. |
-| `nextcloud_user_files_file_mode` | string | `0660` | Regular-file mode used during normalization. |
-| `<job>_backup_hour`, `<job>_backup_minute` | string | see the next column | When each nightly job runs, VM1's local time: `vaultwarden_backup_*`, `playbook_runner_backup_*` and `music_server_backup_*` at `0`:`0`, `nextcloud_backup_*` at `0`:`30`, `homedrive_backup_*` at `1`:`30`, `borg_backup_*` at `3`:`0`. The store's backup must come after the jobs that store into it. |
+| `<job>_backup_hour`, `<job>_backup_minute` | string | see the next column | When each nightly job runs, VM1's local time: `vaultwarden_backup_*`, `playbook_runner_backup_*` and `music_server_backup_*` at `0`:`0`, `homedrive_backup_*` at `1`:`30`. The store's backup must come after the jobs that store into it. |
 | `homedrive_import_accepted` | multi-line string | No | Reviewed differences for `homedrive_import.yml`'s checks: lines of `<sha256>  <path>`, the path under the source and the SHA-256 of the source content that was reviewed. Inventory only: it names files. Needs homedrive 0.1.8. | empty (default) |
 | `homedrive_prune_keep` | integer | `7` | How many of a folder's newest dated backups `homedrive_prune_path.sh` always keeps, however old. |
-| `password_minimum_length` | integer | `12` | Minimum length for the validated PostgreSQL admin, Nextcloud database, and Paperless database passwords; must be at least `1`. |
 
 `apply_runtime_changes_on_reboot`, `approved_container_images`,
-`traefik_image`, `postgres_image`, `redis_image`, `nextcloud_image`,
-`paperless_image`, `vaultwarden_image`, `playbook_runner_image`, `music_server_image`,
+`traefik_image`, `vaultwarden_image`, `playbook_runner_image`, `music_server_image`,
 and `standard_ssh_allow_users` are assembled by the maintained playbooks.
 Container image values come from `artifacts/containers.lock.yml`; do not
 override them in inventory.
@@ -252,6 +198,16 @@ the filename created below `/home/{{ user_name }}` (for example,
 `id_ansible_ed25519`).
 
 ## Obsolete variables
+
+The Nextcloud, Paperless NGX, PostgreSQL and Redis variables (`nextcloud_*`,
+`paperless_*`, `postgres_*`, `redis_*`, `backup_local`, `backup_destination`,
+`password_minimum_length`, `secret_key_minimum_length`, and the files-backup
+variables `ssh_mount_path`, `nextcloud_host`, `nextcloud_backup_path`,
+`backup_ssh_known_hosts`, `borg_backup_hour` and `borg_backup_minute`) went
+with those services. `scripts/remove_nextcloud_inventory.py` renames the three
+that live on under homedrive's names (`nextcloud_disk` to `data_disk`,
+`nextcloud_disk_mount_path` to `data_disk_mount_path`, `nextcloud_homelab_user`
+to `homedrive_main_user`) and removes the rest.
 
 `locale`, `top_domain`, `backup_host`, `swag_path`, `swag_dns_plugin`,
 `standard_update_apply_security_updates`, and the `container_patching_*`

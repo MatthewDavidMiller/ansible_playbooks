@@ -6,35 +6,6 @@ artifact_locked_images:
     internal_repo: homelab/traefik
     signature_required: false
     notes: Approved via scripts/promote_artifacts.py
-  postgres:
-    upstream_ref: public.ecr.aws/docker/library/postgres:17.11
-    approved_tag: '17.11'
-    approved_digest: sha256:2d2b8998d31037bf721cfdf764d76ba74171b4fab3431b7f72c27c56ddbdf9e3
-    internal_repo: homelab/postgres
-    signature_required: false
-    notes: Approved newer no-regression image via scripts/promote_artifacts.py; Critical
-      findings were also present in the previous digest.
-  redis:
-    upstream_ref: public.ecr.aws/docker/library/redis:8.10.2
-    approved_tag: 8.10.2
-    approved_digest: sha256:2c2dff791878316e3b083188be0d578423b24813cdda5de0e80ea4f7b3e6bfd6
-    internal_repo: homelab/redis
-    signature_required: false
-    notes: Approved via scripts/promote_artifacts.py
-  nextcloud:
-    upstream_ref: public.ecr.aws/docker/library/nextcloud:34.0.4
-    approved_tag: 34.0.4
-    approved_digest: sha256:0e5688ba0988b9112cf03f9c6bab53eccb466d278435f6596f16c1f25acacf74
-    internal_repo: homelab/nextcloud
-    signature_required: false
-    notes: Approved via scripts/promote_artifacts.py
-  paperless:
-    upstream_ref: ghcr.io/paperless-ngx/paperless-ngx:3.3.1
-    approved_tag: 3.3.1
-    approved_digest: sha256:cb91bfb468e63025a9d10c01b54c33665113668eee61b490db96de19b860b9c4
-    internal_repo: homelab/paperless-ngx
-    signature_required: false
-    notes: Approved via scripts/promote_artifacts.py
   vaultwarden:
     upstream_ref: ghcr.io/dani-garcia/vaultwarden:1.37.4
     approved_tag: 1.37.4

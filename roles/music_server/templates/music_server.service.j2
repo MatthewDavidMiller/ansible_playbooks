@@ -4,9 +4,6 @@ Documentation=man:podman-generate-systemd(1)
 Wants=network-online.target
 After=network-online.target
 RequiresMountsFor={{ music_server_music_path }}
-{% if nextcloud_path | default('', true) and music_server_music_path.startswith(nextcloud_path ~ '/data/') %}
-After=nextcloud_container.service
-{% endif %}
 
 [Service]
 Environment=PODMAN_SYSTEMD_UNIT=%n

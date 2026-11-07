@@ -30,9 +30,12 @@ homedrive_init_store: false
 # the optional HD_EXPORTS spec: "user:path=>name,...".
 homedrive_export_path: /data_drive/homedrive/exports
 
-# The account whose Music folder music-server plays: by default the one the
-# files came across from.
-homedrive_music_user: "{{ nextcloud_homelab_user | default('') }}"
+# The account the services' backups, the Music export and the rclone remote
+# use unless set separately: one of homedrive_users.
+homedrive_main_user: ""
+
+# The account whose Music folder music-server plays.
+homedrive_music_user: "{{ homedrive_main_user }}"
 
 # By default, when music-server is deployed, homedrive_music_user's Music
 # folder is exported as "music" for it.
@@ -71,9 +74,8 @@ homedrive_gid: "10001"
 
 # Local Borg repository for daily backups of the store, on another disk.
 # By default it is the backup role's repository on the backup disk
-# (borg_backup_path, when backup_disk is set), shared with the Nextcloud
-# archives: homedrive's archives are named homedrive-*, and each job prunes
-# only its own. Empty disables the backup job.
+# (borg_backup_path, when backup_disk is set). homedrive's archives are named
+# homedrive-*, and its job prunes only those. Empty disables the backup job.
 homedrive_borg_repo: "{{ borg_backup_path | default('/borg_backups') if backup_disk | default('') | length > 0 else '' }}"
 
 # Optional, from Vault: encrypt the local Borg repository with this
@@ -128,7 +130,6 @@ route_proxy_traefik_ips:
   homedrive_container_net: 172.16.1.67
 
 # When the store's daily Borg backup runs (VM1's local time): after the service
-# backups (00:00) and the Paperless one (00:30) have landed in it, and before the
-# Nextcloud Borg run (03:00) that shares its repository.
+# backups (00:00) have landed in it.
 homedrive_backup_hour: "1"
 homedrive_backup_minute: "30"

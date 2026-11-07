@@ -32,7 +32,7 @@ Start with [README.md](../README.md) for the project overview and quick start.
 | [inventory.md](inventory.md) | Full inventory variable reference |
 | [variables.md](variables.md) | Required, conditional, and optional variables to define or override |
 | [roles/standard.md](roles/standard.md) | Standard infrastructure roles (`standard_ssh`, `standard_firewalld`, `standard_selinux`, etc.) |
-| [roles/services.md](roles/services.md) | Service roles (`nextcloud`, `vaultwarden`, `playbook_runner`, `music_server`, `reverse_proxy`, etc.) |
+| [roles/services.md](roles/services.md) | Service roles (`homedrive`, `vaultwarden`, `playbook_runner`, `music_server`, `reverse_proxy`, etc.) |
 | [archive.md](archive.md) | How to browse the separate historical `archive` branch |
 
 ## Guides
@@ -45,7 +45,6 @@ Start with [README.md](../README.md) for the project overview and quick start.
 | [guides/adding-a-service.md](guides/adding-a-service.md) | How to add a new service using established patterns |
 | [guides/proxmox-setup.md](guides/proxmox-setup.md) | VM provisioning with `scripts/proxmox_initial_setup.py` |
 | [guides/dr-restore.md](guides/dr-restore.md) | Disaster recovery — initial migration to VM1 and restore from backups |
-| [guides/postgres-upgrade.md](guides/postgres-upgrade.md) | PostgreSQL major version upgrade procedure for the shared postgres container |
 | [guides/playbook-runner-migration.md](guides/playbook-runner-migration.md) | Setting up playbook-runner and removing the old Semaphore install from VM1 |
 | [guides/music-server-migration.md](guides/music-server-migration.md) | Setting up music-server and retiring Navidrome from VM1 |
 | [guides/homedrive.md](guides/homedrive.md) | Deploying homedrive (file sync and storage) on VM1 |

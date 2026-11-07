@@ -8,11 +8,11 @@ This document covers the maintained playbooks only. Legacy playbooks are preserv
 
 **Target:** `vm1`
 
-**Roles (in order):** `standard_ssh` → `standard_qemu_guest_agent` → `standard_update_packages` → `configure_timezone` → `standard_cron` → `dynamic_dns` → `standard_firewalld` → `standard_podman` → `standard_rclone` → `standard_selinux` → `data_disk` → `backup` → `ansible` → `reverse_proxy` → `nextcloud` → `paperless_ngx` → `vaultwarden` → `playbook_runner` → `music_server` → `homedrive` → `standard_cleanup` → `container_network_migration`
+**Roles (in order):** `standard_ssh` → `standard_qemu_guest_agent` → `standard_update_packages` → `configure_timezone` → `standard_cron` → `dynamic_dns` → `standard_firewalld` → `standard_podman` → `standard_rclone` → `standard_selinux` → `data_disk` → `backup` → `ansible` → `reverse_proxy` → `vaultwarden` → `playbook_runner` → `music_server` → `homedrive` → `standard_cleanup` → `container_network_migration`
 
 **Usage:** Configures VM1, the single maintained Rocky Linux 10 service host. Runtime-affecting changes are staged during the play and become live after `reboot_vms.yml`.
 
-**Notes:** `vm1.yml` resolves maintained service images from `artifacts/containers.lock.yml` and pre-pulls them through `standard_podman`. `standard_update_packages` applies every available Rocky Linux package update during normal convergence. `nextcloud` must run before `paperless_ngx` because it owns the shared PostgreSQL and Redis containers. `standard_rclone` must run before `standard_selinux`. All service roles finish before `standard_cleanup`; the final `container_network_migration` coordinator then schedules any queued disruptive migration after every configuration file and unit has been rendered.
+**Notes:** `vm1.yml` resolves maintained service images from `artifacts/containers.lock.yml` and pre-pulls them through `standard_podman`. `standard_update_packages` applies every available Rocky Linux package update during normal convergence. `standard_rclone` must run before `standard_selinux`. All service roles finish before `standard_cleanup`; the final `container_network_migration` coordinator then schedules any queued disruptive migration after every configuration file and unit has been rendered.
 
 ---
 
@@ -46,7 +46,7 @@ This document covers the maintained playbooks only. Legacy playbooks are preserv
 
 **Usage:** Shows VM1's health and service logs in the run log, so playbook-runner covers what would otherwise need SSH. It changes nothing, and is safe to run or schedule at any time.
 
-**Choosing what to show:** the runner has no argument field, so a template uses tags. No tags shows the overview and then every service. `overview` shows only services, disk, memory, and failed units. `backups` shows the backup jobs: the schedule in root's crontab, which backup, Borg and rclone processes are running now and for how long, whether each Borg repository is locked and by whom (a job waits up to an hour for a lock, which looks like a hang), and the end of each backup log; run it twice a few minutes apart to tell a long backup from a stuck one. `network` adds whether VM1 and Traefik can resolve Let's Encrypt, through each of Traefik's nameservers, with the firewall zones and Podman's network versions; use it when certificates fail with a lookup timeout. A service tag (`traefik`, `postgres`, `redis`, `nextcloud`, `paperless`, `vaultwarden`, `playbook_runner`, `music_server`, `homedrive`) shows the overview and that service. Make one template per service you check often.
+**Choosing what to show:** the runner has no argument field, so a template uses tags. No tags shows the overview and then every service. `overview` shows only services, disk, memory, and failed units. `backups` shows the backup jobs: the schedule in root's crontab, which backup, Borg and rclone processes are running now and for how long, whether each Borg repository is locked and by whom (a job waits up to an hour for a lock, which looks like a hang), and the end of each backup log; run it twice a few minutes apart to tell a long backup from a stuck one. `network` adds whether VM1 and Traefik can resolve Let's Encrypt, through each of Traefik's nameservers, with the firewall zones and Podman's network versions; use it when certificates fail with a lookup timeout. A service tag (`traefik`, `vaultwarden`, `playbook_runner`, `music_server`, `homedrive`) shows the overview and that service. Make one template per service you check often.
 
 **For each service:** the unit's state, the lines that look like errors from the last 24 hours, the unit's journal, and the end of the container's log. Container lines come from the journal, so they are still there after a failed container has been removed. A service that is not deployed shows `LoadState=not-found`. `show_logs_lines` (60) and `show_logs_since` (24h) can be set in the inventory.
 
@@ -60,7 +60,7 @@ This document covers the maintained playbooks only. Legacy playbooks are preserv
 
 **Usage:** One-shot cleanup of the Navidrome install that `vm1.yml` no longer manages, now that music-server serves the library. Run it once, after `vm1.yml` has converged and VM1 has rebooted. It stops and removes the Navidrome service, container, image, launch and backup scripts, backup cron entry, and logs, removes its Podman network and its Traefik route file, and turns off the `virt_use_fusefs` SELinux boolean that only Navidrome's old rclone mount needed. Every task is safe to repeat. It is not part of `update_homelab_vms.yml`. See [guides/music-server-migration.md](guides/music-server-migration.md#5-retire-navidrome).
 
-**Data:** Navidrome's data directory is kept. To delete it too, run with `-e retire_navidrome_remove_data=true` while `navidrome_path` is still in the inventory; the play refuses a path under Nextcloud or a bare parent such as `/opt`. The music (the Nextcloud `Music` folder) and the final database dumps in the Nextcloud tree are never touched. `-e retire_navidrome_disable_fusefs=false` leaves the SELinux boolean as it is. Afterwards, `scripts/remove_navidrome_inventory.py` removes the Navidrome settings from the inventory.
+**Data:** Navidrome's data directory is kept. To delete it too, run with `-e retire_navidrome_remove_data=true` while `navidrome_path` is still in the inventory; the play refuses a path under Nextcloud or a bare parent such as `/opt`. The music and the final database dumps are never touched. `-e retire_navidrome_disable_fusefs=false` leaves the SELinux boolean as it is. Afterwards, `scripts/remove_navidrome_inventory.py` removes the Navidrome settings from the inventory.
 
 **Failure:** removing the network fails while a container still uses it. That means Traefik has not restarted since `vm1.yml` dropped the route; reboot VM1 and run it again.
 
@@ -82,7 +82,7 @@ This document covers the maintained playbooks only. Legacy playbooks are preserv
 
 **Target:** `vm1`
 
-**Usage:** One-shot bulk load of the Nextcloud files tree (`<nextcloud_path>/data/<nextcloud_homelab_user>/files`) into a homedrive drive, followed by the checks the migration needs. It needs homedrive 0.1.4 or later. Run it after `vm1.yml` has deployed homedrive. It is not part of `update_homelab_vms.yml`. Re-running is safe. See [guides/homedrive.md](guides/homedrive.md#importing-the-previous-file-service).
+**Usage:** One-shot bulk load of the previous file service's files tree (`<nextcloud_path>/data/<homedrive_main_user>/files`) into a homedrive drive, followed by the checks the migration needs. It needs homedrive 0.1.4 or later. Run it after `vm1.yml` has deployed homedrive. It is not part of `update_homelab_vms.yml`. Re-running is safe. See [guides/homedrive.md](guides/homedrive.md#importing-the-previous-file-service).
 
 **Keep the source's files as they are between full checks.** Starting the Nextcloud container relabels its whole data tree, which changes every file's change time, and a hash is reused only while the file's inode, size, modification time and change time are all unchanged. `vm1.yml` leaves the Nextcloud stack stopped (`nextcloud_stack_deploy`), so a later run does not invalidate the hash cache. The `cache:` line in the full check's output says how many cached entries loaded and which field had moved for those that missed.
 
@@ -90,7 +90,7 @@ This document covers the maintained playbooks only. Legacy playbooks are preserv
 
 **The `full` tag** (a template of its own, with a long timeout) runs the slow checks that must pass before the source is retired: `verify-tree` compares every source file byte for byte, `fsck --deep` reads every version back, and `gc --dry-run` shows what collection would free. The play fails unless `verify-tree` and `fsck` are both clean. The source's hashes are kept in `homedrive_import_cache_dir` (`/var/lib/homedrive_import`), so a later run, or one that was cut off, reads only files that changed since. `-e homedrive_import_fresh=true` reads everything afresh.
 
-**Inventory:** `homedrive_import_user` defaults to `nextcloud_homelab_user` and must be one of `homedrive_users`. `homedrive_import_src`, `homedrive_import_dest` (the drive's root by default), `homedrive_import_max_missing`, `homedrive_import_cache_dir`, and `homedrive_import_timeout_s` (24 hours per step) can be overridden; the cache may not be inside, or contain, the source or the store. The full output, file names included, goes to `/var/log/homedrive_import.log`; the run log shows summaries and at most 50 file lines per step.
+**Inventory:** `homedrive_import_user` defaults to `homedrive_main_user` (or `nextcloud_homelab_user` in an inventory not yet moved by `scripts/remove_nextcloud_inventory.py`) and must be one of `homedrive_users`. `homedrive_import_src`, `homedrive_import_dest` (the drive's root by default), `homedrive_import_max_missing`, `homedrive_import_cache_dir`, and `homedrive_import_timeout_s` (24 hours per step) can be overridden; the cache may not be inside, or contain, the source or the store. The full output, file names included, goes to `/var/log/homedrive_import.log`; the run log shows summaries and at most 50 file lines per step.
 
 **Reviewed differences:** a full check can find differences that have been looked into and are harmless, such as files you have edited in the drive since the copy, or files re-saved in the source with their metadata rewritten. List them in `homedrive_import_accepted`, in the inventory and never in this repository, because it names files: lines of `<sha256>  <path>`, the path under the source and the SHA-256 of the source content that was reviewed. A missing or different file is accepted only while its source still has exactly that content, so an edit after the review is reported again, marked "reviewed, but changed since", and a file not listed is never accepted. The summary counts what was accepted. The play checks the format, writes the list to a root-only file in the cache folder (never to the run log), removes it again when the variable is empty, and refuses to run with a list on a homedrive older than 0.1.8, which would ignore it.
 
@@ -98,13 +98,27 @@ This document covers the maintained playbooks only. Legacy playbooks are preserv
 
 ---
 
+## `retire_nextcloud.yml`
+
+**Target:** `vm1`
+
+**Usage:** One-shot cleanup of the Nextcloud, Paperless NGX, PostgreSQL and Redis install that `vm1.yml` no longer manages, now that homedrive holds the files. Run it in check mode first (`--check`), then for real, after the final `homedrive_import.yml` `full` run is clean, `scripts/remove_nextcloud_inventory.py --write` has moved the inventory, and `vm1.yml` has converged. It stops and disables the five units, removes the four containers, their images, the three Podman networks (`nextcloud_container_net`, `nextcloud_proxy_net`, `paperless_proxy_net`), the launch, scan and backup scripts, the two cron entries (`Backup Nextcloud and Paperless NGX daily` and `Borg Backup`), the env files in `secret_env_dir`, the Borg logs, and the Nextcloud and Paperless Traefik route files. Every task is safe to repeat. It is not part of `update_homelab_vms.yml`, because it can delete data.
+
+**Data:** all of it is kept. Each of `retire_nextcloud_remove_nextcloud_data` (the `data`, `base`, `config` and `apps` folders under `nextcloud_path`), `retire_nextcloud_remove_paperless_data` (`paperless_path`) and `retire_nextcloud_remove_postgres_data` (`postgres_path`) deletes one, and any of them also needs `-e retire_nextcloud_confirm_delete=delete`. The play refuses a path under homedrive or a bare parent such as `/opt`. The Borg repository inside `nextcloud_path` (`nextcloud_borg_backup_path`) holds the last Paperless and database backups, so it is never removed, and the play refuses to delete a folder that contains it. Neither are the older `nextcloud_backup-*` archives in the backup disk's repository. The SELinux rule for the data tree is left as it is, and the `Nextcloud` rclone remote disappears the next time `vm1.yml` rewrites root's rclone config.
+
+**Failure:** removing a network fails while a container still uses it. That means Traefik has not restarted since `vm1.yml` dropped the routes; reboot VM1, then run this again.
+
+**Inventory:** keep `nextcloud_path`, `paperless_path`, `postgres_path` and `nextcloud_borg_backup_path` until it has run; they are optional, with their old defaults. Afterwards run `scripts/remove_nextcloud_inventory.py --all --write`.
+
+---
+
 ## `run_backups.yml`
 
 **Target:** `vm1`
 
-**Usage:** Takes a fresh backup now, the same way the nightly jobs do: before a change, or to check that backups work, without SSH. It runs each backup script that root's crontab schedules on VM1, so a backup that is not set up there is passed over, and each one goes where the nightly one goes (`backup_destination`). It is not part of `update_homelab_vms.yml`.
+**Usage:** Takes a fresh backup now, the same way the nightly jobs do: before a change, or to check that backups work, without SSH. It runs each backup script that root's crontab schedules on VM1, so a backup that is not set up there is passed over, and each one goes where the nightly one goes (homedrive). It is not part of `update_homelab_vms.yml`.
 
-**Choosing what to run:** no tags runs them all, in this order, with the homedrive store last so it holds the others: `vaultwarden`, `playbook_runner`, `music_server`, `paperless`, `homedrive`, `files`. A tag runs one. `paperless` (a full export and Borg run, then a sync of the repository) and `files` (Borg of the Nextcloud data) can take a long time, so give templates that run them a long timeout.
+**Choosing what to run:** no tags runs them all, in this order, with the homedrive store last so it holds the others: `vaultwarden`, `playbook_runner`, `music_server`, `homedrive`. A tag runs one. `homedrive` (a Borg run of the whole store) can take a long time, so give a template that runs it a long timeout.
 
 **The restore drills:** nothing runs homedrive's restore drill on a schedule; these tags are how to start it. `drill_light` restores a random sample of files (`homedrive_drill_sample`, 20) from the newest store archive and checks each against the drive, extracting only the store's metadata and what those files need: minutes, and little scratch space. `drill_full` restores and checks every file: hours of disk and CPU and about twice the store's size of scratch space, so give its template a long timeout and run it when VM1 is quiet. A run without tags never starts either. They run where `homedrive_drill_path` is set, which homedrive's backup does by default, and their results also show on homedrive's Admin page.
 

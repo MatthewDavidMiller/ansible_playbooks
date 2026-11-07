@@ -6,7 +6,7 @@
       - data_disk_mount_path | homelab_safe_absolute_path
       - data_disk_mount_path not in ['/', '/boot', '/etc', '/home', '/opt', '/srv', '/usr', '/var']
     fail_msg: >-
-      Set data_disk (or nextcloud_disk) to the data disk's UUID entry, and
+      Set data_disk to the data disk's UUID entry, and
       data_disk_mount_path to a folder of its own, not a system path. The
       stores that live on it refuse to start on an unmounted disk, but they
       must never be created on the OS disk in the first place.

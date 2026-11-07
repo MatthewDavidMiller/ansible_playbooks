@@ -2,7 +2,7 @@
 
 Use this procedure to rebuild VM1 from scratch after a failure. Backups are current as of the most recent daily cron run.
 
-> **If only the OS disk failed:** If the Nextcloud data disk (`nextcloud_disk`) and Borg backup disk (`backup_disk`) are intact, use the [Disk-Move Migration](#alternative-disk-move-migration) procedure instead of the full Borg restore below. Attach both disks to the new VM1, run `vm1.yml`, then restore only the PostgreSQL databases and Paperless documents from the local Borg archive. This avoids downloading the Borg archive from Nextcloud remote storage.
+> **If only the OS disk failed:** If the data disk (`data_disk`) and Borg backup disk (`backup_disk`) are intact, use the [Disk-Move Migration](#alternative-disk-move-migration) procedure instead of a full Borg restore. Attach both disks to the new VM1 and run `vm1.yml`; homedrive's store is on the data disk, so nothing needs extracting.
 
 For VM provisioning details see [proxmox-setup.md](proxmox-setup.md).
 
@@ -12,19 +12,18 @@ For VM provisioning details see [proxmox-setup.md](proxmox-setup.md).
 
 | Data | Backup mechanism | Location |
 |---|---|---|
-| Nextcloud + Paperless DBs | Borg archive → rclone daily | `Nextcloud:<nextcloud_paperless_backup_location>` |
-| Paperless document exports | Included in Borg archive above | same |
-| Nextcloud user files | Borg archive on second NVMe disk (backup role, daily) | `{{ borg_backup_path }}` on VM1 |
-| Vaultwarden SQLite DB | Local install into Nextcloud data dir as `nextcloud_uid:nextcloud_gid` (`backup_local: true`) | `{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/<vaultwarden_backup_location>` |
-| music-server data (sealed roster, playlists, stars, plays) | Daily tar archive, installed into Nextcloud data dir as `nextcloud_uid:nextcloud_gid` (`backup_local: true`) | `{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/<music_server_backup_location>` |
-| playbook-runner data (ciphertext only) | Daily tar archive, installed into Nextcloud data dir as `nextcloud_uid:nextcloud_gid` (`backup_local: true`) | `{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/<playbook_runner_backup_location>` |
+| homedrive store: every file and version, trash, and the service backups below | Daily Borg archive (`homedrive-*`, `backup_homedrive.sh`), plus an optional `homedrive backup-store` copy on an external disk | `{{ homedrive_borg_repo }}` (the backup disk's `{{ borg_backup_path }}` by default) |
+| Vaultwarden SQLite DB | Daily file, stored in the drive through `homedrive_import_path.sh`; every day is kept | `homedrive_backup_user`'s drive, folder `<vaultwarden_backup_location>` |
+| music-server data (sealed roster, playlists, stars, plays) | Daily tar archive stored in the drive; files over 30 days old go to the drive's trash | `homedrive_backup_user`'s drive, folder `<music_server_backup_location>` |
+| playbook-runner data (ciphertext only) | Daily tar archive stored in the drive; files over 30 days old go to the drive's trash | `homedrive_backup_user`'s drive, folder `<playbook_runner_backup_location>` |
 | playbook-runner master key | Not in any backup by design; kept in Vaultwarden and the external inventory | n/a |
 | music-server master key and accounts | Not in any backup by design; `music_server_master_key` and `music_server_users` live in the vaulted inventory, the key also in Vaultwarden | n/a |
-| Music library | Read-only bind-mount of the Nextcloud `Music` folder — source is Nextcloud user files (backed up by Borg above) | n/a |
+| Music library | homedrive's read-only `Music` export, rebuilt from the drive | n/a |
 | music-server index and covers | Rebuilt by the first scan | n/a |
 | Traefik/Let's Encrypt certificates | Regeneratable via DNS-01 challenge | n/a |
-| Redis | Cache only — acceptable loss | n/a |
-| Proxmox node config | Script on Proxmox host → rclone daily | `Nextcloud:<proxmox_backup_location>` |
+| Proxmox node config | Script on Proxmox host → rclone daily | `Homedrive:<proxmox_backup_location>` |
+
+The service backups are inside the drive, so they are covered by the store's own Borg archive as well. The older `nextcloud_backup-*` archives, and the Borg archives of the Paperless export and the Nextcloud and Paperless databases from before those were retired, may still sit in the backup disk's repository and the Nextcloud data disk; nothing prunes them.
 
 > Variable names above refer to host variables in your `inventory.yml`. See [inventory.md](../inventory.md#vm1-host).
 
@@ -32,16 +31,16 @@ For VM provisioning details see [proxmox-setup.md](proxmox-setup.md).
 
 ## Proxmox Node Configuration
 
-`/etc/pve/` holds all Proxmox node configuration: VM definitions, storage config, users, and datacenter settings. `scripts/backup_proxmox_config.sh` archives this directory and uploads it to Nextcloud daily via rclone. The script runs directly on the Proxmox host (not via Ansible).
+`/etc/pve/` holds all Proxmox node configuration: VM definitions, storage config, users, and datacenter settings. `scripts/backup_proxmox_config.sh` archives this directory and uploads it to homedrive daily via rclone. The script runs directly on the Proxmox host (not via Ansible).
 
 ### Restore procedure
 
-**1. Download the latest archive from Nextcloud:**
+**1. Download the latest archive from homedrive:**
 ```bash
-rclone copy Nextcloud:<proxmox_backup_location>/proxmox_config_<DATE>.tar.gz /restore_staging/
+rclone copy Homedrive:<proxmox_backup_location>/proxmox_config_<DATE>.tar.gz /restore_staging/
 ```
 
-Alternatively, download from the Nextcloud web UI.
+Alternatively, download it from homedrive's web UI.
 
 **2. Extract to a staging directory:**
 ```bash
@@ -76,51 +75,44 @@ pvesh get /nodes/<nodename>/status
 
 ## Alternative: Disk-Move Migration
 
-If the Nextcloud data disk and Borg backup disk are **separate virtual disks** in Proxmox (not on the OS disk), you can detach them from the old VM and reattach to VM1 directly. This is faster than the full Borg restore because Nextcloud user files are already on the mounted disk — no extraction required.
+If the data disk and Borg backup disk are **separate virtual disks** in Proxmox (not on the OS disk), you can detach them from the old VM and reattach to VM1 directly. This is faster than a Borg restore because homedrive's store is already on the mounted disk — no extraction required.
 
 The existing Ansible playbooks support this without changes: mounts are UUID-based and idempotent, directory creation is idempotent, and the Borg init script skips initialization if a repo already exists.
 
 ### When to use this
 
-- **Disaster recovery:** VM1's OS disk failed but the Nextcloud data disk and/or Borg backup disk are intact.
+- **Disaster recovery:** VM1's OS disk failed but the data disk and/or Borg backup disk are intact.
 
 ### What each disk carries
 
 | Disk | Inventory variable | Contains |
 |---|---|---|
-| Data disk | `data_disk` (default `nextcloud_disk`) → `data_disk_mount_path` (default `nextcloud_disk_mount_path`), with Nextcloud in `nextcloud_path` beside homedrive | User files, config.php, apps, local Borg archive (`nextcloud_borg_backup_path`) with SQL dumps and Paperless exports, plus Vaultwarden/music-server/playbook-runner backup files stored inside `nextcloud_path/data/` |
-| Borg backup disk | `backup_disk` → `borg_backup_path` | Full daily Borg snapshots of the entire `nextcloud_path` directory tree |
-
-The live PostgreSQL data directory (`postgres_path`) is on the OS disk — it is a separate configured path, not under `nextcloud_path`, so it is not on the data disk and is not carried over when you move the disk to a new VM. Databases must be restored from the SQL dumps in the Borg archive.
-
-> **Backup gap:** The SQL dumps in the Borg archive are from the last backup run (daily cron). The live filesystem on the data disk may be ahead of that by up to ~24 hours. After restoring the database, run `occ files:scan --all` (Step 5) to reconcile file presence between the database and the live filesystem. Note that DB-only data modified after the last backup — shares, comments, tags, calendar/contacts, app settings — will revert to the dump state and cannot be recovered from this backup strategy.
-
-
+| Data disk | `data_disk` → `data_disk_mount_path` | homedrive's store (`homedrive_path`) and its exports (`homedrive_export_path`): every file, version, and the service backups stored in the drive |
+| Borg backup disk | `backup_disk` → `borg_backup_path` | The daily `homedrive-*` Borg archives of the store |
 
 ### SELinux note (Arch Linux source disk → Rocky Linux 10)
 
-Arch Linux does not use SELinux, so files on the disk carry no SELinux xattrs. Rocky Linux 10 runs SELinux enforcing. Two different situations arise:
+Arch Linux does not use SELinux, so files on a disk from an Arch host carry no SELinux xattrs. Rocky Linux 10 runs SELinux enforcing. Two different situations arise:
 
-**Container-mounted directories** (`base/`, `data/`, `config/`, `apps/`, all Paperless dirs)
-These are all mounted with the `:Z` Podman volume flag, which automatically relabels files to `container_file_t` on first container start. No manual action is needed, but **expect the first startup to be very slow** — Podman relabels every file recursively, which can take a long time for a large Nextcloud data directory. The container is not hung; it is relabeling. Check progress with:
+**Container-mounted directories** (the store and exports)
+These are mounted with the `:Z` Podman volume flag, which relabels files to `container_file_t` on first container start. No manual action is needed, but **expect the first startup to be slow** for a large store: Podman relabels every file recursively. The container is not hung; it is relabeling. Check progress with:
 ```bash
-journalctl -fu nextcloud_container
+journalctl -fu homedrive
 ```
 
-**Borg-accessed directories** (`nextcloud_borg_backup_path`, `borg_backup_path`)
-These are read/written by the host-level `borg` process (via cron), not by a container, so `:Z` never relabels them. SELinux may deny borg access to unlabeled files. Run `restorecon` after `vm1.yml` completes and before the first backup cron fires:
+**Borg-accessed directories** (`borg_backup_path`)
+These are read and written by the host-level `borg` process (via cron), not by a container, so `:Z` never relabels them. SELinux may deny borg access to unlabeled files. Run `restorecon` after `vm1.yml` completes and before the first backup cron fires:
 ```bash
-restorecon -Rv <nextcloud_borg_backup_path>
 restorecon -Rv <borg_backup_path>
 ```
 
-**UID/GID ownership** — numeric UIDs are OS-agnostic. UID 33 (Nextcloud container user) is the same value on any distro. No ownership mapping is needed.
+**UID/GID ownership** — numeric UIDs are OS-agnostic. The homedrive container user (10001) is the same value on any distro. No ownership mapping is needed.
 
 ---
 
 ### Step 1: Move disks in Proxmox
 
-Detach the Nextcloud data disk from the old VM and attach it to VM1. See [proxmox-setup.md — Detaching and Moving an Existing Disk](proxmox-setup.md#detaching-and-moving-an-existing-disk) for the Proxmox UI and CLI procedure.
+Detach the data disk from the old VM and attach it to VM1. See [proxmox-setup.md — Detaching and Moving an Existing Disk](proxmox-setup.md#detaching-and-moving-an-existing-disk) for the Proxmox UI and CLI procedure.
 
 If the Borg backup disk is also a separate virtual disk, repeat the process for that disk.
 
@@ -132,70 +124,21 @@ The UUIDs are stored on the disks themselves and do not change through a move. N
 ansible-playbook -i inventory.yml vm1.yml
 ```
 
-The playbook mounts both disks (data already present), deploys all container services, and sets up backup scripts. All Nextcloud user files and config are immediately available.
+The playbook mounts both disks (data already present), deploys all container services, and sets up backup scripts. homedrive starts on the existing store (it refuses to start on a directory without `store.id`, so an unmounted disk can never become a new, empty store).
 
-### Step 3: Restore PostgreSQL databases
-
-The Borg archive at `nextcloud_borg_backup_path` (on the now-mounted Nextcloud data disk) contains the PostgreSQL dumps. No rclone download is needed.
-
-**3a. List available archives:**
-```bash
-borg list <nextcloud_borg_backup_path>
-```
-
-**3b. Extract the latest archive to a staging directory:**
-```bash
-mkdir /restore_staging
-cd /restore_staging
-borg extract <nextcloud_borg_backup_path>::<archive_name>
-```
-
-> The archive contains the SQL dumps at the root level (`nextcloud_db_<DATE>.sql`, `paperless_db_<DATE>.sql`) and the Paperless export directory at its full original path (`<paperless_export_path>/<DATE>/`). After extraction, the SQL files are at `/restore_staging/nextcloud_db_<DATE>.sql` and `/restore_staging/paperless_db_<DATE>.sql`; the Paperless export is at `/restore_staging<paperless_export_path>/<DATE>/`.
-
-**3c. Restore Nextcloud database:**
-
-> **Note:** The dump includes `ALTER TABLE ... OWNER TO` and `GRANT` statements referencing the role that owned the database at backup time (for example, the role configured in `nextcloud_db_user`). If that role does not exist in the fresh instance, create it before importing — otherwise those statements error and ownership is not set correctly. The role's password must match the `dbpassword` value in Nextcloud's `config.php` (already present at `<nextcloud_path>/config/config.php` after disk restore), not the current `postgres_admin_password` inventory variable.
+### Step 3: Check the store
 
 ```bash
-# Find the original db role password
-grep dbpassword <nextcloud_path>/config/config.php
-
-# Create the role with that password
-podman exec -i postgres psql -h localhost -U <postgres_admin_user> -d postgres \
-  -c "CREATE ROLE <nextcloud_db_user> WITH LOGIN PASSWORD '<dbpassword from config.php>';"
-podman exec -i postgres psql -h localhost -U <postgres_admin_user> -d postgres -c "DROP DATABASE IF EXISTS <nextcloud_database_name>;"
-podman exec -i postgres psql -h localhost -U <postgres_admin_user> -d postgres -c "CREATE DATABASE <nextcloud_database_name> OWNER <nextcloud_db_user>;"
-podman exec -i postgres psql -h localhost -U <postgres_admin_user> <nextcloud_database_name> < /restore_staging/nextcloud_db_<DATE>.sql
-```
-
-**3d. Restore Paperless database:**
-```bash
-podman exec -i postgres psql -h localhost -U <postgres_admin_user> -d postgres -c "DROP DATABASE IF EXISTS <paperless_database_name>;"
-podman exec -i postgres psql -h localhost -U <postgres_admin_user> -d postgres -c "CREATE DATABASE <paperless_database_name> OWNER <paperless_db_user>;"
-podman exec -i postgres psql -h localhost -U <postgres_admin_user> <paperless_database_name> < /restore_staging/paperless_db_<DATE>.sql
-```
-
-**3e. Import Paperless documents:**
-```bash
-cp -r /restore_staging<paperless_export_path>/<DATE>/ <paperless_export_path>/
-podman exec paperless document_importer /usr/src/paperless/export/<DATE>
+podman exec homedrive hd-server fsck --deep
 ```
 
 ### Step 4: Restore music-server, Vaultwarden, playbook-runner
 
-These backup files are stored inside `nextcloud_path/data/<nextcloud_homelab_user>/files/` and are already available on the mounted disk. Follow [Steps 3–5](#step-3-restore-music-server) of the main DR guide below.
+These backup files are in the drive, which is already back. Follow [Steps 3–5](#step-3-restore-music-server) below.
 
-### Step 5: Rescan Nextcloud file index
+### Step 5: DNS cutover and verification
 
-The restored database reflects the last backup, but the live filesystem on the data disk may have newer files. This command rescans the filesystem and updates the database to match — adding missing entries, removing stale entries, and refreshing metadata.
-
-```bash
-podman exec nextcloud php occ files:scan --all
-```
-
-### Step 6: DNS cutover and verification
-
-Follow [Steps 6–7](#step-6-re-point-dns) of the main DR guide below.
+Follow [Steps 6–7](#step-6-re-point-dns) below.
 
 ---
 
@@ -218,118 +161,78 @@ Follow [Steps 6–7](#step-6-re-point-dns) of the main DR guide below.
    ```bash
    ansible-playbook -i inventory.yml vm1.yml
    ```
+   With `homedrive_deploy` set and no store on the data disk, set `homedrive_init_store: true` for this first run only, so the server may create an empty store. Take it out again before the restore below.
 
 ---
 
-## Step 2: Restore Nextcloud + Paperless
+## Step 2: Restore the homedrive store
 
-The Borg archive (`nextcloud_borg_backup_path`) contains PostgreSQL dumps for both Nextcloud and Paperless, plus Paperless document exports. Nextcloud user files (photos, documents) are in a separate Borg archive on the second NVMe disk (`borg_backup_path`) managed by the `backup` role.
+The store's Borg archives (`homedrive-*`) are on the backup disk, or in a `homedrive backup-store` copy on an external disk. The archive leaves out `history.id`, so the restored store makes a new one and every sync client compares everything afresh and uploads what the restore lost.
 
-**2a. Retrieve the Borg archive from Nextcloud:**
+**2a. List the archives:**
 ```bash
-# On VM1 — download the Borg repo from Nextcloud
-rclone sync Nextcloud:<nextcloud_paperless_backup_location> <nextcloud_borg_backup_path>
-```
-
-**2b. List available archives:**
-```bash
-borg list <nextcloud_borg_backup_path>
-```
-
-**2c. Extract the latest archive to a staging directory:**
-```bash
-mkdir /restore_staging
-cd /restore_staging
-borg extract <nextcloud_borg_backup_path>::<archive_name>
-```
-
-> The archive contains the SQL dumps at the root level (`nextcloud_db_<DATE>.sql`, `paperless_db_<DATE>.sql`) and the Paperless export directory at its full original path (`<paperless_export_path>/<DATE>/`). After extraction, the SQL files are at `/restore_staging/nextcloud_db_<DATE>.sql` and `/restore_staging/paperless_db_<DATE>.sql`; the Paperless export is at `/restore_staging<paperless_export_path>/<DATE>/`.
-
-**2d. Restore Nextcloud database:**
-
-> **Note:** The dump includes `ALTER TABLE ... OWNER TO` and `GRANT` statements referencing the role that owned the database at backup time (for example, `nextcloud_db_user`). If that role does not exist in the fresh instance, create it before importing — otherwise those statements error and ownership is not set correctly. The role's password must match the `dbpassword` value in Nextcloud's `config.php` (already present at `<nextcloud_path>/config/config.php` after disk restore), not the current `postgres_admin_password` inventory variable.
-
-```bash
-# Find the original db role password
-grep dbpassword <nextcloud_path>/config/config.php
-
-# Create the role with that password
-podman exec -i postgres psql -h localhost -U <postgres_admin_user> -d postgres \
-  -c "CREATE ROLE <nextcloud_db_user> WITH LOGIN PASSWORD '<dbpassword from config.php>';"
-podman exec -i postgres psql -h localhost -U <postgres_admin_user> -d postgres -c "DROP DATABASE IF EXISTS <nextcloud_database_name>;"
-podman exec -i postgres psql -h localhost -U <postgres_admin_user> -d postgres -c "CREATE DATABASE <nextcloud_database_name> OWNER <nextcloud_db_user>;"
-podman exec -i postgres psql -h localhost -U <postgres_admin_user> <nextcloud_database_name> < /restore_staging/nextcloud_db_<DATE>.sql
-```
-
-**2e. Restore Paperless database:**
-```bash
-podman exec -i postgres psql -h localhost -U <postgres_admin_user> -d postgres -c "DROP DATABASE IF EXISTS <paperless_database_name>;"
-podman exec -i postgres psql -h localhost -U <postgres_admin_user> -d postgres -c "CREATE DATABASE <paperless_database_name> OWNER <paperless_db_user>;"
-podman exec -i postgres psql -h localhost -U <postgres_admin_user> <paperless_database_name> < /restore_staging/paperless_db_<DATE>.sql
-```
-
-**2f. Import Paperless documents:**
-```bash
-# Copy the export directory into place (borg preserves the full original path under /restore_staging)
-cp -r /restore_staging<paperless_export_path>/<DATE>/ <paperless_export_path>/
-
-# Trigger the document importer
-podman exec paperless document_importer /usr/src/paperless/export/<DATE>
-```
-
-**2g. Restore Nextcloud user files from the Borg archive on the second NVMe disk:**
-```bash
-# List available archives
 borg list <borg_backup_path>
-
-# Extract the latest archive (contains the full nextcloud_path directory)
-mkdir /restore_staging/nextcloud_files
-cd /restore_staging/nextcloud_files
-borg extract <borg_backup_path>::<archive_name>
-
-# Copy user files into place
-rsync -a /restore_staging/nextcloud_files/<nextcloud_path>/data/ <nextcloud_path>/data/
 ```
 
-> **Prerequisites**: The second NVMe disk must be attached and formatted before running `vm1.yml`. See [VM1 Second Disk (Borg Backup)](proxmox-setup.md#vm1-second-disk-borg-backup) in the Proxmox setup guide. After provisioning, initialize the Borg repo with `bash /usr/local/bin/init_backup_repo.sh` and confirm backups are running before decommissioning source VMs.
-
-**2h. Rescan Nextcloud file index:**
+**2b. Stop the server and extract the newest archive over an empty store:**
 ```bash
-podman exec nextcloud php occ files:scan --all
+systemctl stop homedrive
+borg extract --strip-components <depth of the store path> <borg_backup_path>::<archive_name> <store path without the leading slash>
 ```
+
+The strip count is the number of directories in the store path (`/data_drive/homedrive/store` is 3). The store directory must be empty first.
+
+**2c. Start the server and check the store:**
+```bash
+systemctl start homedrive
+podman exec homedrive hd-server fsck --deep
+```
+
+See [homedrive.md](homedrive.md#backups-and-restores) for the rest of the restore and repair procedures. Run the [restore drill](homedrive.md#the-restore-drill-proof-the-backups-work) to prove the archive restores before you need it.
 
 ---
 
 ## Step 3: Restore music-server
 
-The music library is a read-only bind-mount of `<nextcloud_path>/data/<nextcloud_homelab_user>/files/Music`, so it is back once Nextcloud user files are restored (Step 2g). Only the data directory needs restoring: the sealed roster and each user's playlists, stars, and plays. The cache (library index and resized covers) rebuilds on the first scan.
+The music library is homedrive's `Music` export, so it is back once the store is restored. Only the data directory needs restoring: the sealed roster and each user's playlists, stars, and plays. The cache (library index and resized covers) rebuilds on the first scan.
 
 The inventory must still carry the same `music_server_master_key` (also in Vaultwarden); without it the archive cannot be opened. Accounts and passwords come from `music_server_users` in the inventory, not the archive.
 
-**3a. Stop the service and unpack the newest archive:**
+**3a. Fetch the newest archive from the drive.** The backups are files in `homedrive_backup_user`'s drive, in the `<music_server_backup_location>` folder. Restore that folder to plain files from a signed-in sync client, and copy the newest archive to VM1:
+```bash
+homedrive restore <music_server_backup_location> --to ~/restored/music_server
+scp ~/restored/music_server/music_server_<latest>.tar.gz vm1:/restore_staging/music_server/
+```
+
+Without a client, `hd-server restore-tree --user <homedrive_backup_user> --to /restore_staging/drive` on VM1 writes the user's whole drive out as plain files with the server not using that store copy (see [homedrive.md](homedrive.md#restoring-to-plain-files-on-a-client)); the backups are then in the folder named above.
+
+**3b. Stop the service and unpack the newest archive:**
 ```bash
 systemctl stop music_server
-tar -xzf <nextcloud_path>/data/<nextcloud_homelab_user>/files/<music_server_backup_location>/music_server_<latest>.tar.gz \
+tar -xzf /restore_staging/music_server/music_server_<latest>.tar.gz \
     -C <music_server_path>/data
 chown -R 10001:10001 <music_server_path>/data
 systemctl start music_server
 ```
 
-**3b. Confirm:** `podman logs music_server` reports the accounts and a finished scan.
+**3c. Confirm:** `podman logs music_server` reports the accounts and a finished scan.
 
 ---
 
 ## Step 4: Restore Vaultwarden
 
-**4a. Locate the backup in the Nextcloud data directory:**
+**4a. Fetch the backups from the drive:**
+Restore the folder to plain files from a signed-in sync client, as in Step 3a, and copy the file you want to VM1:
 ```bash
-ls <nextcloud_path>/data/<nextcloud_homelab_user>/files/<vaultwarden_backup_location>/
+homedrive restore <vaultwarden_backup_location> --to ~/restored/vaultwarden
+ls ~/restored/vaultwarden
+scp ~/restored/vaultwarden/vaultwarden_db-<DATE>.sqlite3 vm1:/restore_staging/vaultwarden/
 ```
 
 **4b. Stop Vaultwarden, restore the database, restart:**
 ```bash
 systemctl stop vaultwarden
-cp <nextcloud_path>/data/<nextcloud_homelab_user>/files/<vaultwarden_backup_location>/vaultwarden_db-<DATE>.sqlite3 \
+cp /restore_staging/vaultwarden/vaultwarden_db-<DATE>.sqlite3 \
     <vaultwarden_path>/vw-data/db.sqlite3
 systemctl start vaultwarden
 ```
@@ -340,16 +243,18 @@ systemctl start vaultwarden
 
 The runner needs the master key as well as its data. The key is not in any backup; take it from Vaultwarden (or the external inventory) and set `playbook_runner_master_key` before running `vm1.yml`, which provisions it as a Podman secret. With a wrong or missing key the runner refuses to start rather than serve data it cannot decrypt.
 
-**5a. Locate the newest archive in the Nextcloud data directory:**
+**5a. Fetch the newest archive from the drive:**
+Restore the folder to plain files from a signed-in sync client, as in Step 3a, and copy the newest archive to VM1:
 ```bash
-ls <nextcloud_path>/data/<nextcloud_homelab_user>/files/<playbook_runner_backup_location>/
+homedrive restore <playbook_runner_backup_location> --to ~/restored/playbook_runner
+scp ~/restored/playbook_runner/playbook_runner_<DATE>.tar.gz vm1:/restore_staging/playbook_runner/
 ```
 
 **5b. Stop the runner, unpack the archive over its data directory, restart:**
 ```bash
 systemctl stop playbook_runner
 tar -C <playbook_runner_path> --numeric-owner -xzf \
-    <nextcloud_path>/data/<nextcloud_homelab_user>/files/<playbook_runner_backup_location>/playbook_runner_<DATE>.tar.gz
+    /restore_staging/playbook_runner/playbook_runner_<DATE>.tar.gz
 systemctl start playbook_runner
 ```
 
@@ -363,8 +268,7 @@ DNS already points to VM1's IP. If you provisioned the replacement VM with a dif
 
 | Subdomain | Service |
 |---|---|
-| `nextcloud.<top_domain>` | Nextcloud |
-| `paperless.<top_domain>` | Paperless NGX |
+| `drive.<homelab_internal_domain>` | homedrive |
 | `music.<homelab_internal_domain>` | music-server |
 | `vault.<top_domain>` | Vaultwarden |
 | `<playbook_runner_fqdn>` | playbook-runner |
@@ -377,9 +281,8 @@ Traefik will issue fresh per-service certificates via DNS-01 challenge if the ex
 
 Confirm each service is functional:
 
-- [ ] Nextcloud loads and user files are visible
-- [ ] Paperless documents are present and searchable
-- [ ] music-server's status page shows the library (populated from Nextcloud user files restored in Step 2g), and play:Sub shows each user's playlists
+- [ ] homedrive's admin page reports no damage and a recent backup, and a sync client signs in and shows the expected files
+- [ ] music-server's status page shows the library (populated from homedrive's `Music` export), and play:Sub shows each user's playlists
 - [ ] Vaultwarden vault unlocks with existing credentials
 - [ ] playbook-runner shows its secrets, inventories, templates, and schedules, and a check-mode run of `vm1.yml` succeeds
 - [ ] Traefik issued valid TLS certificates (check browser padlock)

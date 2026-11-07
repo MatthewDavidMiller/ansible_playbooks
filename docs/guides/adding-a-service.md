@@ -11,8 +11,6 @@ Create `roles/<service_name>/tasks/main.yml` and any needed templates/files unde
 Use the existing active service roles as reference:
 
 - `roles/reverse_proxy/`
-- `roles/nextcloud/`
-- `roles/paperless_ngx/`
 - `roles/music_server/`
 - `roles/vaultwarden/`
 - `roles/playbook_runner/`
@@ -36,7 +34,7 @@ Use the existing active service roles as reference:
 - Add the role to `vm1.yml` in the correct order.
 - Add required variables to the `vm1` host entry in `inventory.yml`.
 - If Traefik must reach the service, add a dedicated internal proxy network and reference it with the route's `proxy_network`. Give it a free `/29` in [`network/vm1.yml`](../../network/vm1.yml): its subnet, the service's address (in both `route_proxy_container_ips` and `container_static_ips`), Traefik's address, and the DNS alias. Mirror those entries in the role's own `defaults/main.yml`; the tests check that the two agree.
-- If the service depends on PostgreSQL or Redis, place it after `nextcloud`.
+- If the service needs a database, give it its own container or a file database; VM1 no longer runs a shared PostgreSQL or Redis.
 - If the role changes live runtime behavior that VM1 stages until reboot, guard immediate-start behavior with `apply_runtime_changes_on_reboot`.
 
 ---

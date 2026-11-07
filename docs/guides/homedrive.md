@@ -23,6 +23,7 @@ weekly restore drill.
 
 ```yaml
 homedrive_deploy: true
+homedrive_main_user: alice                # one of homedrive_users: the service backups, the Music export and the rclone remote use its drive
 homedrive_users:                          # Vault
   - {name: alice, password: "...", admin: true, quota_gb: 500}
   - {name: bob, password: "...", quota_gb: 200}
@@ -33,7 +34,7 @@ homedrive_borg_passphrase: "..."                     # optional, Vault: encrypt 
 ```
 
 The store defaults to `/data_drive/homedrive/store` and exports to
-`/data_drive/homedrive/exports`, beside Nextcloud on the data disk. The
+`/data_drive/homedrive/exports`, on the data disk. The
 `data_disk` role owns that mount, so leave `homedrive_disk` unset there; a
 second entry for the disk would mount it twice. Set `homedrive_disk` and
 `homedrive_path` together only to give the store a disk of its own.
@@ -90,14 +91,14 @@ shows on the admin page and as a notification on administrators' sync
 clients. So does a failed import, which is how the other services'
 backups land in the drive, and so is a full drive refusing one.
 
-### On the backup disk, beside the Nextcloud archives
+### On the backup disk
 
 By default, when the `backup` role has a backup disk (`backup_disk`), the
 store's archives go into that disk's Borg repository (`borg_backup_path`),
-which also holds the daily `nextcloud_backup-*` archives. homedrive's are
-named `homedrive-*`; each job prunes only its own archives, the restore
-drill restores only homedrive's, and every Borg step waits for the other
-job's lock. Check that the disk has room for the store first (`df -h` in
+which may still hold older `nextcloud_backup-*` archives from the retired
+file service. homedrive's are named `homedrive-*`; its job prunes only its
+own archives, the restore drill restores only homedrive's, and every Borg
+step waits for the lock. Check that the disk has room for the store first (`df -h` in
 `show_logs.yml`'s overview): when it fills, both jobs fail and say so.
 
 Beside the shared repository the drill's scratch folder defaults to
@@ -238,17 +239,14 @@ health on the Proxmox host: VM1 sees virtual disks and cannot.
 
 ## When the backups run
 
-Each job runs from root's crontab at its own time, so each holds what came
-before it and the two that share the backup disk's Borg repository do not
-wait on each other's lock. VM1's local time; each pair of variables moves
+Each job runs from root's crontab at its own time, so the store's backup
+holds what came before it. VM1's local time; each pair of variables moves
 one:
 
 | Time | Job | Variables |
 |---|---|---|
 | 00:00 | vaultwarden, playbook-runner, music-server backups | `<service>_backup_hour`, `<service>_backup_minute` |
-| 00:30 | Paperless and the Nextcloud database, then the sync to homedrive | `nextcloud_backup_hour`, `nextcloud_backup_minute` |
 | 01:30 | the homedrive store (Borg) | `homedrive_backup_hour`, `homedrive_backup_minute` |
-| 03:00 | the Nextcloud data (Borg) | `borg_backup_hour`, `borg_backup_minute` |
 
 `show_logs.yml`'s `backups` tag shows what is running now, Borg's locks
 and the end of each log; `run_backups.yml` runs any of them at once.
@@ -268,7 +266,7 @@ and the end of each log; `run_backups.yml` runs any of them at once.
 - **music-server** reads homedrive's Music export by default once homedrive
   is deployed: `homedrive_exports` defaults to
   `<homedrive_music_user>:Music=>music` while music-server is deployed, with
-  `homedrive_music_user` defaulting to `nextcloud_homelab_user` (it must be
+  `homedrive_music_user` defaulting to `homedrive_main_user` (it must be
   one of `homedrive_users`), and `music_server_library` to `homedrive`. The
   export keeps every track's path, so playlists and stars carry across. It
   fills after homedrive starts; until then music-server lacks those tracks
@@ -281,14 +279,14 @@ and the end of each log; `run_backups.yml` runs any of them at once.
 
 ## Importing the previous file service
 
-`homedrive_import.yml` loads the Nextcloud files tree into a drive and
-checks it (see [playbooks.md](../playbooks.md#homedrive_importyml)). It is
+`homedrive_import.yml` loaded the previous file service's files tree into a drive and
+checked it (see [playbooks.md](../playbooks.md#homedrive_importyml)). It is
 made for a drive that a sync client has already filled from a copy of the
 same files. A run with no tags counts what the drive lacks, by size and
 without reading files, stops before writing anything if that is more than
 `homedrive_import_max_missing` (100), imports only the missing files, and
 checks again that nothing is missing. Old versions are not imported; they
-stay in Nextcloud until it is retired.
+stayed in the previous service, which has since been retired (`retire_nextcloud.yml`).
 
 A full check may find differences you have looked into and decided are
 harmless. Put them in `homedrive_import_accepted` in the inventory (a block
@@ -305,42 +303,32 @@ changed. A `DIFFERENT` line is a file changed through homedrive since; check
 each one before retiring the source. The full output is in
 `/var/log/homedrive_import.log`.
 
-## Moving VM1's backups to homedrive
+## VM1's backups in homedrive
 
-Once homedrive is deployed, VM1's backups go to it by default. The only
-inventory value needed is a device token for the Paperless Borg sync: make
-one on homedrive's Devices page for `nextcloud_homelab_user`'s account, then
-put `rclone obscure <token>`'s output in Vault and run `vm1.yml`:
+The vaultwarden, playbook-runner and music-server daily backups go into
+`homedrive_backup_user`'s drive through `homedrive_import_path.sh`, under the
+`<service>_backup_location` folders and with dated names. `homedrive_backup_user`
+defaults to `homedrive_main_user` (it must be one of `homedrive_users`), and
+the roles refuse to run without homedrive deployed.
 
-```yaml
-homedrive_rclone_pass: "..."   # Vault
-```
-
-Until it is set, `vm1.yml` stops at the nextcloud role and says so, rather
-than keep syncing to Nextcloud. The defaults, which the inventory can
-override: `backup_destination: homedrive`, `homedrive_backup_user` is
-`nextcloud_homelab_user` (it must be one of `homedrive_users`),
-`homedrive_rclone_user` is the same account, and `homedrive_webdav_url` is
-`https://drive.<homelab_internal_domain>/dav/<that account>`. Set
-`backup_destination: nextcloud` to keep the previous behaviour.
-
-The vaultwarden, playbook-runner and music-server daily backups then go
-into `homedrive_backup_user`'s drive through `homedrive_import_path.sh`,
-under the same `<service>_backup_location` folders and the same dated names.
 After storing the day's file, the playbook-runner and music-server jobs move
 their files over 30 days old to the drive's trash with
 `homedrive_prune_path.sh`, which always keeps the newest seven: a job that
 stops cannot empty its folder, and a pruned file can be restored from the
 trash for 90 days. A file counts as old only once both the time it was
-stored and its own date are, so backups that came across from Nextcloud are
-pruned 30 days after they arrived, not at once. Vaultwarden keeps every day,
-as before. The Paperless Borg repository is synced to the `Homedrive:` remote
-instead of Nextcloud's.
+stored and its own date are. Vaultwarden keeps every day.
 
-Nothing in this repository writes to Nextcloud after that. Three things
-outside it may: the Proxmox host's `backup_proxmox_config.sh` (point its
-`RCLONE_DEST` at a `Homedrive:` remote there), the UniFi console's backup
-target, and the Nextcloud apps on your devices.
+The `Homedrive:` rclone remote is for the Proxmox host's config backup and
+for a person's own use. `vm1.yml` writes it on VM1 once
+`homedrive_rclone_pass` is set to the output of `rclone obscure <token>` for
+a device token made on homedrive's Devices page for the account
+(`homedrive_rclone_user`, by default `homedrive_backup_user`); its URL
+(`homedrive_webdav_url`) defaults to
+`https://drive.<homelab_internal_domain>/dav/<that account>`.
+
+Outside this repository, point the Proxmox host's `backup_proxmox_config.sh`
+at a `Homedrive:` remote (`RCLONE_DEST`), and the UniFi console's backup
+target if it used the previous service.
 
 ## Health
 

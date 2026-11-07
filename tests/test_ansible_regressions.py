@@ -11,9 +11,6 @@ import yaml
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-NEXTCLOUD_SCAN_HELPER = (
-    REPO_ROOT / "roles" / "nextcloud" / "templates" / "nextcloud_scan_path.sh.j2"
-)
 sys.path.insert(0, str(REPO_ROOT))
 
 from filter_plugins.homelab_validation import homelab_container_assignable_ip  # noqa: E402
@@ -49,166 +46,8 @@ def service_route_claims() -> dict[str, dict[str, str]]:
     return claims
 
 
-def local_nextcloud_backup_templates() -> list[Path]:
-    """Templates whose backups are installed into the Nextcloud user files tree."""
-    templates = [
-        path
-        for path in sorted(REPO_ROOT.glob("roles/*/templates/*.j2"))
-        if "/usr/local/bin/nextcloud_scan_path.sh"
-        in path.read_text(encoding="utf-8")
-    ]
-    if not templates:
-        raise AssertionError("no local Nextcloud backup templates found")
-    return templates
-
-
-def restorecon_commands(tasks: list[dict]) -> list[str]:
-    """Every restorecon invocation in a task file, each as one string."""
-    commands = []
-    for task in tasks:
-        for module in ("ansible.builtin.command", "ansible.builtin.shell"):
-            invocation = task.get(module)
-            if isinstance(invocation, str):
-                commands.append(invocation)
-            elif isinstance(invocation, dict):
-                argv = invocation.get("argv") or []
-                commands.append(" ".join(argv) or invocation.get("cmd", ""))
-    return [
-        command
-        for command in commands
-        if re.search(r"(?<![\w./-])restorecon(?=\s)", command)
-    ]
-
-
-def joined_commands(script: str) -> list[str]:
-    """Collapse backslash line continuations so each command is one string."""
-    return script.replace("\\\n", " ").splitlines()
-
-
-class LocalNextcloudBackupTests(unittest.TestCase):
-    """Guards for backups written straight into the Nextcloud data directory.
-
-    A file placed there is invisible to Nextcloud until it is scanned into the
-    file cache. The shared helper serializes the daily scans, waits through
-    transient container failures, and recognizes errors that `occ files:scan`
-    reports while still returning a successful process status.
-    """
-
-    def test_local_backups_use_the_managed_scan_helper(self):
-        for template in local_nextcloud_backup_templates():
-            with self.subTest(template=template.name):
-                for command in joined_commands(template.read_text(encoding="utf-8")):
-                    if "nextcloud_scan_path.sh" not in command:
-                        continue
-                    self.assertIn(
-                        "/usr/local/bin/nextcloud_scan_path.sh",
-                        command,
-                        f"{template.name} must use the managed scan helper",
-                    )
-                occ_commands = [
-                    command
-                    for command in joined_commands(
-                        template.read_text(encoding="utf-8")
-                    )
-                    if "podman exec" in command and "files:scan" in command
-                ]
-                self.assertFalse(
-                    occ_commands,
-                    f"{template.name} must not maintain a private occ scan invocation",
-                )
-
-    def test_scan_failures_are_reported_not_discarded(self):
-        for template in local_nextcloud_backup_templates():
-            with self.subTest(template=template.name):
-                for command in joined_commands(template.read_text(encoding="utf-8")):
-                    if "nextcloud_scan_path.sh" not in command:
-                        continue
-                    self.assertNotIn(
-                        "|| true",
-                        command,
-                        f"{template.name} must not discard targeted scan failures",
-                    )
-
-    def test_scan_helper_handles_occ_semantic_and_transient_failures(self):
-        helper = NEXTCLOUD_SCAN_HELPER.read_text(encoding="utf-8")
-        self.assertIn("--user {{ nextcloud_uid }}:{{ nextcloud_gid }}", helper)
-        self.assertIn("--workdir /var/www/html", helper)
-        self.assertIn("nextcloud php /var/www/html/occ", helper)
-        self.assertIn('occ files:scan --path="$scan_path"', helper)
-        self.assertIn("/usr/bin/flock --wait", helper)
-        self.assertIn("max_attempts=", helper)
-        self.assertIn("Unknown user", helper)
-        self.assertIn("Another process is already scanning", helper)
-        self.assertIn("Exception during scan", helper)
-        self.assertIn("maintenance: true", helper)
-
-    def test_scan_helper_fails_on_per_file_scan_errors(self):
-        """`Error during scan` skips one file and still exits zero.
-
-        That is how a backup goes unindexed while the cron job reports
-        success, so both the message and the summary Errors column have to
-        fail the scan.
-        """
-        helper = NEXTCLOUD_SCAN_HELPER.read_text(encoding="utf-8")
-        self.assertIn("Error during scan", helper)
-        self.assertIn("scan_error_count", helper)
-        self.assertIn('[ "$scan_errors" -eq 0 ]', helper)
-
-    def test_scan_helper_runs_under_a_cron_environment(self):
-        """cron supplies almost no environment and no controlling terminal.
-
-        Anything the scan needs has to be set here, every command has to be
-        absolute so a different PATH cannot select another binary, and a hung
-        occ has to be killed instead of holding the shared lock all night.
-        """
-        helper = NEXTCLOUD_SCAN_HELPER.read_text(encoding="utf-8")
-        self.assertIn("export PATH=", helper)
-        self.assertIn('export HOME="${HOME:-/root}"', helper)
-        self.assertIn("export LC_ALL=", helper)
-        self.assertIn("/usr/bin/timeout --kill-after", helper)
-        self.assertIn("< /dev/null", helper)
-
-        body = "\n".join(
-            line for line in helper.splitlines() if not line.lstrip().startswith("#")
-        )
-        for command in (
-            "podman",
-            "flock",
-            "grep",
-            "sleep",
-            "mktemp",
-            "date",
-            "timeout",
-            "cat",
-            "mkdir",
-            "awk",
-            "rm",
-        ):
-            self.assertIsNone(
-                re.search(rf"(?<![\w./-]){command}(?=\s)", body),
-                f"{command} must be called through an absolute path",
-            )
-
-    def test_shared_variables_default_to_one_value_in_every_role(self):
-        """A role's own default wins inside it, so a stale copy splits the host."""
-        defaults_by_role = {
-            path.parts[-3]: yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-            for path in (REPO_ROOT / "roles").glob("*/defaults/main.yml")
-        }
-        for name in (
-            "nextcloud_path",
-            "backup_local",
-            "paperless_export_path",
-            "paperless_database_name",
-        ):
-            with self.subTest(name):
-                values = {
-                    role: defaults[name]
-                    for role, defaults in defaults_by_role.items()
-                    if name in defaults
-                }
-                self.assertGreater(len(values), 1)
-                self.assertEqual(len(set(values.values())), 1, values)
+class DataDiskTests(unittest.TestCase):
+    """The data disk is mounted by a role of its own."""
 
     def test_the_data_disk_is_mounted_by_its_own_role_before_any_role_uses_it(self):
         """A directory made before the mount lands on the OS disk under it, and
@@ -218,30 +57,26 @@ class LocalNextcloudBackupTests(unittest.TestCase):
         self.assertEqual(len(mounts), 1)
         self.assertEqual(mounts[0]["ansible.posix.mount"]["path"], "{{ data_disk_mount_path }}")
         self.assertEqual(mounts[0]["ansible.posix.mount"]["opts"], "rw,auto", "opts that differ remount the disk")
-        for role in ("nextcloud", "music_server"):
-            with self.subTest(role=role):
-                self.assertFalse(
-                    [t for t in role_tasks(role) if "ansible.posix.mount" in t],
-                    "the data disk is mounted only by the data_disk role",
-                )
+        self.assertFalse(
+            [t for t in role_tasks("music_server") if "ansible.posix.mount" in t],
+            "the data disk is mounted only by the data_disk role",
+        )
         # homedrive mounts only a disk of its own (homedrive_disk), never the shared one.
         own = [t for t in role_tasks("homedrive") if "ansible.posix.mount" in t]
         self.assertEqual([t["when"] for t in own], ["homedrive_disk | length > 0"])
         play = yaml.safe_load((REPO_ROOT / "vm1.yml").read_text(encoding="utf-8"))[0]
         roles = play["roles"]
-        for user in ("nextcloud", "paperless_ngx", "music_server", "homedrive"):
+        for user in ("music_server", "homedrive"):
             with self.subTest(user=user):
                 self.assertLess(roles.index("data_disk"), roles.index(user))
         self.assertEqual(mounts[0]["ansible.posix.mount"]["state"], "mounted")
 
-    def test_the_data_disk_defaults_follow_the_existing_inventory(self):
+    def test_the_data_disk_is_set_by_its_own_variables(self):
         defaults = yaml.safe_load(
             (REPO_ROOT / "roles" / "data_disk" / "defaults" / "main.yml").read_text(encoding="utf-8")
         )
-        self.assertEqual(defaults["data_disk"], "{{ nextcloud_disk | default('') }}")
-        self.assertEqual(
-            defaults["data_disk_mount_path"], "{{ nextcloud_disk_mount_path | default('/data_drive') }}"
-        )
+        self.assertEqual(defaults["data_disk"], "")
+        self.assertEqual(defaults["data_disk_mount_path"], "/data_drive")
 
     def test_the_data_disk_role_refuses_a_missing_disk_and_checks_the_mount(self):
         tasks = role_tasks("data_disk")
@@ -256,101 +91,107 @@ class LocalNextcloudBackupTests(unittest.TestCase):
         self.assertIn("homedrive_path.startswith((data_disk_mount_path", conditions)
         self.assertIn("homedrive_export_path.startswith((data_disk_mount_path", conditions)
 
-    def test_nextcloud_volume_has_a_container_file_context_rule(self):
-        """Host-written backups need the right SELinux label from birth.
 
-        The disk holding nextcloud_path matches no shipped file context rule,
-        so its policy default is default_t and the container is denied getattr
-        on anything the host writes there after podman's :Z relabel ran.
-        """
-        tasks = yaml.safe_load(
-            (REPO_ROOT / "roles" / "nextcloud" / "tasks" / "main.yml").read_text(
-                encoding="utf-8"
-            )
+class RetiredNextcloudStackTests(unittest.TestCase):
+    """Nothing of the Nextcloud stack is deployed any more."""
+
+    RETIRED = (
+        "nextcloud",
+        "paperless",
+        "postgres",
+        "redis",
+    )
+
+    def test_its_roles_and_images_are_gone(self):
+        for role in ("nextcloud", "paperless_ngx"):
+            self.assertFalse((REPO_ROOT / "roles" / role).exists(), role)
+        play = yaml.safe_load((REPO_ROOT / "vm1.yml").read_text(encoding="utf-8"))[0]
+        self.assertNotIn("nextcloud", play["roles"])
+        self.assertNotIn("paperless_ngx", play["roles"])
+        lock = yaml.safe_load((REPO_ROOT / "artifacts" / "containers.lock.yml").read_text(encoding="utf-8"))
+        for image in self.RETIRED:
+            self.assertNotIn(image, lock["artifact_locked_images"])
+        text = "\n".join(
+            str(play["vars"].get(k, "")) for k in ("container_service_names", "approved_container_images")
         )
-        fcontexts = [
-            task["community.general.sefcontext"]
-            for task in tasks
-            if "community.general.sefcontext" in task
-        ]
-        self.assertTrue(
-            any(
-                fcontext["target"] == "{{ nextcloud_path }}(/.*)?"
-                and fcontext["setype"] == "container_file_t"
-                for fcontext in fcontexts
-            ),
-            "the nextcloud role must label its volume as container content",
+        for unit in ("postgres", "redis", "nextcloud", "paperless"):
+            self.assertNotIn(unit, text)
+
+    def test_its_networks_routes_and_addresses_are_gone(self):
+        plan = yaml.safe_load((REPO_ROOT / "network" / "vm1.yml").read_text(encoding="utf-8"))
+        for section in (
+            "route_proxy_network_subnets",
+            "route_proxy_container_ips",
+            "route_proxy_traefik_ips",
+            "container_static_ips",
+        ):
+            for name in plan[section]:
+                self.assertFalse(any(word in name for word in self.RETIRED), (section, name))
+        self.assertFalse(
+            any(any(word in name for word in self.RETIRED) for name in plan["container_dns"]["aliases"])
+        )
+        self.assertFalse(
+            [r["name"] for r in plan["proxy_routes"] if any(word in r["name"] for word in self.RETIRED)]
         )
 
-        restores = restorecon_commands(tasks)
-        self.assertTrue(restores, "the role must restore contexts on the data tree")
-        for command in restores:
-            self.assertIn("{{ nextcloud_path }}/data", command)
-            self.assertNotRegex(
-                command,
-                r"-[A-Za-z]*F",
-                "forcing the range would strip the MCS categories podman's :Z applied",
-            )
-            self.assertRegex(
-                command,
-                r"\|\s*wc -l",
-                "restorecon -v prints a line per relabeled file, and returning the "
-                "whole data tree's worth kills the Ansible worker the runner "
-                "container runs inside its memory-capped container",
-            )
+    def test_no_remaining_role_installs_into_nextcloud_or_depends_on_it(self):
+        for path in sorted((REPO_ROOT / "roles").glob("*/tasks/*.yml")) + sorted(
+            (REPO_ROOT / "roles").glob("*/templates/*")
+        ):
+            text = path.read_text(encoding="utf-8")
+            with self.subTest(path=str(path.relative_to(REPO_ROOT))):
+                for needle in (
+                    "nextcloud_scan_path",
+                    "nextcloud_path",
+                    "nextcloud_uid",
+                    "nextcloud_container",
+                    "backup_local",
+                    "backup_destination",
+                ):
+                    self.assertNotIn(needle, text)
 
-    def test_scan_helper_confirms_the_path_reached_the_file_cache(self):
-        """files:scan can exit zero without indexing the backup at all."""
-        helper = NEXTCLOUD_SCAN_HELPER.read_text(encoding="utf-8")
-        self.assertIn("occ info:file", helper)
-        self.assertIn("path_is_indexed", helper)
+    def test_the_service_backups_go_only_to_homedrive(self):
+        for role, script in (
+            ("vaultwarden", "backup_db.j2"),
+            ("playbook_runner", "backup_playbook_runner.sh.j2"),
+            ("music_server", "backup_music_server.sh.j2"),
+        ):
+            with self.subTest(role=role):
+                text = (REPO_ROOT / "roles" / role / "templates" / script).read_text(encoding="utf-8")
+                self.assertIn("/usr/local/bin/homedrive_import_path.sh", text)
+                self.assertNotIn("rclone", text)
+                self.assertNotIn("{% if", text)
+                conditions = "\n".join(_first_assert(role))
+                self.assertIn("homedrive_enabled | default(false) | bool", conditions)
+                self.assertIn("homedrive_backup_user in", conditions)
 
-    def test_backups_are_installed_with_the_normalized_file_mode(self):
-        """The nextcloud role rewrites file modes under data/<user>/files.
-
-        Hard-coding a different mode here means every backup sits wrong until
-        the next playbook run silently corrects it.
-        """
-        for template in local_nextcloud_backup_templates():
-            with self.subTest(template=template.name):
-                installs = [
-                    command
-                    for command in joined_commands(template.read_text(encoding="utf-8"))
-                    if "install" in command and '"$DEST/"' in command
-                ]
-                self.assertTrue(installs, f"{template.name} installs no backup file")
-                for command in installs:
-                    self.assertIn("nextcloud_user_files_file_mode", command)
-
-    def test_normalized_file_mode_default_matches_the_backup_templates(self):
-        defaults = yaml.safe_load(
-            (REPO_ROOT / "roles" / "nextcloud" / "defaults" / "main.yml").read_text(
-                encoding="utf-8"
-            )
+    def test_the_backup_role_only_prepares_the_repository(self):
+        names = [t["name"] for t in role_tasks("backup")]
+        self.assertEqual(
+            names,
+            [
+                "Validate backup inputs before changing the host",
+                "Install backup packages",
+                "Create Borg Backup directory",
+                "Mount Disk for backups",
+                "Init backup repo Script",
+            ],
         )
-        role_mode = defaults["nextcloud_user_files_file_mode"]
-        for template in local_nextcloud_backup_templates():
-            with self.subTest(template=template.name):
-                self.assertIn(
-                    f"nextcloud_user_files_file_mode | default('{role_mode}')",
-                    template.read_text(encoding="utf-8"),
-                    f"{template.name} fallback mode must match the nextcloud role",
-                )
+        self.assertFalse((REPO_ROOT / "roles" / "backup" / "templates" / "backup_files.sh.j2").exists())
 
-    def test_backup_destinations_are_not_recursively_chmodded(self):
-        """A recursive mode on the destination also rewrites the backup files."""
+    def test_the_rclone_config_has_only_the_homedrive_remote(self):
+        text = (REPO_ROOT / "roles" / "standard_rclone" / "templates" / "rclone_config.j2").read_text(encoding="utf-8")
+        self.assertNotIn("[Nextcloud]", text)
+        self.assertIn("[Homedrive]", text)
+
+    def test_homedrive_names_the_account_the_services_use(self):
+        defaults = role_defaults("homedrive")
+        self.assertEqual(defaults["homedrive_main_user"], "")
+        self.assertEqual(defaults["homedrive_music_user"], "{{ homedrive_main_user }}")
         for role in ("vaultwarden", "playbook_runner", "music_server"):
-            tasks = yaml.safe_load(
-                (REPO_ROOT / "roles" / role / "tasks" / "main.yml").read_text(
-                    encoding="utf-8"
-                )
+            self.assertEqual(
+                role_defaults(role)["homedrive_backup_user"], "{{ homedrive_main_user | default('') }}"
             )
-            for task in tasks:
-                options = task.get("ansible.builtin.file") or {}
-                if not options.get("recurse"):
-                    continue
-                with self.subTest(role=role, task=task.get("name")):
-                    self.assertNotIn("mode", options)
 
 
 class RouteProxyAddressTests(unittest.TestCase):
@@ -567,59 +408,6 @@ class AnsibleRegressionTests(unittest.TestCase):
             self.assertIs(task["failed_when"], False, "a stopped service is what it reports")
             self.assertIs(task["check_mode"], False, "or check mode shows nothing")
 
-    def test_nextcloud_permission_normalization_uses_one_idempotent_walk(self):
-        tasks = yaml.safe_load(
-            (REPO_ROOT / "roles" / "nextcloud" / "tasks" / "main.yml").read_text(
-                encoding="utf-8"
-            )
-        )
-        matching = [
-            task for task in tasks
-            if task.get("name") == "Normalize Nextcloud user file tree permissions"
-        ]
-        self.assertEqual(len(matching), 1)
-        command = matching[0]["ansible.builtin.shell"]["cmd"]
-        self.assertEqual(command.count("find"), 1)
-        self.assertRegex(
-            command,
-            r"\|\s*wc -l",
-            "-print emits a line per fixed file, and returning a populated tree's "
-            "worth kills the Ansible worker the runner container runs "
-            "inside its memory-capped container",
-        )
-
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            child_directory = root / "directory"
-            child_file = child_directory / "file"
-            child_directory.mkdir(mode=0o700)
-            child_file.write_text("content", encoding="utf-8")
-            child_file.chmod(0o600)
-            rendered = (
-                command.replace("{{ item | quote }}", shlex.quote(str(root)))
-                .replace("{{ nextcloud_user_files_directory_mode }}", "0770")
-                .replace("{{ nextcloud_user_files_file_mode }}", "0660")
-            )
-            self.assertNotIn("{{", rendered)
-            runs = [
-                subprocess.run(
-                    rendered,
-                    shell=True,
-                    executable="/bin/bash",
-                    check=True,
-                    capture_output=True,
-                    text=True,
-                )
-                for _ in range(2)
-            ]
-            directory_mode = child_directory.stat().st_mode & 0o777
-            file_mode = child_file.stat().st_mode & 0o777
-
-        self.assertGreater(int(runs[0].stdout.strip()), 0)
-        self.assertEqual(runs[1].stdout.strip(), "0")
-        self.assertEqual(directory_mode, 0o770)
-        self.assertEqual(file_mode, 0o660)
-
 
 def role_tasks(role: str, tasks_file: str = "main.yml") -> list[dict]:
     return yaml.safe_load(
@@ -649,8 +437,6 @@ class SharedContainerNetworkTests(unittest.TestCase):
 
     #: Networks each role owns, and whether Podman must create them --internal.
     EXPECTED_NETWORKS = {
-        "nextcloud": {"nextcloud_container_net": True, "nextcloud_proxy_net": True},
-        "paperless_ngx": {"paperless_proxy_net": True},
         "vaultwarden": {"vaultwarden_container_net": True},
         "playbook_runner": {
             "playbook_runner_container_net": True,
@@ -785,7 +571,6 @@ class PlaybookRunnerTests(unittest.TestCase):
         self.assertIs(play["vars"]["playbook_runner_enabled"], True, "VM1 runs playbook-runner")
         self.assertIn("if 'playbook_runner' in artifact_locked_images", play["vars"]["playbook_runner_image"])
         roles = play["roles"]
-        self.assertLess(roles.index("nextcloud"), roles.index("playbook_runner"))
         self.assertLess(roles.index("playbook_runner"), roles.index("standard_cleanup"))
 
     def test_secret_tasks_hide_their_values(self):
@@ -950,7 +735,6 @@ class MusicServerTests(unittest.TestCase):
         self.assertIn("[music_server_image] if music_server_enabled", play["vars"]["approved_container_images"])
         roles = play["roles"]
         self.assertLess(roles.index("reverse_proxy"), roles.index("music_server"))
-        self.assertLess(roles.index("nextcloud"), roles.index("music_server"))
         self.assertLess(roles.index("music_server"), roles.index("standard_cleanup"))
 
     def test_vm1_orders_its_unit_only_when_enabled(self):
@@ -958,7 +742,7 @@ class MusicServerTests(unittest.TestCase):
         names = play["vars"]["container_service_names"]
         self.assertIn("['music_server'] if music_server_enabled", names)
         self.assertIn("['playbook_runner'] if playbook_runner_enabled", names)
-        for unit in ("postgres_container", "redis_container", "nextcloud_container", "paperless_ngx", "vaultwarden"):
+        for unit in ("vaultwarden",):
             with self.subTest(unit=unit):
                 self.assertIn(f"'{unit}'", names)
 
@@ -1325,6 +1109,118 @@ class RetireNavidromeTests(unittest.TestCase):
                 self.assertFalse("navidrome" in text, f"{name} still mentions Navidrome")
 
 
+class RetireNextcloudTests(unittest.TestCase):
+    """The one-shot cleanup for the retired Nextcloud stack."""
+
+    def setUp(self):
+        self.play = yaml.safe_load(
+            (REPO_ROOT / "retire_nextcloud.yml").read_text(encoding="utf-8")
+        )[0]
+        self.tasks = {task["name"]: task for task in self.play["tasks"]}
+
+    def test_it_is_never_part_of_the_weekly_chain(self):
+        """It can delete data, so it must be run on purpose."""
+        for playbook in ("vm1.yml", "homelab_vms.yml", "update_homelab_vms.yml"):
+            with self.subTest(playbook=playbook):
+                self.assertNotIn(
+                    "retire_nextcloud",
+                    (REPO_ROOT / playbook).read_text(encoding="utf-8"),
+                )
+
+    def test_names_are_validated_before_anything_is_removed(self):
+        self.assertEqual(next(iter(self.tasks)), "Validate cleanup inputs")
+
+    def test_read_only_probes_run_in_check_mode(self):
+        for name in ("List the images", "Check for the Nextcloud stack's networks"):
+            with self.subTest(task=name):
+                self.assertIs(self.tasks[name]["check_mode"], False)
+
+    def test_no_data_is_removed_unless_asked_and_confirmed(self):
+        vars_ = self.play["vars"]
+        for flag in (
+            "retire_nextcloud_remove_nextcloud_data",
+            "retire_nextcloud_remove_paperless_data",
+            "retire_nextcloud_remove_postgres_data",
+        ):
+            with self.subTest(flag=flag):
+                self.assertIs(vars_[flag], False)
+        self.assertEqual(vars_["retire_nextcloud_confirm_delete"], "")
+        checks = "\n".join(self.tasks["Validate cleanup inputs"]["ansible.builtin.assert"]["that"])
+        self.assertIn("retire_nextcloud_confirm_delete == 'delete'", checks)
+        self.assertIn("'homedrive' not in retire_nextcloud_data_path", checks)
+        self.assertIn("homelab_safe_absolute_path", checks)
+        for name, flag in (
+            ("Remove Nextcloud's data folders", "retire_nextcloud_remove_nextcloud_data"),
+            ("Remove Paperless' data", "retire_nextcloud_remove_paperless_data"),
+            ("Remove the PostgreSQL data", "retire_nextcloud_remove_postgres_data"),
+        ):
+            with self.subTest(task=name):
+                self.assertEqual(self.tasks[name]["when"], f"{flag} | bool")
+
+    def test_the_borg_repository_with_the_last_backups_is_never_removed(self):
+        """Paperless' documents now live only in those archives."""
+        folders = self.play["vars"]["retire_nextcloud_data_folders"]
+        self.assertEqual(sorted(folders), ["apps", "base", "config", "data"])
+        self.assertNotIn("borg_backup", folders)
+        guard = self.tasks["Refuse to delete a folder that holds the Borg repository"]
+        self.assertEqual(guard["loop"], "{{ retire_nextcloud_data_folders }}")
+        self.assertIn("retire_nextcloud_borg_path", guard["ansible.builtin.assert"]["that"][0])
+        self.assertEqual(guard["when"], "retire_nextcloud_remove_nextcloud_data | bool")
+        removal = self.tasks["Remove Nextcloud's data folders"]
+        self.assertEqual(removal["loop"], "{{ retire_nextcloud_data_folders }}")
+        self.assertEqual(
+            removal["ansible.builtin.file"]["path"], "{{ retire_nextcloud_data_path }}/{{ item }}"
+        )
+        self.assertEqual(
+            list(self.tasks).index("Refuse to delete a folder that holds the Borg repository"),
+            1,
+            "the guard runs before anything is stopped or removed",
+        )
+
+    def test_it_removes_every_artifact_the_roles_created(self):
+        paths = "\n".join(self.play["vars"]["retire_nextcloud_paths"])
+        for artifact in (
+            "paperless_ngx.service",
+            "nextcloud_container.service",
+            "nextcloud_configure.service",
+            "redis_container.service",
+            "postgres_container.service",
+            "backup_nextcloud_paperless.sh",
+            "backup_files.sh",
+            "nextcloud_scan_path.sh",
+            "postgres.env",
+            "nextcloud.env",
+            "redis.env",
+            "paperless.env",
+        ):
+            with self.subTest(artifact=artifact):
+                self.assertIn(artifact, paths)
+        self.assertEqual(
+            sorted(self.play["vars"]["retire_nextcloud_cron_names"]),
+            ["Backup Nextcloud and Paperless NGX daily", "Borg Backup"],
+        )
+        self.assertEqual(
+            sorted(self.play["vars"]["retire_nextcloud_networks"]),
+            ["nextcloud_container_net", "nextcloud_proxy_net", "paperless_proxy_net"],
+        )
+        self.assertEqual(
+            sorted(self.play["vars"]["retire_nextcloud_containers"]),
+            ["nextcloud", "paperless", "postgres", "redis"],
+        )
+
+    def test_the_services_stop_before_their_containers_and_networks_go(self):
+        order = list(self.tasks)
+        stop = order.index("Stop and disable the Nextcloud stack's services")
+        self.assertLess(stop, order.index("Remove the Nextcloud stack's containers"))
+        self.assertLess(
+            order.index("Remove the Nextcloud stack's containers"),
+            order.index("Remove the Nextcloud stack's networks"),
+        )
+        units = self.play["vars"]["retire_nextcloud_units"]
+        self.assertLess(units.index("paperless_ngx"), units.index("postgres_container"))
+        self.assertLess(units.index("nextcloud_container"), units.index("postgres_container"))
+
+
 class RetireSemaphoreTests(unittest.TestCase):
     """The one-shot cleanup for the retired Semaphore install."""
 
@@ -1484,61 +1380,6 @@ def _first_assert(role: str) -> list[str]:
     return task["ansible.builtin.assert"]["that"]
 
 
-class NextcloudStackSwitchTests(unittest.TestCase):
-    """The old file service and Paperless stay installed but do not run."""
-
-    def setUp(self):
-        self.vm1 = yaml.safe_load((REPO_ROOT / "vm1.yml").read_text(encoding="utf-8"))[0]
-        self.tasks = {
-            role: yaml.safe_load((REPO_ROOT / "roles" / role / "tasks" / "main.yml").read_text(encoding="utf-8"))
-            for role in ("nextcloud", "paperless_ngx")
-        }
-
-    def test_it_is_off_unless_the_inventory_turns_it_on(self):
-        self.assertIn("nextcloud_stack_deploy | default(false)", self.vm1["vars"]["nextcloud_stack_enabled"])
-        for role in ("nextcloud", "paperless_ngx"):
-            text = (REPO_ROOT / "roles" / role / "defaults" / "main.yml").read_text(encoding="utf-8")
-            self.assertRegex(text, r"(?m)^nextcloud_stack_enabled: false$")
-
-    def test_its_units_are_ordered_only_while_it_runs(self):
-        names = self.vm1["vars"]["container_service_names"]
-        self.assertIn("if nextcloud_stack_enabled | bool", names)
-
-    def test_nothing_starts_it_and_it_is_stopped_while_off(self):
-        for role, tasks in self.tasks.items():
-            for task in tasks:
-                systemd = task.get("ansible.builtin.systemd")
-                if not systemd:
-                    continue
-                with self.subTest(role=role, task=task["name"]):
-                    if systemd.get("state") == "started":
-                        self.assertIn("nextcloud_stack_enabled | bool", str(task.get("when")))
-                    if "enabled" in systemd:
-                        self.assertIn("nextcloud_stack_enabled", str(systemd["enabled"]))
-            stops = [t for t in tasks if t.get("ansible.builtin.systemd", {}).get("state") == "stopped"]
-            self.assertTrue(stops, role)
-            for task in stops:
-                self.assertIn("not (nextcloud_stack_enabled | bool)", str(task["when"]))
-
-    def test_the_data_tree_is_not_walked_while_it_is_off(self):
-        by_name = {t["name"]: t for t in self.tasks["nextcloud"]}
-        for name in (
-            "Restore SELinux contexts on the Nextcloud data tree",
-            "Find Nextcloud user files roots",
-            "Normalize Nextcloud user file tree permissions",
-        ):
-            with self.subTest(task=name):
-                self.assertIn("nextcloud_stack_enabled | bool", str(by_name[name]["when"]))
-
-    def test_its_backup_job_goes_and_the_manual_run_skips_it(self):
-        by_name = {t["name"]: t for t in self.tasks["nextcloud"]}
-        cron = by_name["Backup Nextcloud and Paperless NGX daily"]["ansible.builtin.cron"]
-        self.assertIn("nextcloud_stack_enabled", cron["state"])
-        runs = yaml.safe_load((REPO_ROOT / "run_backups.yml").read_text(encoding="utf-8"))[0]["tasks"]
-        paperless = next(t for t in runs if t["name"] == "Paperless and the Nextcloud database")
-        self.assertIn("nextcloud_stack_deploy", paperless["when"])
-
-
 class ReviewedDifferencesTests(unittest.TestCase):
     """homedrive_import_accepted: reviewed differences, from the inventory."""
 
@@ -1611,18 +1452,7 @@ class ReviewedDifferencesTests(unittest.TestCase):
 
 
 class BackupDestinationTests(unittest.TestCase):
-    """backup_destination moves every VM1 backup off the previous file service."""
-
-    def test_the_paperless_borg_sync_follows_the_switch(self):
-        script = (
-            REPO_ROOT / "roles" / "nextcloud" / "templates" / "backup_nextcloud_paperless.sh.j2"
-        ).read_text(encoding="utf-8")
-        self.assertIn(
-            "'Homedrive' if backup_destination | default('nextcloud') == 'homedrive' else 'Nextcloud'",
-            script,
-        )
-        conditions = "\n".join(_first_assert("nextcloud"))
-        self.assertIn("homedrive_rclone_pass | default('') | length > 0", conditions)
+    """Every VM1 backup goes to homedrive."""
 
     def test_the_homedrive_remote_is_written_only_when_configured(self):
         config = (
@@ -1638,21 +1468,10 @@ class BackupDestinationTests(unittest.TestCase):
         for role in ("vaultwarden", "playbook_runner", "music_server"):
             with self.subTest(role=role):
                 conditions = "\n".join(_first_assert(role))
-                self.assertIn("backup_destination in ['nextcloud', 'homedrive']", conditions)
-                self.assertIn("backup_destination != 'homedrive' or homedrive_enabled", conditions)
+                self.assertIn("homedrive_enabled | default(false) | bool", conditions)
                 self.assertIn("homedrive_backup_user in (homedrive_users", conditions)
 
-    def test_backups_go_to_homedrive_by_default_once_it_is_deployed(self):
-        """Nothing should keep writing to the previous file service by accident."""
-        for role in ("vaultwarden", "playbook_runner", "music_server", "nextcloud"):
-            with self.subTest(role=role):
-                defaults = yaml.safe_load(
-                    (REPO_ROOT / "roles" / role / "defaults" / "main.yml").read_text(encoding="utf-8")
-                )
-                self.assertEqual(
-                    defaults["backup_destination"],
-                    "{{ 'homedrive' if homedrive_enabled | default(false) | bool else 'nextcloud' }}",
-                )
+    def test_the_homedrive_remote_defaults_to_homedrives_address(self):
         rclone = yaml.safe_load(
             (REPO_ROOT / "roles" / "standard_rclone" / "defaults" / "main.yml").read_text(encoding="utf-8")
         )
@@ -1724,8 +1543,8 @@ class RunBackupsTests(unittest.TestCase):
 
 
 class SharedBorgRepositoryTests(unittest.TestCase):
-    """homedrive's store backup may share the backup disk's Borg repository
-    with the Nextcloud archives, so neither job may touch the other's."""
+    """homedrive's store backup uses the backup disk's Borg repository, which
+    may still hold archives of an older job that it must never touch."""
 
     def read(self, *parts):
         return (REPO_ROOT.joinpath(*parts)).read_text(encoding="utf-8")
@@ -1735,17 +1554,15 @@ class SharedBorgRepositoryTests(unittest.TestCase):
         prune = homedrive[homedrive.index("borg prune"):homedrive.index('"$REPO"', homedrive.index("borg prune"))]
         self.assertIn("--glob-archives 'homedrive-*'", prune)
         self.assertIn('archive="homedrive-', homedrive)
-        files = self.read("roles", "backup", "templates", "backup_files.sh.j2")
-        self.assertIn("--glob-archives 'nextcloud_backup-*'", files)
 
     def test_the_drill_restores_a_homedrive_archive(self):
         drill = self.read("roles", "homedrive", "templates", "homedrive_restore_drill.sh.j2")
         line = next(l for l in drill.splitlines() if "--last 1" in l)
         self.assertIn("--glob-archives 'homedrive-*'", line)
 
-    def test_every_borg_step_waits_for_the_other_job(self):
-        files = self.read("roles", "backup", "templates", "backup_files.sh.j2")
-        for line in files.splitlines():
+    def test_every_borg_step_waits_for_the_lock(self):
+        script = self.read("roles", "homedrive", "templates", "backup_homedrive.sh.j2")
+        for line in script.splitlines():
             if re.search(r"/usr/bin/borg (create|prune|compact)", line):
                 with self.subTest(line=line.strip()):
                     self.assertIn("--lock-wait", line)
@@ -1823,15 +1640,9 @@ class BackupScheduleTests(unittest.TestCase):
             ("vaultwarden", "vaultwarden_backup"),
             ("playbook_runner", "playbook_runner_backup"),
             ("music_server", "music_server_backup"),
-            ("nextcloud", "nextcloud_backup"),
         ):
             with self.subTest(job=prefix):
                 self.assertLess(self.when(role, prefix), store)
-
-    def test_jobs_sharing_a_borg_repository_start_apart(self):
-        self.assertGreaterEqual(
-            self.when("backup", "borg_backup") - self.when("homedrive", "homedrive_backup"), 60
-        )
 
     def test_every_backup_cron_entry_uses_its_schedule_variables(self):
         for path in (REPO_ROOT / "roles").glob("*/tasks/main.yml"):
@@ -1853,11 +1664,7 @@ class BackupScheduleTests(unittest.TestCase):
 
     def test_a_second_borg_run_on_one_day_makes_a_new_archive(self):
         """run_backups.yml can run a job again the day the cron job has."""
-        for parts in (
-            ("roles", "homedrive", "templates", "backup_homedrive.sh.j2"),
-            ("roles", "backup", "templates", "backup_files.sh.j2"),
-            ("roles", "nextcloud", "templates", "backup_nextcloud_paperless.sh.j2"),
-        ):
+        for parts in (("roles", "homedrive", "templates", "backup_homedrive.sh.j2"),):
             text = (REPO_ROOT.joinpath(*parts)).read_text(encoding="utf-8")
             with self.subTest(script=parts[-1]):
                 self.assertRegex(text, r"(archive|ARCHIVE)=.*%H%M%S")

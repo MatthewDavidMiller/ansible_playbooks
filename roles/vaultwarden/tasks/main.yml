@@ -9,11 +9,8 @@
       - vaultwarden_image | homelab_immutable_digest_ref
       - route_proxy_network_subnets.vaultwarden_container_net | homelab_valid_ipv4_cidr
       - container_static_ips.vaultwarden_proxy | homelab_container_assignable_ip(route_proxy_network_subnets.vaultwarden_container_net)
-      - backup_destination in ['nextcloud', 'homedrive']
-      - backup_destination != 'homedrive' or homedrive_enabled | default(false) | bool
-      - backup_destination != 'homedrive' or homedrive_backup_user in (homedrive_users | default([]) | map(attribute='name') | list)
-      - not (backup_local | bool) or nextcloud_path | homelab_safe_absolute_path
-      - not (backup_local | bool) or nextcloud_homelab_user | homelab_safe_name
+      - homedrive_enabled | default(false) | bool
+      - homedrive_backup_user in (homedrive_users | default([]) | map(attribute='name') | list)
     fail_msg: Configure hardened signup policy, safe paths, an immutable image, and a valid Vaultwarden network.
 
 - name: Install sqlite3
@@ -59,27 +56,6 @@
     owner: root
     group: root
     mode: "0700"
-
-- name: Create Vaultwarden Nextcloud backup destination
-  ansible.builtin.file:
-    path: "{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/{{ vaultwarden_backup_location | replace('Nextcloud:', '') }}"
-    state: directory
-    owner: "{{ nextcloud_uid }}"
-    group: "{{ nextcloud_gid }}"
-    mode: "0770"
-  when: backup_local | default(false)
-
-# Ownership only. A recursive mode would also apply the directory mode to the
-# backup files themselves; file modes belong to the nextcloud role's
-# user-files normalization.
-- name: Repair Vaultwarden Nextcloud backup destination ownership
-  ansible.builtin.file:
-    path: "{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/{{ vaultwarden_backup_location | replace('Nextcloud:', '') }}"
-    state: directory
-    owner: "{{ nextcloud_uid }}"
-    group: "{{ nextcloud_gid }}"
-    recurse: true
-  when: backup_local | default(false)
 
 - name: Vaultwarden Service
   ansible.builtin.template:

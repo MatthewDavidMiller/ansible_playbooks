@@ -21,12 +21,9 @@
       - container_static_ips.playbook_runner_proxy | homelab_container_assignable_ip(route_proxy_network_subnets.playbook_runner_container_net)
       - route_proxy_traefik_ips.playbook_runner_container_net | homelab_container_assignable_ip(route_proxy_network_subnets.playbook_runner_container_net)
       - playbook_runner_egress_network | homelab_safe_name
-      - playbook_runner_egress_network not in ['nextcloud_container_net', 'playbook_runner_container_net']
-      - backup_destination in ['nextcloud', 'homedrive']
-      - backup_destination != 'homedrive' or homedrive_enabled | default(false) | bool
-      - backup_destination != 'homedrive' or homedrive_backup_user in (homedrive_users | default([]) | map(attribute='name') | list)
-      - not (backup_local | bool) or nextcloud_path | homelab_safe_absolute_path
-      - not (backup_local | bool) or nextcloud_homelab_user | homelab_safe_name
+      - playbook_runner_egress_network != 'playbook_runner_container_net'
+      - homedrive_enabled | default(false) | bool
+      - homedrive_backup_user in (homedrive_users | default([]) | map(attribute='name') | list)
     fail_msg: >-
       Configure a 64-hex-digit master key, a 12-128 character admin password or none,
       safe paths, an immutable image (lock playbook_runner in artifacts/containers.lock.yml),
@@ -158,24 +155,6 @@
     owner: root
     group: root
     mode: "0700"
-
-- name: Create playbook-runner Nextcloud backup destination
-  ansible.builtin.file:
-    path: "{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/{{ playbook_runner_backup_location | replace('Nextcloud:', '') }}"
-    state: directory
-    owner: "{{ nextcloud_uid }}"
-    group: "{{ nextcloud_gid }}"
-    mode: "0770"
-  when: backup_local | default(false)
-
-- name: Repair playbook-runner Nextcloud backup destination ownership
-  ansible.builtin.file:
-    path: "{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/{{ playbook_runner_backup_location | replace('Nextcloud:', '') }}"
-    state: directory
-    owner: "{{ nextcloud_uid }}"
-    group: "{{ nextcloud_gid }}"
-    recurse: true
-  when: backup_local | default(false)
 
 - name: Backup playbook-runner script
   ansible.builtin.template:

@@ -1,5 +1,7 @@
 # playbook-runner setup and Semaphore retirement
 
+> **Historical:** this guide was written while the previous file service (Nextcloud) and its PostgreSQL still ran on VM1. Where it names `nextcloud_*`, `postgres_*` or a `Nextcloud:` backup location, that service has since been retired (`retire_nextcloud.yml`) and the backups go to homedrive. See [dr-restore.md](dr-restore.md) for the current layout.
+
 [playbook-runner](https://github.com/MatthewDavidMiller/playbook-runner) is
 the first-party Ansible web UI and scheduler on VM1. It holds the external
 inventory, vault passwords and SSH keys, runs playbooks on demand, and runs

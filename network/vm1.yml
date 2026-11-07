@@ -9,13 +9,13 @@
 # its network's subnet, that none is used twice, and that each role's own
 # defaults agree with this file.
 #
-# 172.16.1.0/28 is nextcloud_container_net (the backend network). Free /29
-# blocks: 172.16.1.24/29 (Navidrome's, retired) and 172.16.1.72/29 onwards.
+# Free /29 blocks: 172.16.1.0/28 (the retired Nextcloud stack's backend
+# network), 172.16.1.24/29 (Navidrome's, retired), 172.16.1.32/29 (Nextcloud's
+# proxy network, retired), 172.16.1.40/29 (Paperless', retired) and
+# 172.16.1.72/29 onwards.
 
 # Internal Podman networks Traefik shares with one service each.
 route_proxy_network_subnets:
-  nextcloud_proxy_net: 172.16.1.32/29
-  paperless_proxy_net: 172.16.1.40/29
   vaultwarden_container_net: 172.16.1.16/29
   playbook_runner_container_net: 172.16.1.56/29
   music_server_container_net: 172.16.1.48/29
@@ -24,8 +24,6 @@ route_proxy_network_subnets:
 # The service's address on each route network, written into Traefik's
 # /etc/hosts. Keys match proxy_config[*].proxy_network.
 route_proxy_container_ips:
-  nextcloud_proxy_net: 172.16.1.34
-  paperless_proxy_net: 172.16.1.42
   vaultwarden_container_net: 172.16.1.18
   playbook_runner_container_net: 172.16.1.58
   music_server_container_net: 172.16.1.50
@@ -34,23 +32,14 @@ route_proxy_container_ips:
 # Traefik's own address on each route network. Pinned so Podman's IPAM
 # cannot hand Traefik the address the service asks for.
 route_proxy_traefik_ips:
-  nextcloud_proxy_net: 172.16.1.35
-  paperless_proxy_net: 172.16.1.43
   vaultwarden_container_net: 172.16.1.19
   playbook_runner_container_net: 172.16.1.59
   music_server_container_net: 172.16.1.51
   homedrive_container_net: 172.16.1.67
 
-# Every container's static address, by alias. The backend entries are on
-# nextcloud_container_net (172.16.1.0/28); the proxy entries repeat
+# Every container's static address, by alias. The proxy entries repeat
 # route_proxy_container_ips.
 container_static_ips:
-  postgres_backend: 172.16.1.2
-  redis_backend: 172.16.1.3
-  nextcloud_backend: 172.16.1.4
-  paperless_backend: 172.16.1.5
-  nextcloud_proxy: 172.16.1.34
-  paperless_proxy: 172.16.1.42
   vaultwarden_proxy: 172.16.1.18
   playbook_runner_proxy: 172.16.1.58
   music_server_proxy: 172.16.1.50
@@ -59,12 +48,6 @@ container_static_ips:
 container_dns:
   domain: dns.podman
   aliases:
-    postgres_backend: postgres-backend
-    redis_backend: redis-backend
-    nextcloud_backend: nextcloud-backend
-    nextcloud_proxy: nextcloud-proxy
-    paperless_backend: paperless-backend
-    paperless_proxy: paperless-proxy
     vaultwarden_proxy: vaultwarden-proxy
     playbook_runner_proxy: playbook-runner-proxy
     playbook_runner_egress: playbook-runner-egress
@@ -82,21 +65,6 @@ container_dns:
 # management_network (the user LAN and the VPN), so nothing is reachable from
 # the internet even if a port forward is added by mistake.
 proxy_routes:
-  - name: nextcloud
-    proxy_fqdn: "nextcloud.{{ homelab_internal_domain }}"
-    proxy_upstream_protocol: http
-    proxy_upstream_port: "80"
-    proxy_network: nextcloud_proxy_net
-    container_destination: "{{ container_dns.aliases.nextcloud_proxy }}.{{ container_dns.domain }}"
-    proxy_management_only: true
-    proxy_allow_encoded_slash: true
-  - name: paperless_ngx
-    proxy_fqdn: "paperless.{{ homelab_internal_domain }}"
-    proxy_upstream_protocol: http
-    proxy_upstream_port: "8000"
-    proxy_network: paperless_proxy_net
-    container_destination: "{{ container_dns.aliases.paperless_proxy }}.{{ container_dns.domain }}"
-    proxy_management_only: true
   - name: vaultwarden
     proxy_fqdn: "vaultwarden.{{ homelab_internal_domain }}"
     proxy_upstream_protocol: http

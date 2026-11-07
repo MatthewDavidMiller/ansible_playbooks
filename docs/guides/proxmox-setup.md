@@ -63,7 +63,7 @@ VM1 requires a second disk for the Borg backup repository. Add it in Proxmox bef
 
 1. In Proxmox UI: VM 120 → Hardware → Add → Hard Disk
 2. Choose a separate NVMe-backed storage pool (not the same as the root disk)
-3. Size: at least 1.5× the size of your Nextcloud data directory
+3. Size: at least 1.5× the size of homedrive's store
 4. After adding the disk, start the VM and format it:
    ```bash
    # Find the new disk (will not have a partition table)
@@ -81,7 +81,7 @@ VM1 requires a second disk for the Borg backup repository. Add it in Proxmox bef
 
 ### Detaching and Moving an Existing Disk
 
-When migrating data from an old VM to VM1 (e.g., moving the Nextcloud data disk from VM 113), use the following procedure. The disk's filesystem UUID is preserved through the move, so your inventory variables (`nextcloud_disk`, `backup_disk`) remain valid without changes.
+When migrating data from an old VM to VM1 (e.g., moving the data disk from VM 113), use the following procedure. The disk's filesystem UUID is preserved through the move, so your inventory variables (`data_disk`, `backup_disk`) remain valid without changes.
 
 **In the Proxmox web UI (detach only):**
 1. Shut down the source VM (e.g., VM 113)
@@ -157,11 +157,11 @@ After bootstrapping, the VM is ready for Ansible management. See [getting-starte
 
 ## Proxmox Config Backup
 
-`scripts/backup_proxmox_config.sh` backs up `/etc/pve/` to Nextcloud daily. Run this on the Proxmox host, not via Ansible.
+`scripts/backup_proxmox_config.sh` backs up `/etc/pve/` to homedrive daily. Run this on the Proxmox host, not via Ansible.
 
 ### Setup
 
-1. Install rclone on the Proxmox host and configure a `Nextcloud` remote:
+1. Install rclone on the Proxmox host and configure a `Homedrive` WebDAV remote (type `webdav`, vendor `other`, URL `https://drive.<homelab_internal_domain>/dav/<user>`, the user, and a device token from homedrive's Devices page as the password):
    ```bash
    rclone config
    ```
@@ -169,14 +169,14 @@ After bootstrapping, the VM is ready for Ansible management. See [getting-starte
 2. Set `RCLONE_DEST` in root's crontab. Keeping deployment configuration out of
    the tracked script avoids local source edits:
    ```bash
-   RCLONE_DEST=Nextcloud:backups/proxmox
+   RCLONE_DEST=Homedrive:backups/proxmox
    ```
 
 3. Copy the script to the Proxmox host and add it to root's crontab:
    ```bash
    crontab -e
    # Add both lines:
-   RCLONE_DEST=Nextcloud:backups/proxmox
+   RCLONE_DEST=Homedrive:backups/proxmox
    0 2 * * * /root/backup_proxmox_config.sh
    ```
 

@@ -1,14 +1,14 @@
 #!/bin/bash
 #
-# backup_proxmox_config.sh — Back up Proxmox node configuration to Nextcloud.
+# backup_proxmox_config.sh — Back up Proxmox node configuration to homedrive.
 #
 # Run on the Proxmox host. Requires rclone installed and configured with a
-# 'Nextcloud' remote. See docs/guides/proxmox-setup.md for setup details.
+# 'Homedrive' remote. See docs/guides/proxmox-setup.md for setup details.
 #
 # Setup:
 #   1. Set RCLONE_DEST in root's crontab or a root-only environment file.
 #   2. Add to root crontab on the Proxmox host, e.g.:
-#        RCLONE_DEST=Nextcloud:backups/proxmox
+#        RCLONE_DEST=Homedrive:backups/proxmox
 #        0 2 * * * /root/backup_proxmox_config.sh
 
 set -Eeuo pipefail
@@ -24,7 +24,7 @@ LOG=/var/log/backup_proxmox_config.log
 LOCK_FILE=/run/lock/proxmox-config-backup.lock
 
 if [[ -z "$RCLONE_DEST" || "$RCLONE_DEST" != *:* || "$RCLONE_DEST" == *'<'* || "$RCLONE_DEST" == *'>'* ]]; then
-    echo "ERROR: Set RCLONE_DEST to a configured rclone remote path (for example Nextcloud:backups/proxmox)." >&2
+    echo "ERROR: Set RCLONE_DEST to a configured rclone remote path (for example Homedrive:backups/proxmox)." >&2
     exit 2
 fi
 if [[ ! "$RETENTION_DAYS" =~ ^[1-9][0-9]*$ ]]; then

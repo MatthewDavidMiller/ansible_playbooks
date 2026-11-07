@@ -3,7 +3,7 @@
 # Tests container capability, privilege, and memory flags
 # for the maintained VM1 services before deploying to production via Ansible.
 #
-# Usage: bash scripts/test_container_security.sh [all|static|postgres|redis|nextcloud|traefik|paperless|vaultwarden|music_server|homedrive]...
+# Usage: bash scripts/test_container_security.sh [all|static|traefik|vaultwarden|music_server|homedrive]...
 #        bash scripts/test_container_security.sh vaultwarden 2>&1 | tee /tmp/container_test_results.txt
 # See docs/testing.md for full descriptions of each test.
 
@@ -33,7 +33,7 @@ should_run() {
 SELECTED_TESTS=("${@:-all}")
 for selected_test in "${SELECTED_TESTS[@]}"; do
   case "$selected_test" in
-    all|static|postgres|redis|nextcloud|traefik|paperless|vaultwarden|music_server|homedrive) ;;
+    all|static|traefik|vaultwarden|music_server|homedrive) ;;
     -h|--help)
       usage
       exit 0
@@ -83,11 +83,7 @@ print(data["test_locked_images"][sys.argv[2]]["image"])
 PY
 }
 
-POSTGRES_IMAGE=${POSTGRES_IMAGE:-$(lock_image_ref postgres)}
-REDIS_IMAGE=${REDIS_IMAGE:-$(lock_image_ref redis)}
-NEXTCLOUD_IMAGE=${NEXTCLOUD_IMAGE:-$(lock_image_ref nextcloud)}
 TRAEFIK_IMAGE=${TRAEFIK_IMAGE:-$(lock_image_ref traefik)}
-PAPERLESS_IMAGE=${PAPERLESS_IMAGE:-$(lock_image_ref paperless)}
 VAULTWARDEN_IMAGE=${VAULTWARDEN_IMAGE:-$(lock_image_ref vaultwarden)}
 MUSIC_SERVER_IMAGE=${MUSIC_SERVER_IMAGE:-$(lock_image_ref music_server)}
 HOMEDRIVE_IMAGE=${HOMEDRIVE_IMAGE:-$(lock_image_ref homedrive)}
@@ -119,19 +115,6 @@ cleanup_all_test_containers() {
     test_homedrive_init \
     test_homedrive_no_store \
     test_music_server \
-    test_nextcloud \
-    test_paperless \
-    test_postgres \
-    test_postgres_custom_migration \
-    test_postgres_custom_seed \
-    test_postgres_legacy_migration \
-    test_postgres_legacy_seed \
-    test_postgres_migration \
-    test_postgres_migration_seed \
-    test_postgres_mixed_migration \
-    test_postgres_mixed_seed \
-    test_postgres_roles \
-    test_redis \
     test_traefik_cap \
     test_traefik_nocap \
     test_vaultwarden
@@ -182,29 +165,10 @@ echo ""
 
 if should_run static; then
 echo "--- TEST-00: Static hardening and network containment policy ---"
-assert_file_contains "--network=nextcloud_proxy_net" "Nextcloud: joins dedicated proxy network" roles/nextcloud/templates/nextcloud_container.sh.j2
-assert_file_contains "container_dns[.]aliases[.]nextcloud_backend" "Nextcloud: backend DNS alias is dictionary-driven" roles/nextcloud/templates/nextcloud_container.sh.j2
-assert_file_contains "container_dns[.]aliases[.]nextcloud_proxy" "Nextcloud: proxy DNS alias is dictionary-driven" roles/nextcloud/templates/nextcloud_container.sh.j2
-assert_file_contains "--network=paperless_proxy_net" "Paperless: joins dedicated proxy network" roles/paperless_ngx/templates/paperless_ngx.sh.j2
-assert_file_contains "container_dns[.]aliases[.]paperless_proxy" "Paperless: proxy DNS alias is dictionary-driven" roles/paperless_ngx/templates/paperless_ngx.sh.j2
-assert_file_contains "container_dns[.]aliases[.]paperless_backend" "Paperless: backend DNS alias is dictionary-driven" roles/paperless_ngx/templates/paperless_ngx.sh.j2
-assert_file_contains "container_dns[.]aliases[.]postgres_backend" "Postgres: backend DNS alias is dictionary-driven" roles/nextcloud/templates/postgres_container.sh.j2
-assert_file_contains "container_dns[.]aliases[.]redis_backend" "Redis: backend DNS alias is dictionary-driven" roles/nextcloud/templates/redis_container.sh.j2
 assert_file_contains "container_dns[.]aliases[.]vaultwarden_proxy" "Vaultwarden: proxy DNS alias is dictionary-driven" roles/vaultwarden/templates/vaultwarden.sh.j2
 assert_file_contains "container_dns[.]aliases[.]traefik_proxy" "Traefik: proxy DNS alias is dictionary-driven" roles/reverse_proxy/templates/traefik_container.sh.j2
 assert_file_contains "container_dns[.]aliases[.]traefik_egress" "Traefik: egress DNS alias is dictionary-driven" roles/reverse_proxy/templates/traefik_container.sh.j2
-assert_file_contains "container_dns[.]aliases[.]postgres_backend.*container_dns[.]domain" "Nextcloud: uses backend Postgres DNS dictionary" roles/nextcloud/templates/nextcloud.env.j2
-assert_file_contains "container_dns[.]aliases[.]redis_backend.*container_dns[.]domain" "Nextcloud: uses backend Redis DNS dictionary" roles/nextcloud/templates/nextcloud.env.j2
-assert_file_contains "container_dns[.]aliases[.]postgres_backend.*container_dns[.]domain" "Paperless: uses backend Postgres DNS dictionary" roles/paperless_ngx/templates/paperless.env.j2
-assert_file_contains "redis://.*container_dns[.]aliases[.]redis_backend.*container_dns[.]domain" "Paperless: uses backend Redis DNS dictionary" roles/paperless_ngx/templates/paperless.env.j2
-assert_file_contains "PAPERLESS_SECRET_KEY=.*paperless_secret_key" "Paperless: renders the required 3.0 signing key" roles/paperless_ngx/templates/paperless.env.j2
-assert_file_contains "PAPERLESS_DBENGINE=" "Paperless: declares the database engine explicitly for 3.0" roles/paperless_ngx/templates/paperless.env.j2
-assert_file_contains "PAPERLESS_TRUSTED_PROXIES=.*route_proxy_traefik_ips" "Paperless: trusts only the Traefik proxy hop" roles/paperless_ngx/templates/paperless.env.j2
 assert_file_contains "--add-host=.*route_proxy_container_ips" "Traefik: resolves proxy route names through container hosts entries" roles/reverse_proxy/templates/traefik_container.sh.j2
-assert_file_contains "--add-host=.*container_dns[.]aliases[.]postgres_backend" "Nextcloud: resolves backend Postgres name through a container hosts entry" roles/nextcloud/templates/nextcloud_container.sh.j2
-assert_file_contains "--add-host=.*container_dns[.]aliases[.]redis_backend" "Nextcloud: resolves backend Redis name through a container hosts entry" roles/nextcloud/templates/nextcloud_container.sh.j2
-assert_file_contains "ip=\\{\\{ container_static_ips[.]postgres_backend \\}\\}" "Postgres: uses a deterministic backend IP" roles/nextcloud/templates/postgres_container.sh.j2
-assert_file_contains "ip=\\{\\{ container_static_ips[.]nextcloud_proxy \\}\\}" "Nextcloud: uses a deterministic proxy IP" roles/nextcloud/templates/nextcloud_container.sh.j2
 assert_file_contains "route_proxy_container_ips" "reverse_proxy: requires deterministic route backend IPs" roles/reverse_proxy/tasks/main.yml
 assert_file_contains "ip=\\{\\{ route_proxy_traefik_ips\\[net\\] \\}\\}" "Traefik: uses a deterministic IP on every route proxy network" roles/reverse_proxy/templates/traefik_container.sh.j2
 assert_file_contains "route_proxy_traefik_ips" "reverse_proxy: validates Traefik route addresses against the service addresses" roles/reverse_proxy/tasks/main.yml
@@ -226,23 +190,13 @@ assert_file_contains "Remove drifted container network" "Shared network role: re
 assert_file_contains "Queue container network" "Shared network role: queues disruptive replacements for the final migration job" roles/container_network/tasks/main.yml
 assert_file_contains "reverse_proxy_deferred_route_networks" "reverse_proxy: defers destructive updates for control-plane route networks" roles/reverse_proxy/tasks/main.yml
 assert_file_contains "--force" "Shared network role: force-removes attached legacy networks before recreating them" roles/container_network/tasks/main.yml
-assert_file_not_contains "--network=nextcloud_container_net" "Traefik: is not placed on database/cache backend network" roles/reverse_proxy/templates/traefik_container.sh.j2
-assert_file_not_contains "-p " "Nextcloud: does not publish host ports" roles/nextcloud/templates/nextcloud_container.sh.j2
-assert_file_not_contains "-p " "Paperless: does not publish host ports" roles/paperless_ngx/templates/paperless_ngx.sh.j2
 assert_file_not_contains "-p " "Vaultwarden: does not publish host ports" roles/vaultwarden/templates/vaultwarden.sh.j2
 assert_file_not_contains "-p " "playbook-runner: does not publish host ports" roles/playbook_runner/templates/playbook_runner.sh.j2
 assert_file_contains "--read-only" "Traefik: read-only root filesystem is configured" roles/reverse_proxy/templates/traefik_container.sh.j2
-assert_file_contains "--read-only" "Postgres: read-only root filesystem is configured" roles/nextcloud/templates/postgres_container.sh.j2
-assert_file_contains "--mount type=tmpfs,destination=/var/run/postgresql,tmpfs-size=16M,tmpfs-mode=0750,U=true" "Postgres: socket directory uses a service-owned tmpfs mount" roles/nextcloud/templates/postgres_container.sh.j2
-assert_file_not_contains "\\{\\{ postgres_path \\}\\}/run:/var/run/postgresql" "Postgres: socket directory is not host-persisted" roles/nextcloud/templates/postgres_container.sh.j2
-assert_file_contains "--read-only" "Redis: read-only root filesystem is configured" roles/nextcloud/templates/redis_container.sh.j2
 assert_file_contains "--read-only" "Vaultwarden: read-only root filesystem is configured" roles/vaultwarden/templates/vaultwarden.sh.j2
 assert_file_contains "--read-only" "playbook-runner: read-only root filesystem is configured" roles/playbook_runner/templates/playbook_runner.sh.j2
 assert_file_contains "--cap-drop=ALL" "Traefik: drops all capabilities before adding required bind capability" roles/reverse_proxy/templates/traefik_container.sh.j2
 assert_file_contains "--cap-add=NET_BIND_SERVICE" "Traefik: only adds bind-service capability" roles/reverse_proxy/templates/traefik_container.sh.j2
-assert_file_contains "--cap-drop=ALL" "Postgres: drops all capabilities" roles/nextcloud/templates/postgres_container.sh.j2
-assert_file_contains "--cap-drop=ALL" "Redis: drops all capabilities before adding required filesystem caps" roles/nextcloud/templates/redis_container.sh.j2
-assert_file_contains "--cap-drop=ALL" "Paperless: drops all capabilities before adding required entrypoint caps" roles/paperless_ngx/templates/paperless_ngx.sh.j2
 assert_file_contains "--cap-drop=ALL" "Vaultwarden: drops all capabilities before adding required bind capability" roles/vaultwarden/templates/vaultwarden.sh.j2
 assert_file_contains "--cap-drop=ALL" "playbook-runner: drops all capabilities" roles/playbook_runner/templates/playbook_runner.sh.j2
 assert_file_not_contains "--cap-add" "playbook-runner: adds no capabilities back" roles/playbook_runner/templates/playbook_runner.sh.j2
@@ -264,465 +218,6 @@ assert_file_contains "--cap-drop=ALL" "homedrive: drops all capabilities" roles/
 assert_file_not_contains "--cap-add" "homedrive: adds no capabilities back" roles/homedrive/templates/homedrive.sh.j2
 assert_file_contains "mode=0400" "homedrive: the users secret is readable only by the container user" roles/homedrive/templates/homedrive.sh.j2
 assert_file_contains "container_dns[.]aliases[.]homedrive_proxy" "homedrive: proxy DNS alias is dictionary-driven" roles/homedrive/templates/homedrive.sh.j2
-echo ""
-fi
-
-# ---------------------------------------------------------------------------
-if should_run postgres; then
-echo "--- TEST-01: PostgreSQL ---"
-# U=true has Podman chown the mount to the container's user, which is how a
-# tmpfs is handed to a non-root uid without naming the subuid it maps to.
-POSTGRES_SOCKET_TMP_MOUNT=(--mount type=tmpfs,destination=/var/run/postgresql,tmpfs-size=16M,tmpfs-mode=0750,U=true)
-TEST_PG_DIR=$(mktemp -d)
-chmod 0750 "$TEST_PG_DIR"
-chown_test_path 999:999 "$TEST_PG_DIR"
-
-"${ENGINE_RUN[@]}" -d --name test_postgres \
-  --user 999:999 \
-  --cap-drop=ALL \
-  --security-opt=no-new-privileges:true \
-  --memory=4g --memory-swap=4g \
-  --shm-size=256m \
-  --read-only \
-  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
-  --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
-  "${POSTGRES_SOCKET_TMP_MOUNT[@]}" \
-  --env POSTGRES_USER=testuser \
-  --env POSTGRES_PASSWORD=testpass \
-  --env POSTGRES_DB=testdb \
-  --env PGDATA=/var/lib/postgresql/data/pgdata \
-  --volume "$TEST_PG_DIR":/var/lib/postgresql/data \
-  "$POSTGRES_IMAGE"
-
-sleep 15
-$PODMAN inspect --format='{{.State.Status}}' test_postgres 2>/dev/null \
-  | grep -q running && pass "Postgres: starts with cap-drop=ALL + shm-size=256m + 0750/999:999 dir" \
-  || fail "Postgres: starts with cap-drop=ALL + shm-size=256m + 0750/999:999 dir"
-$PODMAN exec test_postgres pg_isready -U testuser \
-  && pass "Postgres: pg_isready succeeds" || fail "Postgres: pg_isready failed"
-
-cleanup test_postgres
-cleanup_dir "$TEST_PG_DIR"
-echo ""
-
-# ---------------------------------------------------------------------------
-echo "--- TEST-02: PostgreSQL Role Isolation ---"
-"${ENGINE_RUN[@]}" -d --name test_postgres_roles \
-  --user 999:999 \
-  --cap-drop=ALL \
-  --security-opt=no-new-privileges:true \
-  --memory=2g --memory-swap=2g \
-  --shm-size=256m \
-  --read-only \
-  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
-  --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
-  "${POSTGRES_SOCKET_TMP_MOUNT[@]}" \
-  --env POSTGRES_USER=postgres_admin \
-  --env POSTGRES_PASSWORD=adminpass \
-  --env POSTGRES_DB=postgres \
-  "$POSTGRES_IMAGE"
-sleep 15
-$PODMAN exec test_postgres_roles psql -U postgres_admin -d postgres -c "CREATE ROLE nextcloud_user LOGIN PASSWORD 'ncpass';"
-$PODMAN exec test_postgres_roles psql -U postgres_admin -d postgres -c "CREATE ROLE paperless_user LOGIN PASSWORD 'plpass';"
-$PODMAN exec test_postgres_roles psql -U postgres_admin -d postgres -c "CREATE DATABASE nextcloud OWNER nextcloud_user;"
-$PODMAN exec test_postgres_roles psql -U postgres_admin -d postgres -c "CREATE DATABASE paperless OWNER paperless_user;"
-$PODMAN exec test_postgres_roles env PGPASSWORD=ncpass psql -h localhost -U nextcloud_user -d nextcloud -c "SELECT current_user;" \
-  | grep -q nextcloud_user && pass "Postgres: nextcloud role can access its own database" \
-  || fail "Postgres: nextcloud role access failed"
-$PODMAN exec test_postgres_roles env PGPASSWORD=ncpass \
-  psql -h localhost -U nextcloud_user -d paperless -c "CREATE TABLE cross_db_smoke(id int);" \
-  >/tmp/test_postgres_roles.out 2>/tmp/test_postgres_roles.err \
-  && fail "Postgres: nextcloud role unexpectedly managed paperless database" \
-  || pass "Postgres: per-service ownership blocks cross-database writes by default"
-cleanup test_postgres_roles
-echo ""
-
-# ---------------------------------------------------------------------------
-echo "--- TEST-02B: PostgreSQL Existing Cluster Migration ---"
-TEST_PG_MIG_DIR=$(mktemp -d)
-TEST_PG_MIG_DATA="$TEST_PG_MIG_DIR/pgdata"
-TEST_PG_MIG_INIT="$TEST_PG_MIG_DIR/custom-init"
-mkdir -p "$TEST_PG_MIG_DATA" "$TEST_PG_MIG_INIT"
-chmod 0750 "$TEST_PG_MIG_DATA" "$TEST_PG_MIG_INIT"
-install -m 0755 "$REPO_ROOT/roles/nextcloud/files/db_wrapper.sh" \
-  "$TEST_PG_MIG_INIT/db_wrapper.sh"
-chown_test_path 999:999 "$TEST_PG_MIG_DATA"
-chown_test_path 999:999 "$TEST_PG_MIG_INIT" -R
-
-"${ENGINE_RUN[@]}" -d --name test_postgres_migration_seed \
-  --user 999:999 \
-  --cap-drop=ALL \
-  --security-opt=no-new-privileges:true \
-  --memory=2g --memory-swap=2g \
-  --shm-size=256m \
-  --read-only \
-  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
-  --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
-  "${POSTGRES_SOCKET_TMP_MOUNT[@]}" \
-  --env POSTGRES_USER=nextcloud_user \
-  --env POSTGRES_PASSWORD=oldsharedpass \
-  --env POSTGRES_DB=nextcloud \
-  --volume "$TEST_PG_MIG_DATA":/var/lib/postgresql/data \
-  "$POSTGRES_IMAGE"
-
-sleep 15
-$PODMAN exec test_postgres_migration_seed env PGPASSWORD=oldsharedpass \
-  psql -h localhost -U nextcloud_user -d postgres \
-  -c "CREATE DATABASE paperless OWNER nextcloud_user;"
-$PODMAN exec test_postgres_migration_seed env PGPASSWORD=oldsharedpass \
-  psql -h localhost -U nextcloud_user -d paperless \
-  -c "CREATE TABLE access_key (id serial primary key);"
-
-cleanup test_postgres_migration_seed
-
-"${ENGINE_RUN[@]}" -d --name test_postgres_migration \
-  --user 999:999 \
-  --cap-drop=ALL \
-  --security-opt=no-new-privileges:true \
-  --memory=2g --memory-swap=2g \
-  --shm-size=256m \
-  --read-only \
-  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
-  --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
-  "${POSTGRES_SOCKET_TMP_MOUNT[@]}" \
-  --env POSTGRES_USER=postgres_admin \
-  --env POSTGRES_PASSWORD=adminpass \
-  --env POSTGRES_DB=nextcloud \
-  --env NEXTCLOUD_DB_NAME=nextcloud \
-  --env NEXTCLOUD_DB_USER=nextcloud_user \
-  --env NEXTCLOUD_DB_PASSWORD=oldsharedpass \
-  --env PAPERLESS_DB_NAME=paperless \
-  --env PAPERLESS_DB_USER=paperless_user \
-  --env PAPERLESS_DB_PASSWORD=plpass \
-  --volume "$TEST_PG_MIG_DATA":/var/lib/postgresql/data \
-  --volume "$TEST_PG_MIG_INIT":/custom-init \
-  --entrypoint /custom-init/db_wrapper.sh \
-  "$POSTGRES_IMAGE"
-
-sleep 20
-$PODMAN inspect --format='{{.State.Status}}' test_postgres_migration 2>/dev/null \
-  | grep -q running && pass "Postgres migration: wrapper starts on existing shared-user data directory" \
-  || fail "Postgres migration: wrapper failed on existing shared-user data directory"
-$PODMAN exec test_postgres_migration env PGPASSWORD=adminpass \
-  psql -h localhost -U postgres_admin -d postgres -c "SELECT current_user;" \
-  | grep -q postgres_admin && pass "Postgres migration: postgres_admin is available after fallback bootstrap" \
-  || fail "Postgres migration: postgres_admin was not created"
-$PODMAN exec test_postgres_migration env PGPASSWORD=plpass \
-  psql -h localhost -U paperless_user -d paperless -c "CREATE TABLE migration_smoke(id int);" \
-  >/dev/null 2>&1 && pass "Postgres migration: paperless role owns migrated database" \
-  || fail "Postgres migration: paperless role cannot manage migrated database"
-$PODMAN exec test_postgres_migration env PGPASSWORD=plpass \
-  psql -h localhost -U paperless_user -d paperless \
-  -c "INSERT INTO access_key DEFAULT VALUES;" \
-  >/dev/null 2>&1 && pass "Postgres migration: paperless role owns migrated serial-backed sequences" \
-  || fail "Postgres migration: paperless role cannot manage migrated sequences after sequence ownership migration"
-
-cleanup test_postgres_migration
-cleanup_dir "$TEST_PG_MIG_DATA"
-cleanup_dir "$TEST_PG_MIG_INIT"
-rm -rf "$TEST_PG_MIG_DIR"
-echo ""
-
-# ---------------------------------------------------------------------------
-echo "--- TEST-02C: PostgreSQL Legacy postgres Superuser Migration ---"
-TEST_PG_LEGACY_DIR=$(mktemp -d)
-TEST_PG_LEGACY_DATA="$TEST_PG_LEGACY_DIR/pgdata"
-TEST_PG_LEGACY_INIT="$TEST_PG_LEGACY_DIR/custom-init"
-mkdir -p "$TEST_PG_LEGACY_DATA" "$TEST_PG_LEGACY_INIT"
-chmod 0750 "$TEST_PG_LEGACY_DATA" "$TEST_PG_LEGACY_INIT"
-install -m 0755 "$REPO_ROOT/roles/nextcloud/files/db_wrapper.sh" \
-  "$TEST_PG_LEGACY_INIT/db_wrapper.sh"
-chown_test_path 999:999 "$TEST_PG_LEGACY_DATA"
-chown_test_path 999:999 "$TEST_PG_LEGACY_INIT" -R
-
-"${ENGINE_RUN[@]}" -d --name test_postgres_legacy_seed \
-  --user 999:999 \
-  --cap-drop=ALL \
-  --security-opt=no-new-privileges:true \
-  --memory=2g --memory-swap=2g \
-  --shm-size=256m \
-  --read-only \
-  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
-  --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
-  "${POSTGRES_SOCKET_TMP_MOUNT[@]}" \
-  --env POSTGRES_PASSWORD=legacysecret \
-  --env POSTGRES_DB=nextcloud \
-  --volume "$TEST_PG_LEGACY_DATA":/var/lib/postgresql/data \
-  "$POSTGRES_IMAGE"
-
-sleep 15
-$PODMAN exec test_postgres_legacy_seed env PGPASSWORD=legacysecret \
-  psql -h localhost -U postgres -d postgres \
-  -c "CREATE DATABASE paperless OWNER postgres;"
-
-cleanup test_postgres_legacy_seed
-
-"${ENGINE_RUN[@]}" -d --name test_postgres_legacy_migration \
-  --user 999:999 \
-  --cap-drop=ALL \
-  --security-opt=no-new-privileges:true \
-  --memory=2g --memory-swap=2g \
-  --shm-size=256m \
-  --read-only \
-  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
-  --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
-  "${POSTGRES_SOCKET_TMP_MOUNT[@]}" \
-  --env POSTGRES_USER=postgres_admin \
-  --env POSTGRES_PASSWORD=adminpass \
-  --env POSTGRES_DB=nextcloud \
-  --env NEXTCLOUD_DB_NAME=nextcloud \
-  --env NEXTCLOUD_DB_USER=nextcloud_user \
-  --env NEXTCLOUD_DB_PASSWORD=ncpass \
-  --env PAPERLESS_DB_NAME=paperless \
-  --env PAPERLESS_DB_USER=paperless_user \
-  --env PAPERLESS_DB_PASSWORD=plpass \
-  --volume "$TEST_PG_LEGACY_DATA":/var/lib/postgresql/data \
-  --volume "$TEST_PG_LEGACY_INIT":/custom-init \
-  --entrypoint /custom-init/db_wrapper.sh \
-  "$POSTGRES_IMAGE"
-
-sleep 20
-$PODMAN inspect --format='{{.State.Status}}' test_postgres_legacy_migration 2>/dev/null \
-  | grep -q running && pass "Postgres legacy migration: wrapper starts on existing postgres-owned data directory" \
-  || fail "Postgres legacy migration: wrapper failed on existing postgres-owned data directory"
-$PODMAN exec test_postgres_legacy_migration env PGPASSWORD=adminpass \
-  psql -h localhost -U postgres_admin -d postgres -c "SELECT current_user;" \
-  | grep -q postgres_admin && pass "Postgres legacy migration: postgres_admin is available after fallback bootstrap" \
-  || fail "Postgres legacy migration: postgres_admin was not created"
-$PODMAN exec test_postgres_legacy_migration env PGPASSWORD=ncpass \
-  psql -h localhost -U nextcloud_user -d nextcloud -c "CREATE TABLE migration_smoke(id int);" \
-  >/dev/null 2>&1 && pass "Postgres legacy migration: nextcloud role owns migrated database" \
-  || fail "Postgres legacy migration: nextcloud role cannot manage migrated database"
-$PODMAN exec test_postgres_legacy_migration env PGPASSWORD=plpass \
-  psql -h localhost -U paperless_user -d paperless -c "CREATE TABLE migration_smoke(id int);" \
-  >/dev/null 2>&1 && pass "Postgres legacy migration: paperless role owns migrated database" \
-  || fail "Postgres legacy migration: paperless role cannot manage migrated database"
-
-cleanup test_postgres_legacy_migration
-cleanup_dir "$TEST_PG_LEGACY_DATA"
-cleanup_dir "$TEST_PG_LEGACY_INIT"
-rm -rf "$TEST_PG_LEGACY_DIR"
-echo ""
-
-# ---------------------------------------------------------------------------
-echo "--- TEST-02D: PostgreSQL Arbitrary Legacy Superuser Migration ---"
-TEST_PG_CUSTOM_DIR=$(mktemp -d)
-TEST_PG_CUSTOM_DATA="$TEST_PG_CUSTOM_DIR/pgdata"
-TEST_PG_CUSTOM_INIT="$TEST_PG_CUSTOM_DIR/custom-init"
-mkdir -p "$TEST_PG_CUSTOM_DATA" "$TEST_PG_CUSTOM_INIT"
-chmod 0750 "$TEST_PG_CUSTOM_DATA" "$TEST_PG_CUSTOM_INIT"
-install -m 0755 "$REPO_ROOT/roles/nextcloud/files/db_wrapper.sh" \
-  "$TEST_PG_CUSTOM_INIT/db_wrapper.sh"
-chown_test_path 999:999 "$TEST_PG_CUSTOM_DATA"
-chown_test_path 999:999 "$TEST_PG_CUSTOM_INIT" -R
-
-"${ENGINE_RUN[@]}" -d --name test_postgres_custom_seed \
-  --user 999:999 \
-  --cap-drop=ALL \
-  --security-opt=no-new-privileges:true \
-  --memory=2g --memory-swap=2g \
-  --shm-size=256m \
-  --read-only \
-  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
-  --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
-  "${POSTGRES_SOCKET_TMP_MOUNT[@]}" \
-  --env POSTGRES_USER=legacy_admin \
-  --env POSTGRES_PASSWORD=legacysecret \
-  --env POSTGRES_DB=nextcloud \
-  --volume "$TEST_PG_CUSTOM_DATA":/var/lib/postgresql/data \
-  "$POSTGRES_IMAGE"
-
-sleep 15
-$PODMAN exec test_postgres_custom_seed env PGPASSWORD=legacysecret \
-  psql -h localhost -U legacy_admin -d postgres \
-  -c "CREATE DATABASE paperless OWNER legacy_admin;"
-
-cleanup test_postgres_custom_seed
-
-"${ENGINE_RUN[@]}" -d --name test_postgres_custom_migration \
-  --user 999:999 \
-  --cap-drop=ALL \
-  --security-opt=no-new-privileges:true \
-  --memory=2g --memory-swap=2g \
-  --shm-size=256m \
-  --read-only \
-  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
-  --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
-  "${POSTGRES_SOCKET_TMP_MOUNT[@]}" \
-  --env POSTGRES_USER=postgres_admin \
-  --env POSTGRES_PASSWORD=adminpass \
-  --env POSTGRES_LEGACY_BOOTSTRAP_USER=legacy_admin \
-  --env POSTGRES_LEGACY_BOOTSTRAP_PASSWORD=legacysecret \
-  --env POSTGRES_DB=nextcloud \
-  --env NEXTCLOUD_DB_NAME=nextcloud \
-  --env NEXTCLOUD_DB_USER=nextcloud_user \
-  --env NEXTCLOUD_DB_PASSWORD=ncpass \
-  --env PAPERLESS_DB_NAME=paperless \
-  --env PAPERLESS_DB_USER=paperless_user \
-  --env PAPERLESS_DB_PASSWORD=plpass \
-  --volume "$TEST_PG_CUSTOM_DATA":/var/lib/postgresql/data \
-  --volume "$TEST_PG_CUSTOM_INIT":/custom-init \
-  --entrypoint /custom-init/db_wrapper.sh \
-  "$POSTGRES_IMAGE"
-
-sleep 20
-$PODMAN inspect --format='{{.State.Status}}' test_postgres_custom_migration 2>/dev/null \
-  | grep -q running && pass "Postgres custom migration: wrapper starts with explicit legacy bootstrap credentials" \
-  || fail "Postgres custom migration: wrapper failed with explicit legacy bootstrap credentials"
-$PODMAN exec test_postgres_custom_migration env PGPASSWORD=adminpass \
-  psql -h localhost -U postgres_admin -d postgres -c "SELECT current_user;" \
-  | grep -q postgres_admin && pass "Postgres custom migration: postgres_admin is available after legacy bootstrap override" \
-  || fail "Postgres custom migration: postgres_admin was not created"
-$PODMAN exec test_postgres_custom_migration env PGPASSWORD=ncpass \
-  psql -h localhost -U nextcloud_user -d nextcloud -c "CREATE TABLE migration_smoke(id int);" \
-  >/dev/null 2>&1 && pass "Postgres custom migration: nextcloud role owns migrated database" \
-  || fail "Postgres custom migration: nextcloud role cannot manage migrated database"
-$PODMAN exec test_postgres_custom_migration env PGPASSWORD=plpass \
-  psql -h localhost -U paperless_user -d paperless -c "CREATE TABLE migration_smoke(id int);" \
-  >/dev/null 2>&1 && pass "Postgres custom migration: paperless role owns migrated database" \
-  || fail "Postgres custom migration: paperless role cannot manage migrated database"
-
-cleanup test_postgres_custom_migration
-cleanup_dir "$TEST_PG_CUSTOM_DATA"
-cleanup_dir "$TEST_PG_CUSTOM_INIT"
-rm -rf "$TEST_PG_CUSTOM_DIR"
-echo ""
-
-# ---------------------------------------------------------------------------
-echo "--- TEST-02E: PostgreSQL Mixed Object Ownership Migration ---"
-TEST_PG_MIXED_DIR=$(mktemp -d)
-TEST_PG_MIXED_DATA="$TEST_PG_MIXED_DIR/pgdata"
-TEST_PG_MIXED_INIT="$TEST_PG_MIXED_DIR/custom-init"
-mkdir -p "$TEST_PG_MIXED_DATA" "$TEST_PG_MIXED_INIT"
-chmod 0750 "$TEST_PG_MIXED_DATA" "$TEST_PG_MIXED_INIT"
-install -m 0755 "$REPO_ROOT/roles/nextcloud/files/db_wrapper.sh" \
-  "$TEST_PG_MIXED_INIT/db_wrapper.sh"
-chown_test_path 999:999 "$TEST_PG_MIXED_DATA"
-chown_test_path 999:999 "$TEST_PG_MIXED_INIT" -R
-
-"${ENGINE_RUN[@]}" -d --name test_postgres_mixed_seed \
-  --user 999:999 \
-  --cap-drop=ALL \
-  --security-opt=no-new-privileges:true \
-  --memory=2g --memory-swap=2g \
-  --shm-size=256m \
-  --read-only \
-  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
-  --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
-  "${POSTGRES_SOCKET_TMP_MOUNT[@]}" \
-  --env POSTGRES_USER=postgres_admin \
-  --env POSTGRES_PASSWORD=adminpass \
-  --env POSTGRES_DB=nextcloud \
-  --volume "$TEST_PG_MIXED_DATA":/var/lib/postgresql/data \
-  "$POSTGRES_IMAGE"
-
-sleep 15
-$PODMAN exec test_postgres_mixed_seed env PGPASSWORD=adminpass \
-  psql -h localhost -U postgres_admin -d postgres \
-  -c "CREATE ROLE nextcloud_user LOGIN PASSWORD 'ncpass';"
-$PODMAN exec test_postgres_mixed_seed env PGPASSWORD=adminpass \
-  psql -h localhost -U postgres_admin -d postgres \
-  -c "CREATE ROLE paperless_user LOGIN PASSWORD 'plpass';"
-$PODMAN exec test_postgres_mixed_seed env PGPASSWORD=adminpass \
-  psql -h localhost -U postgres_admin -d postgres \
-  -c "CREATE DATABASE paperless OWNER paperless_user;"
-$PODMAN exec test_postgres_mixed_seed env PGPASSWORD=adminpass \
-  psql -h localhost -U postgres_admin -d paperless \
-  -c "CREATE TABLE django_migrations (id serial primary key, app text, name text, applied timestamptz);"
-
-cleanup test_postgres_mixed_seed
-
-"${ENGINE_RUN[@]}" -d --name test_postgres_mixed_migration \
-  --user 999:999 \
-  --cap-drop=ALL \
-  --security-opt=no-new-privileges:true \
-  --memory=2g --memory-swap=2g \
-  --shm-size=256m \
-  --read-only \
-  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m \
-  --tmpfs /run:rw,noexec,nosuid,nodev,size=16m \
-  "${POSTGRES_SOCKET_TMP_MOUNT[@]}" \
-  --env POSTGRES_USER=postgres_admin \
-  --env POSTGRES_PASSWORD=adminpass \
-  --env POSTGRES_DB=nextcloud \
-  --env NEXTCLOUD_DB_NAME=nextcloud \
-  --env NEXTCLOUD_DB_USER=nextcloud_user \
-  --env NEXTCLOUD_DB_PASSWORD=ncpass \
-  --env PAPERLESS_DB_NAME=paperless \
-  --env PAPERLESS_DB_USER=paperless_user \
-  --env PAPERLESS_DB_PASSWORD=plpass \
-  --volume "$TEST_PG_MIXED_DATA":/var/lib/postgresql/data \
-  --volume "$TEST_PG_MIXED_INIT":/custom-init \
-  --entrypoint /custom-init/db_wrapper.sh \
-  "$POSTGRES_IMAGE"
-
-sleep 20
-$PODMAN inspect --format='{{.State.Status}}' test_postgres_mixed_migration 2>/dev/null \
-  | grep -q running && pass "Postgres mixed migration: wrapper starts with existing service-owned databases" \
-  || fail "Postgres mixed migration: wrapper failed with existing service-owned databases"
-$PODMAN exec test_postgres_mixed_migration env PGPASSWORD=plpass \
-  psql -h localhost -U paperless_user -d paperless \
-  -c "SELECT * FROM django_migrations; INSERT INTO django_migrations(app, name) VALUES ('main', '0001_initial');" \
-  >/dev/null 2>&1 && pass "Postgres mixed migration: paperless role can access legacy admin-owned tables after normalization" \
-  || fail "Postgres mixed migration: paperless role still cannot access legacy admin-owned tables"
-
-cleanup test_postgres_mixed_migration
-cleanup_dir "$TEST_PG_MIXED_DATA"
-cleanup_dir "$TEST_PG_MIXED_INIT"
-rm -rf "$TEST_PG_MIXED_DIR"
-echo ""
-fi
-
-# ---------------------------------------------------------------------------
-if should_run redis; then
-echo "--- TEST-03: Redis ---"
-"${ENGINE_RUN[@]}" -d --name test_redis \
-  --cap-drop=ALL \
-  --cap-add=CHOWN \
-  --cap-add=FOWNER \
-  --cap-add=DAC_OVERRIDE \
-  --security-opt=no-new-privileges:true \
-  --read-only \
-  --tmpfs /tmp:rw,noexec,nosuid,nodev,size=16m \
-  --tmpfs /data:rw,noexec,nosuid,nodev,size=64m \
-  --memory=512m --memory-swap=512m \
-  --pids-limit=200 \
-  "$REDIS_IMAGE"
-
-check_running test_redis "Redis: starts with cap-drop=ALL + CHOWN/FOWNER/DAC_OVERRIDE + 512m limit"
-sleep 3
-$PODMAN exec test_redis redis-cli ping \
-  | grep -q PONG && pass "Redis: ping succeeds" || fail "Redis: ping failed"
-
-cleanup test_redis
-echo ""
-fi
-
-# ---------------------------------------------------------------------------
-if should_run nextcloud; then
-echo "--- TEST-04: Nextcloud ---"
-# NOTE: Nextcloud's entrypoint uses rsync --chown to copy its webroot on every start,
-# requiring the CHOWN capability. --cap-drop=ALL breaks this. Production config uses
-# --security-opt=no-new-privileges:true only (no --cap-drop=ALL).
-TEST_NC_DIR=$(mktemp -d)
-chmod 0770 "$TEST_NC_DIR"
-chown_test_path 33:33 "$TEST_NC_DIR"
-
-"${ENGINE_RUN[@]}" -d --name test_nextcloud \
-  --security-opt=no-new-privileges:true \
-  --memory=4g --memory-swap=4g \
-  --volume "$TEST_NC_DIR":/var/www/html \
-  -e SQLITE_DATABASE=testdb \
-  "$NEXTCLOUD_IMAGE"
-
-sleep 20
-$PODMAN inspect --format='{{.State.Status}}' test_nextcloud \
-  | grep -q running \
-  && pass "Nextcloud: starts with no-new-privileges (cap-drop=ALL omitted — requires CHOWN for rsync entrypoint)" \
-  || fail "Nextcloud: failed to start"
-
-cleanup test_nextcloud
-cleanup_dir "$TEST_NC_DIR"
 echo ""
 fi
 
@@ -767,56 +262,6 @@ check_running test_traefik_cap "Traefik: starts with cap-drop=ALL + NET_BIND_SER
 
 cleanup test_traefik_cap
 rm -rf "$TEST_TRAEFIK_DIR"
-echo ""
-fi
-
-# ---------------------------------------------------------------------------
-if should_run paperless; then
-echo "--- TEST-06: Paperless NGX ---"
-TEST_PL_DATA=$(mktemp -d)
-TEST_PL_MEDIA=$(mktemp -d)
-TEST_PL_EXPORT=$(mktemp -d)
-TEST_PL_CONSUME=$(mktemp -d)
-"${ENGINE_RUN[@]}" --rm \
-  -v "$TEST_PL_DATA":/d1 -v "$TEST_PL_MEDIA":/d2 \
-  -v "$TEST_PL_EXPORT":/d3 -v "$TEST_PL_CONSUME":/d4 \
-  "$TEST_HELPER_IMAGE" chown 1000:1000 /d1 /d2 /d3 /d4
-
-"${ENGINE_RUN[@]}" -d --name test_paperless \
-  --cap-drop=ALL \
-  --cap-add=CHOWN \
-  --cap-add=SETUID \
-  --cap-add=SETGID \
-  --cap-add=FOWNER \
-  --cap-add=DAC_OVERRIDE \
-  --security-opt=no-new-privileges:true \
-  --memory=2g --memory-swap=2g \
-  --pids-limit=500 \
-  -e USERMAP_UID=1000 \
-  -e USERMAP_GID=1000 \
-  -e PAPERLESS_REDIS=redis://nonexistent:6379 \
-  -e PAPERLESS_DBENGINE=postgresql \
-  -e PAPERLESS_DBHOST=nonexistent \
-  -e PAPERLESS_SECRET_KEY=container-security-test-signing-key-not-a-real-secret \
-  --volume "$TEST_PL_DATA":/usr/src/paperless/data \
-  --volume "$TEST_PL_MEDIA":/usr/src/paperless/media \
-  --volume "$TEST_PL_EXPORT":/usr/src/paperless/export \
-  --volume "$TEST_PL_CONSUME":/usr/src/paperless/consume \
-  "$PAPERLESS_IMAGE"
-sleep 10
-echo "Paperless status: $($PODMAN inspect --format='{{.State.Status}}' test_paperless 2>/dev/null)"
-check_running test_paperless "Paperless: remains running with reduced capabilities and no-new-privileges"
-if $PODMAN logs test_paperless 2>&1 | grep -qi "gosu\|permission denied\|operation not permitted"; then
-  fail "Paperless: startup shows privilege errors with required caps"
-else
-  pass "Paperless: starts without privilege errors using CHOWN/SETUID/SETGID/FOWNER/DAC_OVERRIDE"
-fi
-cleanup test_paperless
-
-cleanup_dir "$TEST_PL_DATA"
-cleanup_dir "$TEST_PL_MEDIA"
-cleanup_dir "$TEST_PL_EXPORT"
-cleanup_dir "$TEST_PL_CONSUME"
 echo ""
 fi
 

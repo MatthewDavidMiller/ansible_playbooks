@@ -1,18 +1,9 @@
 ---
 # standard_rclone role defaults
 
-# WebDAV URL for the Nextcloud rclone remote (e.g. "https://nextcloud.example.com/remote.php/dav/files/user")
-nextcloud_webdav_path: ""
-
-# WebDAV username for the Nextcloud rclone remote
-nextcloud_rclone_user: ""
-
-# WebDAV password for the Nextcloud rclone remote (use an app password, not the account password)
-nextcloud_rclone_pass: ""
-
 # homedrive account for the Homedrive rclone remote: by default the one that
 # holds the backups
-homedrive_rclone_user: "{{ homedrive_backup_user | default(nextcloud_homelab_user | default('')) }}"
+homedrive_rclone_user: "{{ homedrive_backup_user | default(homedrive_main_user | default('')) }}"
 
 # WebDAV URL for the Homedrive rclone remote: by default homedrive's address
 # on VM1 when it is deployed (https://drive.<homelab_internal_domain>/dav/<user>)

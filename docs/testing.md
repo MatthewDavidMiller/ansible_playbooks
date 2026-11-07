@@ -51,7 +51,7 @@ Its fixtures are host directories owned by the subuids its containers run as, so
 
 `scripts/run-runtime-container-tests.sh` therefore runs the suite on the host, and `make test-full` calls it, so this needs no flag. It is the only place in this repository that wants anything on the host beyond Podman itself — `python3` with PyYAML, to read the pinned digests out of the lock files — and it says so and stops rather than failing obscurely if that is missing.
 
-The Python suite includes mocked success and failure paths for artifact promotion, Proxmox provisioning, dynamic DNS, shared validation filters, and VM bootstrap behavior. It also executes the Nextcloud permission-normalization command against a temporary file tree to guard its single-pass and idempotent behavior, and to confirm it reports a count of the files it fixed rather than a line for each one.
+The Python suite includes mocked success and failure paths for artifact promotion, Proxmox provisioning, dynamic DNS, shared validation filters, and VM bootstrap behavior. It also guards the retirement of the Nextcloud stack: its roles, images, routes and addresses stay gone, every service backup goes only to homedrive, and `retire_nextcloud.yml` and `scripts/remove_nextcloud_inventory.py` keep their safety properties (no data removed without a typed confirmation, the Borg repository never removed, no value printed, renames refused onto an existing name).
 
 The suite also guards failure recovery in deferred container-network migrations,
 malformed Porkbun record responses, fail-closed Proxmox VM discovery, and atomic
@@ -75,7 +75,7 @@ and archive-only remote retention filter.
 
 Route proxy addressing has dedicated guards in `tests/test_ansible_regressions.py`. Every container on a route proxy network must request a static address that Podman can assign, Traefik's `route_proxy_traefik_ips` address must differ from the service address on the same network, and `route_proxy_container_ips` must match the address the service launch script requests. The checks read the launch scripts and role defaults, so a new proxied service is covered once it pins an address.
 
-Local Nextcloud backups have dedicated guards in `tests/test_ansible_regressions.py`. Every template that writes into the Nextcloud user files tree must call the managed `nextcloud_scan_path.sh` helper, must report helper failures instead of discarding them with `|| true`, and must install dumps using `nextcloud_user_files_file_mode` so the mode survives the `nextcloud` role's normalization. The helper itself is checked for serialized scans, retries, an explicit `occ` path and working directory, the `nextcloud_uid:nextcloud_gid` runtime user, and detection of semantic failures that `occ files:scan` reports with a zero exit status. Because every caller is a cron job, the helper is also checked for a pinned `PATH`, `HOME`, and locale, absolute paths for every binary it calls, a `timeout` around `occ`, and the `occ info:file` confirmation that the scanned path really reached the file cache. A separate check holds the `nextcloud` role to the `container_file_t` rule for its volume and to a `restorecon` of the data tree that does not force the range, since `-F` would strip the MCS categories podman's `:Z` applied, and that counts its `-v` output through `wc -l` instead of returning a line per relabeled file. The backup-template checks discover callers by content, so a new service backup script is covered without editing the tests.
+The three service backup scripts (Vaultwarden, playbook-runner, music-server) are guarded in `tests/test_ansible_regressions.py` to store through `homedrive_import_path.sh` only, with no branch for another destination, and their roles to refuse to run without homedrive and a valid `homedrive_backup_user`. The rendered-script assertions in `scripts/test_shell_secret_env.sh` hold the same properties on real output.
 
 ---
 
@@ -116,15 +116,10 @@ make shell
 
 The script validates the current VM1 hardening profile:
 
-1. PostgreSQL starts with `--cap-drop=ALL`, `--shm-size=256m`, and the expected ownership.
-2. PostgreSQL role isolation works: per-service roles can use their own databases and should not have cross-database access by default.
-3. Redis starts with the minimal filesystem capabilities it still needs.
-4. Nextcloud starts with `no-new-privileges` and without `cap-drop=ALL`, matching the image entrypoint requirement.
-5. Traefik still requires `NET_BIND_SERVICE` under a real kernel.
-6. Paperless NGX starts with its reduced capability set and without privilege errors.
-7. Vaultwarden starts with `NET_BIND_SERVICE` and `SIGNUPS_ALLOWED=false`.
-8. music-server starts as UID/GID `10001` with `cap-drop=ALL`, a read-only root, and its secrets, and answers its health check.
-9. homedrive refuses to start on a store directory without `store.id`, initializes an empty one as UID/GID `10001` with `cap-drop=ALL`, then starts read-only with its users secret and answers its health check.
+1. Traefik still requires `NET_BIND_SERVICE` under a real kernel.
+2. Vaultwarden starts with `NET_BIND_SERVICE` and `SIGNUPS_ALLOWED=false`.
+3. music-server starts as UID/GID `10001` with `cap-drop=ALL`, a read-only root, and its secrets, and answers its health check.
+4. homedrive refuses to start on a store directory without `store.id`, initializes an empty one as UID/GID `10001` with `cap-drop=ALL`, then starts read-only with its users secret and answers its health check.
 
 By default the script now reads the approved image refs from `artifacts/containers.lock.yml`, converts them to digest-pinned `repo@sha256:...` refs, and tests those exact images. It still accepts image override env vars when you need to test a candidate image before writing it into the lock file:
 
@@ -132,7 +127,7 @@ The full suite is `make test-full`. For faster debugging, pass one or more targe
 
 ```bash
 ./scripts/run-runtime-container-tests.sh vaultwarden
-./scripts/run-runtime-container-tests.sh postgres redis
+./scripts/run-runtime-container-tests.sh traefik vaultwarden
 ```
 
 The `static` target needs no engine and is already part of `make test`.
@@ -141,10 +136,6 @@ The runtime suite runs on the host, so image override variables are set in the s
 
 ```bash
 TRAEFIK_IMAGE=public.ecr.aws/docker/library/traefik@sha256:d6858791f9e74df44ca4014166647c41cdc2abd3bf2a71b832ca4e1c6a91b257 \
-POSTGRES_IMAGE=public.ecr.aws/docker/library/postgres@sha256:2203e6282d9e7de7c24d7da234e2a744fb325df366a3fd8ed940e8abbee39527 \
-REDIS_IMAGE=public.ecr.aws/docker/library/redis@sha256:0a972391db0b24ec336e35d1bc98b237237e26f82bf5120cf2f6b1688d1df973 \
-NEXTCLOUD_IMAGE=public.ecr.aws/docker/library/nextcloud@sha256:e15ff2ff02d04bf272940bb63f2157599bc9440d45b688cc60f09b72be7ae717 \
-PAPERLESS_IMAGE=ghcr.io/paperless-ngx/paperless-ngx@sha256:6c86cad803970ea782683a8e80e7403444c5bf3cf70de63b4d3c8e87500db92f \
 MUSIC_SERVER_IMAGE=ghcr.io/matthewdavidmiller/music-server@sha256:e2d2e201d5aad558cbcce415f4b05c3fdca454a58895aa479654ef117386cc0c \
 HOMEDRIVE_IMAGE=ghcr.io/matthewdavidmiller/homedrive@sha256:9aad9f73f00f7647b3884c62af28bddf1320b6082604ee47c1ecde44e7b3795e \
 VAULTWARDEN_IMAGE=ghcr.io/dani-garcia/vaultwarden@sha256:d626d04934cd1192ad8ced1adb975099fca78cec33ab467d2d3c923cde7f3b0c \
@@ -181,7 +172,7 @@ Full review for one or more services:
 
 ```bash
 ./scripts/toolbox.sh bash scripts/review_container_updates.sh --service traefik
-./scripts/toolbox.sh bash scripts/review_container_updates.sh --service postgres --service redis
+./scripts/toolbox.sh bash scripts/review_container_updates.sh --service vaultwarden --service homedrive
 ```
 
 For the full workflow and install references, see [guides/container-image-updates.md](guides/container-image-updates.md).
@@ -197,8 +188,7 @@ For the full workflow and install references, see [guides/container-image-update
 - Service launch scripts source the correct file under `secret_env_dir` before `podman run`.
 - Each sourced variable expected by a container is passed with `--env VAR_NAME`.
 - Service launch scripts use `podman run --pull=never` and no longer call standalone `podman pull`.
-- Local backup scripts for Vaultwarden, playbook-runner, and music-server render ownership-preserving `install` commands for the Nextcloud data tree when `backup_local: true`.
-- The shared targeted Nextcloud scan helper renders the expected UID/GID, absolute `occ` path, serialization, retry, and semantic-error checks, and every local service backup calls it.
+- The Vaultwarden, playbook-runner, and music-server backup scripts render a store through homedrive and nothing else: no Nextcloud path, scan helper, or rclone upload.
 
 It runs as part of `make test`. To run it alone:
 
@@ -215,7 +205,7 @@ It runs as part of `make test`. To run it alone:
 - `scripts/test_supply_chain_policy.sh` reports `PASS` for immutable image refs, approved collection installs, and pinned provisioning inputs.
 - `scripts/test_supply_chain_policy.sh` also enforces core SSH, firewall, proxy, backup, and secret-rendering guardrails.
 - `scripts/promote_artifacts.py --check-tools` reports either native binaries or the pinned container fallback for `skopeo`, `cosign`, and `trivy`.
-- VM1 container tests report `PASS` for PostgreSQL, Redis, Nextcloud, Traefik, Paperless, Vaultwarden, music-server, and homedrive.
+- VM1 container tests report `PASS` for Traefik, Vaultwarden, music-server, and homedrive.
 - `make lint` and `make test` end with an explicit pass line; any missing linter fails the run instead of being skipped.
 
 ---

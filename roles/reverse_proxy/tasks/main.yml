@@ -45,8 +45,7 @@
   loop_control:
     loop_var: config_name
   vars:
-    reverse_proxy_forbidden_networks:
-      - nextcloud_container_net
+    reverse_proxy_forbidden_networks: []
 
 - name: Validate reverse proxy route names are unique
   ansible.builtin.assert:
@@ -81,7 +80,6 @@
     that:
       - traefik_egress_network | homelab_safe_name
       - traefik_egress_network not in traefik_app_networks
-      - traefik_egress_network != 'nextcloud_container_net'
     fail_msg: "traefik_egress_network must be a safe dedicated non-backend network name."
 
 - name: Reconcile Traefik egress network

@@ -33,11 +33,8 @@
       - route_proxy_network_subnets.music_server_container_net | homelab_valid_ipv4_cidr
       - container_static_ips.music_server_proxy | homelab_container_assignable_ip(route_proxy_network_subnets.music_server_container_net)
       - route_proxy_traefik_ips.music_server_container_net | homelab_container_assignable_ip(route_proxy_network_subnets.music_server_container_net)
-      - backup_destination in ['nextcloud', 'homedrive']
-      - backup_destination != 'homedrive' or homedrive_enabled | default(false) | bool
-      - backup_destination != 'homedrive' or homedrive_backup_user in (homedrive_users | default([]) | map(attribute='name') | list)
-      - not (backup_local | bool) or nextcloud_path | homelab_safe_absolute_path
-      - not (backup_local | bool) or nextcloud_homelab_user | homelab_safe_name
+      - homedrive_enabled | default(false) | bool
+      - homedrive_backup_user in (homedrive_users | default([]) | map(attribute='name') | list)
     fail_msg: >-
       Configure a 64-hex-digit master key; 1-50 users with unique safe names,
       8-128 character passwords, and at least one admin; safe paths; an
@@ -183,24 +180,6 @@
     owner: root
     group: root
     mode: "0700"
-
-- name: Create music-server Nextcloud backup destination
-  ansible.builtin.file:
-    path: "{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/{{ music_server_backup_location | replace('Nextcloud:', '') }}"
-    state: directory
-    owner: "{{ nextcloud_uid }}"
-    group: "{{ nextcloud_gid }}"
-    mode: "0770"
-  when: backup_local | default(false)
-
-- name: Repair music-server Nextcloud backup destination ownership
-  ansible.builtin.file:
-    path: "{{ nextcloud_path }}/data/{{ nextcloud_homelab_user }}/files/{{ music_server_backup_location | replace('Nextcloud:', '') }}"
-    state: directory
-    owner: "{{ nextcloud_uid }}"
-    group: "{{ nextcloud_gid }}"
-    recurse: true
-  when: backup_local | default(false)
 
 - name: Backup music-server script
   ansible.builtin.template:
