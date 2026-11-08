@@ -48,7 +48,7 @@
       register: retire_semaphore_service
       failed_when:
         - retire_semaphore_service is failed
-        - "'could not be found' not in (retire_semaphore_service.msg | default(''))"
+        - "(retire_semaphore_service.msg | default('') | lower) is not search('could not (find|be found)')"
 
     - name: Remove the Semaphore container
       ansible.builtin.command:

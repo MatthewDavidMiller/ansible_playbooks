@@ -132,7 +132,7 @@
       register: retire_nextcloud_services
       failed_when:
         - retire_nextcloud_services is failed
-        - "'could not be found' not in (retire_nextcloud_services.msg | default(''))"
+        - "(retire_nextcloud_services.msg | default('') | lower) is not search('could not (find|be found)')"
 
     - name: Remove the Nextcloud stack's containers
       ansible.builtin.command:

@@ -1130,6 +1130,15 @@ class RetireNextcloudTests(unittest.TestCase):
     def test_names_are_validated_before_anything_is_removed(self):
         self.assertEqual(next(iter(self.tasks)), "Validate cleanup inputs")
 
+    def test_a_service_that_is_already_gone_is_not_an_error(self):
+        """A second run must pass: systemd words a missing unit either way."""
+        stop = self.tasks["Stop and disable the Nextcloud stack's services"]
+        conditions = "\n".join(stop["failed_when"])
+        for wording in ("could not find", "could not be found"):
+            with self.subTest(wording=wording):
+                self.assertRegex(conditions, rf"search\('.*{wording.split()[-1]}")
+        self.assertIn("| lower", conditions)
+
     def test_read_only_probes_run_in_check_mode(self):
         for name in ("List the images", "Check for the Nextcloud stack's networks"):
             with self.subTest(task=name):

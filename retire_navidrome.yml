@@ -53,7 +53,7 @@
       register: retire_navidrome_service
       failed_when:
         - retire_navidrome_service is failed
-        - "'could not be found' not in (retire_navidrome_service.msg | default(''))"
+        - "(retire_navidrome_service.msg | default('') | lower) is not search('could not (find|be found)')"
 
     - name: Remove the Navidrome container
       ansible.builtin.command:
