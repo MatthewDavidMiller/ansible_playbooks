@@ -62,7 +62,7 @@
         homedrive_import_user: "{{ homedrive_import_user | default(homedrive_main_user | default(nextcloud_homelab_user | default(''))) }}"
         homedrive_import_src: >-
           {{ homedrive_import_src | default((nextcloud_path | default('/data_drive/nextcloud'))
-             ~ '/data/' ~ (nextcloud_homelab_user | default('')) ~ '/files') }}
+             ~ '/data/' ~ (homedrive_main_user | default(nextcloud_homelab_user | default(''))) ~ '/files') }}
         homedrive_import_dest: "{{ homedrive_import_dest | default('') }}"
         homedrive_import_max_missing: "{{ homedrive_import_max_missing | default(100) }}"
         homedrive_import_source_gid: "{{ homedrive_import_source_gid | default(nextcloud_gid | default('33')) }}"

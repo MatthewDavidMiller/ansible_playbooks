@@ -1329,13 +1329,21 @@ class HomedriveImportTests(unittest.TestCase):
         )
         for task in self.play["tasks"]:
             command = str(task.get("ansible.builtin.shell", {}).get("cmd", ""))
-            reads_everything = "fsck --deep" in command or (
+            reads_everything = "hd-server fsck" in command or (
                 "verify-tree " in command and "--quick" not in command
             )
             if reads_everything:
                 with self.subTest(task=task["name"]):
                     self.assertIn("never", task["tags"])
                     self.assertIn("full", task["tags"])
+
+    def test_the_source_folder_follows_the_users_new_variable_name(self):
+        """Inventory moved off nextcloud_homelab_user keeps the source path."""
+        facts = self.tasks["Apply the defaults for what the inventory leaves unset"][
+            "ansible.builtin.set_fact"
+        ]
+        self.assertIn("homedrive_main_user", facts["homedrive_import_src"])
+        self.assertIn("homedrive_main_user", facts["homedrive_import_user"])
 
     def test_setup_runs_whatever_the_tags(self):
         for name in self.names[: self.names.index("Set the one-off container command") + 1]:
