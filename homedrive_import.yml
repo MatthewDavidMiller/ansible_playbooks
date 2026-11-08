@@ -25,6 +25,15 @@
 # or one that was cut off, reads only files that changed since; set
 # homedrive_import_fresh to read everything afresh.
 #
+# Both slow checks read with several threads (homedrive 0.1.10; up to 4 by
+# default, homedrive_import_jobs sets the number for verify-tree, and
+# homedrive_import_fsck_args can carry --jobs=N). fsck --deep reads each
+# chunk once however many versions share it, and recomputes the file hash
+# of the current versions; add --all-files to homedrive_import_fsck_args to
+# recompute it for every old and trashed version too, which can read far
+# more than the store holds. Its progress is on the server's log
+# (podman logs homedrive), a line every half minute.
+#
 # Reviewed differences: a full check can find differences that have been looked
 # into and are harmless. List them in homedrive_import_accepted (in the
 # inventory, never in this repository: it names files) as lines of
@@ -62,6 +71,8 @@
         homedrive_import_fresh: "{{ homedrive_import_fresh | default(false) }}"
         homedrive_import_accepted: "{{ homedrive_import_accepted | default('') }}"
         homedrive_import_timeout_s: "{{ homedrive_import_timeout_s | default(86400) }}"
+        homedrive_import_jobs: "{{ homedrive_import_jobs | default('') }}"
+        homedrive_import_fsck_args: "{{ homedrive_import_fsck_args | default('--deep') }}"
         homedrive_import_store: "{{ homedrive_import_store | default(homedrive_path | default('/data_drive/homedrive/store')) }}"
         homedrive_import_uid: "{{ homedrive_import_uid | default(homedrive_uid | default('10001')) }}"
         homedrive_import_gid: "{{ homedrive_import_gid | default(homedrive_gid | default('10001')) }}"
@@ -87,12 +98,16 @@
             or (homedrive_import_accepted | trim).splitlines()
                | reject('match', '^\\\\?[0-9a-f]{64}  .+$') | reject('match', '^\\s*$') | list | length == 0
           - homedrive_import_source_gid | string is match('^[0-9]+$')
+          - homedrive_import_jobs | string is match('^([0-9]{1,2})?$')
+          - homedrive_import_fsck_args | trim is match('^--deep( --all-files)?( --jobs=[0-9]{1,2})?$')
         fail_msg: >-
           homedrive_import_user must be one of homedrive_users; the source,
           store, cache and log must be absolute paths, the cache must be
           neither inside nor around the source or the store, and every line
           of homedrive_import_accepted must be "<sha256>  <path>" (lowercase
-          hex, two spaces).
+          hex, two spaces). homedrive_import_jobs is a number, and
+          homedrive_import_fsck_args is --deep, optionally followed by
+          --all-files and --jobs=N, in that order.
       no_log: true
       tags: [always]
 
@@ -182,12 +197,14 @@
           {{ ('--dest ' ~ (homedrive_import_dest | quote)) if homedrive_import_dest | length > 0 else '' }}
         homedrive_import_cache: >-
           {{ '' if homedrive_import_fresh | bool else '--hash-cache /mnt/cache/hashes.jsonl' }}
+        homedrive_import_jobs_arg: >-
+          {{ ('--jobs ' ~ homedrive_import_jobs) if homedrive_import_jobs | string | length > 0 else '' }}
         homedrive_import_accepted_arg: >-
           {{ '--accepted /mnt/cache/accepted.sha256' if homedrive_import_accepted | trim | length > 0 else '' }}
         homedrive_import_summary: 'checked(?: by size only)?: ([0-9]+) missing, ([0-9]+) different, ([0-9]+) skipped'
       tags: [always]
 
-    # A server older than the flag would ignore it and accept nothing: refuse
+    # A server older than a flag would ignore it, or refuse it: stop here
     # instead of leaving it to look as if the list had been read.
     - name: Check the server reads the reviewed list
       ansible.builtin.command:
@@ -195,7 +212,10 @@
       register: homedrive_import_version
       changed_when: false
       check_mode: false
-      when: homedrive_import_accepted | trim | length > 0
+      when: >-
+        homedrive_import_accepted | trim | length > 0
+        or homedrive_import_jobs | string | length > 0
+        or homedrive_import_fsck_args | trim != '--deep'
       tags: [always]
 
     - name: Require homedrive 0.1.8 or later for the reviewed list
@@ -204,6 +224,16 @@
           - (homedrive_import_version.stdout | regex_search('[0-9]+[.][0-9]+[.][0-9]+')) is version('0.1.8', '>=')
         fail_msg: homedrive_import_accepted needs homedrive 0.1.8 or later; run vm1.yml with the newer image first.
       when: homedrive_import_accepted | trim | length > 0
+      tags: [always]
+
+    - name: Require homedrive 0.1.10 or later for the thread and fsck options
+      ansible.builtin.assert:
+        that:
+          - (homedrive_import_version.stdout | regex_search('[0-9]+[.][0-9]+[.][0-9]+')) is version('0.1.10', '>=')
+        fail_msg: >-
+          homedrive_import_jobs and homedrive_import_fsck_args need homedrive
+          0.1.10 or later; run vm1.yml with the newer image first.
+      when: homedrive_import_jobs | string | length > 0 or homedrive_import_fsck_args | trim != '--deep'
       tags: [always]
 
     # verify-tree exits 1 whenever anything is missing, which is expected
@@ -317,7 +347,7 @@
           set -o pipefail
           out="$(mktemp)"
           status=0
-          {{ homedrive_import_run }} verify-tree {{ homedrive_import_cache }} {{ homedrive_import_accepted_arg }} {{ homedrive_import_args }} > "$out" 2>&1 || status=$?
+          {{ homedrive_import_run }} verify-tree {{ homedrive_import_cache }} {{ homedrive_import_jobs_arg }} {{ homedrive_import_accepted_arg }} {{ homedrive_import_args }} > "$out" 2>&1 || status=$?
           { echo "== $(date -Is) verify-tree (exit $status)"; cat "$out"; } >> {{ homedrive_import_log | quote }}
           grep -E '^(MISSING|DIFFERENT|SKIPPED) ' "$out" | head -n 50 || true
           grep -E '^[0-9]+ file\(s\) checked|hash\(es\) from the cache|^cache: ' "$out" || tail -n 5 "$out"
@@ -338,8 +368,8 @@
           set -o pipefail
           out="$(mktemp)"
           status=0
-          /usr/bin/podman exec homedrive hd-server fsck --deep > "$out" 2>&1 || status=$?
-          { echo "== $(date -Is) fsck --deep (exit $status)"; cat "$out"; } >> {{ homedrive_import_log | quote }}
+          /usr/bin/podman exec homedrive hd-server fsck {{ homedrive_import_fsck_args | trim }} > "$out" 2>&1 || status=$?
+          { echo "== $(date -Is) fsck {{ homedrive_import_fsck_args | trim }} (exit $status)"; cat "$out"; } >> {{ homedrive_import_log | quote }}
           head -n 50 "$out"
           rm -f "$out"
           exit "$status"
