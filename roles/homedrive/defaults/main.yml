@@ -92,12 +92,14 @@ homedrive_borg_passphrase: ""
 # about twice the store's size free while it runs, the light one (a sample)
 # little more than the store's metadata; both empty it after. By default it
 # sits beside a repository of homedrive's own; beside the shared one it is a
-# folder on the system disk, enough for the light drill (the full one says
-# when there is not room). Empty turns the drill off.
+# folder of its own on the data disk, which has the room (the system disk of
+# a provisioned VM does not, and the backup disk's mount is the repository
+# itself). The full drill says when there is not room. Empty turns the drill
+# off.
 homedrive_drill_path: >-
   {{ (homedrive_borg_repo ~ '-drill'
       if homedrive_borg_repo != (borg_backup_path | default('/borg_backups'))
-      else '/var/lib/homedrive-drill')
+      else (data_disk_mount_path | default('/data_drive')) ~ '/homedrive-drill')
      if homedrive_borg_repo | length > 0
      else '' }}
 

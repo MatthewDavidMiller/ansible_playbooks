@@ -29,7 +29,7 @@ homedrive_users:                          # Vault
   - {name: bob, password: "...", quota_gb: 200}
 homedrive_exports: "alice:Music=>music"         # optional; see below for the default
 homedrive_borg_repo: /srv/backup/homedrive      # optional, another disk; see below for the default
-homedrive_drill_path: /srv/backup/homedrive-drill   # default: <repo>-drill, off beside the shared repository
+homedrive_drill_path: /srv/backup/homedrive-drill   # default: <repo>-drill; /data_drive/homedrive-drill beside the shared one
 homedrive_borg_passphrase: "..."                     # optional, Vault: encrypt a new repository
 ```
 
@@ -102,10 +102,11 @@ step waits for the lock. Check that the disk has room for the store first (`df -
 `show_logs.yml`'s overview): when it fills, both jobs fail and say so.
 
 Beside the shared repository the drill's scratch folder defaults to
-`/var/lib/homedrive-drill` on the system disk: room enough for the light
-drill. For the full one, set `homedrive_drill_path` to a folder with about
-twice the store's size free; the drill checks and says so when there is not
-room.
+`homedrive-drill` on the data disk (`/data_drive/homedrive-drill`), because
+the system disk of a provisioned VM is small and the backup disk's mount is
+the repository itself. The full drill needs about twice the store's size
+free there; it checks and says so when there is not room. Set
+`homedrive_drill_path` to move it.
 
 ### The restore drill: proof the backups work
 

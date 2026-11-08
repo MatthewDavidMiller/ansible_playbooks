@@ -1588,7 +1588,8 @@ class SharedBorgRepositoryTests(unittest.TestCase):
         """Beside the backup disk's mount it would be the system disk's root."""
         defaults = yaml.safe_load(self.read("roles", "homedrive", "defaults", "main.yml"))
         self.assertIn("homedrive_borg_repo != (borg_backup_path", defaults["homedrive_drill_path"])
-        self.assertIn("'/var/lib/homedrive-drill'", defaults["homedrive_drill_path"])
+        self.assertIn("data_disk_mount_path | default('/data_drive')) ~ '/homedrive-drill'", defaults["homedrive_drill_path"])
+        self.assertNotIn("/var/lib", defaults["homedrive_drill_path"])
         self.assertIn("backup_disk | default('') | length > 0", defaults["homedrive_borg_repo"])
 
     def test_no_drill_runs_on_a_schedule(self):
