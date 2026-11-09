@@ -1,6 +1,6 @@
 # music-server setup and Navidrome retirement
 
-> **Historical:** this guide was written while the previous file service (Nextcloud) still ran on VM1. Where it names `nextcloud_*` variables, the Nextcloud `Music` folder, or a `Nextcloud:` backup location, that service has since been retired (`retire_nextcloud.yml`): music-server now plays homedrive's `Music` export and its backups go to homedrive. See [homedrive.md](homedrive.md).
+> **Historical:** this guide was written while the previous file service (Nextcloud) still ran on VM1. Where it names `nextcloud_*` variables, the Nextcloud `Music` folder, or a `Nextcloud:` backup location, that service has since been retired: music-server now plays homedrive's `Music` export and its backups go to homedrive. See [homedrive.md](homedrive.md).
 
 [music-server](https://github.com/MatthewDavidMiller/music-server) is the
 first-party Subsonic server that replaces Navidrome on VM1. It serves the
@@ -165,46 +165,10 @@ Report those as music-server issues before retiring Navidrome.
 
 ## 5. Retire Navidrome
 
-Done in the repository: the `navidrome` role, its lock entry, its
-`vm1.yml` wiring, and its addresses and route in `network/vm1.yml` are gone.
-That stops `vm1.yml` from managing Navidrome, but it does not remove what
-earlier runs put on VM1. `retire_navidrome.yml` does:
-
-1. Run `vm1.yml` (or `update_homelab_vms.yml`) and let VM1 reboot, so
-   Traefik restarts without Navidrome's route and network.
-2. Check what the cleanup would do, then run it:
-
-   ```bash
-   ansible-playbook -i <inventory> retire_navidrome.yml --check --diff
-   ansible-playbook -i <inventory> retire_navidrome.yml
-   ```
-
-   It stops and removes the service, container, image, scripts, cron job,
-   logs, network, and Traefik route file, and turns off the
-   `virt_use_fusefs` SELinux boolean that only Navidrome's old rclone mount
-   needed. Every step is safe to repeat. If removing the network fails,
-   Traefik still holds it: reboot and run the playbook again.
-
-3. Navidrome's data directory (`navidrome_path`) is kept. To remove it as
-   well, run once more with `-e retire_navidrome_remove_data=true` while
-   `navidrome_path` is still in the inventory. The music and the old
-   database dumps in Nextcloud are never touched.
-4. Remove what Navidrome left in the inventory with the helper. It deletes
-   the `navidrome_*` variables and Navidrome's entries in the route
-   dictionaries, `container_dns.aliases`, `proxy_config`, and
-   `container_service_names`, leaves everything else (comments and vaulted
-   values included) exactly as it was, and prints names and line numbers,
-   never values:
-
-   ```bash
-   python3 scripts/remove_navidrome_inventory.py /path/to/inventory.yml          # preview
-   python3 scripts/remove_navidrome_inventory.py /path/to/inventory.yml --write  # apply
-   ```
-
-   It keeps `navidrome_path`, which step 3 needs; once you are done with
-   the data directory, run it again with `--all --write`. `--write` keeps a
-   mode-0600 copy of the original beside it; delete that once you have
-   checked the result.
-5. Remove the `navidrome` DNS record from Porkbun and the old server from
-   play:Sub. The old dumps under `navidrome_backup_location` in Nextcloud
-   can be deleted by hand once you no longer want them.
+Done. The `navidrome` role, its lock entry, its `vm1.yml` wiring, and its
+addresses and route in `network/vm1.yml` are gone, and so are the one-shot
+cleanup playbook that removed what earlier runs had put on VM1 and the helper
+that removed its settings from the inventory; both were deleted from the
+repository after they had run, and are in the git history. What is left to
+do by hand is to remove the `navidrome` DNS record, remove the old server from
+play:Sub, and delete any old dumps you no longer want.

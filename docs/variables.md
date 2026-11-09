@@ -204,10 +204,10 @@ The Nextcloud, Paperless NGX, PostgreSQL and Redis variables (`nextcloud_*`,
 `password_minimum_length`, `secret_key_minimum_length`, and the files-backup
 variables `ssh_mount_path`, `nextcloud_host`, `nextcloud_backup_path`,
 `backup_ssh_known_hosts`, `borg_backup_hour` and `borg_backup_minute`) went
-with those services. `scripts/remove_nextcloud_inventory.py` renames the three
-that live on under homedrive's names (`nextcloud_disk` to `data_disk`,
-`nextcloud_disk_mount_path` to `data_disk_mount_path`, `nextcloud_homelab_user`
-to `homedrive_main_user`) and removes the rest.
+with those services. Three of them live on under homedrive's names:
+`nextcloud_disk` is now `data_disk`, `nextcloud_disk_mount_path` is
+`data_disk_mount_path`, and `nextcloud_homelab_user` is `homedrive_main_user`.
+The rest are unused and can be deleted from an inventory.
 
 `locale`, `top_domain`, `backup_host`, `swag_path`, `swag_dns_plugin`,
 `standard_update_apply_security_updates`, and the `container_patching_*`

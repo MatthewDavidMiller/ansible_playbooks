@@ -51,7 +51,7 @@ Its fixtures are host directories owned by the subuids its containers run as, so
 
 `scripts/run-runtime-container-tests.sh` therefore runs the suite on the host, and `make test-full` calls it, so this needs no flag. It is the only place in this repository that wants anything on the host beyond Podman itself — `python3` with PyYAML, to read the pinned digests out of the lock files — and it says so and stops rather than failing obscurely if that is missing.
 
-The Python suite includes mocked success and failure paths for artifact promotion, Proxmox provisioning, dynamic DNS, shared validation filters, and VM bootstrap behavior. It also guards the retirement of the Nextcloud stack: its roles, images, routes and addresses stay gone, every service backup goes only to homedrive, and `retire_nextcloud.yml` and `scripts/remove_nextcloud_inventory.py` keep their safety properties (no data removed without a typed confirmation, the Borg repository never removed, no value printed, renames refused onto an existing name).
+The Python suite includes mocked success and failure paths for artifact promotion, Proxmox provisioning, dynamic DNS, shared validation filters, and VM bootstrap behavior. It also guards the retirement of the Nextcloud stack: its roles, images, routes and addresses stay gone, and every service backup goes only to homedrive.
 
 The suite also guards failure recovery in deferred container-network migrations,
 malformed Porkbun record responses, fail-closed Proxmox VM discovery, and atomic
@@ -141,8 +141,6 @@ HOMEDRIVE_IMAGE=ghcr.io/matthewdavidmiller/homedrive@sha256:9aad9f73f00f7647b388
 VAULTWARDEN_IMAGE=ghcr.io/dani-garcia/vaultwarden@sha256:d626d04934cd1192ad8ced1adb975099fca78cec33ab467d2d3c923cde7f3b0c \
 bash scripts/test_container_security.sh
 ```
-
-`scripts/remove_semaphore_inventory.py` and `scripts/remove_navidrome_inventory.py` are thin specs over the shared engine in `scripts/inventory_cleanup.py`. Each has its own tests (`tests/test_remove_semaphore_inventory.py`, `tests/test_remove_navidrome_inventory.py`) that run on made-up inventories: previews print no values, the result parses to the original minus the retired service's settings, comments and `!vault` blocks survive, and it refuses when a leftover reference or an unsupported layout would make the edit unsafe.
 
 ## Image Review Tooling
 

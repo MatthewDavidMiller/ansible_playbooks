@@ -1028,72 +1028,18 @@ class CheckModeTests(unittest.TestCase):
         )
 
 
-class RetireNavidromeTests(unittest.TestCase):
-    """The one-shot cleanup for the retired Navidrome install."""
-
-    def setUp(self):
-        self.play = yaml.safe_load(
-            (REPO_ROOT / "retire_navidrome.yml").read_text(encoding="utf-8")
-        )[0]
-        self.tasks = {task["name"]: task for task in self.play["tasks"]}
-
-    def test_it_is_never_part_of_the_weekly_chain(self):
-        """It can delete a data directory, so it must be run on purpose."""
-        for playbook in ("vm1.yml", "homelab_vms.yml", "update_homelab_vms.yml"):
-            with self.subTest(playbook=playbook):
-                self.assertNotIn(
-                    "retire_navidrome",
-                    (REPO_ROOT / playbook).read_text(encoding="utf-8"),
-                )
-
-    def test_names_are_validated_before_anything_is_removed(self):
-        self.assertEqual(next(iter(self.tasks)), "Validate cleanup inputs")
-
-    def test_read_only_probes_run_in_check_mode(self):
-        for name in ("List Navidrome images", "Check for the Navidrome network"):
-            with self.subTest(task=name):
-                self.assertIs(self.tasks[name]["check_mode"], False)
-
-    def test_data_is_kept_unless_asked(self):
-        self.assertIs(self.play["vars"]["retire_navidrome_remove_data"], False)
-        self.assertEqual(
-            self.tasks["Remove the Navidrome data directory"]["when"],
-            "retire_navidrome_remove_data | bool",
-        )
-        checks = "\n".join(self.tasks["Validate cleanup inputs"]["ansible.builtin.assert"]["that"])
-        self.assertIn("'nextcloud' not in retire_navidrome_data_path", checks)
-        self.assertIn("homelab_safe_absolute_path", checks)
-
-    def test_it_removes_every_artifact_the_role_created(self):
-        paths = "\n".join(self.play["vars"]["retire_navidrome_paths"])
-        for artifact in (
-            "navidrome_container.service",
-            "navidrome_container.sh",
-            "backup_navidrome.sh",
-            "navidrome_backup.log",
-            "rclone-navidrome-cleanup.log",
-        ):
-            with self.subTest(artifact=artifact):
-                self.assertIn(artifact, paths)
-        self.assertEqual(
-            self.tasks["Remove the Navidrome backup cron entry"]["ansible.builtin.cron"],
-            {"name": "Backup navidrome daily", "state": "absent"},
-        )
-        self.assertEqual(self.play["vars"]["retire_navidrome_networks"], ["navidrome_container_net"])
+class RetiredNavidromeTests(unittest.TestCase):
+    """Navidrome is gone from the maintained tree."""
 
     def test_navidrome_is_gone_from_the_maintained_tree(self):
-        """Only the retirement playbook, its guide, and history may name it."""
+        """Only the history documents and the network plan may name it."""
         allowed = {
-            "retire_navidrome.yml",
             "docs/guides/music-server-migration.md",
             "docs/architecture-decisions.md",
-            "docs/playbooks.md",
             "docs/archive.md",
             "docs/index.md",
             "network/vm1.yml",
             "tests/test_ansible_regressions.py",
-            "scripts/remove_navidrome_inventory.py",
-            "tests/test_remove_navidrome_inventory.py",
         }
         tracked = subprocess.run(
             ["git", "ls-files"], cwd=REPO_ROOT, capture_output=True, text=True, check=True
@@ -1103,183 +1049,8 @@ class RetireNavidromeTests(unittest.TestCase):
             if name in allowed or not path.is_file() or path.suffix not in {".yml", ".yaml", ".j2", ".sh", ".py", ".md", ".cfg"}:
                 continue
             text = path.read_text(encoding="utf-8", errors="replace").lower()
-            # Naming the retirement tools themselves (e.g. in lint.sh) is fine.
-            text = text.replace("retire_navidrome", "").replace("remove_navidrome_inventory", "")
             with self.subTest(path=name):
                 self.assertFalse("navidrome" in text, f"{name} still mentions Navidrome")
-
-
-class RetireNextcloudTests(unittest.TestCase):
-    """The one-shot cleanup for the retired Nextcloud stack."""
-
-    def setUp(self):
-        self.play = yaml.safe_load(
-            (REPO_ROOT / "retire_nextcloud.yml").read_text(encoding="utf-8")
-        )[0]
-        self.tasks = {task["name"]: task for task in self.play["tasks"]}
-
-    def test_it_is_never_part_of_the_weekly_chain(self):
-        """It can delete data, so it must be run on purpose."""
-        for playbook in ("vm1.yml", "homelab_vms.yml", "update_homelab_vms.yml"):
-            with self.subTest(playbook=playbook):
-                self.assertNotIn(
-                    "retire_nextcloud",
-                    (REPO_ROOT / playbook).read_text(encoding="utf-8"),
-                )
-
-    def test_names_are_validated_before_anything_is_removed(self):
-        self.assertEqual(next(iter(self.tasks)), "Validate cleanup inputs")
-
-    def test_a_service_that_is_already_gone_is_not_an_error(self):
-        """A second run must pass: systemd words a missing unit either way."""
-        stop = self.tasks["Stop and disable the Nextcloud stack's services"]
-        conditions = "\n".join(stop["failed_when"])
-        for wording in ("could not find", "could not be found"):
-            with self.subTest(wording=wording):
-                self.assertRegex(conditions, rf"search\('.*{wording.split()[-1]}")
-        self.assertIn("| lower", conditions)
-
-    def test_read_only_probes_run_in_check_mode(self):
-        for name in ("List the images", "Check for the Nextcloud stack's networks"):
-            with self.subTest(task=name):
-                self.assertIs(self.tasks[name]["check_mode"], False)
-
-    def test_no_data_is_removed_unless_asked_and_confirmed(self):
-        vars_ = self.play["vars"]
-        for flag in (
-            "retire_nextcloud_remove_nextcloud_data",
-            "retire_nextcloud_remove_paperless_data",
-            "retire_nextcloud_remove_postgres_data",
-        ):
-            with self.subTest(flag=flag):
-                self.assertIs(vars_[flag], False)
-        self.assertEqual(vars_["retire_nextcloud_confirm_delete"], "")
-        checks = "\n".join(self.tasks["Validate cleanup inputs"]["ansible.builtin.assert"]["that"])
-        self.assertIn("retire_nextcloud_confirm_delete == 'delete'", checks)
-        self.assertIn("'homedrive' not in retire_nextcloud_data_path", checks)
-        self.assertIn("homelab_safe_absolute_path", checks)
-        for name, flag in (
-            ("Remove Nextcloud's data folders", "retire_nextcloud_remove_nextcloud_data"),
-            ("Remove Paperless' data", "retire_nextcloud_remove_paperless_data"),
-            ("Remove the PostgreSQL data", "retire_nextcloud_remove_postgres_data"),
-        ):
-            with self.subTest(task=name):
-                self.assertEqual(self.tasks[name]["when"], f"{flag} | bool")
-
-    def test_the_borg_repository_with_the_last_backups_is_never_removed(self):
-        """Paperless' documents now live only in those archives."""
-        folders = self.play["vars"]["retire_nextcloud_data_folders"]
-        self.assertEqual(sorted(folders), ["apps", "base", "config", "data"])
-        self.assertNotIn("borg_backup", folders)
-        guard = self.tasks["Refuse to delete a folder that holds the Borg repository"]
-        self.assertEqual(guard["loop"], "{{ retire_nextcloud_data_folders }}")
-        self.assertIn("retire_nextcloud_borg_path", guard["ansible.builtin.assert"]["that"][0])
-        self.assertEqual(guard["when"], "retire_nextcloud_remove_nextcloud_data | bool")
-        removal = self.tasks["Remove Nextcloud's data folders"]
-        self.assertEqual(removal["loop"], "{{ retire_nextcloud_data_folders }}")
-        self.assertEqual(
-            removal["ansible.builtin.file"]["path"], "{{ retire_nextcloud_data_path }}/{{ item }}"
-        )
-        self.assertEqual(
-            list(self.tasks).index("Refuse to delete a folder that holds the Borg repository"),
-            1,
-            "the guard runs before anything is stopped or removed",
-        )
-
-    def test_it_removes_every_artifact_the_roles_created(self):
-        paths = "\n".join(self.play["vars"]["retire_nextcloud_paths"])
-        for artifact in (
-            "paperless_ngx.service",
-            "nextcloud_container.service",
-            "nextcloud_configure.service",
-            "redis_container.service",
-            "postgres_container.service",
-            "backup_nextcloud_paperless.sh",
-            "backup_files.sh",
-            "nextcloud_scan_path.sh",
-            "postgres.env",
-            "nextcloud.env",
-            "redis.env",
-            "paperless.env",
-        ):
-            with self.subTest(artifact=artifact):
-                self.assertIn(artifact, paths)
-        self.assertEqual(
-            sorted(self.play["vars"]["retire_nextcloud_cron_names"]),
-            ["Backup Nextcloud and Paperless NGX daily", "Borg Backup"],
-        )
-        self.assertEqual(
-            sorted(self.play["vars"]["retire_nextcloud_networks"]),
-            ["nextcloud_container_net", "nextcloud_proxy_net", "paperless_proxy_net"],
-        )
-        self.assertEqual(
-            sorted(self.play["vars"]["retire_nextcloud_containers"]),
-            ["nextcloud", "paperless", "postgres", "redis"],
-        )
-
-    def test_the_services_stop_before_their_containers_and_networks_go(self):
-        order = list(self.tasks)
-        stop = order.index("Stop and disable the Nextcloud stack's services")
-        self.assertLess(stop, order.index("Remove the Nextcloud stack's containers"))
-        self.assertLess(
-            order.index("Remove the Nextcloud stack's containers"),
-            order.index("Remove the Nextcloud stack's networks"),
-        )
-        units = self.play["vars"]["retire_nextcloud_units"]
-        self.assertLess(units.index("paperless_ngx"), units.index("postgres_container"))
-        self.assertLess(units.index("nextcloud_container"), units.index("postgres_container"))
-
-
-class RetireSemaphoreTests(unittest.TestCase):
-    """The one-shot cleanup for the retired Semaphore install."""
-
-    def setUp(self):
-        self.play = yaml.safe_load(
-            (REPO_ROOT / "retire_semaphore.yml").read_text(encoding="utf-8")
-        )[0]
-        self.tasks = {task["name"]: task for task in self.play["tasks"]}
-
-    def test_it_is_never_part_of_the_weekly_chain(self):
-        """It deletes a database, so it must be run on purpose."""
-        for playbook in ("vm1.yml", "homelab_vms.yml", "update_homelab_vms.yml"):
-            with self.subTest(playbook=playbook):
-                self.assertNotIn(
-                    "retire_semaphore",
-                    (REPO_ROOT / playbook).read_text(encoding="utf-8"),
-                )
-
-    def test_read_only_probes_run_in_check_mode(self):
-        for name in ("List Semaphore images", "Check for Semaphore networks"):
-            with self.subTest(task=name):
-                self.assertIs(self.tasks[name]["check_mode"], False)
-
-    def test_database_is_dropped_only_when_it_is_named(self):
-        conditions = self.tasks["Drop the Semaphore database and role"]["when"]
-        self.assertIn("retire_semaphore_database | length > 0", conditions)
-        self.assertIn("retire_semaphore_db_user | length > 0", conditions)
-
-    def test_names_are_validated_before_anything_is_removed(self):
-        self.assertEqual(
-            next(iter(self.tasks)), "Validate cleanup inputs"
-        )
-
-    def test_it_removes_every_artifact_the_role_created(self):
-        paths = "\n".join(self.play["vars"]["retire_semaphore_paths"])
-        for artifact in (
-            "semaphore.service",
-            "semaphore.sh",
-            "backup_semaphore.sh",
-            "/etc/semaphore",
-            "/var/lib/semaphore",
-            "semaphore.env",
-            "semaphore_backup.log",
-        ):
-            with self.subTest(artifact=artifact):
-                self.assertIn(artifact, paths)
-        self.assertEqual(
-            self.tasks["Remove the Semaphore backup cron entry"]["ansible.builtin.cron"],
-            {"name": "Backup Semaphore", "state": "absent"},
-        )
 
 
 class HomedriveImportTests(unittest.TestCase):

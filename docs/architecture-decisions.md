@@ -149,7 +149,7 @@ This document records explicit design decisions and rejected alternatives for th
 
 ## Decision: music-server Replaces Navidrome
 
-**Decision:** Music streaming on VM1 moves from Navidrome to music-server, a first-party Rust Subsonic server. It ran beside Navidrome on its own route until play:Sub had been checked against it; the `navidrome` role was then removed, and `retire_navidrome.yml` cleans the old install off VM1.
+**Decision:** Music streaming on VM1 moves from Navidrome to music-server, a first-party Rust Subsonic server. It ran beside Navidrome on its own route until play:Sub had been checked against it; the `navidrome` role was then removed, and a one-shot playbook (since deleted) cleaned the old install off VM1.
 
 **Rationale:**
 
@@ -164,7 +164,7 @@ This document records explicit design decisions and rejected alternatives for th
 
 ## Decision: Nextcloud, Paperless, PostgreSQL and Redis Retire
 
-**Decision:** The previous file service (Nextcloud), Paperless NGX, and the PostgreSQL and Redis containers that served only those two are removed from `vm1.yml`. homedrive holds the files. `retire_nextcloud.yml` removes what the roles left on VM1, and `scripts/remove_nextcloud_inventory.py` moves an inventory off their variables.
+**Decision:** The previous file service (Nextcloud), Paperless NGX, and the PostgreSQL and Redis containers that served only those two are removed from `vm1.yml`. homedrive holds the files. A one-shot playbook removed what the roles had left on VM1, and a helper script moved the inventory off their variables; both were deleted after they had run and are in the git history.
 
 **Rationale:**
 

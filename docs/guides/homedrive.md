@@ -287,7 +287,7 @@ same files. A run with no tags counts what the drive lacks, by size and
 without reading files, stops before writing anything if that is more than
 `homedrive_import_max_missing` (100), imports only the missing files, and
 checks again that nothing is missing. Old versions are not imported; they
-stayed in the previous service, which has since been retired (`retire_nextcloud.yml`).
+stayed in the previous service, which has since been retired.
 
 A full check may find differences you have looked into and decided are
 harmless. Put them in `homedrive_import_accepted` in the inventory (a block

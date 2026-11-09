@@ -54,30 +54,6 @@ This document covers the maintained playbooks only. Legacy playbooks are preserv
 
 ---
 
-## `retire_navidrome.yml`
-
-**Target:** `vm1`
-
-**Usage:** One-shot cleanup of the Navidrome install that `vm1.yml` no longer manages, now that music-server serves the library. Run it once, after `vm1.yml` has converged and VM1 has rebooted. It stops and removes the Navidrome service, container, image, launch and backup scripts, backup cron entry, and logs, removes its Podman network and its Traefik route file, and turns off the `virt_use_fusefs` SELinux boolean that only Navidrome's old rclone mount needed. Every task is safe to repeat. It is not part of `update_homelab_vms.yml`. See [guides/music-server-migration.md](guides/music-server-migration.md#5-retire-navidrome).
-
-**Data:** Navidrome's data directory is kept. To delete it too, run with `-e retire_navidrome_remove_data=true` while `navidrome_path` is still in the inventory; the play refuses a path under Nextcloud or a bare parent such as `/opt`. The music and the final database dumps are never touched. `-e retire_navidrome_disable_fusefs=false` leaves the SELinux boolean as it is. Afterwards, `scripts/remove_navidrome_inventory.py` removes the Navidrome settings from the inventory.
-
-**Failure:** removing the network fails while a container still uses it. That means Traefik has not restarted since `vm1.yml` dropped the route; reboot VM1 and run it again.
-
----
-
-## `retire_semaphore.yml`
-
-**Target:** `vm1`
-
-**Usage:** One-shot cleanup of the Semaphore install that `vm1.yml` no longer manages. Run it once, after `vm1.yml` has converged and VM1 has rebooted. It stops and removes the Semaphore service, container, image, launch and backup scripts, backup cron entry, config, state, secrets file, and log, removes its two Podman networks and its Traefik route file, and drops its PostgreSQL database and role. Every task is safe to repeat. It is not part of `update_homelab_vms.yml`, because it deletes a database. See [guides/playbook-runner-migration.md](guides/playbook-runner-migration.md#4-retire-semaphore).
-
-**Inventory:** keep `semaphore_database_name`, `semaphore_db_user`, and `postgres_admin_user` until it has run; without the first two the database and role are left in place and the play says so. `semaphore_egress_network` and `secret_env_dir` are optional and default to their old values. The final Semaphore dumps in the Nextcloud tree are not touched.
-
-**Failure:** removing a network fails while a container still uses it. That means Traefik has not restarted since `vm1.yml` dropped the route; reboot VM1 and run it again.
-
----
-
 ## `homedrive_import.yml`
 
 **Target:** `vm1`
@@ -92,25 +68,11 @@ This document covers the maintained playbooks only. Legacy playbooks are preserv
 
 Both slow checks read with several threads (homedrive 0.1.10 or later). `fsck --deep` reads each chunk once however many versions share it and recomputes the file hash of the current versions; the older and trashed versions have every chunk verified against its own ID. It logs its progress on the server (`podman logs homedrive`) every half minute. `homedrive_import_jobs` sets the threads `verify-tree` hashes with (up to 4 by default), and `homedrive_import_fsck_args` (default `--deep`) can add `--all-files`, to recompute the file hash of every old and trashed version too (this can read far more than the store holds), and `--jobs=N`.
 
-**Inventory:** `homedrive_import_user` defaults to `homedrive_main_user` (or `nextcloud_homelab_user` in an inventory not yet moved by `scripts/remove_nextcloud_inventory.py`) and must be one of `homedrive_users`. `homedrive_import_src`, `homedrive_import_dest` (the drive's root by default), `homedrive_import_max_missing`, `homedrive_import_cache_dir`, and `homedrive_import_timeout_s` (24 hours per step) can be overridden; the cache may not be inside, or contain, the source or the store. The full output, file names included, goes to `/var/log/homedrive_import.log`; the run log shows summaries and at most 50 file lines per step.
+**Inventory:** `homedrive_import_user` defaults to `homedrive_main_user` (or `nextcloud_homelab_user` in an older inventory) and must be one of `homedrive_users`. `homedrive_import_src`, `homedrive_import_dest` (the drive's root by default), `homedrive_import_max_missing`, `homedrive_import_cache_dir`, and `homedrive_import_timeout_s` (24 hours per step) can be overridden; the cache may not be inside, or contain, the source or the store. The full output, file names included, goes to `/var/log/homedrive_import.log`; the run log shows summaries and at most 50 file lines per step.
 
 **Reviewed differences:** a full check can find differences that have been looked into and are harmless, such as files you have edited in the drive since the copy, or files re-saved in the source with their metadata rewritten. List them in `homedrive_import_accepted`, in the inventory and never in this repository, because it names files: lines of `<sha256>  <path>`, the path under the source and the SHA-256 of the source content that was reviewed. A missing or different file is accepted only while its source still has exactly that content, so an edit after the review is reported again, marked "reviewed, but changed since", and a file not listed is never accepted. The summary counts what was accepted. The play checks the format, writes the list to a root-only file in the cache folder (never to the run log), removes it again when the variable is empty, and refuses to run with a list on a homedrive older than 0.1.8, which would ignore it.
 
 **Isolation:** the import runs in a one-off container from the running server's image with no network, the source and the store both mounted read-only, the cache directory its only writable mount, and SELinux separation off for that container only, so neither tree is relabeled. It reads the Nextcloud files through their group, and writes to the drive only through the server's admin socket.
-
----
-
-## `retire_nextcloud.yml`
-
-**Target:** `vm1`
-
-**Usage:** One-shot cleanup of the Nextcloud, Paperless NGX, PostgreSQL and Redis install that `vm1.yml` no longer manages, now that homedrive holds the files. Run it in check mode first (`--check`), then for real, after the final `homedrive_import.yml` `full` run is clean, `scripts/remove_nextcloud_inventory.py --write` has moved the inventory, and `vm1.yml` has converged. It stops and disables the five units, removes the four containers, their images, the three Podman networks (`nextcloud_container_net`, `nextcloud_proxy_net`, `paperless_proxy_net`), the launch, scan and backup scripts, the two cron entries (`Backup Nextcloud and Paperless NGX daily` and `Borg Backup`), the env files in `secret_env_dir`, the Borg logs, and the Nextcloud and Paperless Traefik route files. Every task is safe to repeat. It is not part of `update_homelab_vms.yml`, because it can delete data.
-
-**Data:** all of it is kept. Each of `retire_nextcloud_remove_nextcloud_data` (the `data`, `base`, `config` and `apps` folders under `nextcloud_path`), `retire_nextcloud_remove_paperless_data` (`paperless_path`) and `retire_nextcloud_remove_postgres_data` (`postgres_path`) deletes one, and any of them also needs `-e retire_nextcloud_confirm_delete=delete`. The play refuses a path under homedrive or a bare parent such as `/opt`. The Borg repository inside `nextcloud_path` (`nextcloud_borg_backup_path`) holds the last Paperless and database backups, so it is never removed, and the play refuses to delete a folder that contains it. Neither are the older `nextcloud_backup-*` archives in the backup disk's repository. The SELinux rule for the data tree is left as it is, and the `Nextcloud` rclone remote disappears the next time `vm1.yml` rewrites root's rclone config.
-
-**Failure:** removing a network fails while a container still uses it. That means Traefik has not restarted since `vm1.yml` dropped the routes; reboot VM1, then run this again.
-
-**Inventory:** keep `nextcloud_path`, `paperless_path`, `postgres_path` and `nextcloud_borg_backup_path` until it has run; they are optional, with their old defaults. Afterwards run `scripts/remove_nextcloud_inventory.py --all --write`.
 
 ---
 
