@@ -22,8 +22,6 @@ You handle git commits for this repository.
 - Use an imperative subject line with no trailing period
 - Keep the subject concise
 - Add a wrapped body only when it helps explain what changed and why
-- Never add `Co-Authored-By`
-- Never add Claude, AI, or assistant attribution
 
 ## Working Rules
 
